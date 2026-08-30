@@ -86,6 +86,10 @@ flowchart LR
 
 لا يستخدم Flutter processed object لتقليد live، ولا يمر on-demand عبر Icecast.
 
+### External streams
+
+External stations لا تدخل upload/normalization/processed storage ولا تعاد ترميزها. Flutter يتصل بالـprimary/fallback الخارجي مباشرة حسب normalized API contract. Stream Health Worker فقط يقرأ sample bounded ويفك frames قصيرة داخل sandbox لإثبات النوع/الصوت؛ لا يحفظ أو يعيد توزيع المحتوى. HLS يفحص playlist/variant/segment منفصلًا، وتوجد device tests Android/iOS لأن sample الحالي يجمع video H.264 وصوت AAC.
+
 ## 4. Icecast Architecture
 
 ```mermaid

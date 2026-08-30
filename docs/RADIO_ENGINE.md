@@ -2,6 +2,8 @@
 
 تفاصيل حساب occurrences والـDST والـmissed schedules موجودة في [`SCHEDULER.md`](./SCHEDULER.md). هذه الوثيقة تبقى المرجع لقرارات الحالة والـQueue والتنفيذ الصوتي.
 
+> **Boundary:** هذه الحالة والـQueue والـCommands تنطبق على `station_source=INTERNAL` فقط. EXTERNAL station لا تملك Engine state/lease/schedule/playlist/command، ويمنعها API وDB triggers. انظر [`EXTERNAL_STATIONS.md`](./EXTERNAL_STATIONS.md).
+
 ## 1. Radio Engine State Machine
 
 ```mermaid

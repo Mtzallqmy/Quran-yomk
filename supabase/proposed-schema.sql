@@ -12,6 +12,10 @@ create type app.schedule_type as enum ('ONE_TIME','DAILY','WEEKLY');
 create type app.content_type as enum ('MEDIA','PLAYLIST','PROGRAM');
 create type app.interrupt_policy as enum ('FINISH_CURRENT','INTERRUPT','PLAY_NEXT');
 create type app.priority_level as enum ('LOW','NORMAL','HIGH','EMERGENCY','LIVE');
+create type app.station_source as enum ('INTERNAL','EXTERNAL');
+create type app.stream_health_status as enum ('HEALTHY','DEGRADED','UNREACHABLE','INVALID','UNKNOWN');
+create type app.rights_status as enum ('UNKNOWN','REVIEW_REQUIRED','APPROVED','RESTRICTED','DISABLED');
+create type app.commercial_use_status as enum ('UNKNOWN','REVIEW_REQUIRED','ALLOWED','NOT_ALLOWED');
 create type radio.command_type as enum ('PLAY_NOW','PLAY_NEXT','SKIP','STOP_AFTER_CURRENT','RESUME_AUTO','START_LIVE','STOP_LIVE');
 create type radio.command_status as enum ('PENDING','PROCESSING','COMPLETED','FAILED','CANCELLED');
 create type radio.engine_mode as enum ('STARTING','AUTO','SCHEDULED','MANUAL','LIVE','RECOVERING','ERROR','STOPPED');
@@ -53,7 +57,7 @@ create table app.administrator_roles (
 
 create table app.categories (
   id uuid primary key default gen_random_uuid(), parent_id uuid references app.categories(id) on delete restrict,
-  slug text not null unique, name_ar text not null, name_en text,
+  slug text not null unique, name_ar text not null, name_en text, icon_key text,
   is_active boolean not null default true, sort_order integer not null default 0,
   created_at timestamptz not null default now(), updated_at timestamptz not null default now(), deleted_at timestamptz
 );
@@ -98,12 +102,60 @@ create table app.reciter_tracks (
   check (media_id is not null or audio_url is not null), unique (reciter_id, surah_id, quality)
 );
 
+create table app.content_provider_types (
+  code text primary key check (code ~ '^[A-Z_]+$'),
+  description text not null, created_at timestamptz not null default now()
+);
+create table app.stream_types (
+  code text primary key check (code ~ '^[A-Z_]+$'),
+  description text not null, is_active boolean not null default true,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create table app.content_providers (
+  id uuid primary key default gen_random_uuid(),
+  name text not null, slug text not null unique,
+  provider_type text not null references app.content_provider_types(code) on delete restrict,
+  website_url text, api_base_url text, is_active boolean not null default true,
+  production_enabled boolean not null default false,
+  priority integer not null default 100 check (priority >= 0),
+  health_status app.stream_health_status not null default 'UNKNOWN',
+  last_checked_at timestamptz, last_success_at timestamptz,
+  rights_status app.rights_status not null default 'REVIEW_REQUIRED',
+  commercial_use_status app.commercial_use_status not null default 'UNKNOWN',
+  attribution_required boolean not null default false, attribution_text text,
+  terms_url text, source_url text, verified_at timestamptz, internal_notes text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now(), deleted_at timestamptz,
+  check (not production_enabled or (rights_status = 'APPROVED' and commercial_use_status = 'ALLOWED'))
+);
+
 create table app.stations (
-  id uuid primary key default gen_random_uuid(), name_ar text not null, name_en text,
+  id uuid primary key default gen_random_uuid(),
+  provider_id uuid not null references app.content_providers(id) on delete restrict,
+  name_ar text not null, name_en text, search_name_ar text, search_name_en text,
   slug text not null unique check (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'), description text, logo_url text,
-  stream_url text not null, fallback_stream_url text, timezone text not null,
+  category_id uuid references app.categories(id) on delete restrict,
+  station_source app.station_source not null,
+  stream_type text not null references app.stream_types(code) on delete restrict,
+  stream_url text not null, fallback_stream_url text, timezone text,
   status app.station_status not null default 'OFFLINE', default_playlist_id uuid,
-  is_active boolean not null default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), deleted_at timestamptz
+  is_active boolean not null default true, is_featured boolean not null default false,
+  production_enabled boolean not null default false,
+  health_status app.stream_health_status not null default 'UNKNOWN',
+  last_health_check timestamptz, last_success_at timestamptz,
+  consecutive_failures integer not null default 0 check (consecutive_failures >= 0),
+  sort_order integer not null default 0,
+  external_key text, last_seen_at timestamptz, source_url text,
+  rights_status app.rights_status not null default 'REVIEW_REQUIRED',
+  commercial_use_status app.commercial_use_status not null default 'UNKNOWN',
+  attribution_required boolean not null default false, attribution_text text,
+  terms_url text, rights_verified_at timestamptz, internal_notes text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now(), deleted_at timestamptz,
+  unique (provider_id, external_key),
+  check (station_source = 'EXTERNAL' or timezone is not null),
+  check (station_source = 'INTERNAL' or default_playlist_id is null),
+  check (not production_enabled or (rights_status = 'APPROVED' and commercial_use_status = 'ALLOWED'))
 );
 create table app.playlists (
   id uuid primary key default gen_random_uuid(), station_id uuid not null references app.stations(id) on delete restrict,
@@ -114,6 +166,53 @@ create table app.playlists (
 );
 alter table app.stations add constraint stations_default_playlist_fk
   foreign key (id, default_playlist_id) references app.playlists(station_id, id);
+create table app.stream_health_checks (
+  id bigint generated always as identity primary key,
+  station_id uuid not null references app.stations(id) on delete cascade,
+  checked_at timestamptz not null default now(),
+  status app.stream_health_status not null,
+  http_status integer check (http_status is null or http_status between 100 and 599),
+  response_time_ms integer check (response_time_ms is null or response_time_ms >= 0),
+  content_type text, detected_stream_type text references app.stream_types(code) on delete restrict,
+  audio_detected boolean, bytes_sampled bigint check (bytes_sampled is null or bytes_sampled >= 0),
+  error_code text, error_message text, metadata jsonb not null default '{}'::jsonb
+);
+create table app.stream_health_jobs (
+  id uuid primary key default gen_random_uuid(),
+  station_id uuid not null references app.stations(id) on delete cascade,
+  idempotency_key text not null unique,
+  status text not null check (status in ('PENDING','PROCESSING','COMPLETED','FAILED','CANCELLED')),
+  priority integer not null default 100 check (priority >= 0),
+  scheduled_at timestamptz not null default now(), attempts smallint not null default 0 check (attempts >= 0),
+  claimed_by text, claimed_at timestamptz, heartbeat_at timestamptz,
+  requested_by uuid references app.administrators(id) on delete set null,
+  error_code text, error_message text,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create table app.provider_sync_runs (
+  id uuid primary key default gen_random_uuid(),
+  provider_id uuid not null references app.content_providers(id) on delete restrict,
+  idempotency_key text not null unique,
+  status text not null check (status in ('PENDING','RUNNING','COMPLETED','PARTIAL','FAILED','CANCELLED')),
+  claimed_by text, claimed_at timestamptz, heartbeat_at timestamptz,
+  started_at timestamptz, finished_at timestamptz,
+  fetched_count integer not null default 0, inserted_count integer not null default 0,
+  updated_count integer not null default 0, unchanged_count integer not null default 0,
+  missing_count integer not null default 0, invalid_count integer not null default 0,
+  cursor_data jsonb not null default '{}'::jsonb,
+  error_code text, error_message text, metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create table app.provider_station_records (
+  id uuid primary key default gen_random_uuid(),
+  provider_id uuid not null references app.content_providers(id) on delete restrict,
+  station_id uuid not null references app.stations(id) on delete restrict,
+  external_key text not null, discovered_name text, discovered_stream_url text,
+  normalized_hash text, last_seen_at timestamptz not null,
+  missing_since timestamptz, raw_metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+  unique (provider_id, external_key)
+);
 create table app.playlist_items (
   id uuid primary key default gen_random_uuid(), playlist_id uuid not null references app.playlists(id) on delete cascade,
   media_id uuid not null references app.media(id) on delete restrict,
@@ -258,6 +357,14 @@ create table app.station_metrics_minute (
 
 create index media_filter_idx on app.media (status, category_id, reciter_id, created_at desc) where deleted_at is null;
 create index reciters_search_ar_idx on app.reciters using gin (search_name_ar gin_trgm_ops) where deleted_at is null;
+create index stations_catalog_idx on app.stations (is_active, production_enabled, health_status, category_id, sort_order) where deleted_at is null;
+create index stations_search_ar_idx on app.stations using gin (search_name_ar gin_trgm_ops) where deleted_at is null;
+create index stations_search_en_idx on app.stations using gin (search_name_en gin_trgm_ops) where deleted_at is null;
+create index stations_provider_seen_idx on app.stations (provider_id, last_seen_at desc) where station_source='EXTERNAL' and deleted_at is null;
+create index stream_health_station_time_idx on app.stream_health_checks (station_id, checked_at desc);
+create index stream_health_jobs_pending_idx on app.stream_health_jobs (scheduled_at, priority desc, id) where status='PENDING';
+create index provider_sync_provider_time_idx on app.provider_sync_runs (provider_id, created_at desc);
+create index provider_station_records_station_idx on app.provider_station_records (station_id, provider_id);
 create index playlist_items_order_idx on app.playlist_items (playlist_id, position);
 create index schedules_due_idx on app.schedules (next_run_at, priority) where enabled and deleted_at is null;
 create index occurrences_due_idx on radio.schedule_occurrences (station_id, scheduled_for, priority) where status='PENDING';
@@ -276,6 +383,74 @@ do $$ declare r record; begin
       r.table_schema, r.table_name);
   end loop;
 end $$;
+
+create function app.require_internal_station() returns trigger language plpgsql set search_path = '' as $$
+declare source app.station_source;
+begin
+  select s.station_source into source from app.stations s where s.id = new.station_id;
+  if source is distinct from 'INTERNAL'::app.station_source then
+    raise exception 'station must be INTERNAL for automation resources';
+  end if;
+  return new;
+end $$;
+revoke all on function app.require_internal_station() from public, anon, authenticated;
+
+create trigger playlists_internal_station before insert or update of station_id on app.playlists
+for each row execute function app.require_internal_station();
+create trigger programs_internal_station before insert or update of station_id on app.programs
+for each row execute function app.require_internal_station();
+create trigger schedules_internal_station before insert or update of station_id on app.schedules
+for each row execute function app.require_internal_station();
+create trigger commands_internal_station before insert or update of station_id on radio.radio_commands
+for each row execute function app.require_internal_station();
+
+create function app.enforce_station_production_rights() returns trigger language plpgsql set search_path = '' as $$
+declare p_active boolean; p_production boolean; p_rights app.rights_status; p_commercial app.commercial_use_status;
+begin
+  if new.production_enabled then
+    select p.is_active, p.production_enabled, p.rights_status, p.commercial_use_status
+      into p_active, p_production, p_rights, p_commercial
+      from app.content_providers p where p.id = new.provider_id and p.deleted_at is null;
+    if p_active is distinct from true
+       or p_production is distinct from true
+       or p_rights is distinct from 'APPROVED'::app.rights_status
+       or p_commercial is distinct from 'ALLOWED'::app.commercial_use_status then
+      raise exception 'provider rights do not permit production publication';
+    end if;
+  end if;
+  return new;
+end $$;
+revoke all on function app.enforce_station_production_rights() from public, anon, authenticated;
+create trigger stations_production_rights before insert or update of
+  provider_id, production_enabled, rights_status, commercial_use_status on app.stations
+for each row execute function app.enforce_station_production_rights();
+
+create function app.disable_stations_for_unapproved_provider() returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.is_active is distinct from true
+     or new.production_enabled is distinct from true
+     or new.rights_status is distinct from 'APPROVED'::app.rights_status
+     or new.commercial_use_status is distinct from 'ALLOWED'::app.commercial_use_status then
+    update app.stations set production_enabled = false
+      where provider_id = new.id and production_enabled = true;
+  end if;
+  return new;
+end $$;
+revoke all on function app.disable_stations_for_unapproved_provider() from public, anon, authenticated;
+create trigger providers_disable_unapproved_stations after update of
+  is_active, production_enabled, rights_status, commercial_use_status on app.content_providers
+for each row execute function app.disable_stations_for_unapproved_provider();
+
+create function app.prevent_invalid_station_source_change() returns trigger language plpgsql set search_path = '' as $$
+begin
+  if old.station_source is distinct from new.station_source then
+    raise exception 'station_source is immutable; create a new station record instead';
+  end if;
+  return new;
+end $$;
+revoke all on function app.prevent_invalid_station_source_change() from public, anon, authenticated;
+create trigger stations_source_boundary before update of station_source on app.stations
+for each row execute function app.prevent_invalid_station_source_change();
 
 do $$ declare r record; begin
   for r in select schemaname, tablename from pg_tables where schemaname in ('app','radio') loop

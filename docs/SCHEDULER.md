@@ -4,6 +4,8 @@
 
 Scheduler يحول تعريفات `ONE_TIME`, `DAILY`, `WEEKLY` إلى occurrences UTC ثابتة. لا يشغّل الصوت ولا يرسل FFmpeg commands؛ يقدّم occurrences المستحقة إلى Queue Manager. قاعدة البيانات هي ledger، وخوارزمية حساب المواعيد pure ومشتركة بين preview والتنفيذ.
 
+Scheduler يقبل `INTERNAL` stations فقط. EXTERNAL stations موجودة في radio catalog ولا تملك schedule aggregates؛ API وDB trigger يرفضان أي محاولة cross-boundary.
+
 ## 2. نموذج الوقت
 
 - schedule يحتفظ بـ`start_date`, `end_date`, `start_time`, `timezone` بصيغة IANA، و`days_of_week` عند WEEKLY.

@@ -15,6 +15,7 @@
 | المجال | المتطلبات الملزمة للـMVP |
 |---|---|
 | Live Radio | محطة 24/7، mount ثابت، كل المستمعين في اللحظة نفسها، Now Playing، primary/fallback stream |
+| External Radio | provider catalog، adapters/sync، direct playback، protocol health، fallback، rights/production gate |
 | Media | upload، validation، حالات UPLOADING/PROCESSING/READY/FAILED، معالجة مرة واحدة، preview/archive/search/filter |
 | Automation | default playlist، playlists مرتبة، ONE_TIME/DAILY/WEEKLY، Play Now/Next/Interrupt، Skip، Resume Auto |
 | Catalog | readers، 114 surahs seed، reciter tracks، categories، بحث عربي/إنجليزي |
@@ -64,6 +65,7 @@ flowchart TB
     DB[("Supabase Postgres")]
     Store[("Object Storage")]
     Worker["Audio Worker"]
+    ProviderWorker["Provider Sync + Stream Health"]
   end
   subgraph Playout["Playout Plane / Station"]
     Engine["Radio Engine"]
@@ -80,6 +82,10 @@ flowchart TB
   Engine --> Render
   Render --> Icecast
   Mobile -->|"one live mount"| Icecast
+  Providers["External Providers"] --> ProviderWorker
+  ProviderWorker --> DB
+  API -->|"normalized catalog"| Mobile
+  Mobile -->|"direct external stream"| Providers
 ```
 
 ### مسار التحكم
@@ -97,6 +103,14 @@ flowchart TB
 3. Render adapter يحافظ على encoder/source connection واحد مستمر.
 4. Icecast يوزع البث نفسه على جميع المستمعين؛ لا اتصال file-per-listener.
 
+### مسار المحطات الخارجية
+
+1. Provider Adapter يجلب/يطبع البيانات إلى internal model ويكتب catalog فقط.
+2. Stream Health Worker يفحص source فعليًا ويحدث health/history ضمن pool مستقل.
+3. Public API يعيد station DTO موحدًا؛ Flutter يتصل بالمصدر الخارجي مباشرة.
+4. لا schedule/queue/radio command لمحطة EXTERNAL، ولا external fallback لمسار INTERNAL.
+5. فشل Provider API أو كل External Streams لا يملك مسارًا لإسكات Icecast الداخلي.
+
 ## 3. مسؤوليات المكونات
 
 | المكون | مسؤولياته | لا يفعله |
@@ -107,6 +121,8 @@ flowchart TB
 | PostgreSQL | source of truth، constraints، leases، audit، occurrence ledger | ليس message bus صوتيًا |
 | Storage | original/processed/artwork، signed access | لا يحمل حالة الجدولة |
 | Audio Worker | probe/normalize/encode/metadata/checksum | لا يشغّل مادة غير `READY` |
+| Provider Adapters | fetch/normalize/compare/sync provider catalogs | لا يكتب radio queue ولا يكشف raw schema لـFlutter |
+| Stream Health Worker | bounded protocol-aware probes وhealth history | لا يكتفي HTTP 200 ولا يمرر الصوت للمستمع |
 | Scheduler داخل Engine | materialize due occurrences بوقت المحطة | لا يغيّر تعريف schedule |
 | Queue Manager | deterministic candidate selection وresume frames | لا يقبل mutation من UI |
 | Radio Engine | state/leader/commands/checkpoints/recovery | لا يخدم المستمعين مباشرة |
@@ -120,6 +136,7 @@ flowchart TB
 - **Workers/Engine:** TypeScript service مناسب لتشارك الأنواع، مع child-process supervision. إن أثبت اختبار soak أن jitter/GC يؤثر في playout، يبقى render adapter منفصلًا ولا يلزم تغيير control logic.
 - **Playout:** التوصية Liquidsoap كطبقة playout مصممة للراديو، مع FFmpeg للـprobe/processing. البديل custom long-lived FFmpeg encoder يتغذى PCM؛ يحتاج إثبات gapless/failover أصعب. هذا قرار اعتماد قبل التنفيذ.
 - **Supabase:** Managed Postgres/Auth/Storage؛ لا تُستخدم Edge Functions للعمل الدائم.
+- **External stations:** direct playback هو default؛ أي proxy يحتاج ADR وrights/capacity approval. Provider-specific code يبقى في adapters داخل Backend.
 
 ## 5. حدود الاتساق
 

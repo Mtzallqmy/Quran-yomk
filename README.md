@@ -17,6 +17,7 @@
 | `docs/SCHEDULER.md` | Timezone/DST، occurrences، conflicts، restart/idempotency |
 | `docs/API.md` | Public/Admin API والعقود والأخطاء والتصفح والإديمبوتنسي |
 | `docs/AUDIO_PIPELINE.md` | Storage، FFmpeg، Icecast، فصل Live عن On-Demand |
+| `docs/EXTERNAL_STATIONS.md` | Providers، adapters، sync، health، rights، Flutter catalog |
 | `docs/SECURITY.md` | Auth/RBAC، الأمن، المراقبة، Watchdog والاستعادة |
 | `docs/DEPLOYMENT.md` | البيئات، topology، CI/CD، Monorepo، DR |
 | `docs/MVP_PLAN.md` | Tasks صغيرة، معايير القبول، Gate المرحلة الثانية |
@@ -34,6 +35,8 @@
 8. **Never Silence متعدد الطبقات.** scheduled/manual → default playlist → emergency cache → short bounded silence only أثناء تبديل decoder، مع encoder/source connection مستمر.
 9. **On-Demand منفصل.** روابط ملفات/CDN قابلة للـseek ولا تمر عبر Icecast أو Queue المحطة.
 10. **MVP محطة واحدة لكن كل البيانات والleases والmetrics مرتبطة بـ`station_id`.**
+11. **Unified station catalog مع execution boundaries.** INTERNAL فقط يدخل Scheduler/Queue/Commands؛ EXTERNAL يشغّل direct من المصدر ولا يؤثر عطله في البث المملوك.
+12. **External rights deny-by-default.** جميع seed الخارجية `REVIEW_REQUIRED`, `UNKNOWN`, و`production_enabled=false` حتى مراجعة الحقوق.
 
 ## نقاط تحتاج اعتماد المالك
 
@@ -46,6 +49,7 @@
 | زمن الاحتفاظ | commands/events سنة، play history 13 شهرًا، logs الساخنة 30 يومًا | يؤثر على التكلفة والامتثال |
 | Region/Timezone أول محطة | يحددها المالك؛ timezone يجب أن يكون IANA مثل `Asia/Riyadh` | مطلوب قبل Seed المحطة واختبارات DST |
 | تصنيف مشروع Supabase الحالي | اجعله `development` أو `staging`، وليس production قبل اختبارات الاستعادة والأمن | يمنع خلط بيانات/أسرار البيئات |
+| سياسة نشر المصادر الخارجية | اعتماد workflow الحقوق والـattribution قبل تحويل أي source إلى production | الروابط العامة ليست ترخيصًا |
 
 ## شرط الانتقال للمرحلة الثانية
 

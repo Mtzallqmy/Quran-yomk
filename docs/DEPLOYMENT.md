@@ -9,6 +9,8 @@ flowchart TB
   Nginx --> API["REST API"]
   API --> Supa["Supabase Auth/Postgres/Storage"]
   Worker["Audio Worker + FFmpeg"] --> Supa
+  External["Provider Sync + Stream Health"] --> Supa
+  External --> Providers["External Providers"]
   Engine["Radio Engine + Scheduler + Queue"] --> Supa
   Engine --> Playout["Continuous Playout"]
   Playout --> Icecast["Icecast A/B"]
@@ -27,6 +29,7 @@ Control Plane: Next.js, API, Supabase, Worker. Playout Plane: Engine, Scheduler,
 | REST API | local | 1 replica | ≥2 replicas عند الحاجة، bounded pools |
 | Supabase | local stack مفضل | مشروع/branch معزول | managed project + backup/PITR |
 | Audio Worker/FFmpeg | container غير root | 1 worker | pool قابل للتوسع حسب queue |
+| Provider Sync/Health | local bounded worker | isolated queue/pool | connection/resource budget منفصل عن Engine |
 | Radio Engine | 1 local instance | active + crash tests | active/standby، leader واحد/station |
 | Playout | local adapter | production-like | process معزول لكل station أو isolation مكافئ |
 | Icecast | container واحد | instance + fallback test | A/B موصى به؛ single host قبول مخاطر صريح فقط |
@@ -43,6 +46,7 @@ Control Plane: Next.js, API, Supabase, Worker. Playout Plane: Engine, Scheduler,
 - `assets.example.com` → public artwork/CDN والـon-demand policy.
 - DB، Storage management، Icecast source/admin، metrics endpoints ليست public.
 - security groups تسمح Playout→Icecast source وservices→Supabase فقط حسب الحاجة.
+- Provider workers فقط تملك outbound access العام مع SSRF/redirect controls؛ External playback direct من Flutter افتراضيًا.
 
 ## 4. Deployment units
 
@@ -50,6 +54,7 @@ Control Plane: Next.js, API, Supabase, Worker. Playout Plane: Engine, Scheduler,
 - Engine state ليس داخل container layer؛ snapshots في DB ومحلي persistent volume للـemergency cache فقط.
 - FFmpeg/Liquidsoap إن اعتمد pinned versions وSBOM.
 - Nginx streaming routes: proxy buffering off، timeouts طويلة للمستمع، limits مختلفة عن API.
+- External streams لا تمر عبر Nginx أو Radio Engine افتراضيًا.
 
 ## 5. CI/CD and migrations
 
@@ -77,7 +82,9 @@ Quran-yomk/
 │   ├── radio-engine/
 │   ├── playout-adapter/
 │   ├── watchdog/
-│   └── metrics-collector/
+│   ├── metrics-collector/
+│   ├── provider-sync/
+│   └── stream-health-worker/
 ├── packages/
 │   ├── api-types/
 │   ├── domain/
@@ -116,3 +123,4 @@ Quran-yomk/
 - يلزم قرار environment classification للمشروع الحالي وHA budget.
 - single Ubuntu host هو SPOF ولو استخدم Docker؛ يقبل محليًا فقط أو كتخفيف مؤقت معلن.
 - Acceptance: isolation كامل بين البيئات، no public internal ports، reproducible clean deploy، verified rollback/restore، external probe يرى audio لا HTTP فقط، وتعطل Admin/API لا يسكت المحطة.
+- External outage acceptance: لا يستهلك Engine DB pool/CPU/alert budget ولا يغير Internal playout health/fallback.

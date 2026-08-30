@@ -28,6 +28,13 @@
 | Silent-but-HTTP-200 | mount متصل بصمت | external decode/audio-energy probe | false positive في هدوء مقصود |
 | Log leakage | signed URLs/tokens in errors | structured allowlist + redaction | automated secret scan |
 | Unbounded history | logs/metrics تكبر | retention/partition/aggregation | thresholds بعد traffic baseline |
+| Provider sync deletes catalog | upstream omits/fails page | last_seen + successful-run evidence؛ never blind delete | missing policy simulation |
+| Provider schema drift | MP3Quran casing/shape changes | adapter fixtures + schema validation + partial run | v3/legacy/unknown fields |
+| External SSRF | Admin/provider URL resolves داخليًا أو redirects | DNS/IP revalidation، redirect/byte/time limits، sandbox | rebinding/metadata/private-IP corpus |
+| False health | HTTP 200 returns HTML/silence/stale HLS | protocol parse + bounded frame decode + playlist freshness | HTTP-200-no-audio fixtures |
+| Health thundering herd | provider-wide outage | jitter، per-provider concurrency/circuit، separate pool | bulk 1k station fault test |
+| Rights leak | station flag true رغم provider restricted | effective provider∩station policy، deny-by-default، audit | production projection/role tests |
+| External outage impacts owned radio | shared pool/alerts starve Engine | no radio.* writes، separate pool/budget/alerts، direct playback | total provider outage chaos test |
 
 ## 2. Single Points of Failure
 
@@ -55,6 +62,7 @@ Supabase نفسه يبقى managed dependency؛ الاستمرار المؤقت 
 - **API:** stateless replicas، shared DB/cache اختياري، pools bounded.
 - **History:** aggregates/partitions/retention؛ لا query raw logs للDashboard.
 - **Storage/CDN:** on-demand عبر CDN؛ live لا يخرج من Storage لكل listener.
+- **External catalog:** sync/health workers scale independently؛ provider outage لا يزيد listener traffic على خوادمنا لأن playback direct.
 
 حدود يجب قياسها قبل التوسع: encoder CPU لكل محطة، upload CPU-minute/hour، Icecast bandwidth/connections، DB occurrence/command rate، storage egress.
 
@@ -76,6 +84,8 @@ Supabase نفسه يبقى managed dependency؛ الاستمرار المؤقت 
 5. single-host risk acceptance أم HA من أول production.
 6. SLO/RPO/RTO/retention والقيم المالية المرتبطة بها.
 7. emergency behavior أثناء live source في Phase 2؛ MVP يمنع التعارض.
+8. من يملك Rights approval، وما evidence/renewal policy المطلوبة لكل Provider/Station.
+9. health thresholds والإخفاء/fallback policy للمحطات الخارجية.
 
 ## 6. Design Review Acceptance
 

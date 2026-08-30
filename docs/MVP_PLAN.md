@@ -82,6 +82,11 @@
 - OpenAPI 3.1، public catalogs/now/config، admin CRUD/commands/health، RBAC/idempotency/cache.
 - **اختبار:** contract/security/rate-limit/pagination/stale-cache tests.
 
+### 12A — External Provider Catalog
+
+- provider/type/schema/seeds، adapters، safe sync، protocol-aware health، rights gate، unified catalog.
+- **اختبار:** MP3Quran schema fixtures، Qurango/HLS/redirect probes، SSRF، missing-without-delete، provider outage isolation.
+
 ### 13 — Admin Panel
 
 - auth، dashboard، media، playlist، schedule day/week/list+forms، commands، health.
@@ -128,10 +133,16 @@
 | T17 | Watchdog/metrics/logging/audit | T16 | watchdog/collector/monitoring configs | external audio probe؛ bounded restart؛ redacted structured logs | kill/OOM/disk/DB/Storage/Icecast faults، secret scan |
 | T18 | Public REST API/OpenAPI | T04–T06، T16 | `services/api`, `packages/api-types` | جميع public endpoints/version/error/page/cache؛ no internals | contract، pagination، cache، rate limit، security |
 | T19 | Admin REST API/RBAC | T03–T07، T14–T17 | protected Admin API | backend permission لكل action؛ optimistic concurrency | role matrix، IDOR/BOLA، CSRF/session، stale role |
+| T19A | External provider/station schema + seeds | T04–T06 | provider/type/station health/sync migrations، `supabase/seed` | 58 inventory rows idempotent؛ all review-required/not production؛ EXTERNAL automation rejected | seed rerun/count، FK/rights gate، trigger/production projection tests |
+| T19B | Provider adapter SDK + MP3Quran/Qurango/Custom | T19A | `services/provider-sync`, domain adapter contracts | raw schemas محصورة؛ normalize/compare؛ missing لا يحذف؛ admin overrides محفوظة | v3/legacy fixtures، schema drift، failed/partial sync، concurrency |
+| T19C | Protocol-aware stream health worker | T19A–T19B | `services/stream-health-worker` | MP3/AAC/ICY/HLS probe؛ state thresholds/recovery؛ fallback evidence | SSRF/DNS rebinding، redirect، HTTP-200-no-audio، stale HLS، timeout/load |
+| T19D | External Public/Admin API + rights workflow | T18–T19C | API/OpenAPI/admin permissions | unified catalog، health history/actions، rights deny-by-default، no raw provider data | contract/RBAC/IDOR/cache invalidation/effective-rights tests |
 | T20 | Next.js Admin UI | T19 | `apps/admin` | الوظائف MVP responsive/accessibility؛ لا direct DB/FFmpeg | browser E2E desktop/tablet/mobile، a11y |
-| T21 | Flutter data/audio foundation | T18، stable T16 | `apps/mobile`, api client/audio service | cache-first، live/on-demand sessions منفصلة، background controls | Dart unit/widget، Android/iOS device audio tests |
+| T20A | External Stations Admin section | T19D، T20 | `apps/admin` external/provider/health/rights screens | add/edit/test/fallback/sync/history/rights؛ no automation buttons | browser E2E، a11y، permission/action visibility |
+| T21 | Flutter data/audio foundation | T18، T19D، stable T16 | `apps/mobile`, api client/audio service | cache-first، live/on-demand/internal/external sessions منفصلة، background controls | Dart unit/widget، Android/iOS device audio tests |
+| T21A | Unified directory/favorites/search/external playback | T21 | Flutter station model/player factory/catalog | IDs لا URLs للمفضلة؛ provider-agnostic؛ stream_type routing؛ no hard-coded inventory | Android/iOS MP3/ICY/AAC/HLS matrix، URL change، disable/cache refresh، provider outage |
 | T22 | Flutter MVP features | T21 | radio/catalog/search/favorites/settings/player | search AR/EN، favorites local، sleep timer، themes، no live seek | widget/integration/offline/retry/fallback tests |
-| T23 | Master acceptance + staging | T17–T22 | `tests/acceptance`, staging infra/runbooks | سيناريو 22 خطوة كامل؛ backup restore؛ rollback؛ 72h soak | E2E، load، chaos، security، restore drill |
+| T23 | Master acceptance + staging | T17–T22 | `tests/acceptance`, staging infra/runbooks | سيناريو 22 خطوة + 14 external criteria؛ provider outage isolation؛ backup/rollback؛ 72h soak | E2E، load، chaos، rights/SSRF/security، restore drill |
 | T24 | Production readiness | T23 + approvals | production infra/config/docs | DNS/TLS/secrets/HA/capacity/on-call/privacy approved | readiness checklist، failover، certificate/alert tests |
 
 ## 4. Dependencies الحرجة
@@ -163,6 +174,7 @@ flowchart TD
 - [x] Auth/RBAC/RLS/security model.
 - [x] Monitoring/watchdog/backup/deployment/monorepo.
 - [x] مراجعة race/SPOF/timezone/gaps/duplication/scaling.
+- [x] فصل INTERNAL/EXTERNAL، provider adapters/sync/health/rights، و58-row seed inventory.
 - [ ] اعتماد المالك للقرارات المفتوحة.
 - [ ] اعتماد Acceptance targets: gap/SLO/RPO/RTO/retention.
 
@@ -175,6 +187,8 @@ flowchart TD
 - [ ] اعتماد production topology: single-host risk مؤقتًا أو dual Icecast.
 - [ ] اعتماد default interrupt policy وlate grace.
 - [ ] اعتماد data retention وprivacy notice scope.
+- [ ] اعتماد Rights Review workflow ومن يملك صلاحية `APPROVED`/`production_enabled`.
+- [ ] اعتماد health thresholds وسياسة إخفاء `UNREACHABLE` من Public API.
 - [ ] تثبيت ADRs من القرارات السابقة.
 - [ ] مراجعة اسم المنتج/domains placeholders؛ لا يلزم DNS الآن.
 - [ ] تصريح صريح: **ابدأ المرحلة الثانية — Repository & Database Foundation**.

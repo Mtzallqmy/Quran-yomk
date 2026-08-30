@@ -41,6 +41,19 @@ erDiagram
   STATIONS ||--o{ SERVICE_HEARTBEATS : monitored_by
 ```
 
+```mermaid
+erDiagram
+  CONTENT_PROVIDER_TYPES ||--o{ CONTENT_PROVIDERS : classifies
+  CONTENT_PROVIDERS ||--o{ STATIONS : supplies
+  CATEGORIES ||--o{ STATIONS : categorizes
+  STREAM_TYPES ||--o{ STATIONS : describes
+  STATIONS ||--o{ STREAM_HEALTH_CHECKS : probed_by
+  STATIONS ||--o{ STREAM_HEALTH_JOBS : queued_for
+  CONTENT_PROVIDERS ||--o{ PROVIDER_SYNC_RUNS : synchronized_by
+  CONTENT_PROVIDERS ||--o{ PROVIDER_STATION_RECORDS : discovers
+  STATIONS ||--o{ PROVIDER_STATION_RECORDS : canonicalizes
+```
+
 ## 3. Aggregate ownership
 
 | Aggregate | الجداول | invariant الأهم |
@@ -48,6 +61,7 @@ erDiagram
 | Identity | administrators/roles/permissions/maps | Auth user فعال + permission backend-side |
 | Catalog | media/categories/reciters/surahs/tracks | المحتوى المنشور صالح وغير مؤرشف |
 | Station | stations/playlists/items/programs | default playlist تنتمي للمحطة وفعالة |
+| External catalog | provider types/providers/stream types/stations/health/sync runs | external records لا تدخل automation؛ لا حذف عند sync failure |
 | Scheduling | schedules/templates/occurrences | occurrence unique ولا يُنفذ مرتين |
 | Automation | commands/events/state/queue/lease/history | leader واحد وfencing token صالح |
 | Operations | heartbeats/logs/audit/metrics | append-only + retention |
@@ -58,13 +72,19 @@ erDiagram
 |---|---|---|
 | `administrators` | PK/FK → `auth.users` | active/deleted، لا حذف Auth قبل فك التاريخ |
 | `roles`, `permissions` | M:N عبر `role_permissions` | unique code؛ administrator M:N عبر `administrator_roles` |
-| `categories` | self parent | unique slug، active/deleted، sort index عند الحاجة |
+| `categories` | self parent، station/media children | unique slug، icon key، active/deleted، sort index عند الحاجة |
 | `reciters` | media/tracks children | trigram normalized Arabic search، active/deleted |
 | `surahs` | parent لـtracks | id=number، 1..114 unique، positive ayah count |
 | `media` | category/reciter/admin FKs | READY يتطلب processed path/duration/checksum؛ filter index؛ immutable object keys |
 | `media_processing_jobs` | media FK | unique idempotency key، claim/heartbeat/attempts |
 | `reciter_tracks` | reciter+surah+media | unique `(reciter_id,surah_id,quality)`؛ media أو URL لازم |
-| `stations` | default playlist | unique slug، IANA timezone service validation، soft delete |
+| `content_provider_types`, `stream_types` | lookup parents | DB-managed codes؛ لا provider names في Flutter logic |
+| `content_providers` | parent لـstations/sync/provider records | unique slug، priority/health، rights/attribution/production gate، soft delete |
+| `stations` | provider/category/type، default playlist للـINTERNAL فقط | unique slug وprovider/external key، source/type/health/rights/production checks |
+| `stream_health_checks` | station FK | append-only، protocol evidence، station/time index |
+| `stream_health_jobs` | station/admin requester | idempotency، pending priority index، claim/heartbeat/attempts |
+| `provider_sync_runs` | provider FK | counts/status/cursor/error، provider/time index |
+| `provider_station_records` | provider+canonical station | unique provider/external key، last seen/missing/raw bounded metadata |
 | `playlists` | station parent | unique station/name وstation/id لدعم composite FKs، optimistic version |
 | `playlist_items` | playlist+media | unique playlist/position، positive weight، ordered index |
 | `programs/items` | station/media | unique positions؛ PROGRAM seam دون UI في MVP |
@@ -112,6 +132,7 @@ erDiagram
 - RLS مفعّل defense-in-depth؛ لا grants إلى `anon/authenticated` إلا بشكل صريح.
 - `service_role` لا يصل إلى المتصفح مطلقًا؛ API/workers تستخدم أسرار server-side.
 - لا تعديل مباشر لجداول `storage`؛ كل object mutation عبر Storage API.
+- production station projection يضم provider ويطبق effective rights/health؛ لا يعتمد على `production_enabled` وحده.
 
 ## 7. البدائل
 
@@ -134,3 +155,5 @@ erDiagram
 - لا يوجد command بلا station/idempotency/audit status.
 - ERD يدعم محطة ثانية دون migration بنيوي.
 - RLS/grants tests جزء إلزامي من migration phase.
+- EXTERNAL station لا يمكنها امتلاك automation rows، وprovider sync لا يحذف canonical station.
+- effective provider/station rights تمنع production publication افتراضيًا.

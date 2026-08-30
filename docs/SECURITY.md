@@ -56,6 +56,16 @@
 - dependency pinning، lockfiles، SBOM/image scan، least-privilege CI identity.
 - audit log append-only للتطبيق؛ export دوري إلى وجهة لا يستطيع app تعديل التاريخ فيها مستقبلًا.
 
+### External provider / stream security
+
+- Health/sync workers تعامل URLs كمدخلات غير موثوقة: `https` allow policy، DNS resolve ثم منع loopback/private/link-local/cloud metadata ranges، وإعادة الفحص بعد كل redirect لمنع SSRF/rebinding.
+- redirect/response/playlist/segment limits، timeouts، max bytes، decoder sandbox، no cookies/credentials إلى domain مختلف.
+- provider API credentials في secret manager؛ Admin يرى configured/masked فقط. Raw responses bounded ولا تُنفذ منها instructions أو HTML.
+- لا يسجل worker dynamic redirect tokens أو full signed URLs؛ يخزن evidence sanitized.
+- External streams direct-to-device افتراضيًا؛ proxy يحتاج rights/privacy/threat/capacity ADR.
+- effective production authorization = provider rights ∩ station rights ∩ environment policy. `RESTRICTED`, `DISABLED`, `REVIEW_REQUIRED` لا تظهر production.
+- حقوق/attribution/terms/evidence/verified actor/date تسجل Audit؛ URL عام ليس إثبات حق إعادة توزيع.
+
 ## 5. Structured Logging & Metrics
 
 ### Log fields
@@ -67,6 +77,7 @@
 | Area | Metrics |
 |---|---|
 | Stream | source_connected, mount_reachable, audio_energy, silence_seconds, listeners, peak, reconnects |
+| External streams | probe success by protocol/provider، latency، audio_detected، redirects، consecutive failures، fallback use |
 | Engine | lease_age, state, transition_failures, queue_depth, fallback_level, checkpoint_age |
 | Scheduler | tick_lag, due_count, materialization_errors, conflicts, late/skipped occurrences |
 | Commands | pending_age, execution_latency, failed/no-op/duplicate counts |
@@ -79,6 +90,7 @@
 - critical: mount unreachable >15s، audio silence >5s، no leader >15s، emergency cache exhausted، disk >95%.
 - high: fallback active >2m، encoder restart، DB unavailable to Engine >5m، command pending high/emergency >10s.
 - warning: disk >80%، checkpoint age >15s، processing failure rate >5%، certificate <14 days.
+- provider-wide outage يجمع في alert واحد ويستخدم rate limits؛ لا يزاحم critical Internal Radio alerts.
 - alert dedup/group by station; escalation and runbook link; maintenance suppression explicit.
 
 القيم Targets أولية وتثبت بالـload/soak tests. SLO مقترح بعد baseline: stream availability 99.9% شهريًا، وNow Playing freshness p95 ≤5s.
@@ -193,3 +205,4 @@ Quran-yomk/
 - external silence detection قد يعطي false positive في تلاوات هادئة؛ يجمع energy + frames + source heartbeat.
 - BFF/session design يحتاج threat-model test وCSRF E2E.
 - Acceptance: threat model reviewed، permission matrix كاملة، لا secret/public path leakage، restore runbook قابل للاختبار، watchdog لا يصنع restart storm، وكل بيئة معزولة credentials/data.
+- External acceptance: SSRF test corpus، rights gate/IDOR tests، provider outage isolation، no raw provider schema/secret leakage، وAdmin actions audited.

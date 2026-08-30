@@ -77,6 +77,29 @@
 
 `started_at` للمعلومة لا يعني أن live stream seekable. Flutter لا يعرض seek bar للمحطة.
 
+### Unified radio catalog
+
+`GET /stations` يدعم `source=INTERNAL|EXTERNAL`, `provider`, `category`, `stream_type`, `health`, `featured`, `q`, cursor. لا يعيد provider raw payload أو internal notes/rights evidence. مثال External:
+
+```json
+{
+  "id": "uuid",
+  "name_ar": "إذاعة ماهر المعيقلي",
+  "name_en": "Maher Al-Muaiqly",
+  "station_source": "EXTERNAL",
+  "stream_type": "SHOUTCAST",
+  "category": { "code": "RECITER", "name_ar": "القراء" },
+  "playback": { "primary_url": "https://example/stream", "fallback_url": null },
+  "health": "HEALTHY",
+  "is_live": true,
+  "is_featured": false,
+  "capabilities": { "managed": false, "now_playing": false, "scheduling": false },
+  "attribution": null
+}
+```
+
+`playback` هو contract قابل لتغيير direct URL إلى token/proxy مستقبلًا. Favorites تستخدم `id`. في production لا يدخل record إلا إذا station/provider active، effective rights approved، production gate true، وسياسة health تسمح. External `/now-playing` يعيد `current=null` وcapability `metadata_available=false` ما لم يوفر provider metadata adapter موثوقًا؛ لا يختلق title.
+
 ### On-demand URLs
 
 Public processed Quran audio إما CDN public immutable path أو short-lived signed URL يعيده API. الأصل لا يعود أبدًا. يدعم endpoint/CDN `Range` و`HEAD` لseek. الجودة whitelist، ولا يقبل client object path.
@@ -108,6 +131,11 @@ Upload intent يحدد method/headers/max size/object key server-generated. إك
 - CRUD `/playlists`, `/playlists/{id}/items`, endpoint reorder transactionally مع `If-Match`.
 - CRUD `/stations`؛ تغيير default playlist يتحقق من station ownership وREADY count.
 - CRUD `/reciters`, `/reciter-tracks`, `/categories`; `/surahs` read-only بعد seed إلا super-admin migration workflow.
+- CRUD `/content-providers` و`/external-stations` بصلاحيات مستقلة، مع provider/category/type/rights/health filters.
+- `POST /external-stations/{id}/health-checks` ينشئ job ويعيد `202`؛ `GET /external-stations/{id}/health-checks` يعيد history paginated.
+- `POST /content-providers/{id}/sync-runs` يبدأ sync idempotent؛ `GET /content-providers/{id}/sync-runs` يعرض النتائج.
+- تغيير rights/production gate يتطلب permission وreason ويولد audit. Response لا يعيد secrets أو internal notes دون صلاحية.
+- أي playlist/schedule/radio command يستهدف EXTERNAL يعيد `422 STATION_NOT_MANAGED`؛ الحماية Backend + DB trigger.
 
 ### Schedules
 
@@ -143,6 +171,7 @@ Response `202` مع command resource. لا ينتظر HTTP بدء الصوت. ا
 - `GET /health/details` permission `system.health.read`.
 - CRUD `/administrators`, `/roles` بصلاحيات super-admin ومنع self-lockout transactionally.
 - `/settings` لا يعيد secrets؛ يعيد حالة configured فقط.
+- Dashboard external section يعرض provider sync health، unhealthy counts، last checks، fallback usage، rights review queue؛ منفصل عن Engine/Icecast health.
 
 ## 4. Validation and status codes
 
@@ -168,12 +197,14 @@ Response `202` مع command resource. لا ينتظر HTTP بدء الصوت. ا
 - API timeouts قصيرة وbounded، DB pool منفصل عن workers.
 - Public catalog يدعم stale cache عند DB outage؛ admin writes تفشل بوضوح ولا تُخزن client-side لإعادة غامضة.
 - rate limits منفصلة: public read، auth، upload intent، command mutation.
+- provider sync/health actions تستخدم job queue وper-provider concurrency؛ لا تنفذ network probe داخل request thread.
 
 ## 6. Dependencies / Risks
 
 - signed URL expiry يجب أن يتجاوز بدء playback المتوقع دون أن يكون طويلًا بلا حاجة.
 - cursor يتضمن sort/filter fingerprint حتى لا يُعاد استخدامه مع query مختلفة.
 - Now Playing lag يخفض بالدفع لاحقًا، لكن MVP polling 5–10s كافٍ ولا يعتمد correctness على Realtime.
+- Direct external URLs قد تتغير/تعمل redirects؛ DTO يبقى stable بالـstation ID، والـAPI cache يُبطل عند URL/health/rights change.
 - OpenAPI/types generation قد يسبب drift إن كتب يدويًا؛ CI يمنع uncommitted generated diff.
 
 ## 7. Acceptance Criteria
@@ -183,3 +214,4 @@ Response `202` مع command resource. لا ينتظر HTTP بدء الصوت. ا
 - كل command/upload retry بالمفتاح نفسه يعيد resource نفسه.
 - API لا يكشف original paths أو health secrets.
 - now-playing يتغير فقط بعد playout ACK ويقبل out-of-order protection بالrevision.
+- Provider جديد أو URL/category/disable يتغير بلا Flutter release، وproduction لا يعرض restricted/unapproved sources.

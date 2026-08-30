@@ -26,9 +26,13 @@ jobs:
             echo 'Payload already applied.'
             exit 0
           fi
-          cat .phase78-bootstrap/part00 .phase78-bootstrap/part01 .phase78-bootstrap/part02 .phase78-bootstrap/part03 > /tmp/phase7.b64
+          for f in .phase78-bootstrap/part00 .phase78-bootstrap/part01 .phase78-bootstrap/part02 .phase78-bootstrap/part03; do
+            wc -c "$f"
+            sha256sum "$f"
+          done
+          cat .phase78-bootstrap/part00 .phase78-bootstrap/part01 .phase78-bootstrap/part02 .phase78-bootstrap/part03 | tr -d '\r\n' > /tmp/phase7.b64
           echo "staged_base64_bytes=$(wc -c </tmp/phase7.b64)"
-          base64 --decode --ignore-garbage /tmp/phase7.b64 > /tmp/phase7.tar.gz
+          base64 --decode /tmp/phase7.b64 > /tmp/phase7.tar.gz
           echo "decoded_archive_sha256=$(sha256sum /tmp/phase7.tar.gz | cut -d' ' -f1)"
           tar -tzf /tmp/phase7.tar.gz >/dev/null
           tar -xzf /tmp/phase7.tar.gz

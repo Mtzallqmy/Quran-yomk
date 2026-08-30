@@ -1,0 +1,43 @@
+name: Phase 7 Payload Applier
+
+on:
+  push:
+    branches:
+      - phase7-8-backend-admin-brand
+    paths:
+      - '.phase78-bootstrap/**'
+      - '.github/workflows/phase78-bootstrap.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply staged payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f .phase78-bootstrap/part00 ]]; then
+            echo 'Payload already applied.'
+            exit 0
+          fi
+          cat .phase78-bootstrap/part* > /tmp/phase7.b64
+          printf '%s  %s\n' 'fd9539c67c8152e77106469423dd82fb73861ef1c8fcc22ce2e9e25e8c843680' '/tmp/phase7.b64' | sha256sum -c -
+          base64 --decode /tmp/phase7.b64 > /tmp/phase7.tar.gz
+          printf '%s  %s\n' 'e6d24a324b8c3fde72222bc8f9c9bd6a9928e3855ff3a3a96f638c083b5a4c31' '/tmp/phase7.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/phase7.tar.gz
+          rm -rf .phase78-bootstrap
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+            exit 0
+          fi
+          git commit -m 'feat(api): implement Phase 7 backend API'
+          git push origin HEAD:phase7-8-backend-admin-brand

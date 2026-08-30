@@ -55,7 +55,7 @@ class TarteelApiClient {
     throw ApiException('NETWORK_UNAVAILABLE','تعذر الوصول إلى خدمة ترتيل',requestId:lastError?.runtimeType.toString());
   }
 
-  Future<PageResult<Station>> stations({int page=1,int limit=50,String? source,String? category,String? provider,String? search}) async {
+  Future<PageResult<Station>> stations({int page=1,int limit=200,String? source,String? category,String? provider,String? search}) async {
     final root=await _get('stations',query:<String,String?>{
       'page':'$page','limit':'$limit','source':source,'category':category,'provider':provider,'search':search,
     });
@@ -70,9 +70,7 @@ class TarteelApiClient {
 
   Future<Station> station(String slug) async => Station.fromJson(jsonMap((await _get('stations/${Uri.encodeComponent(slug)}'))['data']));
   Future<NowPlaying> nowPlaying(String slug) async => NowPlaying.fromJson(jsonMap((await _get('stations/${Uri.encodeComponent(slug)}/now-playing',allowRetry:false))['data']));
-
   Future<List<ContentSource>> contentSources() async => jsonList((await _get('content-sources'))['data']).map((e)=>ContentSource.fromJson(jsonMap(e))).toList(growable:false);
-
   Future<List<Category>> categories() async => jsonList((await _get('categories'))['data']).map((e)=>Category.fromJson(jsonMap(e))).toList(growable:false);
 
   Future<PageResult<Reciter>> reciters({String? query,int page=1,int limit=30}) async {

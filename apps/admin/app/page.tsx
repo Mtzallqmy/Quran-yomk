@@ -1,1 +1,2 @@
-export default function Page(){return <main style={{fontFamily:'system-ui',padding:32,direction:'rtl'}}><h1>ترتيل — Backend API</h1><p>Phase 7 API runtime. Admin UI is enabled only after the Phase 7 internal gate.</p></main>}
+import AdminClient from './admin-client';
+export default function Page(){return <AdminClient/>;}

@@ -46,6 +46,10 @@ export class RadioEngine {
     setTimeout(()=>{if(!this.stopping&&!this.snapshot.sourceConnected&&this.source?.pid)this.logger.warn('SOURCE_CONNECTION_PENDING',{timeout_seconds:this.config.sourceTimeoutSeconds});},this.config.sourceTimeoutSeconds*1000).unref();
   }
   private onSourceEvent(event:string,payload?:string):void{
+    // Liquidsoap can emit its final disconnect line after stop() has begun.
+    // Shutdown owns the final STOPPED checkpoint and lease release, so late
+    // source callbacks must not attempt a fenced write with a released lease.
+    if(this.stopping)return;
     if(event==='SOURCE_CONNECTED'){
       this.restartCount=0;this.snapshot.sourceConnected=true;this.snapshot.lastError=null;
       if(this.snapshot.mode==='STARTING'||this.snapshot.mode==='RECOVERING')this.transition('AUTO');

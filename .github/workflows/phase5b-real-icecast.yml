@@ -69,7 +69,11 @@ jobs:
         run: |
           docker compose -f infrastructure/docker-compose.radio.yml config --quiet
           docker compose -f infrastructure/docker-compose.radio.yml up -d --build icecast
-          timeout 60 bash -c 'until curl -fsS http://127.0.0.1:8000/status-json.xsl >/dev/null; do sleep 1; done'
+          if ! timeout 60 bash -c 'until curl -fsS http://127.0.0.1:8000/status-json.xsl >/dev/null; do sleep 1; done'; then
+            docker compose -f infrastructure/docker-compose.radio.yml ps --all
+            docker compose -f infrastructure/docker-compose.radio.yml logs --no-color --tail=100 icecast
+            exit 1
+          fi
           docker compose -f infrastructure/docker-compose.radio.yml ps
       - name: Run 30-minute real Icecast acceptance
         env:
@@ -86,4 +90,3 @@ jobs:
       - name: Cleanup
         if: always()
         run: docker compose -f infrastructure/docker-compose.radio.yml down --volumes --remove-orphans
-

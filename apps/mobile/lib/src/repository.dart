@@ -40,7 +40,9 @@ class TarteelRepository {
   }
 
   Future<List<Station>> stations({bool refresh = false}) async {
-    const key = 'stations';
+    // v2 intentionally invalidates the pre-functional catalog which contained
+    // only the non-playable internal development station.
+    const key = 'stations-v2';
     final cached = refresh ? null : cache.read(key, const Duration(minutes: 5));
     if (cached is List) {
       return cached
@@ -92,7 +94,9 @@ class TarteelRepository {
   }
 
   Future<List<Reciter>> reciters({bool refresh = false}) async {
-    const key = 'reciters';
+    // v2 invalidates the empty reciter list cached by builds created before the
+    // public MP3Quran integration became functional.
+    const key = 'reciters-v2';
     final cached = refresh
         ? null
         : cache.read(key, const Duration(minutes: 30));
@@ -151,7 +155,7 @@ class TarteelRepository {
   }
 
   Future<List<FeaturedItem>> featured({bool refresh = false}) async {
-    const key = 'featured';
+    const key = 'featured-v2';
     final cached = refresh ? null : cache.read(key, const Duration(minutes: 5));
     if (cached is List) {
       return cached

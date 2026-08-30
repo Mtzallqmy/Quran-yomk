@@ -7,3 +7,6 @@ sql_paths = ["./seed/*.sql"]
 [db.migrations]
 enabled = true
 schema_paths = ["./migrations/*.sql"]
+
+[functions.tarteel-api]
+verify_jwt = false

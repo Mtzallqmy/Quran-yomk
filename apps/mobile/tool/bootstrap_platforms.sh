@@ -27,7 +27,7 @@ manifest.write_text('''<manifest xmlns:android="http://schemas.android.com/apk/r
         android:label="ترتيل"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="true">
         <activity
             android:name="com.ryanheise.audioservice.AudioServiceActivity"
             android:exported="true"
@@ -82,6 +82,7 @@ PY
 
 grep -q 'minSdk = 26' android/app/build.gradle.kts
 grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' android/app/src/main/AndroidManifest.xml
+grep -q 'android:usesCleartextTraffic="true"' android/app/src/main/AndroidManifest.xml
 grep -q 'AudioServiceActivity' android/app/src/main/AndroidManifest.xml
 grep -q 'UIBackgroundModes' ios/Runner/Info.plist
 

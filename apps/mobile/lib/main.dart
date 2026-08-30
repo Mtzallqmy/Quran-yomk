@@ -23,7 +23,7 @@ Future<void> main() async {
       androidNotificationChannelId: 'app.tarteel.tarteel.audio',
       androidNotificationChannelName: 'Tarteel audio playback',
       androidNotificationOngoing: true,
-      androidStopForegroundOnPause: false,
+      androidStopForegroundOnPause: true,
     ),
   );
   await playback.initialize();
@@ -42,7 +42,7 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
-      overrides: <Override>[servicesProvider.overrideWithValue(services)],
+      overrides: [servicesProvider.overrideWithValue(services)],
       child: const TarteelApp(),
     ),
   );

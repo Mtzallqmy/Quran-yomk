@@ -26,6 +26,7 @@ abstract class PlaybackPort {
   Future<void> skipToNext();
   Future<void> skipToPrevious();
   Future<void> setSpeed(double speed);
+  Future<void> setVolume(double volume);
   Future<void> setRepeatOne(bool enabled);
   Future<void> updateLiveMetadata(NowPlaying value);
   void setSleepTimer(Duration duration);
@@ -253,6 +254,11 @@ class TarteelAudioHandler extends BaseAudioHandler
     if (isLive) return;
     await _player.setSpeed(speed.clamp(0.75, 2.0));
     _broadcastState();
+  }
+
+  @override
+  Future<void> setVolume(double volume) async {
+    await _player.setVolume(volume.clamp(0.0, 1.0).toDouble());
   }
 
   @override

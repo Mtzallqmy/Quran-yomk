@@ -8,10 +8,11 @@ export function buildLiquidsoapScript(config:Config,playlistPath:string):string{
   return `${config.liquidsoapAllowRoot?'settings.init.allow_root := true\n':''}settings.log.stdout := true\nsettings.log.file := false\n`+
     `settings.server.telnet := true\nsettings.server.telnet.bind_addr := "127.0.0.1"\nsettings.server.telnet.port := ${config.liquidsoapControlPort}\n`+
     `main = playlist(mode="normal", reload=60, ${liq(playlistPath)})\n`+
+    `automation = request.queue(id="automation", queue_length=10)\n`+
     `def track_started(m) = print("TARTEEL_EVENT TRACK_START #{metadata.json.stringify(m)}") end\n`+
-    `main.on_track(track_started)\n`+
     `emergency = single(${liq(config.fallbackPath)})\n`+
-    `radio = fallback(track_sensitive=true, [main, emergency])\n`+
+    `radio = fallback(track_sensitive=false, [automation, main, emergency])\n`+
+    `radio.on_track(track_started)\n`+
     `def source_connected() = print("TARTEEL_EVENT SOURCE_CONNECTED") end\n`+
     `def source_disconnected() = print("TARTEEL_EVENT SOURCE_DISCONNECTED") end\n`+
     `def source_error(error) = print("TARTEEL_EVENT SOURCE_ERROR: #{error}"); 2.0 end\n`+
@@ -34,11 +35,18 @@ export class LiquidsoapSource {
   }
   stop(signal:NodeJS.Signals='SIGTERM'):void{this.child?.kill(signal);}
   async reloadPlaylist(interrupt=false):Promise<void>{await liquidsoapCommand(this.config.liquidsoapControlPort,'main.reload');if(interrupt)await liquidsoapCommand(this.config.liquidsoapControlPort,'main.skip');}
+  async pushTrack(path:string,mediaId:string|null,queueEntryId:string|null,interrupt=false):Promise<void>{
+    if(!path.startsWith('/')||/[\0\r\n]/.test(path))throw new Error('invalid automation path');
+    const clean=(value:string|null)=>String(value??'none').replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,200);
+    await liquidsoapCommand(this.config.liquidsoapControlPort,'automation.push',`annotate:media_id="${clean(mediaId)}",queue_entry_id="${clean(queueEntryId)}":${path}`);
+    if(interrupt)await liquidsoapCommand(this.config.liquidsoapControlPort,'radio.skip');
+  }
   get pid():number|null{return this.child?.pid??null;}
 }
-export async function liquidsoapCommand(port:number,command:string,timeoutMs=3000):Promise<string>{
+export async function liquidsoapCommand(port:number,command:string,argument?:string,timeoutMs=3000):Promise<string>{
   if(!/^[a-z0-9_.-]+$/i.test(command))throw new Error('invalid Liquidsoap command');
-  return await new Promise((resolve,reject)=>{const socket=createConnection({host:'127.0.0.1',port});let output='';const timer=setTimeout(()=>{socket.destroy();reject(new Error('Liquidsoap control timeout'));},timeoutMs);socket.setEncoding('utf8');socket.once('connect',()=>socket.write(`${command}\n`));socket.on('data',chunk=>{output+=chunk;if(output.includes('END')){clearTimeout(timer);socket.end();resolve(output.slice(0,4096));}});socket.once('error',error=>{clearTimeout(timer);reject(error);});socket.once('close',()=>{if(!output.includes('END')){clearTimeout(timer);reject(new Error('Liquidsoap control closed'));}});});
+  if(argument!==undefined&&(/[\0\r\n]/.test(argument)||argument.length>4096))throw new Error('invalid Liquidsoap argument');
+  return await new Promise((resolve,reject)=>{const socket=createConnection({host:'127.0.0.1',port});let output='';const timer=setTimeout(()=>{socket.destroy();reject(new Error('Liquidsoap control timeout'));},timeoutMs);socket.setEncoding('utf8');socket.once('connect',()=>socket.write(`${command}${argument===undefined?'':` ${argument}`}\n`));socket.on('data',chunk=>{output+=chunk;if(output.includes('END')){clearTimeout(timer);socket.end();resolve(output.slice(0,4096));}});socket.once('error',error=>{clearTimeout(timer);reject(error);});socket.once('close',()=>{if(!output.includes('END')){clearTimeout(timer);reject(new Error('Liquidsoap control closed'));}});});
 }
 export function redact(value:string):string{
   return value

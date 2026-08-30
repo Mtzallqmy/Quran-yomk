@@ -4,7 +4,7 @@ import type { Server } from 'node:http';
 import type { Config } from './config.js';
 import type { EngineMode, EngineSnapshot, Lease, LeaseStore, Track } from './types.js';
 import { Logger } from './logger.js';
-import { loadAndValidatePlaylist, replaceSourcePlaylist, writeSourcePlaylist } from './playlist.js';
+import { loadAndValidatePlaylist, writeSourcePlaylist } from './playlist.js';
 import { LiquidsoapSource } from './source.js';
 import { startHealthServer } from './health.js';
 
@@ -84,7 +84,7 @@ export class RadioEngine {
   private async heartbeatTick():Promise<void>{if(!this.lease||this.stopping)return;try{this.lease=await this.store.renew(this.lease,this.config.leaseSeconds);await this.refreshDistributionHealth();await this.checkpoint();}catch(error){this.logger.error('ENGINE_OWNERSHIP_LOST',error);this.snapshot.sourceConnected=false;this.snapshot.broadcasting=false;this.snapshot.lastError='station lease lost';this.source?.stop('SIGTERM');if(this.snapshot.mode!=='ERROR')this.transition('ERROR');}}
   private async checkpoint():Promise<void>{if(this.lease)await this.store.checkpoint(this.lease,this.snapshot,this.config.version);}
   crashSourceForTest():void{if(!this.config.faultInjectionEnabled)throw new Error('fault injection disabled');this.source?.stop('SIGKILL');}
-  async applyAutomationTracks(tracks:Track[],interrupt=false):Promise<void>{if(!this.source||!this.workspace||tracks.length===0)throw new Error('radio source is not ready');const playlistPath=join(this.workspace,'playlist.m3u');await replaceSourcePlaylist(playlistPath,tracks);this.tracks=[...tracks];this.trackIndex=0;await this.source.reloadPlaylist(interrupt);this.logger.info('QUEUE_CHANGED',{track_count:tracks.length,interrupt});}
+  async applyAutomationTracks(tracks:Track[],interrupt=false):Promise<void>{if(!this.source||tracks.length===0)throw new Error('radio source is not ready');this.tracks=[...tracks];this.trackIndex=0;const first=tracks[0]!;await this.source.pushTrack(first.path,first.mediaId,first.queueEntryId??null,interrupt);this.logger.info('QUEUE_CHANGED',{track_count:tracks.length,interrupt,control:'request.queue'});}
   async setAutomationMode(mode:Extract<EngineMode,'AUTO'|'SCHEDULED'|'MANUAL'>):Promise<void>{this.transition(mode);await this.checkpoint();}
   async stop():Promise<void>{if(this.stopping)return;this.stopping=true;if(this.heartbeat)clearInterval(this.heartbeat);this.source?.stop('SIGTERM');this.snapshot.sourceConnected=false;this.snapshot.liquidsoapAlive=false;this.snapshot.mountAvailable=false;this.snapshot.broadcasting=false;if(this.snapshot.mode!=='STOPPED')this.transition('STOPPED');await this.checkpoint().catch(()=>{});if(this.lease)await this.store.release(this.lease).catch(()=>{});await new Promise<void>(resolve=>this.server?this.server.close(()=>resolve()):resolve());await rm(this.workspace,{recursive:true,force:true});this.logger.info('ENGINE_STOP',{station_id:this.config.stationId});}
 }

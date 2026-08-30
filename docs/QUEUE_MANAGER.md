@@ -27,7 +27,7 @@ Queue Manager هو الحكم الوحيد لاختيار المحتوى للم�
 
 ## Liquidsoap control
 
-Liquidsoap يبقى process مستمرًا. يقرأ playlist ملفًا ذريًا ويستقبل `main.reload` و`main.skip` من telnet مربوط حصريًا بـ`127.0.0.1`. الأمر validate بقائمة محارف مغلقة، ولا يقبل shell/path/URL من command payload.
+Liquidsoap يبقى process مستمرًا. Default Playlist تبقى source `main`، والقرارات المجدولة/اليدوية تدخل `request.queue(id="automation")`. `radio.skip` يستخدم فقط عند INTERRUPT/SKIP. command server مربوط حصريًا بـ`127.0.0.1`؛ أسماء الأوامر allowlisted نصيًا، والوسيط يرفض NUL/CR/LF، ولا يقبل shell/URL من payload.
 
 ## Acceptance
 

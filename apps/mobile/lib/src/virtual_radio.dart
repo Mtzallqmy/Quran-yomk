@@ -99,8 +99,7 @@ class VirtualRadioResolution {
   }
 }
 
-final virtualRadioProvider =
-    AsyncNotifierProvider<VirtualRadioController, VirtualRadioResolution>(
+final virtualRadioProvider = AsyncNotifierProvider<VirtualRadioController, VirtualRadioResolution>(
   VirtualRadioController.new,
 );
 
@@ -117,9 +116,7 @@ class VirtualRadioController extends AsyncNotifier<VirtualRadioResolution> {
     _errorSubscription ??= ref.read(servicesProvider).playback.errorStream.listen((_) {
       if (!_playing || _failoverBusy) return;
       _recentPlaybackErrors += 1;
-      if (_recentPlaybackErrors >= 2) {
-        unawaited(failover());
-      }
+      if (_recentPlaybackErrors >= 2) unawaited(failover());
     });
     ref.onDispose(() {
       _boundaryTimer?.cancel();
@@ -163,15 +160,30 @@ class VirtualRadioController extends AsyncNotifier<VirtualRadioResolution> {
     }
   }
 
+  Future<void> pause() async {
+    _playing = false;
+    await ref.read(servicesProvider).playback.pause();
+  }
+
+  Future<void> resume() async {
+    final current = state.valueOrNull;
+    if (current == null) {
+      await play();
+      return;
+    }
+    _playing = true;
+    _recentPlaybackErrors = 0;
+    await ref.read(servicesProvider).playback.play();
+    _scheduleBoundary(current);
+  }
+
   Future<void> failover() async {
     if (_failoverBusy) return;
     _failoverBusy = true;
     try {
       final current = state.valueOrNull;
       if (current?.station != null) _failedStations.add(current!.station!.id);
-      if (_failedStations.length > 8) {
-        throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
-      }
+      if (_failedStations.length > 8) throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
       final next = await _resolve();
       if (!next.available || next.station == null || !next.station!.isPlayable) {
         throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');

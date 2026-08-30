@@ -1,46 +1,76 @@
-name: Phase 7 Payload Applier
+name: Phase 7+8 Acceptance
 
 on:
   push:
     branches:
       - phase7-8-backend-admin-brand
-    paths:
-      - '.phase78-bootstrap/**'
-      - '.github/workflows/phase78-bootstrap.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: phase78-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  apply:
+  backend-admin:
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          fetch-depth: 0
-      - name: Apply staged payload
+          node-version: '22'
+      - name: Install admin dependencies
+        working-directory: apps/admin
+        run: npm install --ignore-scripts
+      - name: Backend contract tests
+        working-directory: apps/admin
+        run: npm test
+      - name: TypeScript strict gate
+        working-directory: apps/admin
+        run: npm run typecheck
+      - name: Next.js production build
+        working-directory: apps/admin
+        env:
+          TARTEEL_ENVIRONMENT: development
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_placeholder
+          SUPABASE_SECRET_KEY: sb_secret_build_placeholder
+          TARTEEL_PUBLIC_STREAM_BASE_URL: https://stream.invalid
+          TARTEEL_INTERNAL_MOUNT: /tarteel.mp3
+          TARTEEL_COOKIE_SECURE: 'true'
+        run: npm run build
+      - name: Client secret guard
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! -f .phase78-bootstrap/part00 ]]; then
-            echo 'Payload already applied.'
-            exit 0
-          fi
-          # part00 was transported with two trailing bytes; the staged payload
-          # was intentionally split into 7000-byte chunks except the last.
-          head -c 7000 .phase78-bootstrap/part00 > /tmp/part00.fixed
-          cat /tmp/part00.fixed .phase78-bootstrap/part01 .phase78-bootstrap/part02 .phase78-bootstrap/part03 | tr -d '\r\n' > /tmp/phase7.b64
-          test "$(wc -c </tmp/phase7.b64)" -eq 27388
-          base64 --decode /tmp/phase7.b64 > /tmp/phase7.tar.gz
-          tar -tzf /tmp/phase7.tar.gz >/dev/null
-          tar -xzf /tmp/phase7.tar.gz
-          rm -rf .phase78-bootstrap
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          if git diff --cached --quiet; then
-            echo 'No changes to commit.'
-            exit 0
-          fi
-          git commit -m 'feat(api): implement Phase 7 backend API'
-          git push origin HEAD:phase7-8-backend-admin-brand
+          ! grep -RIE --exclude='*.example' --exclude='*.md' --exclude-dir=node_modules --exclude-dir=.next 'sb_secret_[A-Za-z0-9_-]{20,}|service_role[^[:space:]]{20,}|ICECAST_(SOURCE|ADMIN)_PASSWORD=.+' apps/admin
+          ! grep -RIE --exclude='*.md' --exclude-dir=node_modules --exclude-dir=.next 'SUPABASE_SECRET_KEY|ICECAST_SOURCE_PASSWORD|ICECAST_ADMIN_PASSWORD' apps/admin/app
+      - name: Brand and admin contract guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'PROVISIONAL' docs/BRAND.md
+          grep -q 'معتز العلقمي' docs/BRAND.md
+          grep -q 'تعز، اليمن' docs/BRAND.md
+          grep -q 'dir="rtl"' apps/admin/app/layout.tsx
+          grep -q '/api/v1/admin/commands' apps/admin/app/admin-client.tsx
+          grep -q '/api/v1/admin/media' apps/admin/app/admin-client.tsx
+          grep -q 'upload-intent' apps/admin/app/admin-client.tsx
+
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Radio Engine regression
+        working-directory: services/radio-engine
+        run: npm ci && npm test
+      - name: Audio Worker regression
+        working-directory: services/audio-worker
+        run: npm ci && npm test

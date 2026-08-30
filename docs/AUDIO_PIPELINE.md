@@ -4,29 +4,28 @@
 
 | Bucket/prefix | Visibility | Content | Policy |
 |---|---|---|---|
-| `media-originals` | private | immutable uploaded originals | admin/worker signed access فقط |
-| `media-processed` | private في MVP | normalized encoded masters | worker write؛ API signed read / playout service read |
-| `public-artwork` | public/CDN | reciter/station images | immutable versioned keys |
-| `upload-quarantine` | private | incomplete/unverified uploads | lifecycle delete بعد 24h |
+| `tarteel-media-originals` | private | immutable uploaded originals | exact signed upload؛ admin/worker signed read فقط |
+| `tarteel-media-processed` | private في MVP | normalized encoded masters | future worker write؛ API/playout signed read |
+| `tarteel-artwork` | public/CDN read | reciter/station/media images | server-only write؛ immutable versioned keys |
 | host `emergency-cache/` | local persistent | verified fallback media | engine read-only، sync job writes atomically |
 
 Object key لا يستخدم filename القادم من المستخدم:
 
 ```text
-originals/{yyyy}/{mm}/{media_uuid}/{upload_uuid}.bin
-processed/{profile_version}/{media_uuid}/{sha256}.{ext}
-artwork/{entity}/{uuid}/{content_hash}.{ext}
+media/{media_uuid}/original/{upload_intent_uuid}.{ext}
+media/{media_uuid}/processed/{profile_version}/{variant_uuid}.{ext}
+{entity}/{entity_uuid}/{asset_role}/{asset_uuid}.{ext}
 ```
 
 الاسم الأصلي metadata sanitized فقط. DB يخزن object key لا signed URL. URLs تُولد عند الطلب. حذف media هو archive أولًا؛ garbage collector يحذف objects بعد retention وبعد التأكد من عدم وجود references/history policy.
 
 ### Upload protocol
 
-1. API ينشئ media `UPLOADING` + upload intent idempotent ومفتاح عشوائي في quarantine.
+1. API ينشئ media `UPLOADING` + upload intent idempotent ومفتاح immutable في originals.
 2. Client يرفع مباشرة إلى Storage ضمن size/content-type constraints.
-3. Complete endpoint يتحقق من object size/checksum المتوقع ويقفل intent.
+3. Complete endpoint يتحقق من object size/MIME/version ويقفل intent؛ media تصبح `UPLOADED`.
 4. Worker يعيد sniff/probe من bytes، لا يثق بـMIME/extension.
-5. الأصل ينتقل/ينسخ إلى immutable path، ثم media `PROCESSING`.
+5. Worker يطالب `UPLOADED` ثم ينقلها إلى `PROCESSING`؛ الأصل لا يحتاج copy/move.
 6. عند النجاح processed object يُرفع أولًا، يتحقق منه، ثم transaction تقلب `READY`.
 
 عمليات Storage تمر عبر API الرسمية؛ جداول `storage` تعامل read-only. `service_role` server-only. Upsert لا يستخدم للأصول؛ immutable create يقلل تعقيد سياسات insert/select/update.
@@ -35,7 +34,7 @@ artwork/{entity}/{uuid}/{content_hash}.{ext}
 
 ```mermaid
 flowchart LR
-  Upload["Quarantine"] --> Sniff["Signature + ffprobe"]
+  Upload["Immutable Original / UPLOADED"] --> Sniff["Signature + ffprobe"]
   Sniff --> Validate["Limits / codecs"]
   Validate --> Pass1["Loudness analysis"]
   Pass1 --> Encode["Normalize + encode"]
@@ -46,8 +45,8 @@ flowchart LR
 
 ### قبول/رفض
 
-- containers المقبولة: MP3, AAC/ADTS, M4A/MP4 audio, WAV؛ whitelist codec فعلية.
-- max size وmax duration config server-side؛ قيم أولية مقترحة 2 GiB و12 ساعة وتحتاج اعتمادًا.
+- containers المقبولة: MP3, AAC/ADTS, M4A/MP4 audio, WAV, FLAC source؛ whitelist codec فعلية.
+- حد DEVELOPMENT المطبق 50 MiB؛ duration limit ورفع plan/global limit يحتاجان اعتمادًا قبل long-form/production.
 - `ffprobe` timeout، resource limits، no network protocols، sanitized environment، worker غير root.
 - يرفض video streams، encrypted/unsupported codecs، zero duration، malformed timestamps، path traversal، excessive stream count.
 - checksum يمنع معالجة upload نفسه مرتين؛ `idempotency_key=(media_id,input_sha,profile_version)`.

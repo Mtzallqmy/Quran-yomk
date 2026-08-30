@@ -234,3 +234,7 @@ PROJECT_REF=<project-ref> ./scripts/generate-db-types.sh
 ### 10.8 Backup considerations
 
 المخطط قابل لإعادة البناء من migrations + seeds، لكن هذا لا يستبدل backup للبيانات التشغيلية و`auth.users`. قبل production: PITR/backup policy، نسخ Storage، واختبار restore إلى staging مع فحوص 114 سورة وFKs وحقوق المصادر.
+
+## 11. Storage Phase additions
+
+Phase 3 أضافت `UPLOADED` إلى `media_status`، وربط storage metadata إلى `media`، وجدولي `storage_upload_formats` و`media_upload_intents`. بقيت Database مصدر lifecycle، و`storage.objects` metadata read-only؛ كل mutation فعلية تتم عبر Storage API. التفاصيل في [`STORAGE.md`](./STORAGE.md).

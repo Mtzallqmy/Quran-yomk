@@ -36,7 +36,7 @@ begin
      'db-test-tarteel-b', 'INTERNAL', 'INTERNAL', 'https://radio.example.test/tarteel-b',
      'UTC', 'APPROVED', 'ALLOWED');
   insert into app.media (id, title, original_path, file_size_bytes)
-    values (media_id, 'Database fixture', 'tests/database-fixture.mp3', 1);
+    values (media_id, 'Database fixture', null, 1);
   insert into app.playlists (id, station_id, name) values
     (playlist_a, station_a, 'Fixture A'), (playlist_b, station_b, 'Fixture B');
 

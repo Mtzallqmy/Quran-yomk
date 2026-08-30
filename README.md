@@ -1,8 +1,8 @@
 # ترتيل (Tarteel) — Quran Radio & Audio Platform
 
 **المعرّف التقني:** `tarteel`  
-**الحالة:** Database Phase implemented and validated  
-**النطاق المنفذ:** التصميم المعتمد + PostgreSQL/Supabase migrations وseeds واختبارات قاعدة البيانات. لا يتضمن Flutter/Admin/Radio Engine/FFmpeg/Icecast.  
+**الحالة:** Storage Foundation implemented and validated  
+**النطاق المنفذ:** التصميم + Database Phase + Supabase Storage buckets/upload lifecycle. لا يتضمن Flutter/Admin/Radio Engine/FFmpeg/Icecast.  
 **المرجع:** Master Prompt المعتمد للمشروع.
 
 **Supabase target:** طُبقت Database Phase على المشروع managed المحدد للمرحلة. لا يحتوي المستودع أي credentials.
@@ -20,6 +20,7 @@
 | `docs/SCHEDULER.md` | Timezone/DST، occurrences، conflicts، restart/idempotency |
 | `docs/API.md` | Public/Admin API والعقود والأخطاء والتصفح والإديمبوتنسي |
 | `docs/AUDIO_PIPELINE.md` | Storage، FFmpeg، Icecast، فصل Live عن On-Demand |
+| `docs/STORAGE.md` | Buckets، object keys، Upload Intent، security، cleanup، Worker handoff |
 | `docs/EXTERNAL_STATIONS.md` | Providers، adapters، sync، health، rights، Flutter catalog |
 | `docs/SECURITY.md` | Auth/RBAC، الأمن، المراقبة، Watchdog والاستعادة |
 | `docs/DEPLOYMENT.md` | البيئات، topology، CI/CD، Monorepo، DR |
@@ -54,6 +55,6 @@
 | تصنيف مشروع Supabase الحالي | اجعله `development` أو `staging`، وليس production قبل اختبارات الاستعادة والأمن | يمنع خلط بيانات/أسرار البيئات |
 | سياسة نشر المصادر الخارجية | اعتماد workflow الحقوق والـattribution قبل تحويل أي source إلى production | الروابط العامة ليست ترخيصًا |
 
-## حالة Database Phase
+## حالة المراحل المنفذة
 
-اكتملت migrations وseeds وvalidation في `docs/DATABASE_PHASE_REPORT.md`. لا تبدأ المرحلة التالية قبل اعتماد التقرير.
+اكتملت Database Phase في `docs/DATABASE_PHASE_REPORT.md`، وStorage Phase في `docs/STORAGE_PHASE_REPORT.md`. لا تبدأ Audio Processing قبل اعتماد تقرير Storage.

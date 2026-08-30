@@ -31,9 +31,9 @@
 
 ### 3 — Storage & Upload Intent
 
-- buckets/policies، upload intent/complete، MIME/signature/size guard، cleanup quarantine.
-- Media lifecycle فقط حتى `PROCESSING`.
-- **اختبار:** valid upload stored privately؛ spoofed/oversized rejected؛ retry idempotent.
+- **مطبق في Phase 3:** ثلاث buckets، upload intent/complete، MIME/extension/size guard، immutable key، orphan candidates.
+- Media lifecycle أصبح `UPLOADING → UPLOADED`؛ `PROCESSING` يبدأ في Audio Worker فقط.
+- **النتيجة:** 16/16 DB tests وHTTP anonymous denial؛ authorized binary upload يحتاج Backend Storage runtime.
 
 ### 4 — Audio Processing Worker
 
@@ -122,7 +122,7 @@
 | T04 | إنشاء catalog/media/station schema | T03 | media/categories/reciters/surahs/tracks/stations/playlists | cross-station invariants؛ READY constraint؛ soft delete policy | FK/unique/index tests، invalid state tests |
 | T05 | إنشاء scheduling/automation schema | T04 | schedules/templates/occurrences/commands/state/events/history | occurrence/idempotency unique؛ composite station FKs | duplicate/concurrency SQL tests |
 | T06 | Seed RBAC و114 سورة ومحطة dev | T03–T05 | `supabase/seed/*` | 114 صفًا صحيحًا؛ seed idempotent؛ default roles كاملة | count/checksum، rerun seed، permissions matrix |
-| T07 | Storage buckets/policies/upload intent | T03–T06 | Storage config، `services/api` upload endpoints | originals/private؛ random keys؛ complete idempotent؛ spoof رفض | policy tests، MIME/signature/size، unauthorized access |
+| T07 | Storage buckets/policies/upload intent — **implemented with documented binary-upload warning** | T03–T06 | Storage config، SQL lifecycle، API types | originals/private؛ immutable keys؛ complete idempotent؛ spoof prefilter | 16 DB tests، HTTP anonymous denial؛ Backend binary E2E deferred |
 | T08 | Audio worker claim/validate | T07 | `services/audio-worker` | heartbeat/stale recovery؛ ffprobe sandbox؛ deterministic failure | valid/corrupt/polyglot/timeout fixtures، duplicate claim |
 | T09 | Normalize/encode/store/READY | T08 | worker FFmpeg profiles، media jobs | two-pass profile versioned؛ verified output قبل READY | MP3/AAC/M4A/WAV، loudness/duration/codec، retry/OOM |
 | T10 | Icecast/Nginx local environment | T01 | `infrastructure/icecast`, `nginx`, compose | ثابت mount؛ source/admin private؛ listener HTTPS config | source connect، two listeners same timeline، auth/port tests |

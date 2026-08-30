@@ -1,15 +1,10 @@
 typedef JsonMap = Map<String, dynamic>;
 
-String _string(dynamic value, [String fallback = '']) =>
-    value is String ? value : fallback;
-String? _nullableString(dynamic value) =>
-    value is String && value.isNotEmpty ? value : null;
-int _int(dynamic value, [int fallback = 0]) =>
-    value is int ? value : (value is num ? value.toInt() : fallback);
-bool _bool(dynamic value, [bool fallback = false]) =>
-    value is bool ? value : fallback;
-JsonMap _map(dynamic value) =>
-    value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
+String _string(dynamic value, [String fallback = '']) => value is String ? value : fallback;
+String? _nullableString(dynamic value) => value is String && value.isNotEmpty ? value : null;
+int _int(dynamic value, [int fallback = 0]) => value is int ? value : (value is num ? value.toInt() : fallback);
+bool _bool(dynamic value, [bool fallback = false]) => value is bool ? value : fallback;
+JsonMap _map(dynamic value) => value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 List<dynamic> _list(dynamic value) => value is List ? value : const <dynamic>[];
 
 class Station {
@@ -23,12 +18,19 @@ class Station {
     this.description,
     this.logoUrl,
     this.categoryId,
+    this.category,
     this.playbackUrl,
     this.timezone,
     this.status,
     this.healthStatus,
     this.isFeatured = false,
+    this.provider,
+    this.providerName,
+    this.integrationBasis,
     this.attribution,
+    this.termsUrl,
+    this.licenseUrl,
+    this.availabilityStatus,
   });
 
   final String id;
@@ -38,6 +40,7 @@ class Station {
   final String? description;
   final String? logoUrl;
   final String? categoryId;
+  final String? category;
   final String source;
   final String streamType;
   final String? playbackUrl;
@@ -45,7 +48,13 @@ class Station {
   final String? status;
   final String? healthStatus;
   final bool isFeatured;
+  final String? provider;
+  final String? providerName;
+  final String? integrationBasis;
   final String? attribution;
+  final String? termsUrl;
+  final String? licenseUrl;
+  final String? availabilityStatus;
 
   bool get isInternal => source == 'INTERNAL';
   bool get isExternal => source == 'EXTERNAL';
@@ -59,6 +68,7 @@ class Station {
     description: _nullableString(json['description']),
     logoUrl: _nullableString(json['logo_url']),
     categoryId: _nullableString(json['category_id']),
+    category: _nullableString(json['category']),
     source: _string(json['station_source']),
     streamType: _string(json['stream_type']),
     playbackUrl: _nullableString(json['playback_url']),
@@ -66,7 +76,13 @@ class Station {
     status: _nullableString(json['status']),
     healthStatus: _nullableString(json['health_status']),
     isFeatured: _bool(json['is_featured']),
+    provider: _nullableString(json['provider']),
+    providerName: _nullableString(json['provider_name']),
+    integrationBasis: _nullableString(json['integration_basis']),
     attribution: _nullableString(json['attribution']),
+    termsUrl: _nullableString(json['terms_url']),
+    licenseUrl: _nullableString(json['license_url']),
+    availabilityStatus: _nullableString(json['availability_status']),
   );
 
   JsonMap toJson() => <String, dynamic>{
@@ -77,6 +93,7 @@ class Station {
     'description': description,
     'logo_url': logoUrl,
     'category_id': categoryId,
+    'category': category,
     'station_source': source,
     'stream_type': streamType,
     'playback_url': playbackUrl,
@@ -84,270 +101,113 @@ class Station {
     'status': status,
     'health_status': healthStatus,
     'is_featured': isFeatured,
+    'provider': provider,
+    'provider_name': providerName,
+    'integration_basis': integrationBasis,
     'attribution': attribution,
+    'terms_url': termsUrl,
+    'license_url': licenseUrl,
+    'availability_status': availabilityStatus,
   };
+}
+
+class ContentSource {
+  const ContentSource({
+    required this.provider,
+    required this.providerName,
+    required this.integrationBasis,
+    this.providerUrl,
+    this.sourceUrl,
+    this.licenseType,
+    this.licenseUrl,
+    this.termsUrl,
+    this.attribution,
+    this.commercialUseStatus,
+    this.redistributionMode,
+    this.lastVerified,
+    this.productionEnabled = false,
+  });
+  final String provider;
+  final String providerName;
+  final String integrationBasis;
+  final String? providerUrl;
+  final String? sourceUrl;
+  final String? licenseType;
+  final String? licenseUrl;
+  final String? termsUrl;
+  final String? attribution;
+  final String? commercialUseStatus;
+  final String? redistributionMode;
+  final DateTime? lastVerified;
+  final bool productionEnabled;
+  factory ContentSource.fromJson(JsonMap json) => ContentSource(
+    provider: _string(json['provider']),
+    providerName: _string(json['provider_name']),
+    integrationBasis: _string(json['integration_basis']),
+    providerUrl: _nullableString(json['provider_url']),
+    sourceUrl: _nullableString(json['source_url']),
+    licenseType: _nullableString(json['license_type']),
+    licenseUrl: _nullableString(json['license_url']),
+    termsUrl: _nullableString(json['terms_url']),
+    attribution: _nullableString(json['attribution']),
+    commercialUseStatus: _nullableString(json['commercial_use_status']),
+    redistributionMode: _nullableString(json['redistribution_mode']),
+    lastVerified: DateTime.tryParse(_string(json['last_verified'])),
+    productionEnabled: _bool(json['production_enabled']),
+  );
 }
 
 class Category {
-  const Category({
-    required this.id,
-    required this.slug,
-    required this.nameAr,
-    this.nameEn,
-    this.description,
-    this.iconKey,
-    this.sortOrder = 0,
-  });
-  final String id;
-  final String slug;
-  final String nameAr;
-  final String? nameEn;
-  final String? description;
-  final String? iconKey;
-  final int sortOrder;
-  factory Category.fromJson(JsonMap json) => Category(
-    id: _string(json['id']),
-    slug: _string(json['slug']),
-    nameAr: _string(json['name_ar']),
-    nameEn: _nullableString(json['name_en']),
-    description: _nullableString(json['description']),
-    iconKey: _nullableString(json['icon_key']),
-    sortOrder: _int(json['sort_order']),
-  );
-  JsonMap toJson() => <String, dynamic>{
-    'id': id,
-    'slug': slug,
-    'name_ar': nameAr,
-    'name_en': nameEn,
-    'description': description,
-    'icon_key': iconKey,
-    'sort_order': sortOrder,
-  };
+  const Category({required this.id,required this.slug,required this.nameAr,this.nameEn,this.description,this.iconKey,this.sortOrder=0});
+  final String id; final String slug; final String nameAr; final String? nameEn; final String? description; final String? iconKey; final int sortOrder;
+  factory Category.fromJson(JsonMap json)=>Category(id:_string(json['id']),slug:_string(json['slug']),nameAr:_string(json['name_ar']),nameEn:_nullableString(json['name_en']),description:_nullableString(json['description']),iconKey:_nullableString(json['icon_key']),sortOrder:_int(json['sort_order']));
+  JsonMap toJson()=><String,dynamic>{'id':id,'slug':slug,'name_ar':nameAr,'name_en':nameEn,'description':description,'icon_key':iconKey,'sort_order':sortOrder};
 }
 
 class Reciter {
-  const Reciter({
-    required this.id,
-    required this.slug,
-    required this.nameAr,
-    this.nameEn,
-    this.imageUrl,
-    this.country,
-    this.rewaya,
-    this.description,
-  });
-  final String id;
-  final String slug;
-  final String nameAr;
-  final String? nameEn;
-  final String? imageUrl;
-  final String? country;
-  final String? rewaya;
-  final String? description;
-  factory Reciter.fromJson(JsonMap json) => Reciter(
-    id: _string(json['id']),
-    slug: _string(json['slug']),
-    nameAr: _string(json['name_ar']),
-    nameEn: _nullableString(json['name_en']),
-    imageUrl: _nullableString(json['image_url']),
-    country: _nullableString(json['country']),
-    rewaya: _nullableString(json['rewaya']),
-    description: _nullableString(json['description']),
-  );
-  JsonMap toJson() => <String, dynamic>{
-    'id': id,
-    'slug': slug,
-    'name_ar': nameAr,
-    'name_en': nameEn,
-    'image_url': imageUrl,
-    'country': country,
-    'rewaya': rewaya,
-    'description': description,
-  };
+  const Reciter({required this.id,required this.slug,required this.nameAr,this.nameEn,this.imageUrl,this.country,this.rewaya,this.description});
+  final String id; final String slug; final String nameAr; final String? nameEn; final String? imageUrl; final String? country; final String? rewaya; final String? description;
+  factory Reciter.fromJson(JsonMap json)=>Reciter(id:_string(json['id']),slug:_string(json['slug']),nameAr:_string(json['name_ar']),nameEn:_nullableString(json['name_en']),imageUrl:_nullableString(json['image_url']),country:_nullableString(json['country']),rewaya:_nullableString(json['rewaya']),description:_nullableString(json['description']));
+  JsonMap toJson()=><String,dynamic>{'id':id,'slug':slug,'name_ar':nameAr,'name_en':nameEn,'image_url':imageUrl,'country':country,'rewaya':rewaya,'description':description};
 }
 
 class Surah {
-  const Surah({
-    required this.id,
-    required this.number,
-    required this.nameAr,
-    required this.nameEn,
-    required this.ayahCount,
-  });
-  final int id;
-  final int number;
-  final String nameAr;
-  final String nameEn;
-  final int ayahCount;
-  factory Surah.fromJson(JsonMap json) => Surah(
-    id: _int(json['id']),
-    number: _int(json['number']),
-    nameAr: _string(json['name_ar']),
-    nameEn: _string(json['name_en']),
-    ayahCount: _int(json['ayah_count']),
-  );
-  JsonMap toJson() => <String, dynamic>{
-    'id': id,
-    'number': number,
-    'name_ar': nameAr,
-    'name_en': nameEn,
-    'ayah_count': ayahCount,
-  };
+  const Surah({required this.id,required this.number,required this.nameAr,required this.nameEn,required this.ayahCount});
+  final int id; final int number; final String nameAr; final String nameEn; final int ayahCount;
+  factory Surah.fromJson(JsonMap json)=>Surah(id:_int(json['id']),number:_int(json['number']),nameAr:_string(json['name_ar']),nameEn:_string(json['name_en']),ayahCount:_int(json['ayah_count']));
+  JsonMap toJson()=><String,dynamic>{'id':id,'number':number,'name_ar':nameAr,'name_en':nameEn,'ayah_count':ayahCount};
 }
 
 class ReciterTrack {
-  const ReciterTrack({
-    required this.id,
-    required this.surah,
-    this.mediaId,
-    this.durationMs,
-    this.quality,
-    this.rewaya,
-    this.format,
-    this.bitrateKbps,
-    this.playbackUrl,
-  });
-  final String id;
-  final Surah surah;
-  final String? mediaId;
-  final int? durationMs;
-  final String? quality;
-  final String? rewaya;
-  final String? format;
-  final int? bitrateKbps;
-  final String? playbackUrl;
-  bool get isPlayable => playbackUrl != null && playbackUrl!.isNotEmpty;
-  factory ReciterTrack.fromJson(JsonMap json) {
-    final track = _map(json['track']);
-    return ReciterTrack(
-      id: _string(track['id']),
-      surah: Surah.fromJson(_map(json['surah'])),
-      mediaId: _nullableString(track['media_id']),
-      durationMs: track['duration_ms'] == null
-          ? null
-          : _int(track['duration_ms']),
-      quality: _nullableString(track['quality']),
-      rewaya: _nullableString(track['rewaya']),
-      format: _nullableString(track['format']),
-      bitrateKbps: track['bitrate_kbps'] == null
-          ? null
-          : _int(track['bitrate_kbps']),
-      playbackUrl: _nullableString(track['playback_url']),
-    );
-  }
+  const ReciterTrack({required this.id,required this.surah,this.mediaId,this.durationMs,this.quality,this.rewaya,this.format,this.bitrateKbps,this.playbackUrl});
+  final String id; final Surah surah; final String? mediaId; final int? durationMs; final String? quality; final String? rewaya; final String? format; final int? bitrateKbps; final String? playbackUrl;
+  bool get isPlayable=>playbackUrl!=null&&playbackUrl!.isNotEmpty;
+  factory ReciterTrack.fromJson(JsonMap json){final track=_map(json['track']);return ReciterTrack(id:_string(track['id']),surah:Surah.fromJson(_map(json['surah'])),mediaId:_nullableString(track['media_id']),durationMs:track['duration_ms']==null?null:_int(track['duration_ms']),quality:_nullableString(track['quality']),rewaya:_nullableString(track['rewaya']),format:_nullableString(track['format']),bitrateKbps:track['bitrate_kbps']==null?null:_int(track['bitrate_kbps']),playbackUrl:_nullableString(track['playback_url']));}
 }
 
 class NowPlaying {
-  const NowPlaying({
-    required this.stationId,
-    required this.stationSlug,
-    required this.isLive,
-    this.title,
-    this.subtitle,
-    this.startedAt,
-    this.expectedEndAt,
-    this.source,
-    this.mediaId,
-  });
-  final String stationId;
-  final String stationSlug;
-  final bool isLive;
-  final String? title;
-  final String? subtitle;
-  final DateTime? startedAt;
-  final DateTime? expectedEndAt;
-  final String? source;
-  final String? mediaId;
-  factory NowPlaying.fromJson(JsonMap json) {
-    final station = _map(json['station']);
-    final media = _map(json['media']);
-    return NowPlaying(
-      stationId: _string(station['id']),
-      stationSlug: _string(station['slug']),
-      isLive: _bool(json['is_live'], true),
-      title: _nullableString(json['title']),
-      subtitle: _nullableString(json['subtitle']),
-      mediaId: _nullableString(media['id']),
-      startedAt: DateTime.tryParse(_string(json['started_at'])),
-      expectedEndAt: DateTime.tryParse(_string(json['expected_end_at'])),
-      source: _nullableString(json['source']),
-    );
-  }
+  const NowPlaying({required this.stationId,required this.stationSlug,required this.isLive,this.title,this.subtitle,this.startedAt,this.expectedEndAt,this.source,this.mediaId});
+  final String stationId; final String stationSlug; final bool isLive; final String? title; final String? subtitle; final DateTime? startedAt; final DateTime? expectedEndAt; final String? source; final String? mediaId;
+  factory NowPlaying.fromJson(JsonMap json){final station=_map(json['station']);final media=_map(json['media']);return NowPlaying(stationId:_string(station['id']),stationSlug:_string(station['slug']),isLive:_bool(json['is_live'],true),title:_nullableString(json['title']),subtitle:_nullableString(json['subtitle']),mediaId:_nullableString(media['id']),startedAt:DateTime.tryParse(_string(json['started_at'])),expectedEndAt:DateTime.tryParse(_string(json['expected_end_at'])),source:_nullableString(json['source']));}
 }
 
 class FeaturedItem {
-  const FeaturedItem({
-    required this.type,
-    required this.id,
-    required this.nameAr,
-    this.slug,
-    this.nameEn,
-    this.logoUrl,
-    this.playbackUrl,
-  });
-  final String type;
-  final String id;
-  final String nameAr;
-  final String? slug;
-  final String? nameEn;
-  final String? logoUrl;
-  final String? playbackUrl;
-  factory FeaturedItem.fromJson(JsonMap json) => FeaturedItem(
-    type: _string(json['type']),
-    id: _string(json['id']),
-    nameAr: _string(json['name_ar']),
-    slug: _nullableString(json['slug']),
-    nameEn: _nullableString(json['name_en']),
-    logoUrl: _nullableString(json['logo_url']),
-    playbackUrl: _nullableString(json['playback_url']),
-  );
-  JsonMap toJson() => <String, dynamic>{
-    'type': type,
-    'id': id,
-    'name_ar': nameAr,
-    'slug': slug,
-    'name_en': nameEn,
-    'logo_url': logoUrl,
-    'playback_url': playbackUrl,
-  };
+  const FeaturedItem({required this.type,required this.id,required this.nameAr,this.slug,this.nameEn,this.logoUrl,this.playbackUrl});
+  final String type; final String id; final String nameAr; final String? slug; final String? nameEn; final String? logoUrl; final String? playbackUrl;
+  factory FeaturedItem.fromJson(JsonMap json)=>FeaturedItem(type:_string(json['type']),id:_string(json['id']),nameAr:_string(json['name_ar']),slug:_nullableString(json['slug']),nameEn:_nullableString(json['name_en']),logoUrl:_nullableString(json['logo_url']),playbackUrl:_nullableString(json['playback_url']));
+  JsonMap toJson()=><String,dynamic>{'type':type,'id':id,'name_ar':nameAr,'slug':slug,'name_en':nameEn,'logo_url':logoUrl,'playback_url':playbackUrl};
 }
 
 class SearchBundle {
-  const SearchBundle({
-    required this.stations,
-    required this.reciters,
-    required this.surahs,
-  });
-  final List<Station> stations;
-  final List<Reciter> reciters;
-  final List<Surah> surahs;
-  factory SearchBundle.fromJson(JsonMap json) => SearchBundle(
-    stations: _list(
-      json['stations'],
-    ).map((e) => Station.fromJson(_map(e))).toList(growable: false),
-    reciters: _list(
-      json['reciters'],
-    ).map((e) => Reciter.fromJson(_map(e))).toList(growable: false),
-    surahs: _list(
-      json['surahs'],
-    ).map((e) => Surah.fromJson(_map(e))).toList(growable: false),
-  );
+  const SearchBundle({required this.stations,required this.reciters,required this.surahs});
+  final List<Station> stations; final List<Reciter> reciters; final List<Surah> surahs;
+  factory SearchBundle.fromJson(JsonMap json)=>SearchBundle(stations:_list(json['stations']).map((e)=>Station.fromJson(_map(e))).toList(growable:false),reciters:_list(json['reciters']).map((e)=>Reciter.fromJson(_map(e))).toList(growable:false),surahs:_list(json['surahs']).map((e)=>Surah.fromJson(_map(e))).toList(growable:false));
 }
 
 class PageResult<T> {
-  const PageResult({
-    required this.data,
-    required this.page,
-    required this.limit,
-    required this.total,
-    this.nextPage,
-  });
-  final List<T> data;
-  final int page;
-  final int limit;
-  final int total;
-  final int? nextPage;
+  const PageResult({required this.data,required this.page,required this.limit,required this.total,this.nextPage});
+  final List<T> data; final int page; final int limit; final int total; final int? nextPage;
 }
 
-JsonMap jsonMap(dynamic value) => _map(value);
-List<dynamic> jsonList(dynamic value) => _list(value);
+JsonMap jsonMap(dynamic value)=>_map(value);
+List<dynamic> jsonList(dynamic value)=>_list(value);

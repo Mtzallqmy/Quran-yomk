@@ -143,6 +143,9 @@ jobs:
       - name: Unit and widget tests
         working-directory: apps/mobile
         run: flutter test
+      - name: Live public API and audio E2E
+        working-directory: apps/mobile
+        run: python3 tool/public_api_e2e.py
       - name: Mobile secret guard
         shell: bash
         run: |

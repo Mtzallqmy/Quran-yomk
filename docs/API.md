@@ -1,5 +1,7 @@
 # REST API Contract
 
+> هذا العقد لمنصة **ترتيل (Tarteel)**؛ لا يغيّر اعتماد الاسم مسارات API المعتمدة.
+
 ## 1. Conventions
 
 - Base URLs: `https://api.example.com/api/v1` و`https://api.example.com/admin/api/v1`.

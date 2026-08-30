@@ -1,0 +1,9 @@
+project_id = "tarteel"
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed/*.sql"]
+
+[db.migrations]
+enabled = true
+schema_paths = ["./migrations/*.sql"]

@@ -1,10 +1,11 @@
-# Quran Radio Platform — Technical Design & Foundation
+# ترتيل (Tarteel) — Quran Radio & Audio Platform
 
-**الحالة:** Draft for approval  
-**النطاق:** المرحلة الأولى فقط — لا يحتوي هذا المجلد على تنفيذ تشغيلي أو Flutter UI أو migrations قابلة للتطبيق.  
+**المعرّف التقني:** `tarteel`  
+**الحالة:** Database Phase implemented and validated  
+**النطاق المنفذ:** التصميم المعتمد + PostgreSQL/Supabase migrations وseeds واختبارات قاعدة البيانات. لا يتضمن Flutter/Admin/Radio Engine/FFmpeg/Icecast.  
 **المرجع:** Master Prompt المعتمد للمشروع.
 
-**Supabase target (read-only verification):** مشروع managed نشط في `ap-northeast-1` على PostgreSQL 17. لم تُطبّق عليه أي تغييرات في هذه المرحلة، ولم يُحسم بعد هل هو development/staging/production.
+**Supabase target:** طُبقت Database Phase على المشروع managed المحدد للمرحلة. لا يحتوي المستودع أي credentials.
 
 ## محتويات الحزمة
 
@@ -12,7 +13,9 @@
 |---|---|
 | `docs/ARCHITECTURE.md` | المتطلبات الوظيفية وغير الوظيفية، المعمارية والمسؤوليات |
 | `docs/DATABASE.md` | ERD، نمذجة البيانات، القيود والفهارس وسياسة الوقت |
-| `supabase/proposed-schema.sql` | DDL مرجعي للمراجعة؛ ليس Migration تنفيذية |
+| `supabase/migrations/` | migrations التنفيذية المرتبة والمطبقة |
+| `supabase/seed/` | seeds قابلة لإعادة التشغيل |
+| `supabase/tests/database_validation.sql` | اختبارات integrity وbad-data |
 | `docs/RADIO_ENGINE.md` | State Machine، Queue، Commands، Never Silence |
 | `docs/SCHEDULER.md` | Timezone/DST، occurrences، conflicts، restart/idempotency |
 | `docs/API.md` | Public/Admin API والعقود والأخطاء والتصفح والإديمبوتنسي |
@@ -51,6 +54,6 @@
 | تصنيف مشروع Supabase الحالي | اجعله `development` أو `staging`، وليس production قبل اختبارات الاستعادة والأمن | يمنع خلط بيانات/أسرار البيئات |
 | سياسة نشر المصادر الخارجية | اعتماد workflow الحقوق والـattribution قبل تحويل أي source إلى production | الروابط العامة ليست ترخيصًا |
 
-## شرط الانتقال للمرحلة الثانية
+## حالة Database Phase
 
-لا تبدأ migrations قبل اعتماد نقاط القرار السابقة، ومراجعة ERD/DDL، وتوقيع Acceptance Criteria في `docs/MVP_PLAN.md`.
+اكتملت migrations وseeds وvalidation في `docs/DATABASE_PHASE_REPORT.md`. لا تبدأ المرحلة التالية قبل اعتماد التقرير.

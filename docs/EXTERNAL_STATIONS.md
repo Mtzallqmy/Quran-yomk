@@ -1,5 +1,7 @@
 # External Quran & Islamic Radio Sources
 
+> هذا الكتالوج جزء من **ترتيل (Tarteel)**، مع بقاء كل مصدر خارجي غير معتمد للإنتاج افتراضيًا.
+
 ## 1. Architectural boundary
 
 ```mermaid

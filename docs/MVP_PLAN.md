@@ -1,5 +1,7 @@
 # MVP Backlog & Implementation Plan
 
+> خطة MVP لمنصة **ترتيل (Tarteel)** (`tarteel`).
+
 ## 1. Definition of Done لكل خطوة
 
 `Plan → Implement → Test → Verify → Document → Commit-ready`. لا تنتقل الخطوة إذا فشل مسارها الأساسي. لا تُقبل mock لخدمات DB/FFmpeg/Icecast/Engine في integration path؛ يمكن fakes فقط في unit tests للـpure logic.

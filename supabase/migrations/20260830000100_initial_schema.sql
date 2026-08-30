@@ -1,4 +1,5 @@
--- DESIGN ARTIFACT ONLY. Convert to ordered Supabase migrations after approval.
+-- Initial approved database baseline for Tarteel.
+-- Generated without the Supabase CLI because the CLI is unavailable in this workspace.
 create extension if not exists pgcrypto;
 create extension if not exists pg_trgm;
 
@@ -21,7 +22,7 @@ create type radio.command_status as enum ('PENDING','PROCESSING','COMPLETED','FA
 create type radio.engine_mode as enum ('STARTING','AUTO','SCHEDULED','MANUAL','LIVE','RECOVERING','ERROR','STOPPED');
 create type radio.occurrence_status as enum ('PENDING','CLAIMED','PLAYING','COMPLETED','SKIPPED','FAILED','CANCELLED');
 
-create function app.set_updated_at() returns trigger language plpgsql as $$
+create function app.set_updated_at() returns trigger language plpgsql set search_path = '' as $$
 begin new.updated_at = now(); return new; end $$;
 revoke all on function app.set_updated_at() from public, anon, authenticated;
 
@@ -57,14 +58,16 @@ create table app.administrator_roles (
 
 create table app.categories (
   id uuid primary key default gen_random_uuid(), parent_id uuid references app.categories(id) on delete restrict,
-  slug text not null unique, name_ar text not null, name_en text, icon_key text,
+  slug text not null unique, name_ar text not null, name_en text, description text, icon_key text,
   is_active boolean not null default true, sort_order integer not null default 0,
   created_at timestamptz not null default now(), updated_at timestamptz not null default now(), deleted_at timestamptz
 );
 create table app.reciters (
   id uuid primary key default gen_random_uuid(), name_ar text not null, name_en text,
+  slug text not null unique check (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'),
   image_url text, country text, rewaya text, description text,
   search_name_ar text, search_name_en text, is_active boolean not null default true,
+  metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(), updated_at timestamptz not null default now(), deleted_at timestamptz
 );
 create table app.surahs (
@@ -96,18 +99,21 @@ create table app.media_processing_jobs (
 create table app.reciter_tracks (
   id uuid primary key default gen_random_uuid(), reciter_id uuid not null references app.reciters(id) on delete restrict,
   surah_id smallint not null references app.surahs(id) on delete restrict,
+  provider_id uuid,
   media_id uuid references app.media(id) on delete restrict, audio_url text,
-  duration_ms bigint check (duration_ms > 0), quality text not null,
+  duration_ms bigint check (duration_ms > 0), quality text not null, rewaya text not null default 'UNKNOWN',
+  format text, bitrate_kbps integer check (bitrate_kbps is null or bitrate_kbps > 0),
+  metadata jsonb not null default '{}'::jsonb,
   is_active boolean not null default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
-  check (media_id is not null or audio_url is not null), unique (reciter_id, surah_id, quality)
+  check ((media_id is not null) <> (audio_url is not null))
 );
 
 create table app.content_provider_types (
-  code text primary key check (code ~ '^[A-Z_]+$'),
+  code text primary key check (code ~ '^[A-Z][A-Z0-9_]*$'),
   description text not null, created_at timestamptz not null default now()
 );
 create table app.stream_types (
-  code text primary key check (code ~ '^[A-Z_]+$'),
+  code text primary key check (code ~ '^[A-Z][A-Z0-9_]*$'),
   description text not null, is_active boolean not null default true,
   created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
@@ -128,6 +134,15 @@ create table app.content_providers (
   created_at timestamptz not null default now(), updated_at timestamptz not null default now(), deleted_at timestamptz,
   check (not production_enabled or (rights_status = 'APPROVED' and commercial_use_status = 'ALLOWED'))
 );
+
+alter table app.reciter_tracks add constraint reciter_tracks_provider_fk
+  foreign key (provider_id) references app.content_providers(id) on delete restrict;
+create unique index reciter_tracks_internal_identity_idx
+  on app.reciter_tracks (reciter_id, surah_id, rewaya, quality)
+  where provider_id is null;
+create unique index reciter_tracks_provider_identity_idx
+  on app.reciter_tracks (provider_id, reciter_id, surah_id, rewaya, quality)
+  where provider_id is not null;
 
 create table app.stations (
   id uuid primary key default gen_random_uuid(),
@@ -328,14 +343,21 @@ create table radio.play_history (
 );
 
 create table app.app_config (
-  key text primary key, value jsonb not null, is_public boolean not null default false,
+  key text primary key check (key ~ '^[a-z][a-z0-9_]*$'), value jsonb not null,
+  value_type text not null check (value_type in ('BOOLEAN','INTEGER','STRING','URL','UUID','JSON')),
+  is_public boolean not null default false,
   description text, updated_by uuid references app.administrators(id) on delete set null,
-  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+  check ((value_type = 'BOOLEAN' and jsonb_typeof(value) = 'boolean')
+      or (value_type = 'INTEGER' and jsonb_typeof(value) = 'number')
+      or (value_type in ('STRING','URL','UUID') and jsonb_typeof(value) = 'string')
+      or (value_type = 'JSON'))
 );
 create table app.audit_logs (
   id bigint generated always as identity primary key, actor_id uuid references app.administrators(id) on delete set null,
   action text not null, resource_type text not null, resource_id text,
-  request_id uuid, ip_hash text, metadata jsonb not null default '{}'::jsonb, created_at timestamptz not null default now()
+  request_id uuid, ip_hash text, old_values jsonb, new_values jsonb,
+  metadata jsonb not null default '{}'::jsonb, created_at timestamptz not null default now()
 );
 create table app.system_logs (
   id bigint generated always as identity primary key, timestamp timestamptz not null default now(),
@@ -357,6 +379,10 @@ create table app.station_metrics_minute (
 
 create index media_filter_idx on app.media (status, category_id, reciter_id, created_at desc) where deleted_at is null;
 create index reciters_search_ar_idx on app.reciters using gin (search_name_ar gin_trgm_ops) where deleted_at is null;
+create index reciters_search_en_idx on app.reciters using gin (search_name_en gin_trgm_ops) where deleted_at is null;
+create index surahs_name_ar_idx on app.surahs using gin (name_ar gin_trgm_ops);
+create index surahs_name_en_idx on app.surahs using gin (name_en gin_trgm_ops);
+create index reciter_tracks_catalog_idx on app.reciter_tracks (reciter_id, surah_id, is_active);
 create index stations_catalog_idx on app.stations (is_active, production_enabled, health_status, category_id, sort_order) where deleted_at is null;
 create index stations_search_ar_idx on app.stations using gin (search_name_ar gin_trgm_ops) where deleted_at is null;
 create index stations_search_en_idx on app.stations using gin (search_name_en gin_trgm_ops) where deleted_at is null;
@@ -372,6 +398,7 @@ create index commands_pending_idx on radio.radio_commands (station_id, priority 
 create index events_station_time_idx on radio.radio_events (station_id, occurred_at desc);
 create index play_history_station_time_idx on radio.play_history (station_id, started_at desc);
 create index audit_resource_idx on app.audit_logs (resource_type, resource_id, created_at desc);
+create index audit_actor_time_idx on app.audit_logs (actor_id, created_at desc);
 create index logs_service_time_idx on app.system_logs (service, timestamp desc);
 
 do $$ declare r record; begin
@@ -383,6 +410,20 @@ do $$ declare r record; begin
       r.table_schema, r.table_name);
   end loop;
 end $$;
+
+create function app.require_valid_timezone() returns trigger language plpgsql set search_path = '' as $$
+begin
+  if not exists (select 1 from pg_catalog.pg_timezone_names where name = new.timezone) then
+    raise exception 'invalid IANA timezone: %', new.timezone;
+  end if;
+  return new;
+end $$;
+revoke all on function app.require_valid_timezone() from public, anon, authenticated;
+
+create trigger stations_valid_timezone before insert or update of timezone on app.stations
+for each row when (new.timezone is not null) execute function app.require_valid_timezone();
+create trigger schedules_valid_timezone before insert or update of timezone on app.schedules
+for each row execute function app.require_valid_timezone();
 
 create function app.require_internal_station() returns trigger language plpgsql set search_path = '' as $$
 declare source app.station_source;
@@ -457,6 +498,17 @@ do $$ declare r record; begin
     execute format('alter table %I.%I enable row level security', r.schemaname, r.tablename);
   end loop;
 end $$;
+
+revoke all on schema app, radio, api from public, anon, authenticated;
+revoke all on all tables in schema app, radio from public, anon, authenticated;
+revoke all on all sequences in schema app, radio from public, anon, authenticated;
+revoke all on all functions in schema app, radio from public, anon, authenticated;
+alter default privileges in schema app revoke all on tables from public, anon, authenticated;
+alter default privileges in schema radio revoke all on tables from public, anon, authenticated;
+alter default privileges in schema app revoke all on sequences from public, anon, authenticated;
+alter default privileges in schema radio revoke all on sequences from public, anon, authenticated;
+alter default privileges in schema app revoke all on functions from public, anon, authenticated;
+alter default privileges in schema radio revoke all on functions from public, anon, authenticated;
 
 -- Intentionally no anon/authenticated grants here. API projections and exact
 -- policies are separate reviewed migrations after approval.

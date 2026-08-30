@@ -1,5 +1,7 @@
 # Authentication, RBAC, Security & Operations
 
+> نموذج الأمان لمنصة **ترتيل (Tarteel)** (`tarteel`).
+
 ## 1. Authentication
 
 - المستمع بلا حساب في MVP؛ Public API read-only مع rate limiting.

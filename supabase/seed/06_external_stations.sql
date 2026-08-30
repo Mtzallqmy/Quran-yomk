@@ -1,4 +1,4 @@
--- Technical source inventory only. No row is production-enabled or rights-approved.
+-- Repeatable technical source inventory. No row is production-enabled or rights-approved.
 with inventory(provider_slug, category_slug, slug, external_key, name_ar, name_en, stream_type, stream_url, metadata) as (
   values
   ('qurango','QURAN_GENERAL','qurango-mix','mix','الإذاعة العامة - قراء متنوعون','General Quran - Multiple Reciters','SHOUTCAST','https://backup.qurango.net/radio/mix','{"seed_group":"general"}'::jsonb),

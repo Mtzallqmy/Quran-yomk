@@ -1,4 +1,4 @@
--- Phase 1 seed inventory. External providers are not production-approved.
+-- Repeatable provider seed. External providers are not production-approved.
 insert into app.content_provider_types (code, description) values
   ('INTERNAL', 'Owned and operated by this platform'),
   ('QURANGO', 'Qurango static/stream inventory'),

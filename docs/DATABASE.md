@@ -1,5 +1,7 @@
 # Database ERD & PostgreSQL Design
 
+> قاعدة بيانات مشروع **ترتيل (Tarteel)**. المعرّف التقني: `tarteel`.
+
 ## 1. مبادئ النمذجة
 
 - UUID للكيانات التشغيلية؛ `smallint` للسور الثابتة.
@@ -103,7 +105,7 @@ erDiagram
 | `service_heartbeats` | optional station | instance PK، freshness/health details |
 | `station_metrics_minute` | station | PK station/time، aggregates بلا raw IP |
 
-الـDDL الكامل لهذه المرحلة في [`../supabase/proposed-schema.sql`](../supabase/proposed-schema.sql). هو مرجع تصميم وليس migration، وسيجزأ في T03–T06 بعد الاعتماد.
+الـDDL التنفيذي في [`../supabase/migrations/`](../supabase/migrations/) ومقسّم إلى baseline، service-role access، integrity، وadvisor hardening. لا تعتمد أي خطوة على إنشاء يدوي من Dashboard.
 
 ## 4. تصميم الجدولة الزمنية
 
@@ -157,3 +159,78 @@ erDiagram
 - RLS/grants tests جزء إلزامي من migration phase.
 - EXTERNAL station لا يمكنها امتلاك automation rows، وprovider sync لا يحذف canonical station.
 - effective provider/station rights تمنع production publication افتراضيًا.
+
+## 10. Phase 2 implementation record
+
+تم تحويل التصميم إلى أربع migrations مرتبة داخل `supabase/migrations/`:
+
+1. `initial_schema`: schemas/types و39 جدولًا وقيود العلاقات وRLS وtriggers الأساسية.
+2. `service_role_access`: وصول server-side صريح لـ`service_role` مع إبقاء `anon/authenticated` خارج `app/radio/api`.
+3. `station_schedule_integrity`: اتساق INTERNAL/EXTERNAL، URL وIANA timezone، ومنع تكرار أيام الأسبوع.
+4. `advisor_hardening`: نقل `pg_trgm` من `public` وفهارس مسارات الاستعلام النامية.
+
+### 10.1 تعديلات minimal عن التصميم المعتمد
+
+- أصبح regex لرموز provider/stream يقبل الأرقام بعد الحرف الأول لدعم `MP3QURAN` و`MP3_STREAM`.
+- توسع `reciter_tracks` بـ`provider_id`, `rewaya`, `format`, `bitrate_kbps`, `metadata` وفهرسين unique منفصلين للمصدر الداخلي والخارجي؛ لم يعد القيد يمنع رواية أو مصدرًا إضافيًا.
+- أضيف `slug` و`metadata` للقراء، و`description` للفئات، و`old_values/new_values` للـaudit.
+- `app_config` يحتفظ بـ`value_type` وCHECK يطابق نوع JSON الأساسي بدل JSON dump غير منضبط.
+- قيد مركب `(station_id, default_playlist_id)` يضمن أن Default Playlist تنتمي للمحطة نفسها.
+
+### 10.2 Extensions
+
+- `pgcrypto`: `gen_random_uuid()`.
+- `pg_trgm`: بحث تقريبي عربي/إنجليزي مبدئي؛ نُقل إلى schema `extensions` بدل `public`.
+
+لا توجد extensions إضافية خاصة بالمشروع.
+
+### 10.3 RLS and grants
+
+- RLS مفعّل على كل الجداول الـ39 في `app` و`radio`.
+- عدد policies حاليًا `0` عمدًا: عدم وجود policy مع RLS يعني default-deny، كما أن schema usage مسحوب من `anon` و`authenticated`.
+- `service_role` وحده يملك grants server-side اللازمة، ولا يجوز استخدام مفتاحه في العميل.
+- Public read projections/policies مؤجلة إلى API Phase لأن Flutter لا يقرأ الجداول الداخلية مباشرة.
+
+### 10.4 Seed strategy and verified counts
+
+`supabase/config.toml` يشغّل `supabase/seed/*.sql` معجميًا. إعادة التشغيل اختبرت ولم تغيّر الأعداد:
+
+| Seed | العدد الفعلي |
+|---|---:|
+| Roles | 4 |
+| Permissions | 34 |
+| Role-permission mappings | 70 |
+| Categories | 13 |
+| Surahs | 114؛ الأرقام 1..114؛ مجموع العد الكوفي 6236 |
+| Providers | 6 records / 5 provider types |
+| External stations | 58 |
+| Provider station mappings | 58 |
+| App config keys | 13 |
+
+### 10.5 System logs scope
+
+`system_logs` ليس منصة logs عالية الحجم. يستخدم فقط للأحداث التشغيلية المهمة مع retention محدود؛ stdout/structured logs والmetrics تنتقل لاحقًا إلى منصة observability. `radio_events`, `play_history`, و`stream_health_checks` مرشحة للتقسيم بعد قياس الحجم.
+
+### 10.6 Migration and reset workflow
+
+```bash
+supabase start
+supabase db reset
+supabase test db
+```
+
+في هذه البيئة لم يكن Supabase CLI/Docker متاحًا. بدأ المشروع البعيد بقاعدة مشروع خالية من جداول `app/radio/api` ومن migrations؛ طُبقت migrations الأربع بالترتيب، ثم seeds، ثم أعيد تشغيل seeds واختبارات validation. كذلك اجتاز baseline + جميع seeds dry-run داخل transaction قبل أول تطبيق. لا توجد Dashboard steps مخفية.
+
+### 10.7 Type generation
+
+بعد تثبيت Supabase CLI وتشغيل migrations، استخدم:
+
+```bash
+PROJECT_REF=<project-ref> ./scripts/generate-db-types.sh
+```
+
+لا يُحفظ access token أو secret key في المستودع. Flutter سيستهلك API contracts لاحقًا، لا database types الداخلية.
+
+### 10.8 Backup considerations
+
+المخطط قابل لإعادة البناء من migrations + seeds، لكن هذا لا يستبدل backup للبيانات التشغيلية و`auth.users`. قبل production: PITR/backup policy، نسخ Storage، واختبار restore إلى staging مع فحوص 114 سورة وFKs وحقوق المصادر.

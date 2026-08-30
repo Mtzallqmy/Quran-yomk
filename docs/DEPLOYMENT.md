@@ -1,5 +1,7 @@
 # Deployment Topology & Monorepo Foundation
 
+> اسم المشروع والخدمات الجديدة: **ترتيل (Tarteel)**؛ يستخدم `tarteel` للمعرّفات التقنية دون إعادة تسمية مكونات قائمة بصورة كاسرة.
+
 ## 1. Topology النهائية
 
 ```mermaid

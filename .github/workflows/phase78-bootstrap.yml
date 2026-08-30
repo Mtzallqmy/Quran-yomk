@@ -6,6 +6,7 @@ on:
       - main
       - phase7-8-backend-admin-brand
       - phase9-10-flutter-release
+      - 'fix/**'
   workflow_dispatch:
 
 permissions:
@@ -82,7 +83,7 @@ jobs:
         run: npm ci && npm test
 
   mobile-release:
-    if: github.ref == 'refs/heads/phase9-10-flutter-release'
+    if: github.ref == 'refs/heads/phase9-10-flutter-release' || startsWith(github.ref, 'refs/heads/fix/')
     permissions:
       contents: write
     runs-on: ubuntu-24.04
@@ -190,6 +191,6 @@ jobs:
       - name: Upload Android release evidence
         uses: actions/upload-artifact@v4
         with:
-          name: tarteel-phase9-10-android-release
+          name: tarteel-functional-fix-android-release
           path: apps/mobile/release/evidence
           retention-days: 30

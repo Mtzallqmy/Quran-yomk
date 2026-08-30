@@ -3,6 +3,7 @@ name: Phase 7+8 Acceptance
 on:
   push:
     branches:
+      - main
       - phase7-8-backend-admin-brand
   workflow_dispatch:
 

@@ -186,7 +186,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       ListTile(
                         leading: CircleAvatar(child: Text('${surah.number}')),
                         title: Text(surah.nameAr),
-                        subtitle: Text('${surah.nameEn} • ${surah.ayahCount} آية'),
+                        subtitle: Text(
+                          '${surah.nameEn} • ${surah.ayahCount} آية',
+                        ),
                         trailing: const Icon(Icons.chevron_left),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(

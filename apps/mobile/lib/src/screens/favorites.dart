@@ -94,7 +94,9 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
                     ),
                     trailing: IconButton.filledTonal(
                       tooltip: 'تشغيل',
-                      onPressed: station.isPlayable ? () => _play(station) : null,
+                      onPressed: station.isPlayable
+                          ? () => _play(station)
+                          : null,
                       icon: const Icon(Icons.play_arrow),
                     ),
                   ),

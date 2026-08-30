@@ -23,7 +23,7 @@ function station(row:Record<string,unknown>){
 export async function listPublicStations(request:Request){
   const url=new URL(request.url);
   const page=int(url.searchParams.get('page')??1,'page',1,100000);
-  const limit=int(url.searchParams.get('limit')??50,'limit',1,100);
+  const limit=int(url.searchParams.get('limit')??50,'limit',1,200);
   const source=url.searchParams.get('source');
   const category=url.searchParams.get('category');
   const provider=url.searchParams.get('provider');

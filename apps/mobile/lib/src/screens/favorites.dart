@@ -39,37 +39,69 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
       builder: (context, _) => FutureBuilder<_FavoritesData>(
         future: future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) return const LoadingPane();
-          if (snapshot.hasError && !snapshot.hasData) return ErrorPane(error: snapshot.error!, onRetry: () => setState(() => future = load()));
+          if (snapshot.connectionState != ConnectionState.done &&
+              !snapshot.hasData)
+            return const LoadingPane();
+          if (snapshot.hasError && !snapshot.hasData)
+            return ErrorPane(
+              error: snapshot.error!,
+              onRetry: () => setState(() => future = load()),
+            );
           final data = snapshot.data;
           if (data == null) return const EmptyPane();
-          final stations = data.stations.where((station) => services.favorites.isStation(station.id)).toList(growable: false);
-          final reciters = data.reciters.where((reciter) => services.favorites.isReciter(reciter.id)).toList(growable: false);
-          if (stations.isEmpty && reciters.isEmpty && services.favorites.trackIds.isEmpty) return const EmptyPane(message: 'لم تضف أي عناصر إلى المفضلة بعد');
-          return ListView(children: <Widget>[
-            if (stations.isNotEmpty) ...<Widget>[
-              const SectionHeader('الإذاعات المفضلة'),
-              for (final station in stations)
-                ListTile(
-                  leading: Artwork(url: station.logoUrl),
-                  title: Text(station.nameAr),
-                  trailing: IconButton(onPressed: station.isPlayable ? () => services.playback.playStation(station) : null, icon: const Icon(Icons.play_circle_fill)),
+          final stations = data.stations
+              .where((station) => services.favorites.isStation(station.id))
+              .toList(growable: false);
+          final reciters = data.reciters
+              .where((reciter) => services.favorites.isReciter(reciter.id))
+              .toList(growable: false);
+          if (stations.isEmpty &&
+              reciters.isEmpty &&
+              services.favorites.trackIds.isEmpty)
+            return const EmptyPane(message: 'لم تضف أي عناصر إلى المفضلة بعد');
+          return ListView(
+            children: <Widget>[
+              if (stations.isNotEmpty) ...<Widget>[
+                const SectionHeader('الإذاعات المفضلة'),
+                for (final station in stations)
+                  ListTile(
+                    leading: Artwork(url: station.logoUrl),
+                    title: Text(station.nameAr),
+                    trailing: IconButton(
+                      onPressed: station.isPlayable
+                          ? () => services.playback.playStation(station)
+                          : null,
+                      icon: const Icon(Icons.play_circle_fill),
+                    ),
+                  ),
+              ],
+              if (reciters.isNotEmpty) ...<Widget>[
+                const SectionHeader('القراء المفضلون'),
+                for (final reciter in reciters)
+                  ListTile(
+                    leading: Artwork(
+                      url: reciter.imageUrl,
+                      icon: Icons.person_outline,
+                    ),
+                    title: Text(reciter.nameAr),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ReciterDetailPage(reciter: reciter),
+                      ),
+                    ),
+                  ),
+              ],
+              if (services.favorites.trackIds.isNotEmpty) ...<Widget>[
+                const SectionHeader('التلاوات المفضلة'),
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'تُحفظ التلاوات بالمعرّف الثابت. افتح صفحة القارئ لتشغيل النسخة الحالية من رابط التلاوة المصرّح به.',
+                  ),
                 ),
+              ],
             ],
-            if (reciters.isNotEmpty) ...<Widget>[
-              const SectionHeader('القراء المفضلون'),
-              for (final reciter in reciters)
-                ListTile(
-                  leading: Artwork(url: reciter.imageUrl, icon: Icons.person_outline),
-                  title: Text(reciter.nameAr),
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ReciterDetailPage(reciter: reciter))),
-                ),
-            ],
-            if (services.favorites.trackIds.isNotEmpty) ...<Widget>[
-              const SectionHeader('التلاوات المفضلة'),
-              const Padding(padding: EdgeInsets.all(16), child: Text('تُحفظ التلاوات بالمعرّف الثابت. افتح صفحة القارئ لتشغيل النسخة الحالية من رابط التلاوة المصرّح به.')),
-            ],
-          ]);
+          );
         },
       ),
     );

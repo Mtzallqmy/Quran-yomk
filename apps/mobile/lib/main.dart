@@ -33,7 +33,12 @@ Future<void> main() async {
   final settings = SettingsStore(preferences)..load();
   final api = TarteelApiClient();
   final repository = TarteelRepository(api, MetadataCache(preferences));
-  final services = AppServices(repository: repository, favorites: favorites, settings: settings, playback: playback);
+  final services = AppServices(
+    repository: repository,
+    favorites: favorites,
+    settings: settings,
+    playback: playback,
+  );
 
   runApp(
     ProviderScope(

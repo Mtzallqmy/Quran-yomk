@@ -30,7 +30,12 @@ class TarteelApp extends ConsumerWidget {
         theme: TarteelTheme.light(),
         darkTheme: TarteelTheme.dark(),
         themeMode: settings.themeMode,
-        builder: (context, child) => Directionality(textDirection: settings.locale.languageCode == 'ar' ? TextDirection.rtl : TextDirection.ltr, child: child ?? const SizedBox.shrink()),
+        builder: (context, child) => Directionality(
+          textDirection: settings.locale.languageCode == 'ar'
+              ? TextDirection.rtl
+              : TextDirection.ltr,
+          child: child ?? const SizedBox.shrink(),
+        ),
         home: const RootShell(),
       ),
     );
@@ -45,18 +50,42 @@ class RootShell extends StatefulWidget {
 
 class _RootShellState extends State<RootShell> {
   int index = 0;
-  final pages = const <Widget>[HomePage(), RadioPage(), RecitersPage(), LibraryPage(), FavoritesPage()];
+  final pages = const <Widget>[
+    HomePage(),
+    RadioPage(),
+    RecitersPage(),
+    LibraryPage(),
+    FavoritesPage(),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final s = TarteelStrings.of(context);
-    final titles = <String>[s.home, s.radio, s.reciters, s.library, s.favorites];
+    final titles = <String>[
+      s.home,
+      s.radio,
+      s.reciters,
+      s.library,
+      s.favorites,
+    ];
     return Scaffold(
       appBar: AppBar(
         title: Text('${s.appName} — ${titles[index]}'),
         actions: <Widget>[
-          IconButton(tooltip: s.search, onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SearchPage())), icon: const Icon(Icons.search)),
-          IconButton(tooltip: s.settings, onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SettingsPage())), icon: const Icon(Icons.settings_outlined)),
+          IconButton(
+            tooltip: s.search,
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const SearchPage())),
+            icon: const Icon(Icons.search),
+          ),
+          IconButton(
+            tooltip: s.settings,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
+            ),
+            icon: const Icon(Icons.settings_outlined),
+          ),
         ],
       ),
       body: IndexedStack(index: index, children: pages),
@@ -69,11 +98,31 @@ class _RootShellState extends State<RootShell> {
             labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
             onDestinationSelected: (value) => setState(() => index = value),
             destinations: <NavigationDestination>[
-              NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home), label: s.home),
-              NavigationDestination(icon: const Icon(Icons.radio_outlined), selectedIcon: const Icon(Icons.radio), label: s.radio),
-              NavigationDestination(icon: const Icon(Icons.record_voice_over_outlined), selectedIcon: const Icon(Icons.record_voice_over), label: s.reciters),
-              NavigationDestination(icon: const Icon(Icons.menu_book_outlined), selectedIcon: const Icon(Icons.menu_book), label: s.library),
-              NavigationDestination(icon: const Icon(Icons.favorite_border), selectedIcon: const Icon(Icons.favorite), label: s.favorites),
+              NavigationDestination(
+                icon: const Icon(Icons.home_outlined),
+                selectedIcon: const Icon(Icons.home),
+                label: s.home,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.radio_outlined),
+                selectedIcon: const Icon(Icons.radio),
+                label: s.radio,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.record_voice_over_outlined),
+                selectedIcon: const Icon(Icons.record_voice_over),
+                label: s.reciters,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.menu_book_outlined),
+                selectedIcon: const Icon(Icons.menu_book),
+                label: s.library,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.favorite_border),
+                selectedIcon: const Icon(Icons.favorite),
+                label: s.favorites,
+              ),
             ],
           ),
         ],

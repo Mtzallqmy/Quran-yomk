@@ -14,7 +14,11 @@ abstract class PlaybackPort {
   Stream<Duration?> get sleepRemainingStream;
   bool get isLive;
   Future<void> playStation(Station station);
-  Future<void> playTracks(List<ReciterTrack> tracks, int index, Reciter reciter);
+  Future<void> playTracks(
+    List<ReciterTrack> tracks,
+    int index,
+    Reciter reciter,
+  );
   Future<void> play();
   Future<void> pause();
   Future<void> stop();
@@ -28,7 +32,9 @@ abstract class PlaybackPort {
   void cancelSleepTimer();
 }
 
-class TarteelAudioHandler extends BaseAudioHandler with SeekHandler implements PlaybackPort {
+class TarteelAudioHandler extends BaseAudioHandler
+    with SeekHandler
+    implements PlaybackPort {
   TarteelAudioHandler() {
     _player.playbackEventStream.listen((_) => _broadcastState());
     _player.playingStream.listen((playing) {
@@ -39,7 +45,8 @@ class TarteelAudioHandler extends BaseAudioHandler with SeekHandler implements P
   }
 
   final AudioPlayer _player = AudioPlayer();
-  final StreamController<Duration?> _sleepRemaining = StreamController<Duration?>.broadcast();
+  final StreamController<Duration?> _sleepRemaining =
+      StreamController<Duration?>.broadcast();
   Timer? _sleepTimer;
   Timer? _reconnectTimer;
   DateTime? _sleepDeadline;
@@ -71,11 +78,17 @@ class TarteelAudioHandler extends BaseAudioHandler with SeekHandler implements P
     session.interruptionEventStream.listen((event) async {
       if (event.begin) {
         _resumeAfterInterruption = _player.playing;
-        if (event.type == AudioInterruptionType.pause || event.type == AudioInterruptionType.unknown) await pause();
-        if (event.type == AudioInterruptionType.duck) await _player.setVolume(0.35);
+        if (event.type == AudioInterruptionType.pause ||
+            event.type == AudioInterruptionType.unknown)
+          await pause();
+        if (event.type == AudioInterruptionType.duck)
+          await _player.setVolume(0.35);
       } else {
-        if (event.type == AudioInterruptionType.duck) await _player.setVolume(1.0);
-        if (_resumeAfterInterruption && event.type == AudioInterruptionType.pause) await play();
+        if (event.type == AudioInterruptionType.duck)
+          await _player.setVolume(1.0);
+        if (_resumeAfterInterruption &&
+            event.type == AudioInterruptionType.pause)
+          await play();
         _resumeAfterInterruption = false;
       }
     });
@@ -97,25 +110,44 @@ class TarteelAudioHandler extends BaseAudioHandler with SeekHandler implements P
     await _player.play();
   }
 
-  MediaItem _stationItem(Station station, {String? title, String? subtitle}) => MediaItem(
+  MediaItem _stationItem(Station station, {String? title, String? subtitle}) =>
+      MediaItem(
         id: 'station:${station.id}',
         title: title ?? station.nameAr,
         artist: subtitle ?? 'بث مباشر',
         artUri: station.logoUrl == null ? null : Uri.tryParse(station.logoUrl!),
         isLive: true,
-        extras: <String, dynamic>{'kind': 'station', 'entity_id': station.id, 'slug': station.slug, 'url': station.playbackUrl, 'station_name': station.nameAr},
+        extras: <String, dynamic>{
+          'kind': 'station',
+          'entity_id': station.id,
+          'slug': station.slug,
+          'url': station.playbackUrl,
+          'station_name': station.nameAr,
+        },
       );
 
   @override
   Future<void> updateLiveMetadata(NowPlaying value) async {
     final station = _liveStation;
     if (station == null || station.id != value.stationId) return;
-    mediaItem.add(_stationItem(station, title: value.title ?? station.nameAr, subtitle: value.subtitle ?? 'بث مباشر'));
+    mediaItem.add(
+      _stationItem(
+        station,
+        title: value.title ?? station.nameAr,
+        subtitle: value.subtitle ?? 'بث مباشر',
+      ),
+    );
   }
 
   @override
-  Future<void> playTracks(List<ReciterTrack> tracks, int index, Reciter reciter) async {
-    final playable = tracks.where((track) => track.isPlayable).toList(growable: false);
+  Future<void> playTracks(
+    List<ReciterTrack> tracks,
+    int index,
+    Reciter reciter,
+  ) async {
+    final playable = tracks
+        .where((track) => track.isPlayable)
+        .toList(growable: false);
     if (playable.isEmpty) throw StateError('No playable tracks');
     final selected = tracks[index];
     final mappedIndex = playable.indexWhere((track) => track.id == selected.id);
@@ -125,17 +157,31 @@ class TarteelAudioHandler extends BaseAudioHandler with SeekHandler implements P
     _tracks = playable;
     _trackIndex = mappedIndex < 0 ? 0 : mappedIndex;
     _shouldPlay = true;
-    queue.add(playable.map((track) => _trackItem(track, reciter)).toList(growable: false));
+    queue.add(
+      playable
+          .map((track) => _trackItem(track, reciter))
+          .toList(growable: false),
+    );
     await _loadTrack(_trackIndex);
     await _player.play();
   }
 
   MediaItem _trackItem(ReciterTrack track, Reciter reciter) => MediaItem(
-        id: 'track:${track.id}', title: track.surah.nameAr, artist: reciter.nameAr,
-        duration: track.durationMs == null ? null : Duration(milliseconds: track.durationMs!),
-        isLive: false,
-        extras: <String, dynamic>{'kind': 'track', 'entity_id': track.id, 'url': track.playbackUrl, 'surah_number': track.surah.number, 'reciter_id': reciter.id},
-      );
+    id: 'track:${track.id}',
+    title: track.surah.nameAr,
+    artist: reciter.nameAr,
+    duration: track.durationMs == null
+        ? null
+        : Duration(milliseconds: track.durationMs!),
+    isLive: false,
+    extras: <String, dynamic>{
+      'kind': 'track',
+      'entity_id': track.id,
+      'url': track.playbackUrl,
+      'surah_number': track.surah.number,
+      'reciter_id': reciter.id,
+    },
+  );
 
   Future<void> _loadTrack(int index) async {
     final track = _tracks[index];
@@ -154,7 +200,8 @@ class TarteelAudioHandler extends BaseAudioHandler with SeekHandler implements P
   @override
   Future<void> play() async {
     _shouldPlay = true;
-    if (_player.processingState == ProcessingState.completed && !isLive) await seek(Duration.zero);
+    if (_player.processingState == ProcessingState.completed && !isLive)
+      await seek(Duration.zero);
     await _player.play();
   }
 
@@ -212,7 +259,13 @@ class TarteelAudioHandler extends BaseAudioHandler with SeekHandler implements P
   Future<void> setRepeatOne(bool enabled) async {
     if (isLive) return;
     await _player.setLoopMode(enabled ? LoopMode.one : LoopMode.off);
-    playbackState.add(playbackState.value.copyWith(repeatMode: enabled ? AudioServiceRepeatMode.one : AudioServiceRepeatMode.none));
+    playbackState.add(
+      playbackState.value.copyWith(
+        repeatMode: enabled
+            ? AudioServiceRepeatMode.one
+            : AudioServiceRepeatMode.none,
+      ),
+    );
   }
 
   @override
@@ -243,7 +296,11 @@ class TarteelAudioHandler extends BaseAudioHandler with SeekHandler implements P
 
   void _scheduleLiveReconnect() {
     final station = _liveStation;
-    if (station == null || !_shouldPlay || station.playbackUrl == null || _reconnectTimer != null) return;
+    if (station == null ||
+        !_shouldPlay ||
+        station.playbackUrl == null ||
+        _reconnectTimer != null)
+      return;
     const backoff = <int>[2, 4, 8, 16, 30];
     if (_reconnectAttempt >= backoff.length) return;
     final delay = Duration(seconds: backoff[_reconnectAttempt++]);
@@ -274,19 +331,37 @@ class TarteelAudioHandler extends BaseAudioHandler with SeekHandler implements P
       ProcessingState.completed => AudioProcessingState.completed,
     };
     final controls = isLive
-        ? <MediaControl>[MediaControl.stop, _player.playing ? MediaControl.pause : MediaControl.play]
-        : <MediaControl>[MediaControl.skipToPrevious, _player.playing ? MediaControl.pause : MediaControl.play, MediaControl.skipToNext, MediaControl.stop];
-    playbackState.add(playbackState.value.copyWith(
-      controls: controls,
-      systemActions: isLive ? const <MediaAction>{} : const <MediaAction>{MediaAction.seek, MediaAction.seekForward, MediaAction.seekBackward},
-      androidCompactActionIndices: isLive ? const <int>[0, 1] : const <int>[0, 1, 2],
-      processingState: processing,
-      playing: _player.playing,
-      updatePosition: _player.position,
-      bufferedPosition: _player.bufferedPosition,
-      speed: _player.speed,
-      queueIndex: isLive ? null : _trackIndex,
-    ));
+        ? <MediaControl>[
+            MediaControl.stop,
+            _player.playing ? MediaControl.pause : MediaControl.play,
+          ]
+        : <MediaControl>[
+            MediaControl.skipToPrevious,
+            _player.playing ? MediaControl.pause : MediaControl.play,
+            MediaControl.skipToNext,
+            MediaControl.stop,
+          ];
+    playbackState.add(
+      playbackState.value.copyWith(
+        controls: controls,
+        systemActions: isLive
+            ? const <MediaAction>{}
+            : const <MediaAction>{
+                MediaAction.seek,
+                MediaAction.seekForward,
+                MediaAction.seekBackward,
+              },
+        androidCompactActionIndices: isLive
+            ? const <int>[0, 1]
+            : const <int>[0, 1, 2],
+        processingState: processing,
+        playing: _player.playing,
+        updatePosition: _player.position,
+        bufferedPosition: _player.bufferedPosition,
+        speed: _player.speed,
+        queueIndex: isLive ? null : _trackIndex,
+      ),
+    );
   }
 
   Future<void> disposeHandler() async {

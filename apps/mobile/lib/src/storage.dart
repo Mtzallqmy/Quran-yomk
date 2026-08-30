@@ -32,7 +32,10 @@ class MetadataCache {
 
   Future<void> write(String key, Object value) async {
     await _prefs.setString('cache:$key', jsonEncode(value));
-    await _prefs.setInt('cache:$key:written', DateTime.now().millisecondsSinceEpoch);
+    await _prefs.setInt(
+      'cache:$key:written',
+      DateTime.now().millisecondsSinceEpoch,
+    );
   }
 }
 
@@ -44,18 +47,27 @@ class FavoritesStore extends ChangeNotifier {
   final Set<String> trackIds = <String>{};
 
   void load() {
-    stationIds.addAll(_prefs.getStringList('favorites:stations') ?? const <String>[]);
-    reciterIds.addAll(_prefs.getStringList('favorites:reciters') ?? const <String>[]);
-    trackIds.addAll(_prefs.getStringList('favorites:tracks') ?? const <String>[]);
+    stationIds.addAll(
+      _prefs.getStringList('favorites:stations') ?? const <String>[],
+    );
+    reciterIds.addAll(
+      _prefs.getStringList('favorites:reciters') ?? const <String>[],
+    );
+    trackIds.addAll(
+      _prefs.getStringList('favorites:tracks') ?? const <String>[],
+    );
   }
 
   bool isStation(String id) => stationIds.contains(id);
   bool isReciter(String id) => reciterIds.contains(id);
   bool isTrack(String id) => trackIds.contains(id);
 
-  Future<void> toggleStation(String id) => _toggle(stationIds, id, 'favorites:stations');
-  Future<void> toggleReciter(String id) => _toggle(reciterIds, id, 'favorites:reciters');
-  Future<void> toggleTrack(String id) => _toggle(trackIds, id, 'favorites:tracks');
+  Future<void> toggleStation(String id) =>
+      _toggle(stationIds, id, 'favorites:stations');
+  Future<void> toggleReciter(String id) =>
+      _toggle(reciterIds, id, 'favorites:reciters');
+  Future<void> toggleTrack(String id) =>
+      _toggle(trackIds, id, 'favorites:tracks');
 
   Future<void> _toggle(Set<String> values, String id, String key) async {
     values.contains(id) ? values.remove(id) : values.add(id);
@@ -88,7 +100,9 @@ class SettingsStore extends ChangeNotifier {
   }
 
   Future<void> setLocale(Locale value) async {
-    locale = value.languageCode == 'en' ? const Locale('en') : const Locale('ar');
+    locale = value.languageCode == 'en'
+        ? const Locale('en')
+        : const Locale('ar');
     await _prefs.setString('settings:locale', locale.languageCode);
     notifyListeners();
   }

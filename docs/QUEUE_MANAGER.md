@@ -27,7 +27,7 @@ Queue Manager هو الحكم الوحيد لاختيار المحتوى للم�
 
 ## Liquidsoap control
 
-Liquidsoap يبقى process مستمرًا. Default Playlist تبقى source `main`، والقرارات المجدولة/اليدوية تدخل `request.queue(id="automation")`. `radio.skip` يستخدم فقط عند INTERRUPT/SKIP. command server مربوط حصريًا بـ`127.0.0.1`؛ أسماء الأوامر allowlisted نصيًا، والوسيط يرفض NUL/CR/LF، ولا يقبل shell/URL من payload.
+Liquidsoap يبقى process مستمرًا. Default Playlist تبقى source `main`، والقرارات المجدولة/اليدوية تدخل `request.queue(id="automation")`. المقاطعة ترسل `main.skip` أو `automation.skip` إلى المصدر النشط فقط. command server مربوط حصريًا بـ`127.0.0.1`؛ أسماء الأوامر allowlisted نصيًا، والوسيط يرفض NUL/CR/LF، ولا يقبل shell/URL من payload، كما يعتبر رد الرفض runtime failure.
 
 ## Acceptance
 

@@ -4,7 +4,7 @@
 
 > **Boundary:** هذه الحالة والـQueue والـCommands تنطبق على `station_source=INTERNAL` فقط. EXTERNAL station لا تملك Engine state/lease/schedule/playlist/command، ويمنعها API وDB triggers. انظر [`EXTERNAL_STATIONS.md`](./EXTERNAL_STATIONS.md).
 
-> **Phase 6:** الانتقالات AUTO/SCHEDULED/MANUAL أصبحت منفذة، وLiquidsoap يبقى متصلًا بالم mount الثابت أثناء تغيير القرار. التحكم runtime عبر loopback-only command socket؛ `request.queue` يستقبل القرار التالي و`radio.skip` يستخدم فقط لـINTERRUPT/SKIP الصريح. راجع [`QUEUE_MANAGER.md`](./QUEUE_MANAGER.md) و[`RADIO_COMMANDS.md`](./RADIO_COMMANDS.md).
+> **Phase 6:** الانتقالات AUTO/SCHEDULED/MANUAL أصبحت منفذة، وLiquidsoap يبقى متصلًا بالم mount الثابت أثناء تغيير القرار. التحكم runtime عبر loopback-only command socket؛ `request.queue` يستقبل القرار التالي و`main.skip`/`automation.skip` يطبقان INTERRUPT على المصدر النشط فقط. راجع [`QUEUE_MANAGER.md`](./QUEUE_MANAGER.md) و[`RADIO_COMMANDS.md`](./RADIO_COMMANDS.md).
 
 ## 1. Radio Engine State Machine
 

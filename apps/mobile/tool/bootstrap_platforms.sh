@@ -27,7 +27,7 @@ manifest.write_text('''<manifest xmlns:android="http://schemas.android.com/apk/r
         android:label="ترتيل"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false">
         <activity
             android:name="com.ryanheise.audioservice.AudioServiceActivity"
             android:exported="true"
@@ -70,29 +70,20 @@ manifest.write_text('''<manifest xmlns:android="http://schemas.android.com/apk/r
     </queries>
 </manifest>
 ''')
-
-info = Path('ios/Runner/Info.plist')
-plist = info.read_text()
-if '<key>UIBackgroundModes</key>' not in plist:
-    marker = '</dict>'
-    insertion = '\t<key>UIBackgroundModes</key>\n\t<array>\n\t\t<string>audio</string>\n\t</array>\n'
-    plist = plist.replace(marker, insertion + marker)
-    info.write_text(plist)
 PY
 
 grep -q 'minSdk = 26' android/app/build.gradle.kts
 grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' android/app/src/main/AndroidManifest.xml
-grep -q 'android:usesCleartextTraffic="true"' android/app/src/main/AndroidManifest.xml
+grep -q 'android:usesCleartextTraffic="false"' android/app/src/main/AndroidManifest.xml
 grep -q 'AudioServiceActivity' android/app/src/main/AndroidManifest.xml
-grep -q 'UIBackgroundModes' ios/Runner/Info.plist
 
-# The existing mobile release job runs this script in GitHub Actions. Run the
-# real external stream audit there as a release gate without adding any runtime
-# dependency or routing streams through the internal radio engine.
+# Phase 11 acceptance probes real upstream/provider streams centrally in CI.
+# Listener devices never probe the provider catalog themselves.
 if [[ "${CI:-}" == "true" ]]; then
   if ! command -v ffprobe >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
     sudo apt-get update
     sudo apt-get install -y --no-install-recommends ffmpeg curl
   fi
   python3 tool/external_radio_ci.py
+  python3 tool/phase11_api_e2e.py
 fi

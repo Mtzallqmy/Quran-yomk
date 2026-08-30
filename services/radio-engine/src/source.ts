@@ -6,6 +6,8 @@ function liq(value:string):string{return JSON.stringify(value);}
 export function buildLiquidsoapScript(config:Config,playlistPath:string):string{
   return `${config.liquidsoapAllowRoot?'settings.init.allow_root := true\n':''}settings.log.stdout := true\nsettings.log.file := false\n`+
     `main = playlist(mode="normal", reload=60, ${liq(playlistPath)})\n`+
+    `def track_started(m) = print("TARTEEL_EVENT TRACK_START #{metadata.json.stringify(m)}") end\n`+
+    `main.on_track(track_started)\n`+
     `emergency = single(${liq(config.fallbackPath)})\n`+
     `radio = fallback(track_sensitive=true, [main, emergency])\n`+
     `def source_connected() = print("TARTEEL_EVENT SOURCE_CONNECTED") end\n`+
@@ -18,12 +20,12 @@ export class LiquidsoapSource {
   child:ChildProcess|null=null;
   constructor(private readonly config:Config,private readonly playlistPath:string,private readonly scriptPath:string){}
   async prepare():Promise<void>{await writeFile(this.scriptPath,buildLiquidsoapScript(this.config,this.playlistPath),{encoding:'utf8',flag:'wx',mode:0o600});}
-  start(onExit:(code:number|null,signal:NodeJS.Signals|null)=>void,onLog:(line:string)=>void,onEvent:(event:string)=>void):void{
+  start(onExit:(code:number|null,signal:NodeJS.Signals|null)=>void,onLog:(line:string)=>void,onEvent:(event:string,payload?:string)=>void):void{
     if(this.child)throw new Error('source already running');
     const env:NodeJS.ProcessEnv={PATH:process.env.PATH??''};if(this.config.liquidsoapLibraryPath)env.LD_LIBRARY_PATH=this.config.liquidsoapLibraryPath;
     const child=spawn(this.config.liquidsoapPath,['--strict',this.scriptPath],{stdio:['ignore','pipe','pipe'],env});
     this.child=child;let pending='';
-    const consume=(chunk:unknown)=>{pending+=String(chunk);const lines=pending.split('\n');pending=lines.pop()??'';for(const raw of lines){const line=redact(raw);const marker=line.match(/TARTEEL_EVENT (SOURCE_[A-Z_]+)/);if(marker?.[1])onEvent(marker[1]);onLog(line);}};
+    const consume=(chunk:unknown)=>{pending+=String(chunk);const lines=pending.split('\n');pending=lines.pop()??'';for(const raw of lines){const line=redact(raw);const marker=line.match(/TARTEEL_EVENT (SOURCE_[A-Z_]+)/);if(marker?.[1])onEvent(marker[1]);if(line.includes('TARTEEL_EVENT TRACK_START'))onEvent('TRACK_START');onLog(line);}};
     child.stdout?.on('data',consume);child.stderr?.on('data',consume);
     child.once('exit',(code,signal)=>{this.child=null;onExit(code,signal);});
     child.once('error',error=>onLog(redact(error.message)));

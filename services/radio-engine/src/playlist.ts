@@ -16,7 +16,7 @@ export async function loadAndValidatePlaylist(manifestPath:string,fallbackPath:s
   const parsed=JSON.parse(await readFile(manifestPath,'utf8')) as {tracks?:Array<{media_id?:string|null;title?:string;path?:string}>};
   const tracks:Track[]=[];const failed:string[]=[];
   for(const [index,item] of (parsed.tracks??[]).entries()) {
-    if(!item.path||!isAbsolute(item.path)||!item.title){failed.push(`track-${index}: invalid manifest`);continue;}
+    if(!item.path||!isAbsolute(item.path)||/[\u0000\r\n]/.test(item.path)||!item.title){failed.push(`track-${index}: invalid manifest`);continue;}
     try{tracks.push({mediaId:item.media_id??null,title:item.title,path:resolve(item.path),durationSeconds:await probe(resolve(item.path),ffprobePath)});}
     catch(error){failed.push(`${item.title??`track-${index}`}: ${error instanceof Error?error.message:'invalid audio'}`);}
   }
@@ -26,5 +26,5 @@ export async function loadAndValidatePlaylist(manifestPath:string,fallbackPath:s
 }
 
 export async function writeSourcePlaylist(path:string,tracks:Track[]):Promise<void>{
-  await writeFile(path,`${tracks.map(track=>track.path).join('\n')}\n`,{encoding:'utf8',flag:'wx'});
+  await writeFile(path,`${tracks.map((track,index)=>`annotate:tarteel_index="${index}":${track.path}`).join('\n')}\n`,{encoding:'utf8',flag:'wx'});
 }

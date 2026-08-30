@@ -40,7 +40,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر بدء البث. جرّب محطة أخرى أو أعد المحاولة.')),
+        const SnackBar(
+          content: Text('تعذر بدء البث. جرّب محطة أخرى أو أعد المحاولة.'),
+        ),
       );
     }
   }
@@ -91,7 +93,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                         child: InkWell(
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) => StationDetailPage(station: station),
+                              builder: (_) =>
+                                  StationDetailPage(station: station),
                             ),
                           ),
                           child: Padding(
@@ -108,7 +111,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                                         station.nameAr,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context).textTheme.titleMedium,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleMedium,
                                       ),
                                     ),
                                   ],
@@ -160,7 +165,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                         child: InkWell(
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) => ReciterDetailPage(reciter: reciter),
+                              builder: (_) =>
+                                  ReciterDetailPage(reciter: reciter),
                             ),
                           ),
                           child: Padding(
@@ -176,20 +182,25 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 Expanded(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: <Widget>[
                                       Text(
                                         reciter.nameAr,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context).textTheme.titleSmall,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleSmall,
                                       ),
                                       if (reciter.rewaya != null)
                                         Text(
                                           reciter.rewaya!,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: Theme.of(context).textTheme.bodySmall,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodySmall,
                                         ),
                                     ],
                                   ),
@@ -214,7 +225,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                 children: data.categories
                     .map(
                       (category) => ActionChip(
-                        avatar: const Icon(Icons.folder_open_outlined, size: 18),
+                        avatar: const Icon(
+                          Icons.folder_open_outlined,
+                          size: 18,
+                        ),
                         label: Text(category.nameAr),
                         onPressed: () => _openCategory(category),
                       ),

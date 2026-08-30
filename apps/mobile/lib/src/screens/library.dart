@@ -47,7 +47,8 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   Widget build(BuildContext context) => FutureBuilder<_LibraryData>(
     future: future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
         return const LoadingPane();
       }
       if (snapshot.hasError && !snapshot.hasData) {
@@ -137,7 +138,8 @@ class _SurahDetailPageState extends ConsumerState<SurahDetailPage> {
       final services = ref.read(servicesProvider);
       final tracks = await services.repository.api.reciterTracks(reciter.id);
       final index = tracks.indexWhere(
-        (track) => track.surah.number == widget.surah.number && track.isPlayable,
+        (track) =>
+            track.surah.number == widget.surah.number && track.isPlayable,
       );
       if (index < 0) {
         throw StateError('No playable track for this surah');
@@ -169,7 +171,8 @@ class _SurahDetailPageState extends ConsumerState<SurahDetailPage> {
     body: FutureBuilder<List<Reciter>>(
       future: future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
+        if (snapshot.connectionState != ConnectionState.done &&
+            !snapshot.hasData) {
           return const LoadingPane();
         }
         if (snapshot.hasError && !snapshot.hasData) {

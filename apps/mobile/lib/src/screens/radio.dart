@@ -116,7 +116,8 @@ class _RadioPageState extends ConsumerState<RadioPage> {
   Widget build(BuildContext context) => FutureBuilder<List<Station>>(
     future: future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
         return const LoadingPane();
       }
       if (snapshot.hasError && !snapshot.hasData) {
@@ -195,20 +196,22 @@ class _RadioPageState extends ConsumerState<RadioPage> {
                     },
                     child: ListView(
                       padding: const EdgeInsets.only(bottom: 16),
-                      children: groups.entries.expand((entry) {
-                        final title = entry.key == 'INTERNAL'
-                            ? 'إذاعة ترتيل'
-                            : categoryNames[entry.key] ?? entry.key;
-                        return <Widget>[
-                          SectionHeader(title),
-                          ...entry.value.map(
-                            (station) => _StationCard(
-                              station: station,
-                              onPlay: () => _play(station),
-                            ),
-                          ),
-                        ];
-                      }).toList(growable: false),
+                      children: groups.entries
+                          .expand((entry) {
+                            final title = entry.key == 'INTERNAL'
+                                ? 'إذاعة ترتيل'
+                                : categoryNames[entry.key] ?? entry.key;
+                            return <Widget>[
+                              SectionHeader(title),
+                              ...entry.value.map(
+                                (station) => _StationCard(
+                                  station: station,
+                                  onPlay: () => _play(station),
+                                ),
+                              ),
+                            ];
+                          })
+                          .toList(growable: false),
                     ),
                   ),
           ),
@@ -275,7 +278,9 @@ class _StationCard extends ConsumerWidget {
                       Text(
                         station.isInternal
                             ? 'بث ترتيل الداخلي'
-                            : station.providerName ?? station.provider ?? 'مصدر خارجي',
+                            : station.providerName ??
+                                  station.provider ??
+                                  'مصدر خارجي',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -306,7 +311,8 @@ class _StationCard extends ConsumerWidget {
                   animation: services.favorites,
                   builder: (context, _) => IconButton(
                     tooltip: 'المفضلة',
-                    onPressed: () => services.favorites.toggleStation(station.id),
+                    onPressed: () =>
+                        services.favorites.toggleStation(station.id),
                     icon: Icon(
                       services.favorites.isStation(station.id)
                           ? Icons.favorite
@@ -375,10 +381,7 @@ class _StationDetailPageState extends ConsumerState<StationDetailPage> {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
-          Text(
-            stationHealthLabel(station),
-            textAlign: TextAlign.center,
-          ),
+          Text(stationHealthLabel(station), textAlign: TextAlign.center),
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: station.isPlayable && !starting ? _play : null,
@@ -389,7 +392,9 @@ class _StationDetailPageState extends ConsumerState<StationDetailPage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.play_arrow),
-            label: Text(station.isPlayable ? 'تشغيل البث الآن' : 'البث غير متاح'),
+            label: Text(
+              station.isPlayable ? 'تشغيل البث الآن' : 'البث غير متاح',
+            ),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
@@ -400,7 +405,10 @@ class _StationDetailPageState extends ConsumerState<StationDetailPage> {
           const SizedBox(height: 24),
           _DetailRow(
             label: 'التصنيف',
-            value: categoryNames[station.category] ?? station.category ?? 'غير مصنف',
+            value:
+                categoryNames[station.category] ??
+                station.category ??
+                'غير مصنف',
           ),
           _DetailRow(
             label: 'المصدر',

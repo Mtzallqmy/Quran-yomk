@@ -6,7 +6,7 @@ function liq(value:string):string{return JSON.stringify(value);}
 export function buildLiquidsoapScript(config:Config,playlistPath:string):string{
   return `${config.liquidsoapAllowRoot?'settings.init.allow_root := true\n':''}settings.log.stdout := true\nsettings.log.file := false\n`+
     `main = playlist(mode="normal", reload=60, ${liq(playlistPath)})\n`+
-    `def track_started(_m) = print("TARTEEL_EVENT TRACK_START") end\n`+
+    `def track_started(m) = print("TARTEEL_EVENT TRACK_START #{metadata.json.stringify(m)}") end\n`+
     `main.on_track(track_started)\n`+
     `emergency = single(${liq(config.fallbackPath)})\n`+
     `radio = fallback(track_sensitive=true, [main, emergency])\n`+

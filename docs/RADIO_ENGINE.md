@@ -262,3 +262,23 @@ flowchart TD
 - restart وسط track يصالح الحالة أو ينتقل fallback بلا Queue مزدوجة.
 - 1000 schedule definitions عبر DST/reference timezone تنتج occurrences الصحيحة.
 - اختبار waveform يثبت gap target المتفق عليه، واختبار 24 ساعة بلا silence غير مصرح.
+
+## 10. Phase 5 implementation status
+
+Phase 5 implements only `STARTING → AUTO`, `AUTO → RECOVERING`, `RECOVERING → AUTO/ERROR`, and authorized stop. `SCHEDULED`, `MANUAL`, and `LIVE` remain modeled but have no operational behavior yet.
+
+The service lives in `services/radio-engine/` and provides:
+
+- atomic PostgreSQL lease acquisition/renew/release with DB time and a monotonic fencing token;
+- service heartbeat plus fenced `engine_states` and `now_playing` checkpoints;
+- validated development playlist and invalid-track skipping;
+- isolated Liquidsoap source, fixed `/tarteel.mp3` mount and metadata updates;
+- bounded source-child restart with exponential backoff;
+- localhost `/health`, `/ready`, and `/state` endpoints;
+- structured, redacted logs and test-only fault injection disabled by default.
+
+Initial runtime defaults are a 15-second lease and 5-second heartbeat. A second instance was denied while the first lease was valid. After forced expiry, a new owner acquired a higher fencing token; the stale owner could neither renew nor checkpoint.
+
+The Liquidsoap script containing source credentials is generated inside a per-instance `0700` workspace with mode `0600`, is passed as a file rather than shell/user-built arguments, and is deleted on graceful stop. The service role is the only database role allowed to execute ownership/checkpoint RPCs.
+
+Current limitation: track timing is duration-based rather than a true playout ACK. The next domain integration phase must consume actual Liquidsoap track-start/end callbacks before using `radio.now_playing` publicly.

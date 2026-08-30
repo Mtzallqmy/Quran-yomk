@@ -43,10 +43,10 @@
 
 ### 5 — Icecast + Continuous Playout Spike
 
-- local Icecast/Nginx، playout adapter candidate، fixed mount، metadata.
-- مقارنة Liquidsoap/custom FFmpeg بناءً على gap waveform وrecovery لا التفضيل النظري.
+- **مطبق جزئيًا في Phase 5:** تم اختيار Liquidsoap، إنشاء fixed mount/config/metadata وقياس continuous source/recovery بمستمعين عبر proof relay.
+- **Gate متبقٍ:** تشغيل نفس الاختبار على Icecast حقيقي في Docker/non-root host؛ Work sandbox منع privilege drop.
 - **اختبار:** 6h loop، 500 track switches، forced decoder/source crash، هاتفان/clients في اللحظة نفسها.
-- **Gate:** اعتماد playout technology قبل Engine integration.
+- **Gate:** Liquidsoap معتمد تقنيًا؛ لا تبدأ Scheduler قبل إغلاق Icecast E2E الحقيقي.
 
 ### 6 — Radio Domain Core
 

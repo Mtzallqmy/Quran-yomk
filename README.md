@@ -1,8 +1,8 @@
 # ترتيل (Tarteel) — Quran Radio & Audio Platform
 
 **المعرّف التقني:** `tarteel`  
-**الحالة:** Audio Processing Worker implemented and validated  
-**النطاق المنفذ:** التصميم + Database + Storage + ffprobe/FFmpeg processing worker. لا يتضمن Flutter/Admin/Radio Engine/Icecast.  
+**الحالة:** Phase 5 continuous radio foundation implemented; real Icecast E2E pending a non-root runtime  
+**النطاق المنفذ:** التصميم + Database + Storage + ffprobe/FFmpeg worker + Radio Engine/Liquidsoap foundation + Icecast development configuration. لا يتضمن Scheduler/Flutter/Admin.  
 **المرجع:** Master Prompt المعتمد للمشروع.
 
 **Supabase target:** طُبقت Database Phase على المشروع managed المحدد للمرحلة. لا يحتوي المستودع أي credentials.
@@ -21,6 +21,9 @@
 | `docs/API.md` | Public/Admin API والعقود والأخطاء والتصفح والإديمبوتنسي |
 | `docs/AUDIO_PIPELINE.md` | Storage، FFmpeg، Icecast، فصل Live عن On-Demand |
 | `services/audio-worker/` | Worker مستقلة: claim/lease، ffprobe، normalization، FFmpeg، Storage، READY |
+| `services/radio-engine/` | lease/fencing، continuous Liquidsoap source، checkpoints، health/recovery |
+| `docs/ICECAST.md` | Mount/config/security/startup وقيود الاختبار الحالية |
+| `docs/STREAMING.md` | قرار المصدر/codec وإثبات المستمعين والتعافي |
 | `docs/STORAGE.md` | Buckets، object keys، Upload Intent، security، cleanup، Worker handoff |
 | `docs/EXTERNAL_STATIONS.md` | Providers، adapters، sync، health، rights، Flutter catalog |
 | `docs/SECURITY.md` | Auth/RBAC، الأمن، المراقبة، Watchdog والاستعادة |
@@ -58,4 +61,4 @@
 
 ## حالة المراحل المنفذة
 
-اكتملت Database Phase في `docs/DATABASE_PHASE_REPORT.md`، وStorage Phase في `docs/STORAGE_PHASE_REPORT.md`، وAudio Processing Phase في `docs/AUDIO_PROCESSING_PHASE_REPORT.md`. لا تبدأ Radio Engine/Icecast قبل اعتماد تقرير Phase 4.
+اكتملت Database Phase في `docs/DATABASE_PHASE_REPORT.md`، وStorage Phase في `docs/STORAGE_PHASE_REPORT.md`، وAudio Processing Phase في `docs/AUDIO_PROCESSING_PHASE_REPORT.md`. Phase 5 موثقة في `docs/RADIO_STREAM_FOUNDATION_REPORT.md` بحالة `PASS WITH WARNINGS`؛ يلزم إغلاق اختبار Icecast الحقيقي قبل Scheduler.

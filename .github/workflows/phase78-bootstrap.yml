@@ -1,17 +1,18 @@
-name: Phase 7+8 Acceptance
+name: Phase 7-10 Acceptance
 
 on:
   push:
     branches:
       - main
       - phase7-8-backend-admin-brand
+      - phase9-10-flutter-release
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: phase78-${{ github.ref }}
+  group: phase-acceptance-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -79,3 +80,102 @@ jobs:
       - name: Audio Worker regression
         working-directory: services/audio-worker
         run: npm ci && npm test
+
+  mobile-release:
+    if: github.ref == 'refs/heads/phase9-10-flutter-release'
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Toolchain identity
+        run: |
+          flutter --version
+          dart --version
+          java -version
+      - name: Generate and harden Android/iOS platform scaffolding
+        working-directory: apps/mobile
+        run: bash tool/bootstrap_platforms.sh
+      - name: Commit reproducible platform scaffolding once
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$(git status --porcelain apps/mobile/android apps/mobile/ios)" ]]; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add apps/mobile/android apps/mobile/ios
+            git commit -m 'chore(mobile): add Flutter platform scaffolding'
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+      - name: Resolve dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+      - name: Format gate
+        working-directory: apps/mobile
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Analyze
+        working-directory: apps/mobile
+        run: flutter analyze
+      - name: Unit and widget tests
+        working-directory: apps/mobile
+        run: flutter test
+      - name: Mobile secret guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -RIE --exclude='*.md' --exclude-dir=build --exclude-dir=.dart_tool 'sb_secret_[A-Za-z0-9_-]{20,}|service_role|SUPABASE_SECRET_KEY|ICECAST_SOURCE_PASSWORD|ICECAST_ADMIN_PASSWORD|private backend secret' apps/mobile
+          grep -q 'minSdk = 26' apps/mobile/android/app/build.gradle.kts
+          grep -q 'android:usesCleartextTraffic="false"' apps/mobile/android/app/src/main/AndroidManifest.xml
+          grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' apps/mobile/android/app/src/main/AndroidManifest.xml
+      - name: Build universal release APK
+        working-directory: apps/mobile
+        run: flutter build apk --release --dart-define=TARTEEL_API_BASE_URL=https://api.tarteel.invalid/api/v1
+      - name: Build ABI-specific release APKs
+        working-directory: apps/mobile
+        run: flutter build apk --release --split-per-abi --dart-define=TARTEEL_API_BASE_URL=https://api.tarteel.invalid/api/v1
+      - name: Build release AAB
+        working-directory: apps/mobile
+        run: flutter build appbundle --release --dart-define=TARTEEL_API_BASE_URL=https://api.tarteel.invalid/api/v1
+      - name: Collect APK evidence and verify ARM64
+        working-directory: apps/mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release/evidence
+          cp build/app/outputs/flutter-apk/app-release.apk release/evidence/tarteel-release-universal.apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release/evidence/tarteel-release-arm64-v8a.apk
+          cp build/app/outputs/bundle/release/app-release.aab release/evidence/tarteel-release.aab
+          unzip -l release/evidence/tarteel-release-universal.apk > release/evidence/universal-apk-files.txt
+          unzip -l release/evidence/tarteel-release-arm64-v8a.apk > release/evidence/arm64-apk-files.txt
+          grep -q 'lib/arm64-v8a/' release/evidence/universal-apk-files.txt
+          grep -q 'lib/arm64-v8a/' release/evidence/arm64-apk-files.txt
+          ! grep -q 'lib/armeabi-v7a/' release/evidence/arm64-apk-files.txt
+          sha256sum release/evidence/*.apk release/evidence/*.aab | tee release/evidence/SHA256SUMS
+          stat -c '%n %s bytes' release/evidence/*.apk release/evidence/*.aab | tee release/evidence/SIZES.txt
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)
+          "$AAPT" dump badging release/evidence/tarteel-release-universal.apk | tee release/evidence/APK_BADGING.txt
+          grep -q "sdkVersion:'26'" release/evidence/APK_BADGING.txt
+          grep -q "native-code:.*'arm64-v8a'" release/evidence/APK_BADGING.txt
+          {
+            flutter --version
+            dart --version 2>&1
+            java -version 2>&1
+            echo
+            echo 'Gradle:'
+            (cd android && ./gradlew --version)
+          } > release/evidence/TOOLCHAIN.txt
+      - name: Upload Android release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: tarteel-phase9-10-android-release
+          path: apps/mobile/release/evidence
+          retention-days: 30

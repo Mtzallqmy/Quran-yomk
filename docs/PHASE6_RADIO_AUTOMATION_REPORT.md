@@ -229,10 +229,9 @@ Thirty-one Phase 6 files changed: five migrations, one SQL validation suite, Rad
 
 ## 38. GIT/WORKSPACE STATE
 
-- Branch: `phase6-radio-automation`
-- Pull request: `#2`
-- Tested head: `4c9b8cde9197614074a6c1bcf7d35fe2714c96bf`
-- Required checks: Phase 6 PASS; Phase 5B PASS.
+- Implementation pull request: `#2`, merged into `main` as `422f08743df7024dc176e6924702ab4836e8290f` after both required checks passed.
+- Tested implementation head: `4c9b8cde9197614074a6c1bcf7d35fe2714c96bf`.
+- Completion report is delivered as a documentation-only follow-up from `phase6-radio-automation`.
 - DEVELOPMENT Supabase contains the approved station seed plus one retained Phase 6 ACK/history evidence row.
 
 ## 39. EXACT NEXT RECOMMENDED PHASE

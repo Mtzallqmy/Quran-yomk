@@ -78,7 +78,11 @@ erDiagram
 | `reciters` | media/tracks children | trigram normalized Arabic search، active/deleted |
 | `surahs` | parent لـtracks | id=number، 1..114 unique، positive ayah count |
 | `media` | category/reciter/admin FKs | READY يتطلب processed path/duration/checksum؛ filter index؛ immutable object keys |
-| `media_processing_jobs` | media FK | unique idempotency key، claim/heartbeat/attempts |
+| `processing_profiles` | profile code + version | output codec/rate/loudness/resource limits؛ versioned immutable semantics |
+| `processing_error_codes` | code PK | retry taxonomy مركزية |
+| `media_processing_jobs` | media + profile FK | SKIP LOCKED claim، lease، fencing token، bounded attempts |
+| `media_processing_attempts` | job + media FK | worker/claim history، trusted probe metadata، timings/failures |
+| `processed_media_variants` | media/job/attempt/profile FK | immutable Storage object والخصائص المتحققة |
 | `reciter_tracks` | reciter+surah+media | unique `(reciter_id,surah_id,quality)`؛ media أو URL لازم |
 | `content_provider_types`, `stream_types` | lookup parents | DB-managed codes؛ لا provider names في Flutter logic |
 | `content_providers` | parent لـstations/sync/provider records | unique slug، priority/health، rights/attribution/production gate، soft delete |

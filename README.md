@@ -1,8 +1,8 @@
 # ترتيل (Tarteel) — Quran Radio & Audio Platform
 
 **المعرّف التقني:** `tarteel`  
-**الحالة:** Storage Foundation implemented and validated  
-**النطاق المنفذ:** التصميم + Database Phase + Supabase Storage buckets/upload lifecycle. لا يتضمن Flutter/Admin/Radio Engine/FFmpeg/Icecast.  
+**الحالة:** Audio Processing Worker implemented and validated  
+**النطاق المنفذ:** التصميم + Database + Storage + ffprobe/FFmpeg processing worker. لا يتضمن Flutter/Admin/Radio Engine/Icecast.  
 **المرجع:** Master Prompt المعتمد للمشروع.
 
 **Supabase target:** طُبقت Database Phase على المشروع managed المحدد للمرحلة. لا يحتوي المستودع أي credentials.
@@ -20,6 +20,7 @@
 | `docs/SCHEDULER.md` | Timezone/DST، occurrences، conflicts، restart/idempotency |
 | `docs/API.md` | Public/Admin API والعقود والأخطاء والتصفح والإديمبوتنسي |
 | `docs/AUDIO_PIPELINE.md` | Storage، FFmpeg، Icecast، فصل Live عن On-Demand |
+| `services/audio-worker/` | Worker مستقلة: claim/lease، ffprobe، normalization، FFmpeg، Storage، READY |
 | `docs/STORAGE.md` | Buckets، object keys، Upload Intent، security، cleanup، Worker handoff |
 | `docs/EXTERNAL_STATIONS.md` | Providers، adapters، sync، health، rights، Flutter catalog |
 | `docs/SECURITY.md` | Auth/RBAC، الأمن، المراقبة، Watchdog والاستعادة |
@@ -57,4 +58,4 @@
 
 ## حالة المراحل المنفذة
 
-اكتملت Database Phase في `docs/DATABASE_PHASE_REPORT.md`، وStorage Phase في `docs/STORAGE_PHASE_REPORT.md`. لا تبدأ Audio Processing قبل اعتماد تقرير Storage.
+اكتملت Database Phase في `docs/DATABASE_PHASE_REPORT.md`، وStorage Phase في `docs/STORAGE_PHASE_REPORT.md`، وAudio Processing Phase في `docs/AUDIO_PROCESSING_PHASE_REPORT.md`. لا تبدأ Radio Engine/Icecast قبل اعتماد تقرير Phase 4.

@@ -1,0 +1,24 @@
+{
+  "name": "@tarteel/audio-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check:dependencies": "node dist/src/cli.js check-dependencies",
+    "fixtures": "bash test/fixtures/generate.sh",
+    "test": "npm run build && npm run fixtures && node --test dist/test/*.test.js",
+    "start": "node dist/src/cli.js run",
+    "run:once": "node dist/src/cli.js run-once"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.112.4"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "typescript": "5.9.3"
+  }
+}

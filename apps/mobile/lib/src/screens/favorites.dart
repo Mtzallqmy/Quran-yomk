@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common.dart';
 import '../models.dart';
 import '../services.dart';
+import 'radio.dart';
 import 'reciters.dart';
 
 class FavoritesPage extends ConsumerStatefulWidget {
@@ -31,6 +32,21 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
     return _FavoritesData(await repo.stations(), await repo.reciters());
   }
 
+  Future<void> _play(Station station) async {
+    try {
+      await ref.read(servicesProvider).playback.playStation(station);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('يتم الآن تشغيل ${station.nameAr}')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر تشغيل هذا البث الآن.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final services = ref.watch(servicesProvider);
@@ -40,13 +56,15 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
         future: future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done &&
-              !snapshot.hasData)
+              !snapshot.hasData) {
             return const LoadingPane();
-          if (snapshot.hasError && !snapshot.hasData)
+          }
+          if (snapshot.hasError && !snapshot.hasData) {
             return ErrorPane(
               error: snapshot.error!,
               onRetry: () => setState(() => future = load()),
             );
+          }
           final data = snapshot.data;
           if (data == null) return const EmptyPane();
           final stations = data.stations
@@ -57,8 +75,9 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
               .toList(growable: false);
           if (stations.isEmpty &&
               reciters.isEmpty &&
-              services.favorites.trackIds.isEmpty)
+              services.favorites.trackIds.isEmpty) {
             return const EmptyPane(message: 'لم تضف أي عناصر إلى المفضلة بعد');
+          }
           return ListView(
             children: <Widget>[
               if (stations.isNotEmpty) ...<Widget>[
@@ -67,11 +86,16 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
                   ListTile(
                     leading: Artwork(url: station.logoUrl),
                     title: Text(station.nameAr),
-                    trailing: IconButton(
-                      onPressed: station.isPlayable
-                          ? () => services.playback.playStation(station)
-                          : null,
-                      icon: const Icon(Icons.play_circle_fill),
+                    subtitle: Text(stationHealthLabel(station)),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => StationDetailPage(station: station),
+                      ),
+                    ),
+                    trailing: IconButton.filledTonal(
+                      tooltip: 'تشغيل',
+                      onPressed: station.isPlayable ? () => _play(station) : null,
+                      icon: const Icon(Icons.play_arrow),
                     ),
                   ),
               ],
@@ -84,6 +108,10 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
                       icon: Icons.person_outline,
                     ),
                     title: Text(reciter.nameAr),
+                    subtitle: reciter.rewaya == null
+                        ? null
+                        : Text(reciter.rewaya!),
+                    trailing: const Icon(Icons.chevron_left),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => ReciterDetailPage(reciter: reciter),
@@ -96,7 +124,7 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
                 const Padding(
                   padding: EdgeInsets.all(16),
                   child: Text(
-                    'تُحفظ التلاوات بالمعرّف الثابت. افتح صفحة القارئ لتشغيل النسخة الحالية من رابط التلاوة المصرّح به.',
+                    'التلاوات محفوظة بالمعرّف. افتح صفحة القارئ لتشغيل رابط التلاوة الحالي من المصدر.',
                   ),
                 ),
               ],

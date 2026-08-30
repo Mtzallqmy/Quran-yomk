@@ -7,6 +7,7 @@ import '../common.dart';
 import '../models.dart';
 import '../radio_service.dart';
 import '../services.dart';
+import '../virtual_radio.dart';
 
 const _categoryNames = <String, String>{
   'QURAN_GENERAL': 'إذاعات القرآن',
@@ -33,7 +34,6 @@ class RadioPage extends ConsumerStatefulWidget {
 
 class _RadioPageState extends ConsumerState<RadioPage> {
   final _search = TextEditingController();
-  String filter = 'ALL';
   String? category;
   String? provider;
   String query = '';
@@ -46,18 +46,22 @@ class _RadioPageState extends ConsumerState<RadioPage> {
   }
 
   Future<void> _play(Station station) async {
-    if (!station.isPlayable) {
-      _showError('هذه المحطة لا تملك رابط تشغيل متاحًا حاليًا.');
+    final url = station.playbackUrl;
+    if (url == null || url.isEmpty) {
+      _showError('هذه المحطة غير متاحة للتشغيل حاليًا.');
+      return;
+    }
+    if (Uri.tryParse(url)?.scheme != 'https') {
+      _showError('هذه المحطة تستخدم اتصال HTTP غير آمن، لذلك لا تُشغّل في نسخة Android الحالية.');
       return;
     }
     setState(() => pendingStationId = station.id);
     try {
       await ref.read(servicesProvider).playback.playStation(station);
     } catch (error) {
-      final suffix = kIsWeb
-          ? ' قد يمنع مزود البث التشغيل داخل المتصفح بسبب CORS.'
-          : '';
-      _showError('تعذر تشغيل ${station.nameAr}. $error$suffix');
+      final webNote = kIsWeb ? ' وقد يمنع المتصفح بعض المصادر بسبب سياسات CORS.' : '';
+      _showError('تعذر تشغيل ${station.nameAr}. حاول مرة أخرى.$webNote');
+      debugPrint('Tarteel station playback error: $error');
     } finally {
       if (mounted && pendingStationId == station.id) {
         setState(() => pendingStationId = null);
@@ -78,238 +82,363 @@ class _RadioPageState extends ConsumerState<RadioPage> {
   @override
   Widget build(BuildContext context) {
     final catalog = ref.watch(radioProvider);
-    return catalog.when(
-      loading: () => const LoadingPane(),
-      error: (error, _) => ErrorPane(
-        error: error,
-        onRetry: () => ref.read(radioProvider.notifier).refresh(),
+    final virtual = ref.watch(virtualRadioProvider);
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.wait<void>([
+          ref.read(radioProvider.notifier).refresh(),
+          ref.read(virtualRadioProvider.notifier).refresh(),
+        ]);
+      },
+      child: CustomScrollView(
+        slivers: <Widget>[
+          SliverToBoxAdapter(child: _VirtualRadioCard(value: virtual)),
+          SliverToBoxAdapter(child: _CatalogControls(
+            controller: _search,
+            query: query,
+            category: category,
+            provider: provider,
+            stations: catalog.valueOrNull ?? const <Station>[],
+            onQuery: (value) => setState(() => query = value),
+            onCategory: (value) => setState(() => category = value),
+            onProvider: (value) => setState(() => provider = value),
+          )),
+          ...catalog.when(
+            loading: () => const <Widget>[
+              SliverFillRemaining(hasScrollBody: false, child: LoadingPane()),
+            ],
+            error: (error, _) => <Widget>[
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: ErrorPane(
+                  error: error,
+                  onRetry: () => ref.read(radioProvider.notifier).refresh(),
+                ),
+              ),
+            ],
+            data: (stations) => _catalogSlivers(stations),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
       ),
-      data: (stations) => _buildCatalog(context, stations),
     );
   }
 
-  Widget _buildCatalog(BuildContext context, List<Station> all) {
-    final services = ref.watch(servicesProvider);
-    final categories = all
-        .where((station) => station.isExternal)
-        .map((station) => station.category)
-        .whereType<String>()
-        .toSet()
-        .toList()
-      ..sort();
-    final providerMap = <String, String>{};
-    for (final station in all.where((station) => station.isExternal)) {
-      final key = station.provider;
-      if (key != null && key.isNotEmpty) {
-        providerMap[key] = station.providerName ?? key;
-      }
-    }
-    final providerEntries = providerMap.entries.toList()
-      ..sort((a, b) => a.value.compareTo(b.value));
-    final normalizedQuery = query.trim().toLowerCase();
-    final filtered = all.where((station) {
-      if (filter != 'ALL' && station.source != filter) return false;
+  List<Widget> _catalogSlivers(List<Station> stations) {
+    final external = stations.where((station) => station.isExternal).toList(growable: false);
+    final normalized = query.trim().toLowerCase();
+    final filtered = external.where((station) {
       if (category != null && station.category != category) return false;
       if (provider != null && station.provider != provider) return false;
-      if (normalizedQuery.isEmpty) return true;
+      if (normalized.isEmpty) return true;
       return station.nameAr.contains(query.trim()) ||
-          (station.nameEn ?? '').toLowerCase().contains(normalizedQuery) ||
-          (station.providerName ?? '').toLowerCase().contains(normalizedQuery);
+          (station.nameEn ?? '').toLowerCase().contains(normalized) ||
+          (station.providerName ?? '').toLowerCase().contains(normalized) ||
+          (station.category ?? '').toLowerCase().contains(normalized);
     }).toList(growable: false);
 
-    final groups = <String, List<Station>>{};
-    for (final station in filtered) {
-      final key = station.isInternal ? 'INTERNAL' : station.category ?? 'OTHER';
-      groups.putIfAbsent(key, () => <Station>[]).add(station);
+    if (filtered.isEmpty) {
+      return const <Widget>[
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: EmptyPane(message: 'لا توجد محطات تطابق الاختيار الحالي'),
+        ),
+      ];
     }
 
-    return StreamBuilder<MediaItem?>(
-      stream: services.playback.mediaItemStream,
-      builder: (context, mediaSnapshot) {
-        final media = mediaSnapshot.data;
-        final activeId = media?.extras?['kind'] == 'station'
-            ? media?.extras?['entity_id'] as String?
-            : null;
-        return RefreshIndicator(
-          onRefresh: () => ref.read(radioProvider.notifier).refresh(),
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: 20),
+    return <Widget>[
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
             children: <Widget>[
-              if (media?.isLive == true)
-                _NowPlayingRadioCard(
-                  media: media!,
-                  playback: services.playback,
-                ),
-              StreamBuilder<String>(
-                stream: services.playback.errorStream,
-                builder: (context, snapshot) {
-                  final message = snapshot.data;
-                  if (message == null || message.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                    child: Material(
-                      color: Theme.of(context).colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(14),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: <Widget>[
-                            Icon(
-                              Icons.error_outline,
-                              color: Theme.of(context).colorScheme.onErrorContainer,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(message)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
+              Expanded(
+                child: Text('إذاعات القرآن', style: Theme.of(context).textTheme.headlineSmall),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-                child: TextField(
-                  controller: _search,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: 'ابحث عن إذاعة أو قارئ أو مصدر',
-                    suffixIcon: query.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'مسح البحث',
-                            onPressed: () {
-                              _search.clear();
-                              setState(() => query = '');
-                            },
-                            icon: const Icon(Icons.close),
-                          ),
-                  ),
-                  onChanged: (value) => setState(() => query = value),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: SegmentedButton<String>(
-                  segments: const <ButtonSegment<String>>[
-                    ButtonSegment(value: 'ALL', label: Text('الكل')),
-                    ButtonSegment(value: 'INTERNAL', label: Text('ترتيل')),
-                    ButtonSegment(value: 'EXTERNAL', label: Text('خارجي')),
-                  ],
-                  selected: <String>{filter},
-                  onSelectionChanged: (values) => setState(() {
-                    filter = values.first;
-                    if (filter == 'INTERNAL') {
-                      category = null;
-                      provider = null;
-                    }
-                  }),
-                ),
-              ),
-              if (filter != 'INTERNAL' && providerEntries.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 42,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    children: <Widget>[
-                      Padding(
-                        padding: const EdgeInsetsDirectional.only(end: 6),
-                        child: ChoiceChip(
-                          label: const Text('كل المصادر'),
-                          selected: provider == null,
-                          onSelected: (_) => setState(() => provider = null),
-                        ),
-                      ),
-                      ...providerEntries.map(
-                        (entry) => Padding(
-                          padding: const EdgeInsetsDirectional.only(end: 6),
-                          child: ChoiceChip(
-                            label: Text(entry.value),
-                            selected: provider == entry.key,
-                            onSelected: (_) => setState(() => provider = entry.key),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              if (filter != 'INTERNAL') ...<Widget>[
-                const SizedBox(height: 4),
-                SizedBox(
-                  height: 42,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    children: <Widget>[
-                      Padding(
-                        padding: const EdgeInsetsDirectional.only(end: 6),
-                        child: ChoiceChip(
-                          label: const Text('كل التصنيفات'),
-                          selected: category == null,
-                          onSelected: (_) => setState(() => category = null),
-                        ),
-                      ),
-                      ...categories.map(
-                        (value) => Padding(
-                          padding: const EdgeInsetsDirectional.only(end: 6),
-                          child: ChoiceChip(
-                            label: Text(_categoryNames[value] ?? value),
-                            selected: category == value,
-                            onSelected: (_) => setState(() => category = value),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                child: Text(
-                  '${filtered.length} محطة متاحة',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-              if (filtered.isEmpty)
-                const EmptyPane(message: 'لا توجد محطات تطابق الاختيار الحالي')
-              else
-                ...groups.entries.expand((entry) {
-                  final title = entry.key == 'INTERNAL'
-                      ? 'إذاعة ترتيل'
-                      : _categoryNames[entry.key] ?? entry.key;
-                  return <Widget>[
-                    SectionHeader(title),
-                    ...entry.value.map(
-                      (station) => _StationCard(
-                        station: station,
-                        active: activeId == station.id,
-                        pending: pendingStationId == station.id,
-                        onPlay: () => _play(station),
-                      ),
-                    ),
-                  ];
-                }),
+              Text('${filtered.length} محطة', style: Theme.of(context).textTheme.bodySmall),
             ],
           ),
-        );
-      },
+        ),
+      ),
+      SliverList.builder(
+        itemCount: filtered.length,
+        itemBuilder: (context, index) {
+          final station = filtered[index];
+          return StreamBuilder<MediaItem?>(
+            stream: ref.read(servicesProvider).playback.mediaItemStream,
+            builder: (context, snapshot) {
+              final media = snapshot.data;
+              final active = media?.extras?['kind'] == 'station' &&
+                  media?.extras?['entity_id'] == station.id;
+              return _StationCard(
+                station: station,
+                active: active,
+                pending: pendingStationId == station.id,
+                onPlay: () => _play(station),
+              );
+            },
+          );
+        },
+      ),
+    ];
+  }
+}
+
+class _VirtualRadioCard extends ConsumerWidget {
+  const _VirtualRadioCard({required this.value});
+  final AsyncValue<VirtualRadioResolution> value;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playback = ref.watch(servicesProvider).playback;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: value.when(
+          loading: () => const SizedBox(
+            height: 150,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, _) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.radio),
+                title: Text('إذاعة ترتيل'),
+                subtitle: Text('تعذر تحديد مصدر البث الحالي'),
+              ),
+              FilledButton.icon(
+                onPressed: () => ref.read(virtualRadioProvider.notifier).retry(),
+                icon: const Icon(Icons.refresh),
+                label: const Text('إعادة المحاولة'),
+              ),
+            ],
+          ),
+          data: (resolution) {
+            final station = resolution.station;
+            final program = resolution.program;
+            return StreamBuilder<MediaItem?>(
+              stream: playback.mediaItemStream,
+              builder: (context, mediaSnapshot) {
+                final media = mediaSnapshot.data;
+                final logicalActive = media?.extras?['kind'] == 'virtual_radio';
+                return StreamBuilder<PlaybackState>(
+                  stream: playback.playbackStateStream,
+                  builder: (context, stateSnapshot) {
+                    final state = stateSnapshot.data;
+                    final playing = logicalActive && state?.playing == true;
+                    final buffering = logicalActive &&
+                        (state?.processingState == AudioProcessingState.loading ||
+                            state?.processingState == AudioProcessingState.buffering);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Artwork(url: resolution.artworkUrl, size: 72, icon: Icons.radio),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: Text(
+                                          resolution.channelNameAr,
+                                          style: Theme.of(context).textTheme.titleLarge,
+                                        ),
+                                      ),
+                                      const Chip(label: Text('مباشر')),
+                                    ],
+                                  ),
+                                  Text(
+                                    program?.titleAr ?? 'بث مختار من إذاعات القرآن',
+                                    style: Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  if (program?.subtitleAr != null)
+                                    Text(program!.subtitleAr!, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: <Widget>[
+                            if (program != null) _MetaChip(_categoryNames[program.category] ?? program.category),
+                            if (station?.providerName != null) _MetaChip('المصدر: ${station!.providerName}'),
+                            if (station?.healthStatus != null) _MetaChip(_healthLabel(station!.healthStatus!)),
+                          ],
+                        ),
+                        if (resolution.nextProgramTitleAr != null) ...<Widget>[
+                          const SizedBox(height: 8),
+                          Text(
+                            'التالي: ${resolution.nextProgramTitleAr}${resolution.nextChangeAt == null ? '' : ' — ${_timeLabel(resolution.nextChangeAt!)}'}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: !resolution.available || station == null
+                                    ? null
+                                    : () async {
+                                        if (buffering) return;
+                                        if (playing) {
+                                          await playback.pause();
+                                        } else if (logicalActive) {
+                                          await playback.play();
+                                        } else {
+                                          await ref.read(virtualRadioProvider.notifier).play();
+                                        }
+                                      },
+                                icon: buffering
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : Icon(playing ? Icons.pause : Icons.play_arrow),
+                                label: Text(buffering ? 'جارٍ الاتصال…' : playing ? 'إيقاف مؤقت' : 'تشغيل إذاعة ترتيل'),
+                              ),
+                            ),
+                            if (logicalActive) ...<Widget>[
+                              const SizedBox(width: 8),
+                              IconButton.filledTonal(
+                                tooltip: 'إيقاف',
+                                onPressed: () => ref.read(virtualRadioProvider.notifier).stop(),
+                                icon: const Icon(Icons.stop),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'إذاعة ترتيل قناة افتراضية تختار مصدرًا خارجيًا متاحًا وفق الجدول؛ الصوت يصل مباشرةً من مزود البث ولا يُعاد بثه عبر خوادم ترتيل.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _CatalogControls extends StatelessWidget {
+  const _CatalogControls({
+    required this.controller,
+    required this.query,
+    required this.category,
+    required this.provider,
+    required this.stations,
+    required this.onQuery,
+    required this.onCategory,
+    required this.onProvider,
+  });
+
+  final TextEditingController controller;
+  final String query;
+  final String? category;
+  final String? provider;
+  final List<Station> stations;
+  final ValueChanged<String> onQuery;
+  final ValueChanged<String?> onCategory;
+  final ValueChanged<String?> onProvider;
+
+  @override
+  Widget build(BuildContext context) {
+    final external = stations.where((s) => s.isExternal).toList(growable: false);
+    final categories = external.map((s) => s.category).whereType<String>().toSet().toList()..sort();
+    final providers = <String, String>{};
+    for (final station in external) {
+      final key = station.provider;
+      if (key != null && key.isNotEmpty) providers[key] = station.providerName ?? key;
+    }
+    final providerEntries = providers.entries.toList()..sort((a, b) => a.value.compareTo(b.value));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Column(
+        children: <Widget>[
+          TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: 'ابحث عن إذاعة أو قارئ أو مصدر',
+              suffixIcon: query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'مسح البحث',
+                      onPressed: () {
+                        controller.clear();
+                        onQuery('');
+                      },
+                      icon: const Icon(Icons.close),
+                    ),
+            ),
+            onChanged: onQuery,
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 42,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: <Widget>[
+                ChoiceChip(label: const Text('كل التصنيفات'), selected: category == null, onSelected: (_) => onCategory(null)),
+                const SizedBox(width: 6),
+                ...categories.map((value) => Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 6),
+                      child: ChoiceChip(
+                        label: Text(_categoryNames[value] ?? value),
+                        selected: category == value,
+                        onSelected: (_) => onCategory(value),
+                      ),
+                    )),
+              ],
+            ),
+          ),
+          if (providerEntries.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 42,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: <Widget>[
+                  ChoiceChip(label: const Text('كل المصادر'), selected: provider == null, onSelected: (_) => onProvider(null)),
+                  const SizedBox(width: 6),
+                  ...providerEntries.map((entry) => Padding(
+                        padding: const EdgeInsetsDirectional.only(end: 6),
+                        child: ChoiceChip(
+                          label: Text(entry.value),
+                          selected: provider == entry.key,
+                          onSelected: (_) => onProvider(entry.key),
+                        ),
+                      )),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
 
 class _StationCard extends ConsumerWidget {
-  const _StationCard({
-    required this.station,
-    required this.active,
-    required this.pending,
-    required this.onPlay,
-  });
-
+  const _StationCard({required this.station, required this.active, required this.pending, required this.onPlay});
   final Station station;
   final bool active;
   final bool pending;
@@ -318,216 +447,69 @@ class _StationCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final services = ref.watch(servicesProvider);
+    final secure = Uri.tryParse(station.playbackUrl ?? '')?.scheme == 'https';
+    final playable = station.isPlayable && secure;
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: station.isPlayable ? onPlay : null,
+        onTap: playable ? onPlay : null,
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Artwork(url: station.logoUrl, size: 64),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              Artwork(url: station.logoUrl, size: 62, icon: Icons.radio),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(station.nameAr, maxLines: 2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 3),
+                    Text(station.providerName ?? station.provider ?? 'مصدر خارجي', style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 5,
                       children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(
-                                station.nameAr,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                            ),
-                            if (active)
-                              Padding(
-                                padding: const EdgeInsetsDirectional.only(start: 8),
-                                child: Icon(
-                                  Icons.graphic_eq,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          station.isInternal
-                              ? 'بث ترتيل الداخلي'
-                              : station.providerName ?? station.provider ?? 'مصدر خارجي',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: <Widget>[
-                            _MetaChip(station.streamType),
-                            if (station.healthStatus != null)
-                              _MetaChip(_healthLabel(station.healthStatus!)),
-                            if (station.category != null)
-                              _MetaChip(_categoryNames[station.category] ?? station.category!),
-                          ],
-                        ),
+                        if (station.category != null) _MetaChip(_categoryNames[station.category] ?? station.category!),
+                        _MetaChip(station.streamType),
+                        if (station.healthStatus != null) _MetaChip(_healthLabel(station.healthStatus!)),
                       ],
                     ),
-                  ),
-                ],
+                    if (!secure && station.playbackUrl != null) ...<Widget>[
+                      const SizedBox(height: 6),
+                      Text('HTTP غير آمن — غير متاح في Android', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
-              Row(
+              Column(
                 children: <Widget>[
-                  if (!station.isPlayable)
-                    Expanded(
-                      child: Text(
-                        'غير متاح للتشغيل حاليًا',
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
-                      ),
-                    )
-                  else
-                    const Spacer(),
                   AnimatedBuilder(
                     animation: services.favorites,
                     builder: (context, _) => IconButton(
                       tooltip: 'المفضلة',
                       onPressed: () => services.favorites.toggleStation(station.id),
-                      icon: Icon(
-                        services.favorites.isStation(station.id)
-                            ? Icons.favorite
-                            : Icons.favorite_border,
-                      ),
+                      icon: Icon(services.favorites.isStation(station.id) ? Icons.favorite : Icons.favorite_border),
                     ),
                   ),
                   if (pending)
                     const Padding(
                       padding: EdgeInsets.all(10),
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2.5),
-                      ),
+                      child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
                     )
                   else
-                    FilledButton.icon(
-                      onPressed: station.isPlayable ? onPlay : null,
-                      icon: Icon(active ? Icons.replay : Icons.play_arrow),
-                      label: Text(active ? 'إعادة التشغيل' : 'تشغيل'),
+                    IconButton.filled(
+                      tooltip: playable ? (active ? 'إعادة التشغيل' : 'تشغيل') : 'غير متاح',
+                      onPressed: playable ? onPlay : null,
+                      icon: Icon(active ? Icons.graphic_eq : Icons.play_arrow),
                     ),
                 ],
               ),
-              if (station.attribution != null && station.attribution!.isNotEmpty)
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      station.attribution!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NowPlayingRadioCard extends StatelessWidget {
-  const _NowPlayingRadioCard({required this.media, required this.playback});
-
-  final MediaItem media;
-  final dynamic playback;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Artwork(url: media.artUri?.toString(), size: 54),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text('يعمل الآن', style: Theme.of(context).textTheme.labelMedium),
-                      Text(
-                        media.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                ),
-                StreamBuilder<PlaybackState>(
-                  stream: playback.playbackStateStream as Stream<PlaybackState>,
-                  builder: (context, snapshot) {
-                    final state = snapshot.data;
-                    final loading = state?.processingState == AudioProcessingState.loading ||
-                        state?.processingState == AudioProcessingState.buffering;
-                    if (loading) {
-                      return const SizedBox(
-                        width: 44,
-                        height: 44,
-                        child: Padding(
-                          padding: EdgeInsets.all(9),
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        ),
-                      );
-                    }
-                    final playing = state?.playing == true;
-                    return IconButton.filledTonal(
-                      tooltip: playing ? 'إيقاف مؤقت' : 'تشغيل',
-                      onPressed: playing ? playback.pause : playback.play,
-                      icon: Icon(playing ? Icons.pause : Icons.play_arrow),
-                    );
-                  },
-                ),
-                IconButton(
-                  tooltip: 'إيقاف',
-                  onPressed: playback.stop,
-                  icon: const Icon(Icons.stop_circle_outlined),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            StreamBuilder<double>(
-              stream: playback.volumeStream as Stream<double>,
-              initialData: 1.0,
-              builder: (context, snapshot) {
-                final value = (snapshot.data ?? 1.0).clamp(0.0, 1.0);
-                return Row(
-                  children: <Widget>[
-                    const Icon(Icons.volume_down),
-                    Expanded(
-                      child: Slider(
-                        value: value,
-                        onChanged: (next) => playback.setVolume(next),
-                      ),
-                    ),
-                    const Icon(Icons.volume_up),
-                  ],
-                );
-              },
-            ),
-          ],
         ),
       ),
     );
@@ -537,10 +519,9 @@ class _NowPlayingRadioCard extends StatelessWidget {
 class _MetaChip extends StatelessWidget {
   const _MetaChip(this.label);
   final String label;
-
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(999),
@@ -549,10 +530,17 @@ class _MetaChip extends StatelessWidget {
       );
 }
 
-String _healthLabel(String value) => switch (value) {
-      'HEALTHY' => 'سليم',
-      'DEGRADED' => 'قابل للتشغيل',
-      'UNREACHABLE' => 'غير متاح',
-      'INVALID' => 'غير مدعوم',
+String _healthLabel(String value) => switch (value.toUpperCase()) {
+      'HEALTHY' => 'متاح',
+      'DEGRADED' => 'قد يتأخر',
+      'UNAVAILABLE' || 'UNREACHABLE' => 'غير متاح',
+      'UNSUPPORTED' => 'غير مدعوم',
       _ => 'غير مفحوص',
     };
+
+String _timeLabel(DateTime value) {
+  final local = value.toLocal();
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
+}

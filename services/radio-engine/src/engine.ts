@@ -8,7 +8,14 @@ import { loadAndValidatePlaylist, writeSourcePlaylist } from './playlist.js';
 import { LiquidsoapSource } from './source.js';
 import { startHealthServer } from './health.js';
 
-const allowed:Record<EngineMode,EngineMode[]>= {STARTING:['AUTO','RECOVERING','ERROR','STOPPED'],AUTO:['RECOVERING','ERROR','STOPPED'],SCHEDULED:['RECOVERING','ERROR','STOPPED'],MANUAL:['RECOVERING','ERROR','STOPPED'],LIVE:['RECOVERING','ERROR','STOPPED'],RECOVERING:['AUTO','ERROR','STOPPED'],ERROR:['RECOVERING','STOPPED'],STOPPED:['STARTING']};
+const allowed:Record<EngineMode,EngineMode[]>= {
+  STARTING:['AUTO','SCHEDULED','MANUAL','RECOVERING','ERROR','STOPPED'],
+  AUTO:['SCHEDULED','MANUAL','LIVE','RECOVERING','ERROR','STOPPED'],
+  SCHEDULED:['AUTO','MANUAL','LIVE','RECOVERING','ERROR','STOPPED'],
+  MANUAL:['AUTO','SCHEDULED','LIVE','RECOVERING','ERROR','STOPPED'],
+  LIVE:['AUTO','SCHEDULED','MANUAL','RECOVERING','ERROR','STOPPED'],
+  RECOVERING:['AUTO','SCHEDULED','MANUAL','LIVE','ERROR','STOPPED'],ERROR:['RECOVERING','STOPPED'],STOPPED:['STARTING']
+};
 
 export class RadioEngine {
   private lease:Lease|null=null;private source:LiquidsoapSource|null=null;private server:Server|null=null;
@@ -39,20 +46,25 @@ export class RadioEngine {
     setTimeout(()=>{if(!this.stopping&&!this.snapshot.sourceConnected&&this.source?.pid)this.logger.warn('SOURCE_CONNECTION_PENDING',{timeout_seconds:this.config.sourceTimeoutSeconds});},this.config.sourceTimeoutSeconds*1000).unref();
   }
   private onSourceEvent(event:string,payload?:string):void{
+    // Liquidsoap can emit its final disconnect line after stop() has begun.
+    // Shutdown owns the final STOPPED checkpoint and lease release, so late
+    // source callbacks must not attempt a fenced write with a released lease.
+    if(this.stopping)return;
     if(event==='SOURCE_CONNECTED'){
       this.restartCount=0;this.snapshot.sourceConnected=true;this.snapshot.lastError=null;
       if(this.snapshot.mode==='STARTING'||this.snapshot.mode==='RECOVERING')this.transition('AUTO');
       this.logger.info('SOURCE_CONNECTED',{station_id:this.config.stationId,mount:this.config.mount,pid:this.source?.pid});
       void this.refreshDistributionHealth().then(()=>this.checkpoint());
     }else if(event==='TRACK_START'){
-      this.handleTrackStart();
+      this.handleTrackStart(payload);
     }else if(event==='SOURCE_DISCONNECTED'||event==='SOURCE_ERROR'){
       this.snapshot.sourceConnected=false;this.snapshot.mountAvailable=false;this.snapshot.broadcasting=false;this.snapshot.lastError=event;this.snapshot.lastRecoveryAt=new Date().toISOString();
       if(this.snapshot.mode==='AUTO')this.transition('RECOVERING');this.logger.warn(event,{mount:this.config.mount});void this.checkpoint();
     }
   }
-  private handleTrackStart():void{
-    const index=this.trackIndex%this.tracks.length;
+  private handleTrackStart(payload?:string):void{
+    let acknowledgedIndex:number|undefined;try{const metadata=JSON.parse(payload??'{}') as Record<string,unknown>;const parsed=Number(metadata.tarteel_index);if(Number.isInteger(parsed)&&parsed>=0)acknowledgedIndex=parsed;}catch{}
+    const index=acknowledgedIndex??this.trackIndex%this.tracks.length;
     const previous=this.snapshot.current;if(previous)this.logger.info('TRACK_END',{media_id:previous.mediaId,title:previous.title,ended_at:new Date().toISOString(),ack_source:'liquidsoap'});
     const track=this.tracks[index];if(!track)return;this.trackIndex=(index+1)%this.tracks.length;const next=this.tracks[this.trackIndex]??null;const now=Date.now();
     this.snapshot.current=track;this.snapshot.next=next;this.snapshot.currentStartedAt=new Date(now).toISOString();this.snapshot.expectedEndAt=new Date(now+track.durationSeconds*1000).toISOString();this.snapshot.playoutAckCount++;
@@ -76,5 +88,7 @@ export class RadioEngine {
   private async heartbeatTick():Promise<void>{if(!this.lease||this.stopping)return;try{this.lease=await this.store.renew(this.lease,this.config.leaseSeconds);await this.refreshDistributionHealth();await this.checkpoint();}catch(error){this.logger.error('ENGINE_OWNERSHIP_LOST',error);this.snapshot.sourceConnected=false;this.snapshot.broadcasting=false;this.snapshot.lastError='station lease lost';this.source?.stop('SIGTERM');if(this.snapshot.mode!=='ERROR')this.transition('ERROR');}}
   private async checkpoint():Promise<void>{if(this.lease)await this.store.checkpoint(this.lease,this.snapshot,this.config.version);}
   crashSourceForTest():void{if(!this.config.faultInjectionEnabled)throw new Error('fault injection disabled');this.source?.stop('SIGKILL');}
+  async applyAutomationTracks(tracks:Track[],interrupt=false):Promise<void>{if(!this.source||tracks.length===0)throw new Error('radio source is not ready');const activeSource=this.snapshot.current?.queueEntryId?'automation':'main';this.tracks=[...tracks];this.trackIndex=0;const first=tracks[0]!;await this.source.pushTrack(first.path,first.mediaId,first.queueEntryId??null,interrupt,activeSource);this.logger.info('QUEUE_CHANGED',{track_count:tracks.length,interrupt,control:'request.queue',active_source:activeSource});}
+  async setAutomationMode(mode:Extract<EngineMode,'AUTO'|'SCHEDULED'|'MANUAL'>):Promise<void>{this.transition(mode);await this.checkpoint();}
   async stop():Promise<void>{if(this.stopping)return;this.stopping=true;if(this.heartbeat)clearInterval(this.heartbeat);this.source?.stop('SIGTERM');this.snapshot.sourceConnected=false;this.snapshot.liquidsoapAlive=false;this.snapshot.mountAvailable=false;this.snapshot.broadcasting=false;if(this.snapshot.mode!=='STOPPED')this.transition('STOPPED');await this.checkpoint().catch(()=>{});if(this.lease)await this.store.release(this.lease).catch(()=>{});await new Promise<void>(resolve=>this.server?this.server.close(()=>resolve()):resolve());await rm(this.workspace,{recursive:true,force:true});this.logger.info('ENGINE_STOP',{station_id:this.config.stationId});}
 }

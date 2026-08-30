@@ -7,6 +7,8 @@ export interface Config {
   sourceUser:string; sourcePassword:string; adminUser?:string; adminPassword?:string;
   playlistPath:string; fallbackPath:string; workspaceRoot:string; healthPort:number;
   leaseSeconds:number; heartbeatSeconds:number; sourceTimeoutSeconds:number; restartMax:number; version:string;
+  schedulerPollSeconds:number; commandPollSeconds:number; missedGraceSeconds:number; queueLookaheadSeconds:number;
+  liquidsoapControlPort:number;
   faultInjectionEnabled:boolean;
 }
 
@@ -35,6 +37,9 @@ export function loadConfig():Config {
     playlistPath:resolve(required('TARTEEL_RADIO_PLAYLIST_PATH')),fallbackPath:resolve(required('TARTEEL_RADIO_FALLBACK_PATH')),
     workspaceRoot:resolve(process.env.TARTEEL_RADIO_WORKSPACE??'/tmp/tarteel/radio-engine'),healthPort:integer('TARTEEL_RADIO_HEALTH_PORT',8091,1,65535),
     leaseSeconds,heartbeatSeconds,sourceTimeoutSeconds:integer('TARTEEL_RADIO_SOURCE_TIMEOUT_SECONDS',20,5,120),
+    schedulerPollSeconds:integer('TARTEEL_SCHEDULER_POLL_SECONDS',5,1,60),commandPollSeconds:integer('TARTEEL_COMMAND_POLL_SECONDS',2,1,30),
+    missedGraceSeconds:integer('TARTEEL_SCHEDULE_MISSED_GRACE_SECONDS',120,0,3600),queueLookaheadSeconds:integer('TARTEEL_QUEUE_LOOKAHEAD_SECONDS',120,10,3600),
+    liquidsoapControlPort:integer('TARTEEL_LIQUIDSOAP_CONTROL_PORT',1234,1024,65535),
     restartMax:integer('TARTEEL_RADIO_RESTART_MAX',5,1,20),version:process.env.TARTEEL_RADIO_ENGINE_VERSION??'0.1.0',
     faultInjectionEnabled:process.env.TARTEEL_RADIO_ENABLE_FAULT_INJECTION==='true'
   };

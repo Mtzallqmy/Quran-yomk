@@ -98,6 +98,8 @@ erDiagram
 | `schedule_templates/items` | station/template | versioned code، valid date range؛ لا يدمر base schedules |
 | `schedule_occurrences` | schedule+station | unique occurrence key، due partial index، claim/status ledger |
 | `radio_commands` | station/admin | unique station/idempotency، pending priority index، lifecycle timestamps |
+| `queue_entries` | station/media/occurrence/command | persistent business queue، unique station/idempotency، fenced claim |
+| `command_effects` | command | unique effect ledger، payload hash، PREPARED/DISPATCHED/ACKED recovery |
 | `station_leases` | one row/station | monotonic fencing token، DB-time expiry |
 | `engine_states`, `queue_snapshots` | one row/station | revision/token/checksum؛ projections قابلة للمصالحة |
 | `now_playing` | one row/station | monotonic revision؛ يكتب بعد playout ACK |

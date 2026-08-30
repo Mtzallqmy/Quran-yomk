@@ -4,6 +4,8 @@
 
 > **Boundary:** هذه الحالة والـQueue والـCommands تنطبق على `station_source=INTERNAL` فقط. EXTERNAL station لا تملك Engine state/lease/schedule/playlist/command، ويمنعها API وDB triggers. انظر [`EXTERNAL_STATIONS.md`](./EXTERNAL_STATIONS.md).
 
+> **Phase 6:** الانتقالات AUTO/SCHEDULED/MANUAL أصبحت منفذة، وLiquidsoap يبقى متصلًا بالم mount الثابت أثناء تغيير القرار. التحكم runtime عبر loopback-only command socket؛ `request.queue` يستقبل القرار التالي و`main.skip`/`automation.skip` يطبقان INTERRUPT على المصدر النشط فقط. راجع [`QUEUE_MANAGER.md`](./QUEUE_MANAGER.md) و[`RADIO_COMMANDS.md`](./RADIO_COMMANDS.md).
+
 ## 1. Radio Engine State Machine
 
 ```mermaid
@@ -82,12 +84,12 @@ Checkpoint كل 5 ثوانٍ أو عند track/queue/state change ويحتوي c
 
 1. Worker يحاول UPSERT/compare-and-swap إذا `expires_at < db_now()`.
 2. الاستحواذ يزيد `fencing_token` أحاديًا.
-3. التجديد كل 3 ثوانٍ، TTL 10 ثوانٍ (قيم ابتدائية تضبط بالاختبار).
+3. التجديد الافتراضي كل 5 ثوانٍ، TTL 15 ثانية، ويشترط heartbeat أقل من نصف TTL.
 4. كل كتابة تشغيلية وكل playout command تحمل token؛ adapter يرفض token أقدم.
 5. عند فقد التجديد يتوقف الـworker عن إصدار قرارات جديدة فورًا، لكن playout المحلي يواصل emergency-safe queue لفترة grace محدودة.
 6. لا يعتمد expiry على ساعة التطبيق؛ يستخدم `now()` من PostgreSQL.
 
-Advisory lock وحده لا يكفي بعد network partition؛ fencing token هو الحماية من leader قديم.
+Advisory lock وحده لا يكفي بعد network partition؛ fencing token هو الحماية من leader قديم. `release_station_lease` ينهي lease ولا يحذف صفه، لذلك يبقى token أحادي الزيادة حتى بعد stop/start.
 
 ## 3. Scheduler Design
 

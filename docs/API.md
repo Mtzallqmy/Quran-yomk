@@ -164,6 +164,8 @@ Conflict warning ليس دائمًا منعًا؛ overlap مسموح إذا prio
 }
 ```
 
+Phase 6 يثبت أن API المستقبلي ينشئ command فقط. لا يعيد endpoint path أو URL أو Liquidsoap command. payload الطبيعي هو `{media_id}` أو `{playlist_id}` مع `interrupt` boolean لـPLAY_NOW، ويُرفض الجمع بين targetين. `Idempotency-Key` فريد داخل station؛ polling يعرض PENDING/PROCESSING/COMPLETED/FAILED/CANCELLED وresult آمنًا فقط.
+
 Response `202` مع command resource. لا ينتظر HTTP بدء الصوت. العميل يتابع `GET /radio/commands/{id}`. `CANCEL` مسموح لـPENDING فقط. Commands `START_LIVE/STOP_LIVE` محفوظة بالschema لكن endpoints/UI غير مفعلة في MVP.
 
 ### Dashboard / Analytics / Settings

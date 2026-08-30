@@ -20,7 +20,9 @@ export class SupabaseLeaseStore implements LeaseStore {
       p_next_media_id:s.next?.mediaId??null,p_current_title:s.current?.title??null,p_next_title:s.next?.title??null,
       p_started_at:s.currentStartedAt,p_expected_end_at:s.expectedEndAt,p_source_started_at:s.sourceStartedAt,
       p_processing_profile:'LIVE_MP3_128K_V1',p_last_error:s.lastError,p_last_recovery_at:s.lastRecoveryAt,
-      p_state_data:{reconnect_count:s.reconnectCount,track_failures:s.trackFailures},p_version:version
+      p_state_data:{reconnect_count:s.reconnectCount,track_failures:s.trackFailures,liquidsoap_alive:s.liquidsoapAlive,
+        icecast_reachable:s.icecastReachable,mount_available:s.mountAvailable,broadcasting:s.broadcasting,
+        playout_ack_count:s.playoutAckCount},p_version:version
     }); if(error)throw error; return Number(data);
   }
   async release(lease:Lease):Promise<void> { const {error}=await this.client.schema('radio').rpc('release_station_lease',{p_station_id:lease.stationId,p_owner_id:lease.ownerId,p_fencing_token:lease.fencingToken});if(error)throw error; }

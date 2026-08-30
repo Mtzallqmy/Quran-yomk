@@ -17,6 +17,10 @@ export interface Lease {
 export interface EngineSnapshot {
   mode: EngineMode;
   sourceConnected: boolean;
+  liquidsoapAlive: boolean;
+  icecastReachable: boolean;
+  mountAvailable: boolean;
+  broadcasting: boolean;
   streamMount: string;
   current: Track | null;
   next: Track | null;
@@ -27,6 +31,7 @@ export interface EngineSnapshot {
   lastRecoveryAt: string | null;
   reconnectCount: number;
   trackFailures: number;
+  playoutAckCount: number;
 }
 
 export interface LeaseStore {

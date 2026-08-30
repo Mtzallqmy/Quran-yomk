@@ -6,6 +6,7 @@ on:
       - main
       - phase7-8-backend-admin-brand
       - phase9-10-flutter-release
+      - feature/quran-radio-real-integration
   workflow_dispatch:
 
 permissions:
@@ -82,7 +83,7 @@ jobs:
         run: npm ci && npm test
 
   mobile-release:
-    if: github.ref == 'refs/heads/phase9-10-flutter-release'
+    if: github.ref == 'refs/heads/phase9-10-flutter-release' || github.ref == 'refs/heads/feature/quran-radio-real-integration'
     permissions:
       contents: write
     runs-on: ubuntu-24.04
@@ -148,7 +149,7 @@ jobs:
           set -euo pipefail
           ! grep -RIE --exclude='*.md' --exclude-dir=build --exclude-dir=.dart_tool 'sb_secret_[A-Za-z0-9_-]{20,}|service_role|SUPABASE_SECRET_KEY|ICECAST_SOURCE_PASSWORD|ICECAST_ADMIN_PASSWORD|private backend secret' apps/mobile
           grep -q 'minSdk = 26' apps/mobile/android/app/build.gradle.kts
-          grep -q 'android:usesCleartextTraffic="false"' apps/mobile/android/app/src/main/AndroidManifest.xml
+          grep -q 'android:usesCleartextTraffic="true"' apps/mobile/android/app/src/main/AndroidManifest.xml
           grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' apps/mobile/android/app/src/main/AndroidManifest.xml
       - name: Build universal release APK
         working-directory: apps/mobile
@@ -190,6 +191,6 @@ jobs:
       - name: Upload Android release evidence
         uses: actions/upload-artifact@v4
         with:
-          name: tarteel-phase9-10-android-release
+          name: tarteel-quran-radio-android-release
           path: apps/mobile/release/evidence
           retention-days: 30

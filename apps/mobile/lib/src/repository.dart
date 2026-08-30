@@ -1,6 +1,7 @@
 import 'api.dart';
 import 'models.dart';
 import 'storage.dart';
+import 'virtual_radio.dart';
 
 class HomeData {
   const HomeData({
@@ -40,9 +41,7 @@ class TarteelRepository {
   }
 
   Future<List<Station>> stations({bool refresh = false}) async {
-    // v2 invalidates the early Phase 9 cache that only contained the internal
-    // development station before external radio activation was completed.
-    const key = 'stations-v2';
+    const key = 'stations-v3';
     final cached = refresh ? null : cache.read(key, const Duration(minutes: 5));
     if (cached is List) {
       return cached
@@ -50,12 +49,21 @@ class TarteelRepository {
           .toList(growable: false);
     }
     try {
-      final result = (await api.stations()).data;
+      final values = <Station>[];
+      var page = 1;
+      for (var guard = 0; guard < 20; guard++) {
+        final result = await api.stations(page: page, limit: 200);
+        values.addAll(result.data);
+        final next = result.nextPage;
+        if (next == null || next <= page) break;
+        page = next;
+      }
+      final deduped = <String, Station>{for (final station in values) station.id: station}.values.toList(growable: false);
       await cache.write(
         key,
-        result.map((e) => e.toJson()).toList(growable: false),
+        deduped.map((e) => e.toJson()).toList(growable: false),
       );
-      return result;
+      return deduped;
     } catch (_) {
       final stale = cache.readStale(key);
       if (stale is List) {
@@ -66,6 +74,12 @@ class TarteelRepository {
       rethrow;
     }
   }
+
+  Future<VirtualRadioResolution> virtualRadio({
+    List<String> failedStationIds = const <String>[],
+  }) async => VirtualRadioResolution.fromJson(
+    await api.virtualRadio(failedStationIds: failedStationIds),
+  );
 
   Future<List<Category>> categories({bool refresh = false}) async {
     const key = 'categories';

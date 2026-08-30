@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common.dart';
 import '../models.dart';
 import '../services.dart';
+import 'library.dart';
+import 'radio.dart';
 import 'reciters.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
@@ -59,9 +61,23 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     }
   }
 
+  Future<void> _play(Station station) async {
+    try {
+      await ref.read(servicesProvider).playback.playStation(station);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('يتم الآن تشغيل ${station.nameAr}')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر تشغيل هذا البث الآن.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final services = ref.watch(servicesProvider);
     final total =
         result.stations.length + result.reciters.length + result.surahs.length;
     return Scaffold(
@@ -84,10 +100,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       )
-                    : null,
+                    : controller.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'مسح',
+                        onPressed: () {
+                          controller.clear();
+                          runSearch('');
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
                 hintText: 'محطة، قارئ، أو سورة',
               ),
               onChanged: (value) {
+                setState(() {});
                 debounce?.cancel();
                 debounce = Timer(
                   const Duration(milliseconds: 350),
@@ -119,10 +145,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       ListTile(
                         leading: Artwork(url: station.logoUrl),
                         title: Text(station.nameAr),
-                        subtitle: Text(station.isInternal ? 'داخلي' : 'خارجي'),
-                        trailing: IconButton(
+                        subtitle: Text(stationHealthLabel(station)),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => StationDetailPage(station: station),
+                          ),
+                        ),
+                        trailing: IconButton.filledTonal(
+                          tooltip: 'تشغيل',
                           onPressed: station.isPlayable
-                              ? () => services.playback.playStation(station)
+                              ? () => _play(station)
                               : null,
                           icon: const Icon(Icons.play_arrow),
                         ),
@@ -137,6 +169,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           icon: Icons.person_outline,
                         ),
                         title: Text(reciter.nameAr),
+                        subtitle: reciter.rewaya == null
+                            ? null
+                            : Text(reciter.rewaya!),
+                        trailing: const Icon(Icons.chevron_left),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) => ReciterDetailPage(reciter: reciter),
@@ -150,7 +186,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       ListTile(
                         leading: CircleAvatar(child: Text('${surah.number}')),
                         title: Text(surah.nameAr),
-                        subtitle: Text(surah.nameEn),
+                        subtitle: Text('${surah.nameEn} • ${surah.ayahCount} آية'),
+                        trailing: const Icon(Icons.chevron_left),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => SurahDetailPage(surah: surah),
+                          ),
+                        ),
                       ),
                   ],
                 ],

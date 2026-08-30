@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
+import '../models.dart';
 import '../repository.dart';
 import '../services.dart';
+import 'radio.dart';
 import 'reciters.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -28,6 +30,31 @@ class _HomePageState extends ConsumerState<HomePage> {
     await future;
   }
 
+  Future<void> _play(Station station) async {
+    try {
+      await ref.read(servicesProvider).playback.playStation(station);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('يتم الآن تشغيل ${station.nameAr}')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر بدء البث. جرّب محطة أخرى أو أعد المحاولة.')),
+      );
+    }
+  }
+
+  void _openCategory(Category category) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => RadioBrowsePage(
+        initialCategory: category.slug,
+        initialSource: 'EXTERNAL',
+        title: category.nameAr,
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => FutureBuilder<HomeData>(
     future: future,
@@ -41,66 +68,69 @@ class _HomePageState extends ConsumerState<HomePage> {
       }
       final data = snapshot.data;
       if (data == null) return const EmptyPane();
-      final services = ref.watch(servicesProvider);
       return RefreshIndicator(
         onRefresh: refresh,
         child: ListView(
+          padding: const EdgeInsets.only(bottom: 24),
           children: <Widget>[
-            if (data.featured.isNotEmpty) ...<Widget>[
-              const SectionHeader('مختارات ترتيل'),
+            if (data.stations.isNotEmpty) ...<Widget>[
+              const SectionHeader('استمع الآن'),
               SizedBox(
-                height: 150,
+                height: 166,
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   scrollDirection: Axis.horizontal,
-                  itemCount: data.featured.length,
+                  itemCount: data.stations.take(8).length,
                   separatorBuilder: (_, _) => const SizedBox(width: 10),
                   itemBuilder: (context, index) {
-                    final item = data.featured[index];
+                    final station = data.stations[index];
                     return SizedBox(
-                      width: 240,
+                      width: 270,
                       child: Card(
+                        clipBehavior: Clip.antiAlias,
                         child: InkWell(
-                          onTap: item.slug == null
-                              ? null
-                              : () async {
-                                  final station = await services.repository.api
-                                      .station(item.slug!);
-                                  await services.playback.playStation(station);
-                                },
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => StationDetailPage(station: station),
+                            ),
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.all(14),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
-                                Artwork(url: item.logoUrl, size: 72),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      Text(
-                                        item.nameAr,
+                                Row(
+                                  children: <Widget>[
+                                    Artwork(url: station.logoUrl, size: 54),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        station.nameAr,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.titleMedium,
+                                        style: Theme.of(context).textTheme.titleMedium,
                                       ),
-                                      const SizedBox(height: 6),
-                                      const Row(
-                                        children: <Widget>[
-                                          Icon(
-                                            Icons.play_circle_outline,
-                                            size: 18,
-                                          ),
-                                          SizedBox(width: 4),
-                                          Text('تشغيل'),
-                                        ],
+                                    ),
+                                  ],
+                                ),
+                                const Spacer(),
+                                Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: Text(
+                                        stationHealthLabel(station),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                    IconButton.filledTonal(
+                                      tooltip: 'تشغيل',
+                                      onPressed: station.isPlayable
+                                          ? () => _play(station)
+                                          : null,
+                                      icon: const Icon(Icons.play_arrow),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -112,79 +142,69 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
               ),
             ],
-            const SectionHeader('الإذاعات'),
-            SizedBox(
-              height: 112,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                scrollDirection: Axis.horizontal,
-                itemCount: data.stations.take(8).length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final station = data.stations[index];
-                  return SizedBox(
-                    width: 210,
-                    child: Card(
-                      child: ListTile(
-                        leading: Artwork(url: station.logoUrl, size: 46),
-                        title: Text(
-                          station.nameAr,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          station.isInternal ? 'ترتيل الداخلي' : 'محطة خارجية',
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.play_arrow),
-                          onPressed: station.isPlayable
-                              ? () => services.playback.playStation(station)
-                              : null,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SectionHeader('القراء'),
-            SizedBox(
-              height: 112,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                scrollDirection: Axis.horizontal,
-                itemCount: data.reciters.take(8).length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final reciter = data.reciters[index];
-                  return SizedBox(
-                    width: 210,
-                    child: Card(
-                      child: ListTile(
-                        leading: Artwork(
-                          url: reciter.imageUrl,
-                          size: 46,
-                          icon: Icons.person_outline,
-                        ),
-                        title: Text(
-                          reciter.nameAr,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: reciter.rewaya == null
-                            ? null
-                            : Text(reciter.rewaya!),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => ReciterDetailPage(reciter: reciter),
+            if (data.reciters.isNotEmpty) ...<Widget>[
+              const SectionHeader('القراء'),
+              SizedBox(
+                height: 126,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: data.reciters.take(10).length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final reciter = data.reciters[index];
+                    return SizedBox(
+                      width: 220,
+                      child: Card(
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ReciterDetailPage(reciter: reciter),
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: <Widget>[
+                                Artwork(
+                                  url: reciter.imageUrl,
+                                  size: 50,
+                                  icon: Icons.record_voice_over_outlined,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Text(
+                                        reciter.nameAr,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context).textTheme.titleSmall,
+                                      ),
+                                      if (reciter.rewaya != null)
+                                        Text(
+                                          reciter.rewaya!,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context).textTheme.bodySmall,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_left),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
+            ],
             const SectionHeader('التصنيفات'),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
@@ -192,8 +212,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: data.categories
-                    .take(12)
-                    .map((category) => Chip(label: Text(category.nameAr)))
+                    .map(
+                      (category) => ActionChip(
+                        avatar: const Icon(Icons.folder_open_outlined, size: 18),
+                        label: Text(category.nameAr),
+                        onPressed: () => _openCategory(category),
+                      ),
+                    )
                     .toList(growable: false),
               ),
             ),

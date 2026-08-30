@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { isAbsolute, resolve } from 'node:path';
 import type { Track } from './types.js';
@@ -26,5 +26,8 @@ export async function loadAndValidatePlaylist(manifestPath:string,fallbackPath:s
 }
 
 export async function writeSourcePlaylist(path:string,tracks:Track[]):Promise<void>{
-  await writeFile(path,`${tracks.map((track,index)=>`annotate:tarteel_index="${index}":${track.path}`).join('\n')}\n`,{encoding:'utf8',flag:'wx'});
+  await writeFile(path,sourcePlaylist(tracks),{encoding:'utf8',flag:'wx'});
 }
+function safeMetadata(value:string):string{return value.replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,200);}
+function sourcePlaylist(tracks:Track[]):string{return `${tracks.map((track,index)=>`annotate:tarteel_index="${index}",media_id="${safeMetadata(track.mediaId??'none')}",queue_entry_id="${safeMetadata(track.queueEntryId??'none')}":${track.path}`).join('\n')}\n`;}
+export async function replaceSourcePlaylist(path:string,tracks:Track[]):Promise<void>{const next=`${path}.next`;await writeFile(next,sourcePlaylist(tracks),{encoding:'utf8',flag:'w',mode:0o600});await rename(next,path);}

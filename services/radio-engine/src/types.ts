@@ -2,6 +2,7 @@ export type EngineMode = 'STARTING'|'AUTO'|'SCHEDULED'|'MANUAL'|'LIVE'|'RECOVERI
 
 export interface Track {
   mediaId: string | null;
+  queueEntryId?: string | null;
   title: string;
   path: string;
   durationSeconds: number;

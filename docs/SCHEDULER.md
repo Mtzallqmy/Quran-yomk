@@ -98,3 +98,11 @@ Loser صالح النافذة يبقى/defer حسب policy؛ وإلا `SKIPPED/C
 - تعارضات متطابقة تعطي winner نفسه عبر 1000 permutations.
 - missed/restart/DST لها expected events وأسباب skip.
 - preview يطابق occurrences الفعلية byte-for-byte للمدخل نفسه.
+
+## 11. Phase 6 implementation record
+
+التنفيذ موجود في `services/radio-engine/src/scheduler.ts` و`scheduler-loop.ts`. يستخدم `Intl` مع IANA timezone دون Server Local Time. وقت DST غير الموجود ينتقل لأول دقيقة صالحة ويسجل `dst_shifted=true`؛ الوقت المكرر ينفذ مرة واحدة في fold 0. ONE_TIME/DAILY/WEEKLY تولد occurrence key versioned وفريدًا.
+
+القيم الافتراضية القابلة للتهيئة: poll=5s، lookahead=120s، missed grace=120s. claim يستخدم DB time/fencing/`SKIP LOCKED`. exact-time conflicts يحسمها priority ثم schedule creation ثم UUID؛ الخاسر `SKIPPED/CONFLICT_LOST` ولا يشغل لاحقًا. الأقدم من grace يصبح `SKIPPED/MISSED` مع event. لا يتكرر occurrence مكتمل بعد restart.
+
+الاختبارات الفعلية تشمل Asia/Aden، day/week boundaries، multiple weekdays، America/New_York spring gap/fall fold، disabled/future، grace boundary، SQL conflict/idempotency/fencing.

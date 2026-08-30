@@ -11,7 +11,7 @@ export function buildLiquidsoapScript(config:Config,playlistPath:string):string{
     `def source_connected() = print("TARTEEL_EVENT SOURCE_CONNECTED") end\n`+
     `def source_disconnected() = print("TARTEEL_EVENT SOURCE_DISCONNECTED") end\n`+
     `def source_error(error) = print("TARTEEL_EVENT SOURCE_ERROR: #{error}"); 2.0 end\n`+
-    `def track_started(metadata) = print("TARTEEL_EVENT TRACK_START_JSON: #{metadata.json.stringify(metadata)}") end\n`+
+    `def track_started(m) = print("TARTEEL_EVENT TRACK_START_JSON: #{metadata.json.stringify(m)}") end\n`+
     `radio.on_track(track_started)\n`+
     `output.icecast(%mp3(bitrate=128, samplerate=44100, stereo=true), id="tarteel", host=${liq(config.icecastHost)}, port=${config.icecastPort}, user=${liq(config.sourceUser)}, password=${liq(config.sourcePassword)}, mount=${liq(config.mount)}, name="ترتيل", genre="Quran and Islamic audio", description="Tarteel development radio", public=false, format="audio/mpeg", connection_timeout=5.0, timeout=10.0, on_connect=source_connected, on_disconnect=source_disconnected, on_error=source_error, radio)\n`;
 }

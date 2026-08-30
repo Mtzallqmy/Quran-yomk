@@ -44,19 +44,17 @@ export class RadioEngine {
       if(this.snapshot.mode==='STARTING'||this.snapshot.mode==='RECOVERING')this.transition('AUTO');
       this.logger.info('SOURCE_CONNECTED',{station_id:this.config.stationId,mount:this.config.mount,pid:this.source?.pid});
       void this.refreshDistributionHealth().then(()=>this.checkpoint());
-    }else if(event==='TRACK_START'&&payload){
-      this.handleTrackStart(payload);
+    }else if(event==='TRACK_START'){
+      this.handleTrackStart();
     }else if(event==='SOURCE_DISCONNECTED'||event==='SOURCE_ERROR'){
       this.snapshot.sourceConnected=false;this.snapshot.mountAvailable=false;this.snapshot.broadcasting=false;this.snapshot.lastError=event;this.snapshot.lastRecoveryAt=new Date().toISOString();
       if(this.snapshot.mode==='AUTO')this.transition('RECOVERING');this.logger.warn(event,{mount:this.config.mount});void this.checkpoint();
     }
   }
-  private handleTrackStart(payload:string):void{
-    let metadata:Record<string,unknown>={};try{metadata=JSON.parse(payload) as Record<string,unknown>;}catch(error){this.logger.error('PLAYOUT_ACK_INVALID',error);return;}
-    const rawIndex=metadata.tarteel_index;const index=typeof rawIndex==='string'&&/^\d+$/.test(rawIndex)?Number(rawIndex):-1;
-    if(index<0||index>=this.tracks.length){this.logger.warn('PLAYOUT_ACK_UNMATCHED',{tarteel_index:rawIndex??null});return;}
+  private handleTrackStart():void{
+    const index=this.trackIndex%this.tracks.length;
     const previous=this.snapshot.current;if(previous)this.logger.info('TRACK_END',{media_id:previous.mediaId,title:previous.title,ended_at:new Date().toISOString(),ack_source:'liquidsoap'});
-    this.trackIndex=index;const track=this.tracks[index];if(!track)return;const next=this.tracks[(index+1)%this.tracks.length]??null;const now=Date.now();
+    const track=this.tracks[index];if(!track)return;this.trackIndex=(index+1)%this.tracks.length;const next=this.tracks[this.trackIndex]??null;const now=Date.now();
     this.snapshot.current=track;this.snapshot.next=next;this.snapshot.currentStartedAt=new Date(now).toISOString();this.snapshot.expectedEndAt=new Date(now+track.durationSeconds*1000).toISOString();this.snapshot.playoutAckCount++;
     this.logger.info('TRACK_START',{media_id:track.mediaId,title:track.title,duration_seconds:track.durationSeconds,started_at:this.snapshot.currentStartedAt,ack_source:'liquidsoap'});
     void this.updateIcecastMetadata(track);void this.checkpoint();

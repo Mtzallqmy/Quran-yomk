@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'models.dart';
@@ -12,6 +13,8 @@ abstract class PlaybackPort {
   Stream<Duration> get positionStream;
   Stream<Duration?> get durationStream;
   Stream<Duration?> get sleepRemainingStream;
+  Stream<double> get volumeStream;
+  Stream<String> get errorStream;
   bool get isLive;
   Future<void> playStation(Station station);
   Future<void> playTracks(
@@ -26,6 +29,7 @@ abstract class PlaybackPort {
   Future<void> skipToNext();
   Future<void> skipToPrevious();
   Future<void> setSpeed(double speed);
+  Future<void> setVolume(double volume);
   Future<void> setRepeatOne(bool enabled);
   Future<void> updateLiveMetadata(NowPlaying value);
   void setSleepTimer(Duration duration);
@@ -41,12 +45,16 @@ class TarteelAudioHandler extends BaseAudioHandler
       if (playing) _reconnectAttempt = 0;
       _broadcastState();
     });
-    _player.errorStream.listen((_) => _scheduleLiveReconnect());
+    _player.errorStream.listen((error) {
+      _errors.add(error.message ?? 'تعذر تشغيل البث الصوتي');
+      _scheduleLiveReconnect();
+    });
   }
 
   final AudioPlayer _player = AudioPlayer();
   final StreamController<Duration?> _sleepRemaining =
       StreamController<Duration?>.broadcast();
+  final StreamController<String> _errors = StreamController<String>.broadcast();
   Timer? _sleepTimer;
   Timer? _reconnectTimer;
   DateTime? _sleepDeadline;
@@ -70,25 +78,36 @@ class TarteelAudioHandler extends BaseAudioHandler
   Stream<Duration?> get durationStream => _player.durationStream;
   @override
   Stream<Duration?> get sleepRemainingStream => _sleepRemaining.stream;
+  @override
+  Stream<double> get volumeStream => _player.volumeStream;
+  @override
+  Stream<String> get errorStream => _errors.stream;
 
   Future<void> initialize() async {
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.music());
+    if (kIsWeb) {
+      await _player.setWebCrossOrigin(WebCrossOrigin.anonymous);
+    }
     session.becomingNoisyEventStream.listen((_) => pause());
     session.interruptionEventStream.listen((event) async {
       if (event.begin) {
         _resumeAfterInterruption = _player.playing;
         if (event.type == AudioInterruptionType.pause ||
-            event.type == AudioInterruptionType.unknown)
+            event.type == AudioInterruptionType.unknown) {
           await pause();
-        if (event.type == AudioInterruptionType.duck)
+        }
+        if (event.type == AudioInterruptionType.duck) {
           await _player.setVolume(0.35);
+        }
       } else {
-        if (event.type == AudioInterruptionType.duck)
+        if (event.type == AudioInterruptionType.duck) {
           await _player.setVolume(1.0);
+        }
         if (_resumeAfterInterruption &&
-            event.type == AudioInterruptionType.pause)
+            event.type == AudioInterruptionType.pause) {
           await play();
+        }
         _resumeAfterInterruption = false;
       }
     });
@@ -107,7 +126,8 @@ class TarteelAudioHandler extends BaseAudioHandler
     mediaItem.add(_stationItem(station));
     await _loadUrl(station.playbackUrl!);
     await _player.setSpeed(1.0);
-    await _player.play();
+    unawaited(_player.play());
+    _broadcastState();
   }
 
   MediaItem _stationItem(Station station, {String? title, String? subtitle}) =>
@@ -123,6 +143,7 @@ class TarteelAudioHandler extends BaseAudioHandler
           'slug': station.slug,
           'url': station.playbackUrl,
           'station_name': station.nameAr,
+          'provider': station.provider,
         },
       );
 
@@ -163,7 +184,8 @@ class TarteelAudioHandler extends BaseAudioHandler
           .toList(growable: false),
     );
     await _loadTrack(_trackIndex);
-    await _player.play();
+    unawaited(_player.play());
+    _broadcastState();
   }
 
   MediaItem _trackItem(ReciterTrack track, Reciter reciter) => MediaItem(
@@ -200,9 +222,11 @@ class TarteelAudioHandler extends BaseAudioHandler
   @override
   Future<void> play() async {
     _shouldPlay = true;
-    if (_player.processingState == ProcessingState.completed && !isLive)
+    if (_player.processingState == ProcessingState.completed && !isLive) {
       await seek(Duration.zero);
-    await _player.play();
+    }
+    unawaited(_player.play());
+    _broadcastState();
   }
 
   @override
@@ -232,7 +256,7 @@ class TarteelAudioHandler extends BaseAudioHandler
     final next = _trackIndex + 1;
     if (next >= _tracks.length) return;
     await _loadTrack(next);
-    if (_shouldPlay) await _player.play();
+    if (_shouldPlay) unawaited(_player.play());
   }
 
   @override
@@ -245,7 +269,7 @@ class TarteelAudioHandler extends BaseAudioHandler
     final previous = _trackIndex - 1;
     if (previous < 0) return;
     await _loadTrack(previous);
-    if (_shouldPlay) await _player.play();
+    if (_shouldPlay) unawaited(_player.play());
   }
 
   @override
@@ -254,6 +278,10 @@ class TarteelAudioHandler extends BaseAudioHandler
     await _player.setSpeed(speed.clamp(0.75, 2.0));
     _broadcastState();
   }
+
+  @override
+  Future<void> setVolume(double volume) =>
+      _player.setVolume(volume.clamp(0.0, 1.0));
 
   @override
   Future<void> setRepeatOne(bool enabled) async {
@@ -299,8 +327,9 @@ class TarteelAudioHandler extends BaseAudioHandler
     if (station == null ||
         !_shouldPlay ||
         station.playbackUrl == null ||
-        _reconnectTimer != null)
+        _reconnectTimer != null) {
       return;
+    }
     const backoff = <int>[2, 4, 8, 16, 30];
     if (_reconnectAttempt >= backoff.length) return;
     final delay = Duration(seconds: backoff[_reconnectAttempt++]);
@@ -309,8 +338,9 @@ class TarteelAudioHandler extends BaseAudioHandler
       if (_liveStation?.id != station.id || !_shouldPlay) return;
       try {
         await _loadUrl(station.playbackUrl!);
-        await _player.play();
-      } catch (_) {
+        unawaited(_player.play());
+      } catch (error) {
+        _errors.add('تعذر إعادة الاتصال بالبث: $error');
         _scheduleLiveReconnect();
       }
     });
@@ -368,6 +398,7 @@ class TarteelAudioHandler extends BaseAudioHandler
     _cancelReconnect();
     cancelSleepTimer();
     await _sleepRemaining.close();
+    await _errors.close();
     await _player.dispose();
   }
 }

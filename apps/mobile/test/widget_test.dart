@@ -11,7 +11,10 @@ void main() {
           textDirection: TextDirection.rtl,
           child: Scaffold(
             body: Center(
-              child: Semantics(label: 'اسم التطبيق', child: const Text('ترتيل')),
+              child: Semantics(
+                label: 'اسم التطبيق',
+                child: const Text('ترتيل'),
+              ),
             ),
           ),
         ),

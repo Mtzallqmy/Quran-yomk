@@ -32,7 +32,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) => FutureBuilder<HomeData>(
     future: future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
         return const LoadingPane();
       }
       if (snapshot.hasError && !snapshot.hasData) {
@@ -76,18 +77,24 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 Expanded(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: <Widget>[
                                       Text(
                                         item.nameAr,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context).textTheme.titleMedium,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleMedium,
                                       ),
                                       const SizedBox(height: 6),
                                       const Row(
                                         children: <Widget>[
-                                          Icon(Icons.play_circle_outline, size: 18),
+                                          Icon(
+                                            Icons.play_circle_outline,
+                                            size: 18,
+                                          ),
                                           SizedBox(width: 4),
                                           Text('تشغيل'),
                                         ],

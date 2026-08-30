@@ -1,4 +1,4 @@
-name: Phase 7-10 Acceptance
+name: Phase 7-11 Acceptance
 
 on:
   push:
@@ -51,7 +51,16 @@ jobs:
           set -euo pipefail
           ! grep -RIE --exclude='*.example' --exclude='*.md' --exclude-dir=node_modules --exclude-dir=.next 'sb_secret_[A-Za-z0-9_-]{20,}|service_role[^[:space:]]{20,}|ICECAST_(SOURCE|ADMIN)_PASSWORD=.+' apps/admin
           ! grep -RIE --exclude='*.md' --exclude-dir=node_modules --exclude-dir=.next 'SUPABASE_SECRET_KEY|ICECAST_SOURCE_PASSWORD|ICECAST_ADMIN_PASSWORD' apps/admin/app
-      - name: Brand and admin contract guard
+      - name: Phase 11 admin contract guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f apps/admin/lib/phase11-api.ts
+          test -f apps/admin/app/phase11/page.tsx
+          grep -q 'virtual-radio' apps/admin/lib/phase11-api.ts
+          grep -q 'islamic-radio-api' apps/admin/lib/phase11-api.ts
+          grep -q 'إدارة إذاعة ترتيل الافتراضية' apps/admin/app/page.tsx
+      - name: Brand and prior admin contract guard
         shell: bash
         run: |
           set -euo pipefail
@@ -75,7 +84,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg
-      - name: Radio Engine regression
+      - name: Radio Engine regression (dormant infrastructure only)
         working-directory: services/radio-engine
         run: npm ci && npm test
       - name: Audio Worker regression
@@ -87,7 +96,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
@@ -143,14 +152,18 @@ jobs:
       - name: Unit and widget tests
         working-directory: apps/mobile
         run: flutter test
-      - name: Mobile secret guard
+      - name: Mobile architecture and secret guard
         shell: bash
         run: |
           set -euo pipefail
           ! grep -RIE --exclude='*.md' --exclude-dir=build --exclude-dir=.dart_tool 'sb_secret_[A-Za-z0-9_-]{20,}|service_role|SUPABASE_SECRET_KEY|ICECAST_SOURCE_PASSWORD|ICECAST_ADMIN_PASSWORD|private backend secret' apps/mobile
           grep -q 'minSdk = 26' apps/mobile/android/app/build.gradle.kts
-          grep -q 'android:usesCleartextTraffic="true"' apps/mobile/android/app/src/main/AndroidManifest.xml
+          grep -q 'android:usesCleartextTraffic="false"' apps/mobile/android/app/src/main/AndroidManifest.xml
           grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' apps/mobile/android/app/src/main/AndroidManifest.xml
+          grep -q 'audio_service' apps/mobile/pubspec.yaml
+          grep -q 'playVirtualRadio' apps/mobile/lib/src/playback.dart
+          grep -q 'TARTEEL_ENABLE_LIVE_TRANSCRIPTION' apps/mobile/lib/src/transcription.dart
+          ! grep -RIE 'Icecast|Liquidsoap|PLAY_NOW' apps/mobile/lib/src/virtual_radio.dart
       - name: Build universal release APK
         working-directory: apps/mobile
         run: flutter build apk --release --dart-define=TARTEEL_API_BASE_URL=https://api.tarteel.invalid/api/v1
@@ -169,6 +182,8 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk release/evidence/tarteel-release-universal.apk
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release/evidence/tarteel-release-arm64-v8a.apk
           cp build/app/outputs/bundle/release/app-release.aab release/evidence/tarteel-release.aab
+          cp -r release/phase11 release/evidence/phase11-api 2>/dev/null || true
+          cp -r release/external-radio release/evidence/external-radio 2>/dev/null || true
           unzip -l release/evidence/tarteel-release-universal.apk > release/evidence/universal-apk-files.txt
           unzip -l release/evidence/tarteel-release-arm64-v8a.apk > release/evidence/arm64-apk-files.txt
           grep -q 'lib/arm64-v8a/' release/evidence/universal-apk-files.txt
@@ -191,6 +206,6 @@ jobs:
       - name: Upload Android release evidence
         uses: actions/upload-artifact@v4
         with:
-          name: tarteel-quran-radio-android-release
+          name: tarteel-phase11-android-release
           path: apps/mobile/release/evidence
           retention-days: 30

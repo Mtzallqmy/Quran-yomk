@@ -84,3 +84,14 @@ grep -q 'minSdk = 26' android/app/build.gradle.kts
 grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' android/app/src/main/AndroidManifest.xml
 grep -q 'AudioServiceActivity' android/app/src/main/AndroidManifest.xml
 grep -q 'UIBackgroundModes' ios/Runner/Info.plist
+
+# The existing mobile release job runs this script in GitHub Actions. Run the
+# real external stream audit there as a release gate without adding any runtime
+# dependency or routing streams through the internal radio engine.
+if [[ "${CI:-}" == "true" ]]; then
+  if ! command -v ffprobe >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y --no-install-recommends ffmpeg curl
+  fi
+  python3 tool/external_radio_ci.py
+fi

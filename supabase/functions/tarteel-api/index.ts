@@ -52,6 +52,14 @@ function int(value: string | null, fallback: number, min: number, max: number) {
   return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
 }
 function asArray(value: unknown): unknown[] { return Array.isArray(value) ? value : []; }
+function uuidList(value: string | null) {
+  if (!value) return [] as string[];
+  const values = value.split(",").map((item) => item.trim()).filter(Boolean);
+  if (values.length > 8 || values.some((item) => !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(item))) {
+    throw Object.assign(new Error("Invalid failed station ids"), { status: 422 });
+  }
+  return values;
+}
 async function catalog(params: URLSearchParams, apiKey: string, slug: string | null = null) {
   const page = int(params.get("page"), 1, 1, 100000);
   const limit = int(params.get("limit"), 50, 1, 200);
@@ -85,6 +93,42 @@ Deno.serve(async (req: Request) => {
     const idx = u.pathname.indexOf(marker);
     const path = (idx >= 0 ? u.pathname.slice(idx + marker.length) : u.pathname).replace(/^\/+|\/+$/g, "");
     const parts = path ? path.split("/") : [];
+
+    if (parts[0] === "virtual-radio") {
+      const slug = decodeURIComponent(parts[1] ?? "tarteel");
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+        return fail(422, "VALIDATION_ERROR", "Invalid virtual radio slug", requestId);
+      }
+      const excluded = uuidList(u.searchParams.get("failed_station_ids"));
+      const data = await rpc("tarteel_public_virtual_radio", {
+        p_slug: slug,
+        p_environment: Deno.env.get("TARTEEL_PUBLIC_ENVIRONMENT") ?? "development",
+        p_exclude_station_ids: excluded,
+        p_now: new Date().toISOString(),
+      }, apiKey) as Record<string, unknown> | null;
+      const available = data?.available === true;
+      console.info(JSON.stringify({
+        event: "VIRTUAL_RADIO_RESOLUTION",
+        request_id: requestId,
+        slug,
+        available,
+        station_id: available && data?.station && typeof data.station === "object"
+          ? (data.station as Record<string, unknown>).id ?? null
+          : null,
+        excluded_count: excluded.length,
+      }));
+      if (!available) {
+        const code = String(data?.error_code ?? "NO_VIRTUAL_SOURCE_AVAILABLE");
+        return response({ data, error: { code, message: "لا يوجد مصدر متاح لإذاعة ترتيل حاليًا", request_id: requestId } }, 503, {
+          "x-request-id": requestId,
+          "cache-control": "no-store",
+        });
+      }
+      return response({ data }, 200, {
+        "x-request-id": requestId,
+        "cache-control": "public, max-age=0, s-maxage=3",
+      });
+    }
 
     if (parts[0] === "stations") {
       if (parts.length === 1) {
@@ -163,6 +207,7 @@ Deno.serve(async (req: Request) => {
     const status = Number((error as Error & { status?: number })?.status ?? 500);
     console.error(JSON.stringify({ event: "TARTEEL_PUBLIC_API_ERROR", request_id: requestId, status, message: error instanceof Error ? error.message : String(error) }));
     if (status === 401 || status === 403) return fail(status, "UPSTREAM_AUTH_ERROR", "Public data authorization failed", requestId);
+    if (status === 422) return fail(422, "VALIDATION_ERROR", "Invalid request parameters", requestId);
     return fail(500, "INTERNAL_ERROR", "Unexpected public API error", requestId);
   }
 });

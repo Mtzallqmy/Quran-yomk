@@ -44,8 +44,6 @@ class TarteelApiClient {
       defaultValue: productionBaseUrl,
     );
     final value = override ?? configured;
-    // CI historically supplied a .invalid placeholder. Treat that as unset so
-    // a release artifact can never ship with a deliberately dead endpoint.
     return (value.contains('.invalid') ? productionBaseUrl : value).replaceAll(
       RegExp(r'/$'),
       '',
@@ -173,6 +171,19 @@ class TarteelApiClient {
         allowRetry: false,
       ))['data'],
     ),
+  );
+  Future<JsonMap> virtualRadio({
+    List<String> failedStationIds = const <String>[],
+  }) async => jsonMap(
+    (await _get(
+      'virtual-radio/tarteel',
+      query: <String, String?>{
+        'failed_station_ids': failedStationIds.isEmpty
+            ? null
+            : failedStationIds.take(8).join(','),
+      },
+      allowRetry: false,
+    ))['data'],
   );
   Future<List<ContentSource>> contentSources() async => jsonList(
     (await _get('content-sources'))['data'],

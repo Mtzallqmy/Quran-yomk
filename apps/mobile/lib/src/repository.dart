@@ -40,7 +40,9 @@ class TarteelRepository {
   }
 
   Future<List<Station>> stations({bool refresh = false}) async {
-    const key = 'stations';
+    // v2 invalidates the early Phase 9 cache that only contained the internal
+    // development station before external radio activation was completed.
+    const key = 'stations-v2';
     final cached = refresh ? null : cache.read(key, const Duration(minutes: 5));
     if (cached is List) {
       return cached

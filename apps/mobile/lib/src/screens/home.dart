@@ -23,22 +23,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Future<void> refresh() async {
     final repo = ref.read(servicesProvider).repository;
     setState(() {
-      future =
-          Future.wait<dynamic>(<Future<dynamic>>[
-            repo.featured(refresh: true),
-            repo.stations(refresh: true),
-            repo.reciters(refresh: true),
-            repo.categories(refresh: true),
-            repo.appConfig(refresh: true),
-          ]).then(
-            (values) => HomeData(
-              featured: values[0],
-              stations: values[1],
-              reciters: values[2],
-              categories: values[3],
-              config: values[4],
-            ),
-          );
+      future = repo.home(refresh: true);
     });
     await future;
   }
@@ -47,10 +32,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) => FutureBuilder<HomeData>(
     future: future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData)
+      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
         return const LoadingPane();
-      if (snapshot.hasError && !snapshot.hasData)
+      }
+      if (snapshot.hasError && !snapshot.hasData) {
         return ErrorPane(error: snapshot.error!, onRetry: refresh);
+      }
       final data = snapshot.data;
       if (data == null) return const EmptyPane();
       final services = ref.watch(servicesProvider);
@@ -66,7 +53,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   scrollDirection: Axis.horizontal,
                   itemCount: data.featured.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  separatorBuilder: (_, _) => const SizedBox(width: 10),
                   itemBuilder: (context, index) {
                     final item = data.featured[index];
                     return SizedBox(
@@ -89,24 +76,18 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 Expanded(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: <Widget>[
                                       Text(
                                         item.nameAr,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.titleMedium,
+                                        style: Theme.of(context).textTheme.titleMedium,
                                       ),
                                       const SizedBox(height: 6),
                                       const Row(
                                         children: <Widget>[
-                                          Icon(
-                                            Icons.play_circle_outline,
-                                            size: 18,
-                                          ),
+                                          Icon(Icons.play_circle_outline, size: 18),
                                           SizedBox(width: 4),
                                           Text('تشغيل'),
                                         ],
@@ -131,7 +112,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 scrollDirection: Axis.horizontal,
                 itemCount: data.stations.take(8).length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final station = data.stations[index];
                   return SizedBox(
@@ -166,7 +147,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 scrollDirection: Axis.horizontal,
                 itemCount: data.reciters.take(8).length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final reciter = data.reciters[index];
                   return SizedBox(

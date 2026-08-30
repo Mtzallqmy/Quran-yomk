@@ -44,8 +44,6 @@ class TarteelApiClient {
       defaultValue: productionBaseUrl,
     );
     final value = override ?? configured;
-    // CI historically supplied a .invalid placeholder. Treat that as unset so
-    // a release artifact can never ship with a deliberately dead endpoint.
     return (value.contains('.invalid') ? productionBaseUrl : value).replaceAll(
       RegExp(r'/$'),
       '',
@@ -183,12 +181,18 @@ class TarteelApiClient {
 
   Future<PageResult<Reciter>> reciters({
     String? query,
+    int? surah,
     int page = 1,
     int limit = 30,
   }) async {
     final root = await _get(
       'reciters',
-      query: <String, String?>{'q': query, 'page': '$page', 'limit': '$limit'},
+      query: <String, String?>{
+        'q': query,
+        'sura': surah == null ? null : '$surah',
+        'page': '$page',
+        'limit': '$limit',
+      },
     );
     return PageResult<Reciter>(
       data: jsonList(

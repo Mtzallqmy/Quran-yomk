@@ -7,11 +7,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: TarteelTheme.light(),
-        home: const Directionality(
+        home: Directionality(
           textDirection: TextDirection.rtl,
           child: Scaffold(
             body: Center(
-              child: Semantics(label: 'اسم التطبيق', child: Text('ترتيل')),
+              child: Semantics(label: 'اسم التطبيق', child: const Text('ترتيل')),
             ),
           ),
         ),

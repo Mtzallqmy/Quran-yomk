@@ -1,4 +1,6 @@
-# 03 — Radio Engine, Scheduler & Queue Manager
+# Radio Engine, Queue Manager & Radio Commands
+
+تفاصيل حساب occurrences والـDST والـmissed schedules موجودة في [`SCHEDULER.md`](./SCHEDULER.md). هذه الوثيقة تبقى المرجع لقرارات الحالة والـQueue والتنفيذ الصوتي.
 
 ## 1. Radio Engine State Machine
 
@@ -29,6 +31,42 @@ stateDiagram-v2
 ```
 
 `STOPPED` ليس نتيجة نفاد المحتوى؛ هو إيقاف إداري صريح أو fail-safe بعد عطل غير آمن. نفاد المحتوى ينتقل إلى fallback ولا يوقف المحطة.
+
+### معنى الحالات
+
+| الحالة | المعنى |
+|---|---|
+| STARTING | تحميل config/cache، فحص dependencies، محاولة lease؛ لا يصدر playout قبل fencing صالح |
+| AUTO | default playlist/fallback automation بلا حدث أعلى |
+| SCHEDULED | occurrence مجدولة فازت وبدأت بعد ACK |
+| MANUAL | target من PLAY_NOW أو manual takeover يعمل |
+| LIVE | live source مصرح وhealthy؛ أعلى أولوية |
+| RECOVERING | مصالحة checkpoint/playout/dependencies بعد restart/failure/live end |
+| ERROR | fault معروف منع قرارًا آمنًا؛ retry budget/backoff فعال |
+| STOPPED | توقف إداري صريح أو fault unsafe بعد exhausted budget |
+
+### جدول الانتقالات
+
+| From | To | الشرط | الإجراء/الحفظ |
+|---|---|---|---|
+| STARTING | AUTO | lease صالح، لا checkpoint صالح، default/emergency preflight ناجح | build queue ثم ACK first item |
+| STARTING | RECOVERING | checkpoint أو playout source قائم | reconcile correlation/token قبل أي restart |
+| STARTING | ERROR | config/lease/cache/preflight فشل ولا safe source | event + bounded backoff |
+| AUTO | SCHEDULED | due occurrence يفوز وpolicy تسمح الآن/boundary | save resume AUTO، claim occurrence، ACK |
+| AUTO | MANUAL | manual command يفوز ويبدأ | command PROCESSING ثم ACK/current correlation |
+| AUTO/SCHEDULED/MANUAL | LIVE | START_LIVE مصرح + source health probe ناجح | save resume context، fade/switch، LIVE ACK |
+| SCHEDULED | MANUAL | command أعلى وفق total order وINTERRUPT/boundary | suspend/finish occurrence وفق policy، audit |
+| MANUAL | SCHEDULED | manual target انتهى وoccurrence ما زالت صالحة وفازت | complete command، claim occurrence |
+| SCHEDULED | AUTO | occurrence terminal ولا winner آخر | history/event ثم default selection |
+| MANUAL | AUTO | manual terminal ولا due winner | complete command ثم resume auto snapshot |
+| LIVE | RECOVERING | STOP_LIVE أو health lost | close live history، validate saved context anew |
+| RECOVERING | AUTO | لا valid scheduled/manual context | restore default/emergency، new checkpoint |
+| RECOVERING | SCHEDULED | occurrence correlation صالحة وغير terminal | resume/restart وفق policy ثم ACK |
+| RECOVERING | MANUAL | command correlation صالحة ولم ينفذ effect مرتين | resume أو complete from observed state |
+| ANY running | ERROR | no safe progress، lease/dependency/playout invariant broken | freeze new effects، keep emergency إن يعمل |
+| ERROR | RECOVERING | dependency stable وretry budget يسمح | acquire fresh token ثم reconcile |
+| ERROR | STOPPED | operator stop أو exhausted unsafe budget | alert critical؛ لا يدّعي ONLINE |
+| STOPPED | STARTING | authorized start command/operator action | boot جديد؛ لا يعيد token/claim قديم |
 
 ### شروط وحفظ الانتقال
 
@@ -161,6 +199,18 @@ API يطلب `Idempotency-Key`. transaction تنشئ command + audit. Engine ي�
 
 `SKIP` idempotent بالنسبة إلى `(command_id,current_queue_item_id)`؛ إن تغير current قبل التنفيذ يصبح `COMPLETED/NO_OP`.
 
+### Command lifecycle
+
+| الحالة | الدخول | الخروج المسموح |
+|---|---|---|
+| `PENDING` | transaction API ناجحة | PROCESSING أو CANCELLED |
+| `PROCESSING` | leader claim مع token/timeout | COMPLETED أو FAILED؛ stale claim يمر reconciliation |
+| `COMPLETED` | الأثر ACK أو NO_OP مثبت | terminal |
+| `FAILED` | validation/runtime failure نهائي بعد retry policy | terminal؛ retry الإداري ينشئ command جديدًا بمفتاح جديد |
+| `CANCELLED` | إلغاء قبل claim فقط | terminal |
+
+لوحة الإدارة لا تكتب أي صف Queue ولا signal/process. حتى `SKIP` و`STOP_AFTER_CURRENT` أوامر مدققة. `START_LIVE/STOP_LIVE` محجوزان في schema ولا يُفعّلان للمستخدم في MVP.
+
 ## 7. Never Silence / Fallback
 
 ```mermaid
@@ -190,9 +240,12 @@ flowchart TD
 
 | العطل | السلوك الفوري | الاستعادة |
 |---|---|---|
+| Queue انتهت | advance default playlist فورًا | repeat cycle deterministic |
+| لا Schedule مستحق | AUTO/default، ليس STOPPED | tick يستمر ويقبل occurrence لاحقة |
 | media 404/corrupt | skip قبل switch | mark event، next/default |
+| Storage غير متاح | شغّل prefetched/local items | circuit breaker؛ resync بعد stability |
 | decoder crash | encoder يبقى + emergency | restart decoder بميزانية محددة |
-| encoder/source crash | system service restart | reconnect، validate mount، resume snapshot |
+| FFmpeg/encoder توقف | playout emergency إن مستقل؛ watchdog | reconnect، validate mount، resume snapshot |
 | engine crash | playout emergency autonomy | watchdog restart + lease + reconcile |
 | DB outage | cached queue | reconnect with backoff، replay outbox |
 | Icecast primary down | fallback mount/server إن متاح | stability window قبل العودة |

@@ -1,4 +1,4 @@
-# 02 — Database ERD & PostgreSQL Design
+# Database ERD & PostgreSQL Design
 
 ## 1. مبادئ النمذجة
 
@@ -51,6 +51,39 @@ erDiagram
 | Scheduling | schedules/templates/occurrences | occurrence unique ولا يُنفذ مرتين |
 | Automation | commands/events/state/queue/lease/history | leader واحد وfencing token صالح |
 | Operations | heartbeats/logs/audit/metrics | append-only + retention |
+
+### 3.1 Table catalog والعلاقات الحاكمة
+
+| Table | العلاقات الأساسية | Constraints/Indexes الحاكمة |
+|---|---|---|
+| `administrators` | PK/FK → `auth.users` | active/deleted، لا حذف Auth قبل فك التاريخ |
+| `roles`, `permissions` | M:N عبر `role_permissions` | unique code؛ administrator M:N عبر `administrator_roles` |
+| `categories` | self parent | unique slug، active/deleted، sort index عند الحاجة |
+| `reciters` | media/tracks children | trigram normalized Arabic search، active/deleted |
+| `surahs` | parent لـtracks | id=number، 1..114 unique، positive ayah count |
+| `media` | category/reciter/admin FKs | READY يتطلب processed path/duration/checksum؛ filter index؛ immutable object keys |
+| `media_processing_jobs` | media FK | unique idempotency key، claim/heartbeat/attempts |
+| `reciter_tracks` | reciter+surah+media | unique `(reciter_id,surah_id,quality)`؛ media أو URL لازم |
+| `stations` | default playlist | unique slug، IANA timezone service validation، soft delete |
+| `playlists` | station parent | unique station/name وstation/id لدعم composite FKs، optimistic version |
+| `playlist_items` | playlist+media | unique playlist/position، positive weight، ordered index |
+| `programs/items` | station/media | unique positions؛ PROGRAM seam دون UI في MVP |
+| `schedules` | station + exactly one target | type/content checks، composite station target FKs، partial due index |
+| `schedule_templates/items` | station/template | versioned code، valid date range؛ لا يدمر base schedules |
+| `schedule_occurrences` | schedule+station | unique occurrence key، due partial index، claim/status ledger |
+| `radio_commands` | station/admin | unique station/idempotency، pending priority index، lifecycle timestamps |
+| `station_leases` | one row/station | monotonic fencing token، DB-time expiry |
+| `engine_states`, `queue_snapshots` | one row/station | revision/token/checksum؛ projections قابلة للمصالحة |
+| `now_playing` | one row/station | monotonic revision؛ يكتب بعد playout ACK |
+| `radio_events` | station/command/occurrence/media | append-only identity، station/time index |
+| `play_history` | station/media/source | append-only، station/start index، command/occurrence correlation |
+| `app_config` | key/value | public allowlist flag؛ updates audited |
+| `audit_logs` | actor/resource | append-only، resource/time index؛ no secrets |
+| `system_logs` | optional station/command/media | structured levels، service/time index، retention |
+| `service_heartbeats` | optional station | instance PK، freshness/health details |
+| `station_metrics_minute` | station | PK station/time، aggregates بلا raw IP |
+
+الـDDL الكامل لهذه المرحلة في [`../supabase/proposed-schema.sql`](../supabase/proposed-schema.sql). هو مرجع تصميم وليس migration، وسيجزأ في T03–T06 بعد الاعتماد.
 
 ## 4. تصميم الجدولة الزمنية
 

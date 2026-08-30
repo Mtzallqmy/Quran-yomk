@@ -1,4 +1,4 @@
-# 05 — Storage, FFmpeg Processing & Icecast
+# Storage, Audio Processing & Icecast
 
 ## 1. Storage Architecture
 

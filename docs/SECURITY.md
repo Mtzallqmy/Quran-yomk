@@ -1,4 +1,4 @@
-# 06 — Authentication, Security, Observability & Deployment
+# Authentication, RBAC, Security & Operations
 
 ## 1. Authentication
 

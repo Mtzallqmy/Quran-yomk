@@ -1,4 +1,4 @@
-# 07 — MVP Backlog & Implementation Plan
+# MVP Backlog & Implementation Plan
 
 ## 1. Definition of Done لكل خطوة
 
@@ -103,7 +103,38 @@
 - domains/TLS/secrets/HA choice/capacity/alerts/on-call/store privacy artifacts.
 - production readiness review؛ لا deploy قبل sign-off.
 
-## 3. Dependencies الحرجة
+## 3. Task Specifications
+
+كل صف Task commit/PR مستقل قدر الإمكان. “الملفات” مسارات مستهدفة تُنشأ عند تنفيذ Task، وليست ملفات منشأة في هذه المرحلة.
+
+| ID | الهدف | Dependencies | الملفات/الخدمات المتأثرة | Acceptance Criteria | الاختبارات المطلوبة |
+|---|---|---|---|---|---|
+| T01 | تثبيت toolchain وworkspace بلا business code | Gate 0 | root configs، `.github/workflows`، `docs/DEVELOPMENT.md` | clean clone يشغّل lint/test commands؛ versions pinned؛ لا secrets | CI smoke، secret scan، clean-install |
+| T02 | تشغيل Supabase محلي وإعداد migration harness | T01 | `supabase/config.toml`, migrations/tests | local start/reset deterministic؛ scripts موثقة | reset مرتين، migration list، CLI version check |
+| T03 | إنشاء schemas/types/core RBAC tables | T02 | migrations: app/radio/api، administrators/roles/permissions | FK/check/RLS مفعلة؛ no anon grants | pgTAP/SQL constraints، forbidden anon access، advisors |
+| T04 | إنشاء catalog/media/station schema | T03 | media/categories/reciters/surahs/tracks/stations/playlists | cross-station invariants؛ READY constraint؛ soft delete policy | FK/unique/index tests، invalid state tests |
+| T05 | إنشاء scheduling/automation schema | T04 | schedules/templates/occurrences/commands/state/events/history | occurrence/idempotency unique؛ composite station FKs | duplicate/concurrency SQL tests |
+| T06 | Seed RBAC و114 سورة ومحطة dev | T03–T05 | `supabase/seed/*` | 114 صفًا صحيحًا؛ seed idempotent؛ default roles كاملة | count/checksum، rerun seed، permissions matrix |
+| T07 | Storage buckets/policies/upload intent | T03–T06 | Storage config، `services/api` upload endpoints | originals/private؛ random keys؛ complete idempotent؛ spoof رفض | policy tests، MIME/signature/size، unauthorized access |
+| T08 | Audio worker claim/validate | T07 | `services/audio-worker` | heartbeat/stale recovery؛ ffprobe sandbox؛ deterministic failure | valid/corrupt/polyglot/timeout fixtures، duplicate claim |
+| T09 | Normalize/encode/store/READY | T08 | worker FFmpeg profiles، media jobs | two-pass profile versioned؛ verified output قبل READY | MP3/AAC/M4A/WAV، loudness/duration/codec، retry/OOM |
+| T10 | Icecast/Nginx local environment | T01 | `infrastructure/icecast`, `nginx`, compose | ثابت mount؛ source/admin private؛ listener HTTPS config | source connect، two listeners same timeline، auth/port tests |
+| T11 | Playout technology spike | T09–T10 | `services/playout-adapter`, reliability fixtures | اختيار موثق Liquidsoap/FFmpeg؛ 500 switches؛ gap target مقاس | waveform، forced decoder/source crash، 6h soak |
+| T12 | Pure Radio Engine state/priority/queue | T05، T11 decision | `services/radio-engine/domain` | كل state/transition؛ total order؛ deterministic shuffle | unit/property/permutation/state coverage |
+| T13 | Lease/fencing/checkpoints/emergency cache | T12 | engine runtime، DB automation tables، local volume | leader واحد؛ old token مرفوض؛ recovery snapshot صالح | two-worker split brain، DB partition، corrupt snapshot/cache |
+| T14 | Timezone-aware Scheduler | T05، T12–T13 | scheduler module، occurrence tables، preview library | ONE_TIME/DAILY/WEEKLY؛ DST/missed/restart/disable deterministic | 20+ zones، leap/midnight، duplicate tick، 1000 schedules |
+| T15 | Radio Commands lifecycle | T12–T14 | Admin API command endpoints، engine claim/reconcile | جميع statuses/commands؛ retry لا يكرر effect؛ audit | crash at boundaries، idempotency، cancel/no-op/permissions |
+| T16 | Playout integration وNow Playing | T09–T15 | engine↔adapter↔Icecast، now_playing/history | update بعد ACK؛ default/fallback؛ resume automation | E2E real audio، missing/corrupt media، metadata revision |
+| T17 | Watchdog/metrics/logging/audit | T16 | watchdog/collector/monitoring configs | external audio probe؛ bounded restart؛ redacted structured logs | kill/OOM/disk/DB/Storage/Icecast faults، secret scan |
+| T18 | Public REST API/OpenAPI | T04–T06، T16 | `services/api`, `packages/api-types` | جميع public endpoints/version/error/page/cache؛ no internals | contract، pagination، cache، rate limit، security |
+| T19 | Admin REST API/RBAC | T03–T07، T14–T17 | protected Admin API | backend permission لكل action؛ optimistic concurrency | role matrix، IDOR/BOLA، CSRF/session، stale role |
+| T20 | Next.js Admin UI | T19 | `apps/admin` | الوظائف MVP responsive/accessibility؛ لا direct DB/FFmpeg | browser E2E desktop/tablet/mobile، a11y |
+| T21 | Flutter data/audio foundation | T18، stable T16 | `apps/mobile`, api client/audio service | cache-first، live/on-demand sessions منفصلة، background controls | Dart unit/widget، Android/iOS device audio tests |
+| T22 | Flutter MVP features | T21 | radio/catalog/search/favorites/settings/player | search AR/EN، favorites local، sleep timer، themes، no live seek | widget/integration/offline/retry/fallback tests |
+| T23 | Master acceptance + staging | T17–T22 | `tests/acceptance`, staging infra/runbooks | سيناريو 22 خطوة كامل؛ backup restore؛ rollback؛ 72h soak | E2E، load، chaos، security، restore drill |
+| T24 | Production readiness | T23 + approvals | production infra/config/docs | DNS/TLS/secrets/HA/capacity/on-call/privacy approved | readiness checklist، failover، certificate/alert tests |
+
+## 4. Dependencies الحرجة
 
 ```mermaid
 flowchart TD
@@ -118,7 +149,7 @@ flowchart TD
   Mobile --> Reliability["Acceptance + Soak"]
 ```
 
-## 4. Acceptance Criteria للمرحلة الأولى
+## 5. Acceptance Criteria للمرحلة الأولى
 
 - [x] تحليل live/on-demand/admin ومتطلبات الجودة والنطاق.
 - [x] معمارية نهائية ومسؤوليات وحدود اتساق.
@@ -135,7 +166,7 @@ flowchart TD
 - [ ] اعتماد المالك للقرارات المفتوحة.
 - [ ] اعتماد Acceptance targets: gap/SLO/RPO/RTO/retention.
 
-## 5. Checklist الانتقال إلى المرحلة الثانية
+## 6. Checklist الانتقال إلى المرحلة الثانية
 
 - [ ] اختيار playout adapter: Liquidsoap أو custom persistent FFmpeg.
 - [ ] تحديد timezone وregion للمحطة الأولى.

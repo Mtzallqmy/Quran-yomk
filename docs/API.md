@@ -1,4 +1,4 @@
-# 04 — REST API Contract
+# REST API Contract
 
 ## 1. Conventions
 

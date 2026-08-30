@@ -10,15 +10,17 @@
 
 | الملف | الغرض |
 |---|---|
-| `docs/01-ARCHITECTURE.md` | تحليل المتطلبات، المعمارية، المسؤوليات، القرارات والبدائل |
-| `docs/02-DATABASE.md` | ERD، نمذجة البيانات، القيود والفهارس وسياسة الوقت |
+| `docs/ARCHITECTURE.md` | المتطلبات الوظيفية وغير الوظيفية، المعمارية والمسؤوليات |
+| `docs/DATABASE.md` | ERD، نمذجة البيانات، القيود والفهارس وسياسة الوقت |
 | `supabase/proposed-schema.sql` | DDL مرجعي للمراجعة؛ ليس Migration تنفيذية |
-| `docs/03-RADIO-AUTOMATION.md` | State Machine، Scheduler، Queue، Commands، Never Silence |
-| `docs/04-API-CONTRACT.md` | Public/Admin API والعقود والأخطاء والتصفح والإديمبوتنسي |
-| `docs/05-MEDIA-STREAMING.md` | Storage، FFmpeg، Icecast، فصل Live عن On-Demand |
-| `docs/06-SECURITY-OPERATIONS.md` | Auth/RBAC، الأمن، المراقبة، Watchdog، الاستعادة والنشر |
-| `docs/07-MVP-BACKLOG.md` | مراحل MVP الصغيرة، معايير القبول، Gate المرحلة الثانية |
-| `docs/08-DESIGN-REVIEW.md` | مراجعة race conditions والفشل والتوقيت والفجوات ونقاط القرار |
+| `docs/RADIO_ENGINE.md` | State Machine، Queue، Commands، Never Silence |
+| `docs/SCHEDULER.md` | Timezone/DST، occurrences، conflicts، restart/idempotency |
+| `docs/API.md` | Public/Admin API والعقود والأخطاء والتصفح والإديمبوتنسي |
+| `docs/AUDIO_PIPELINE.md` | Storage، FFmpeg، Icecast، فصل Live عن On-Demand |
+| `docs/SECURITY.md` | Auth/RBAC، الأمن، المراقبة، Watchdog والاستعادة |
+| `docs/DEPLOYMENT.md` | البيئات، topology، CI/CD، Monorepo، DR |
+| `docs/MVP_PLAN.md` | Tasks صغيرة، معايير القبول، Gate المرحلة الثانية |
+| `docs/ENGINEERING_REVIEW.md` | Race/SPOF/timezone/gaps/duplication/security review |
 
 ## القرارات الهندسية النهائية المقترحة
 
@@ -47,4 +49,4 @@
 
 ## شرط الانتقال للمرحلة الثانية
 
-لا تبدأ migrations قبل اعتماد نقاط القرار السابقة، ومراجعة ERD/DDL، وتوقيع Acceptance Criteria في `docs/07-MVP-BACKLOG.md`.
+لا تبدأ migrations قبل اعتماد نقاط القرار السابقة، ومراجعة ERD/DDL، وتوقيع Acceptance Criteria في `docs/MVP_PLAN.md`.

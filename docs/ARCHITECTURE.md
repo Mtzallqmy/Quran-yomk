@@ -1,4 +1,4 @@
-# 01 — System Architecture
+# System Architecture
 
 ## 1. تحليل المتطلبات وحدود النظام
 
@@ -9,6 +9,43 @@
 - **Administration:** إدارة المحتوى والجدولة والأوامر والصلاحيات والمراقبة.
 
 متطلبات الجودة الحاكمة: بث 24/7، deterministic scheduling، تنفيذ command مرة واحدة فعليًا، استعادة بعد crash، عدم ربط استمرار الصوت بتوفر لوحة الإدارة، دعم محطة واحدة الآن وعدة محطات لاحقًا، وأقل جمع ممكن للبيانات الشخصية.
+
+### 1.1 المتطلبات الوظيفية المستخرجة
+
+| المجال | المتطلبات الملزمة للـMVP |
+|---|---|
+| Live Radio | محطة 24/7، mount ثابت، كل المستمعين في اللحظة نفسها، Now Playing، primary/fallback stream |
+| Media | upload، validation، حالات UPLOADING/PROCESSING/READY/FAILED، معالجة مرة واحدة، preview/archive/search/filter |
+| Automation | default playlist، playlists مرتبة، ONE_TIME/DAILY/WEEKLY، Play Now/Next/Interrupt، Skip، Resume Auto |
+| Catalog | readers، 114 surahs seed، reciter tracks، categories، بحث عربي/إنجليزي |
+| On-Demand | seek، queue، next/previous، repeat، speed، resume، background playback؛ منفصل عن live |
+| Administration | Supabase Auth، RBAC، dashboard، media/schedule/playlist/station management، audit |
+| Mobile | Android/iOS، just_audio/audio_service، background/lock screen/headset/audio focus، mini player، sleep timer، local favorites/cache |
+| Operations | health، metrics، logs، watchdog، backups/restore، staging/production separation |
+| Extensibility | station_id في كل aggregate تشغيلي، seams للـlive input/accounts/downloads دون تنفيذ Phase 2 |
+
+### 1.2 المتطلبات غير الوظيفية
+
+| الصفة | المتطلب/طريقة القياس |
+|---|---|
+| Availability | Never Silence، استعادة تلقائية، external audio probe؛ SLO النهائي يحتاج اعتمادًا |
+| Correctness | deterministic total order، occurrence ledger، idempotent commands، fencing token |
+| Durability | PostgreSQL source of truth، immutable objects، PITR/dumps، restore drills |
+| Security | HTTPS، least privilege، RLS/grants، upload sandbox، no secrets/log leakage |
+| Performance | API pagination/cache، prebuffer next track، bounded DB pools، CDN للـon-demand |
+| Resilience | bounded retry/backoff/circuit breaker، local safe queue أثناء dependency outage |
+| Scalability | listeners يتوسعون عند Icecast لا API؛ leader مستقل لكل station؛ stateless API/workers |
+| Accessibility | Scheduler forms بديل كامل للـdrag/drop، Admin responsive، رسائل خطأ واضحة |
+| Privacy | لا حساب للمستمع، favorites محلية، analytics aggregates، لا raw IP ما لم يلزم قانونيًا |
+| Maintainability | monorepo modules، typed contracts، migrations، ADRs، tests/runbooks/observability |
+| Portability | environment-driven domains/credentials، pinned containers/tools، no hard-coded secrets |
+
+### 1.3 القيود والافتراضات المعلنة
+
+- الـTechnology Stack الملزم محفوظ: Flutter/Dart، Next.js/TypeScript، Supabase/PostgreSQL/Auth/Storage، FFmpeg، Icecast، Ubuntu، Nginx.
+- الإضافة المقترحة الوحيدة هي **Liquidsoap كـplayout adapter** لتقليل audio gaps؛ لم تُعتمد بعد، والبديل هو persistent FFmpeg pipeline. FFmpeg يبقى إلزاميًا للـprobe/processing في الحالتين.
+- مشروع Supabase الحالي في `ap-northeast-1` وPostgreSQL 17، لكن تصنيفه البيئي لم يُحسم.
+- timezone، SLO/RPO/RTO، codec profile، production HA budget قيم غير محسومة ومعلنة، وليست افتراضات مخفية.
 
 ### خارج MVP
 
@@ -110,3 +147,4 @@ PostgreSQL 15+، Supabase Auth/Storage، FFmpeg/ffprobe بإصدار pinned، Ic
 - تعطل API لا يوقف Queue الحالية.
 - live وon-demand مساران منفصلان موثقًا.
 - إضافة محطة لا تتطلب schema جديدًا أو binary مختلفًا.
+- كل متطلب Master Prompt مصنف إلى MVP أو Phase 2 أو قيد تشغيلي، ولا يوجد UI implementation في هذه المرحلة.

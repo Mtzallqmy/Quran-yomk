@@ -39,7 +39,11 @@ class MiniPlayerBar extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(
+                            item.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           if (item.artist != null)
                             Text(
                               item.artist!,
@@ -59,13 +63,19 @@ class MiniPlayerBar extends ConsumerWidget {
                           tooltip: playing ? 'إيقاف مؤقت' : 'تشغيل',
                           onPressed: () => virtual
                               ? playing
-                                  ? ref.read(virtualRadioProvider.notifier).pause()
-                                  : ref.read(virtualRadioProvider.notifier).resume()
+                                    ? ref
+                                          .read(virtualRadioProvider.notifier)
+                                          .pause()
+                                    : ref
+                                          .read(virtualRadioProvider.notifier)
+                                          .resume()
                               : playing
-                                  ? playback.pause()
-                                  : playback.play(),
+                              ? playback.pause()
+                              : playback.play(),
                           icon: Icon(
-                            playing ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                            playing
+                                ? Icons.pause_circle_filled
+                                : Icons.play_circle_fill,
                           ),
                         );
                       },
@@ -141,7 +151,8 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
         stream: playback.mediaItemStream,
         builder: (context, itemSnapshot) {
           final item = itemSnapshot.data;
-          if (item == null) return const EmptyPane(message: 'لا يوجد تشغيل حالي');
+          if (item == null)
+            return const EmptyPane(message: 'لا يوجد تشغيل حالي');
           final live = item.isLive == true;
           final entityId = item.extras?['entity_id'] as String?;
           final kind = item.extras?['kind'] as String?;
@@ -190,8 +201,10 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                 builder: (context, stateSnapshot) {
                   final playing = stateSnapshot.data?.playing == true;
                   final buffering =
-                      stateSnapshot.data?.processingState == AudioProcessingState.buffering ||
-                      stateSnapshot.data?.processingState == AudioProcessingState.loading;
+                      stateSnapshot.data?.processingState ==
+                          AudioProcessingState.buffering ||
+                      stateSnapshot.data?.processingState ==
+                          AudioProcessingState.loading;
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
@@ -217,12 +230,18 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                           tooltip: playing ? 'إيقاف مؤقت' : 'تشغيل',
                           onPressed: () => virtual
                               ? playing
-                                  ? ref.read(virtualRadioProvider.notifier).pause()
-                                  : ref.read(virtualRadioProvider.notifier).resume()
+                                    ? ref
+                                          .read(virtualRadioProvider.notifier)
+                                          .pause()
+                                    : ref
+                                          .read(virtualRadioProvider.notifier)
+                                          .resume()
                               : playing
-                                  ? playback.pause()
-                                  : playback.play(),
-                          icon: Icon(playing ? Icons.pause_circle : Icons.play_circle),
+                              ? playback.pause()
+                              : playback.play(),
+                          icon: Icon(
+                            playing ? Icons.pause_circle : Icons.play_circle,
+                          ),
                         ),
                       if (!live)
                         IconButton(
@@ -250,7 +269,8 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                 alignment: WrapAlignment.center,
                 spacing: 8,
                 children: <Widget>[
-                  if (entityId != null && (kind == 'station' || kind == 'track'))
+                  if (entityId != null &&
+                      (kind == 'station' || kind == 'track'))
                     AnimatedBuilder(
                       animation: services.favorites,
                       builder: (context, _) {
@@ -262,7 +282,9 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                           onPressed: () => kind == 'station'
                               ? services.favorites.toggleStation(entityId)
                               : services.favorites.toggleTrack(entityId),
-                          icon: Icon(favorite ? Icons.favorite : Icons.favorite_border),
+                          icon: Icon(
+                            favorite ? Icons.favorite : Icons.favorite_border,
+                          ),
                         );
                       },
                     ),
@@ -294,7 +316,9 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                         setState(() => _repeatOne = !_repeatOne);
                         await playback.setRepeatOne(_repeatOne);
                       },
-                      icon: Icon(_repeatOne ? Icons.repeat_one_on : Icons.repeat_one),
+                      icon: Icon(
+                        _repeatOne ? Icons.repeat_one_on : Icons.repeat_one,
+                      ),
                     ),
                 ],
               ),
@@ -303,7 +327,9 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                 stream: playback.sleepRemainingStream,
                 builder: (context, snapshot) => snapshot.data == null
                     ? const SizedBox.shrink()
-                    : Center(child: Text('يتوقف بعد ${_format(snapshot.data!)}')),
+                    : Center(
+                        child: Text('يتوقف بعد ${_format(snapshot.data!)}'),
+                      ),
               ),
             ],
           );
@@ -345,28 +371,28 @@ class _VolumeControl extends StatelessWidget {
   final dynamic playback;
   @override
   Widget build(BuildContext context) => StreamBuilder<double>(
-        stream: playback.volumeStream as Stream<double>,
-        initialData: 1.0,
-        builder: (context, snapshot) {
-          final volume = (snapshot.data ?? 1.0).clamp(0.0, 1.0);
-          return Row(
-            children: <Widget>[
-              Icon(volume == 0 ? Icons.volume_off : Icons.volume_up),
-              Expanded(
-                child: Slider(
-                  value: volume,
-                  min: 0,
-                  max: 1,
-                  divisions: 20,
-                  label: '${(volume * 100).round()}%',
-                  onChanged: (value) => playback.setVolume(value),
-                ),
-              ),
-              SizedBox(width: 48, child: Text('${(volume * 100).round()}%')),
-            ],
-          );
-        },
+    stream: playback.volumeStream as Stream<double>,
+    initialData: 1.0,
+    builder: (context, snapshot) {
+      final volume = (snapshot.data ?? 1.0).clamp(0.0, 1.0);
+      return Row(
+        children: <Widget>[
+          Icon(volume == 0 ? Icons.volume_off : Icons.volume_up),
+          Expanded(
+            child: Slider(
+              value: volume,
+              min: 0,
+              max: 1,
+              divisions: 20,
+              label: '${(volume * 100).round()}%',
+              onChanged: (value) => playback.setVolume(value),
+            ),
+          ),
+          SizedBox(width: 48, child: Text('${(volume * 100).round()}%')),
+        ],
       );
+    },
+  );
 }
 
 class _TranscriptionStatus extends ConsumerWidget {
@@ -394,39 +420,41 @@ class _SeekBar extends StatelessWidget {
   final dynamic playback;
   @override
   Widget build(BuildContext context) => StreamBuilder<Duration?>(
-        stream: playback.durationStream as Stream<Duration?>,
-        builder: (context, durationSnapshot) {
-          final duration = durationSnapshot.data ?? Duration.zero;
-          return StreamBuilder<Duration>(
-            stream: playback.positionStream as Stream<Duration>,
-            builder: (context, positionSnapshot) {
-              final position = positionSnapshot.data ?? Duration.zero;
-              final max = duration.inMilliseconds <= 0
-                  ? 1.0
-                  : duration.inMilliseconds.toDouble();
-              final value = position.inMilliseconds.clamp(0, max.toInt()).toDouble();
-              return Column(
+    stream: playback.durationStream as Stream<Duration?>,
+    builder: (context, durationSnapshot) {
+      final duration = durationSnapshot.data ?? Duration.zero;
+      return StreamBuilder<Duration>(
+        stream: playback.positionStream as Stream<Duration>,
+        builder: (context, positionSnapshot) {
+          final position = positionSnapshot.data ?? Duration.zero;
+          final max = duration.inMilliseconds <= 0
+              ? 1.0
+              : duration.inMilliseconds.toDouble();
+          final value = position.inMilliseconds
+              .clamp(0, max.toInt())
+              .toDouble();
+          return Column(
+            children: <Widget>[
+              Slider(
+                value: value,
+                max: max,
+                onChanged: duration == Duration.zero
+                    ? null
+                    : (v) => playback.seek(Duration(milliseconds: v.round())),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
-                  Slider(
-                    value: value,
-                    max: max,
-                    onChanged: duration == Duration.zero
-                        ? null
-                        : (v) => playback.seek(Duration(milliseconds: v.round())),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Text(_format(position)),
-                      Text(_format(duration)),
-                    ],
-                  ),
+                  Text(_format(position)),
+                  Text(_format(duration)),
                 ],
-              );
-            },
+              ),
+            ],
           );
         },
       );
+    },
+  );
 }
 
 String _format(Duration value) {

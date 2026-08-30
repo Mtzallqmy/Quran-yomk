@@ -30,9 +30,10 @@ final radioServiceProvider = Provider<RadioService>((ref) {
   return BackendRadioService(ref.watch(servicesProvider).repository);
 });
 
-final radioProvider = AsyncNotifierProvider<RadioCatalogController, List<Station>>(
-  RadioCatalogController.new,
-);
+final radioProvider =
+    AsyncNotifierProvider<RadioCatalogController, List<Station>>(
+      RadioCatalogController.new,
+    );
 
 class RadioCatalogController extends AsyncNotifier<List<Station>> {
   @override
@@ -44,7 +45,9 @@ class RadioCatalogController extends AsyncNotifier<List<Station>> {
   Future<void> refresh() async {
     state = const AsyncLoading<List<Station>>();
     state = await AsyncValue.guard(() async {
-      final values = await ref.read(radioServiceProvider).stations(refresh: true);
+      final values = await ref
+          .read(radioServiceProvider)
+          .stations(refresh: true);
       return _sorted(values);
     });
   }

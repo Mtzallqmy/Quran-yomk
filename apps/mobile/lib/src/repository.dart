@@ -58,7 +58,9 @@ class TarteelRepository {
         if (next == null || next <= page) break;
         page = next;
       }
-      final deduped = <String, Station>{for (final station in values) station.id: station}.values.toList(growable: false);
+      final deduped = <String, Station>{
+        for (final station in values) station.id: station,
+      }.values.toList(growable: false);
       await cache.write(
         key,
         deduped.map((e) => e.toJson()).toList(growable: false),

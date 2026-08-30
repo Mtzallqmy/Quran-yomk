@@ -25,14 +25,18 @@ class VirtualRadioProgram {
   final DateTime? endsAt;
 
   factory VirtualRadioProgram.fromJson(JsonMap json) => VirtualRadioProgram(
-        id: json['id'] is String ? json['id'] as String : '',
-        titleAr: json['title_ar'] is String ? json['title_ar'] as String : 'بث مختار',
-        titleEn: json['title_en'] is String ? json['title_en'] as String : null,
-        subtitleAr: json['subtitle_ar'] is String ? json['subtitle_ar'] as String : null,
-        category: json['category'] is String ? json['category'] as String : 'OTHER',
-        startedAt: DateTime.tryParse(json['started_at']?.toString() ?? ''),
-        endsAt: DateTime.tryParse(json['ends_at']?.toString() ?? ''),
-      );
+    id: json['id'] is String ? json['id'] as String : '',
+    titleAr: json['title_ar'] is String
+        ? json['title_ar'] as String
+        : 'بث مختار',
+    titleEn: json['title_en'] is String ? json['title_en'] as String : null,
+    subtitleAr: json['subtitle_ar'] is String
+        ? json['subtitle_ar'] as String
+        : null,
+    category: json['category'] is String ? json['category'] as String : 'OTHER',
+    startedAt: DateTime.tryParse(json['started_at']?.toString() ?? ''),
+    endsAt: DateTime.tryParse(json['ends_at']?.toString() ?? ''),
+  );
 }
 
 class VirtualRadioResolution {
@@ -85,11 +89,15 @@ class VirtualRadioResolution {
       channelSlug: channel['slug']?.toString() ?? 'tarteel',
       channelNameAr: channel['name_ar']?.toString() ?? 'إذاعة ترتيل',
       timezone: channel['timezone']?.toString() ?? 'Asia/Aden',
-      artworkUrl: channel['artwork_url'] is String ? channel['artwork_url'] as String : null,
+      artworkUrl: channel['artwork_url'] is String
+          ? channel['artwork_url'] as String
+          : null,
       available: json['available'] == true,
       program: program == null ? null : VirtualRadioProgram.fromJson(program),
       station: station == null ? null : Station.fromJson(station),
-      serverTime: DateTime.tryParse(json['server_time']?.toString() ?? '') ?? DateTime.now().toUtc(),
+      serverTime:
+          DateTime.tryParse(json['server_time']?.toString() ?? '') ??
+          DateTime.now().toUtc(),
       nextChangeAt: DateTime.tryParse(json['next_change_at']?.toString() ?? ''),
       nextProgramTitleAr: next?['title_ar']?.toString(),
       selectionTier: resolution['selection_tier'] is num
@@ -99,9 +107,10 @@ class VirtualRadioResolution {
   }
 }
 
-final virtualRadioProvider = AsyncNotifierProvider<VirtualRadioController, VirtualRadioResolution>(
-  VirtualRadioController.new,
-);
+final virtualRadioProvider =
+    AsyncNotifierProvider<VirtualRadioController, VirtualRadioResolution>(
+      VirtualRadioController.new,
+    );
 
 class VirtualRadioController extends AsyncNotifier<VirtualRadioResolution> {
   StreamSubscription<String>? _errorSubscription;
@@ -113,11 +122,15 @@ class VirtualRadioController extends AsyncNotifier<VirtualRadioResolution> {
 
   @override
   Future<VirtualRadioResolution> build() async {
-    _errorSubscription ??= ref.read(servicesProvider).playback.errorStream.listen((_) {
-      if (!_playing || _failoverBusy) return;
-      _recentPlaybackErrors += 1;
-      if (_recentPlaybackErrors >= 2) unawaited(failover());
-    });
+    _errorSubscription ??= ref
+        .read(servicesProvider)
+        .playback
+        .errorStream
+        .listen((_) {
+          if (!_playing || _failoverBusy) return;
+          _recentPlaybackErrors += 1;
+          if (_recentPlaybackErrors >= 2) unawaited(failover());
+        });
     ref.onDispose(() {
       _boundaryTimer?.cancel();
       _errorSubscription?.cancel();
@@ -145,7 +158,9 @@ class VirtualRadioController extends AsyncNotifier<VirtualRadioResolution> {
   Future<void> play() async {
     var value = state.valueOrNull;
     value ??= await _resolve();
-    if (!value.available || value.station == null || !value.station!.isPlayable) {
+    if (!value.available ||
+        value.station == null ||
+        !value.station!.isPlayable) {
       throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
     }
     _playing = true;
@@ -183,14 +198,18 @@ class VirtualRadioController extends AsyncNotifier<VirtualRadioResolution> {
     try {
       final current = state.valueOrNull;
       if (current?.station != null) _failedStations.add(current!.station!.id);
-      if (_failedStations.length > 8) throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
+      if (_failedStations.length > 8)
+        throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
       final next = await _resolve();
-      if (!next.available || next.station == null || !next.station!.isPlayable) {
+      if (!next.available ||
+          next.station == null ||
+          !next.station!.isPlayable) {
         throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
       }
       state = AsyncData(next);
       _recentPlaybackErrors = 0;
-      if (_playing) await ref.read(servicesProvider).playback.playVirtualRadio(next);
+      if (_playing)
+        await ref.read(servicesProvider).playback.playVirtualRadio(next);
       _scheduleBoundary(next);
     } catch (error, stackTrace) {
       _playing = false;
@@ -219,7 +238,9 @@ class VirtualRadioController extends AsyncNotifier<VirtualRadioResolution> {
     if (next == null) return;
     final delay = next.difference(DateTime.now().toUtc());
     _boundaryTimer = Timer(
-      delay <= Duration.zero ? const Duration(seconds: 1) : delay + const Duration(seconds: 2),
+      delay <= Duration.zero
+          ? const Duration(seconds: 1)
+          : delay + const Duration(seconds: 2),
       () => unawaited(_handleBoundary()),
     );
   }

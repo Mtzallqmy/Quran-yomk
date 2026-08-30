@@ -20,7 +20,11 @@ abstract class PlaybackPort {
   Future<void> playStation(Station station);
   Future<void> playVirtualRadio(VirtualRadioResolution resolution);
   Future<void> updateVirtualMetadata(VirtualRadioResolution resolution);
-  Future<void> playTracks(List<ReciterTrack> tracks, int index, Reciter reciter);
+  Future<void> playTracks(
+    List<ReciterTrack> tracks,
+    int index,
+    Reciter reciter,
+  );
   Future<void> play();
   Future<void> pause();
   Future<void> stop();
@@ -51,7 +55,8 @@ class TarteelAudioHandler extends BaseAudioHandler
   }
 
   final AudioPlayer _player = AudioPlayer();
-  final StreamController<Duration?> _sleepRemaining = StreamController<Duration?>.broadcast();
+  final StreamController<Duration?> _sleepRemaining =
+      StreamController<Duration?>.broadcast();
   final StreamController<String> _errors = StreamController<String>.broadcast();
   Timer? _sleepTimer;
   Timer? _reconnectTimer;
@@ -103,7 +108,8 @@ class TarteelAudioHandler extends BaseAudioHandler
         if (event.type == AudioInterruptionType.duck) {
           await _player.setVolume(_volumeBeforeDuck);
         }
-        if (_resumeAfterInterruption && event.type == AudioInterruptionType.pause) {
+        if (_resumeAfterInterruption &&
+            event.type == AudioInterruptionType.pause) {
           await play();
         }
         _resumeAfterInterruption = false;
@@ -111,7 +117,8 @@ class TarteelAudioHandler extends BaseAudioHandler
     });
   }
 
-  bool _secureUrl(String? url) => url != null && Uri.tryParse(url)?.scheme == 'https';
+  bool _secureUrl(String? url) =>
+      url != null && Uri.tryParse(url)?.scheme == 'https';
 
   @override
   Future<void> playStation(Station station) async {
@@ -156,12 +163,15 @@ class TarteelAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> updateVirtualMetadata(VirtualRadioResolution resolution) async {
-    if (_virtualRadio == null || resolution.channelId != _virtualRadio!.channelId) return;
+    if (_virtualRadio == null ||
+        resolution.channelId != _virtualRadio!.channelId)
+      return;
     _virtualRadio = resolution;
     mediaItem.add(_virtualItem(resolution));
   }
 
-  MediaItem _stationItem(Station station, {String? title, String? subtitle}) => MediaItem(
+  MediaItem _stationItem(Station station, {String? title, String? subtitle}) =>
+      MediaItem(
         id: 'station:${station.id}',
         title: title ?? station.nameAr,
         artist: subtitle ?? station.providerName ?? 'بث مباشر',
@@ -183,7 +193,9 @@ class TarteelAudioHandler extends BaseAudioHandler
       id: 'virtual:${resolution.channelId}',
       title: resolution.channelNameAr,
       artist: resolution.program?.titleAr ?? 'بث مختار',
-      artUri: resolution.artworkUrl == null ? null : Uri.tryParse(resolution.artworkUrl!),
+      artUri: resolution.artworkUrl == null
+          ? null
+          : Uri.tryParse(resolution.artworkUrl!),
       isLive: true,
       extras: <String, dynamic>{
         'kind': 'virtual_radio',
@@ -214,8 +226,14 @@ class TarteelAudioHandler extends BaseAudioHandler
   }
 
   @override
-  Future<void> playTracks(List<ReciterTrack> tracks, int index, Reciter reciter) async {
-    final playable = tracks.where((track) => track.isPlayable).toList(growable: false);
+  Future<void> playTracks(
+    List<ReciterTrack> tracks,
+    int index,
+    Reciter reciter,
+  ) async {
+    final playable = tracks
+        .where((track) => track.isPlayable)
+        .toList(growable: false);
     if (playable.isEmpty) throw StateError('No playable tracks');
     final selected = tracks[index];
     final mappedIndex = playable.indexWhere((track) => track.id == selected.id);
@@ -226,26 +244,32 @@ class TarteelAudioHandler extends BaseAudioHandler
     _tracks = playable;
     _trackIndex = mappedIndex < 0 ? 0 : mappedIndex;
     _shouldPlay = true;
-    queue.add(playable.map((track) => _trackItem(track, reciter)).toList(growable: false));
+    queue.add(
+      playable
+          .map((track) => _trackItem(track, reciter))
+          .toList(growable: false),
+    );
     await _loadTrack(_trackIndex);
     unawaited(_player.play());
     _broadcastState();
   }
 
   MediaItem _trackItem(ReciterTrack track, Reciter reciter) => MediaItem(
-        id: 'track:${track.id}',
-        title: track.surah.nameAr,
-        artist: reciter.nameAr,
-        duration: track.durationMs == null ? null : Duration(milliseconds: track.durationMs!),
-        isLive: false,
-        extras: <String, dynamic>{
-          'kind': 'track',
-          'entity_id': track.id,
-          'url': track.playbackUrl,
-          'surah_number': track.surah.number,
-          'reciter_id': reciter.id,
-        },
-      );
+    id: 'track:${track.id}',
+    title: track.surah.nameAr,
+    artist: reciter.nameAr,
+    duration: track.durationMs == null
+        ? null
+        : Duration(milliseconds: track.durationMs!),
+    isLive: false,
+    extras: <String, dynamic>{
+      'kind': 'track',
+      'entity_id': track.id,
+      'url': track.playbackUrl,
+      'surah_number': track.surah.number,
+      'reciter_id': reciter.id,
+    },
+  );
 
   Future<void> _loadTrack(int index) async {
     final track = _tracks[index];
@@ -262,7 +286,8 @@ class TarteelAudioHandler extends BaseAudioHandler
   @override
   Future<void> play() async {
     _shouldPlay = true;
-    if (_player.processingState == ProcessingState.completed && !isLive) await seek(Duration.zero);
+    if (_player.processingState == ProcessingState.completed && !isLive)
+      await seek(Duration.zero);
     unawaited(_player.play());
     _broadcastState();
   }
@@ -317,15 +342,20 @@ class TarteelAudioHandler extends BaseAudioHandler
   }
 
   @override
-  Future<void> setVolume(double volume) => _player.setVolume(volume.clamp(0.0, 1.0));
+  Future<void> setVolume(double volume) =>
+      _player.setVolume(volume.clamp(0.0, 1.0));
 
   @override
   Future<void> setRepeatOne(bool enabled) async {
     if (isLive) return;
     await _player.setLoopMode(enabled ? LoopMode.one : LoopMode.off);
-    playbackState.add(playbackState.value.copyWith(
-      repeatMode: enabled ? AudioServiceRepeatMode.one : AudioServiceRepeatMode.none,
-    ));
+    playbackState.add(
+      playbackState.value.copyWith(
+        repeatMode: enabled
+            ? AudioServiceRepeatMode.one
+            : AudioServiceRepeatMode.none,
+      ),
+    );
   }
 
   @override
@@ -356,7 +386,11 @@ class TarteelAudioHandler extends BaseAudioHandler
 
   void _scheduleLiveReconnect() {
     final station = _liveStation;
-    if (station == null || !_shouldPlay || station.playbackUrl == null || _reconnectTimer != null) return;
+    if (station == null ||
+        !_shouldPlay ||
+        station.playbackUrl == null ||
+        _reconnectTimer != null)
+      return;
     const backoff = <int>[2, 4, 8];
     if (_reconnectAttempt >= backoff.length) return;
     final delay = Duration(seconds: backoff[_reconnectAttempt++]);
@@ -388,26 +422,37 @@ class TarteelAudioHandler extends BaseAudioHandler
       ProcessingState.completed => AudioProcessingState.completed,
     };
     final controls = isLive
-        ? <MediaControl>[MediaControl.stop, _player.playing ? MediaControl.pause : MediaControl.play]
+        ? <MediaControl>[
+            MediaControl.stop,
+            _player.playing ? MediaControl.pause : MediaControl.play,
+          ]
         : <MediaControl>[
             MediaControl.skipToPrevious,
             _player.playing ? MediaControl.pause : MediaControl.play,
             MediaControl.skipToNext,
             MediaControl.stop,
           ];
-    playbackState.add(playbackState.value.copyWith(
-      controls: controls,
-      systemActions: isLive
-          ? const <MediaAction>{}
-          : const <MediaAction>{MediaAction.seek, MediaAction.seekForward, MediaAction.seekBackward},
-      androidCompactActionIndices: isLive ? const <int>[0, 1] : const <int>[0, 1, 2],
-      processingState: processing,
-      playing: _player.playing,
-      updatePosition: _player.position,
-      bufferedPosition: _player.bufferedPosition,
-      speed: _player.speed,
-      queueIndex: isLive ? null : _trackIndex,
-    ));
+    playbackState.add(
+      playbackState.value.copyWith(
+        controls: controls,
+        systemActions: isLive
+            ? const <MediaAction>{}
+            : const <MediaAction>{
+                MediaAction.seek,
+                MediaAction.seekForward,
+                MediaAction.seekBackward,
+              },
+        androidCompactActionIndices: isLive
+            ? const <int>[0, 1]
+            : const <int>[0, 1, 2],
+        processingState: processing,
+        playing: _player.playing,
+        updatePosition: _player.position,
+        bufferedPosition: _player.bufferedPosition,
+        speed: _player.speed,
+        queueIndex: isLive ? null : _trackIndex,
+      ),
+    );
   }
 
   Future<void> disposeHandler() async {

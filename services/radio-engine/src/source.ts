@@ -8,7 +8,7 @@ export function buildLiquidsoapScript(config:Config,playlistPath:string):string{
   return `${config.liquidsoapAllowRoot?'settings.init.allow_root := true\n':''}settings.log.stdout := true\nsettings.log.file := false\n`+
     `settings.server.telnet := true\nsettings.server.telnet.bind_addr := "127.0.0.1"\nsettings.server.telnet.port := ${config.liquidsoapControlPort}\n`+
     `main = playlist(mode="normal", reload=60, ${liq(playlistPath)})\n`+
-    `automation = request.queue(id="automation", queue_length=10)\n`+
+    `automation = request.queue(id="automation")\n`+
     `def track_started(m) = print("TARTEEL_EVENT TRACK_START #{metadata.json.stringify(m)}") end\n`+
     `emergency = single(${liq(config.fallbackPath)})\n`+
     `radio = fallback(track_sensitive=false, [automation, main, emergency])\n`+

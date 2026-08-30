@@ -1,12 +1,18 @@
 import { ApiError, type Json } from './contracts';
 
-type Env={url:string;publishable:string;secret:string;environment:string;streamBase:string;mount:string;secureCookies:boolean};
-export function env():Env{
+type PublicEnv={url:string;publishable:string;environment:string;streamBase:string;mount:string;secureCookies:boolean};
+type Env=PublicEnv&{secret:string};
+export function publicEnv():PublicEnv{
   const url=process.env.SUPABASE_URL?.replace(/\/$/,'');
   const publishable=process.env.SUPABASE_PUBLISHABLE_KEY;
+  if(!url||!publishable)throw new ApiError(503,'SERVER_NOT_CONFIGURED','Public backend configuration is not available');
+  return {url,publishable,environment:process.env.TARTEEL_ENVIRONMENT??'development',streamBase:(process.env.TARTEEL_PUBLIC_STREAM_BASE_URL??'').replace(/\/$/,''),mount:process.env.TARTEEL_INTERNAL_MOUNT??'/tarteel.mp3',secureCookies:process.env.TARTEEL_COOKIE_SECURE==='true'};
+}
+export function env():Env{
+  const base=publicEnv();
   const secret=process.env.SUPABASE_SECRET_KEY;
-  if(!url||!publishable||!secret)throw new ApiError(503,'SERVER_NOT_CONFIGURED','Backend credentials are not configured');
-  return {url,publishable,secret,environment:process.env.TARTEEL_ENVIRONMENT??'development',streamBase:(process.env.TARTEEL_PUBLIC_STREAM_BASE_URL??'').replace(/\/$/,''),mount:process.env.TARTEEL_INTERNAL_MOUNT??'/tarteel.mp3',secureCookies:process.env.TARTEEL_COOKIE_SECURE==='true'};
+  if(!secret)throw new ApiError(503,'SERVER_NOT_CONFIGURED','Backend credentials are not configured');
+  return {...base,secret};
 }
 async function readBody(response:Response):Promise<unknown>{const text=await response.text();if(!text)return null;try{return JSON.parse(text)}catch{return text}}
 function mapStatus(status:number){if(status===400)return 422;if(status===401)return 401;if(status===403)return 403;if(status===404)return 404;if(status===409)return 409;return status>=500?502:status;}
@@ -18,6 +24,13 @@ export async function db(schema:'app'|'radio',resource:string,init:RequestInit={
   const range=response.headers.get('content-range');const total=range&&range.includes('/')?Number(range.split('/')[1]):null;return{data,count:Number.isFinite(total as number)?total:null,headers:response.headers};
 }
 export async function rpc(schema:'app'|'radio',fn:string,args:Record<string,Json>):Promise<any>{return (await db(schema,`rpc/${fn}`,{method:'POST',body:JSON.stringify(args),headers:{prefer:'return=representation'}})).data;}
+export async function publicRpc(fn:string,args:Record<string,Json>):Promise<any>{
+  const e=publicEnv();
+  const response=await fetch(`${e.url}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:e.publishable,'accept-profile':'app','content-profile':'app','content-type':'application/json'},body:JSON.stringify(args),cache:'no-store'});
+  const data=await readBody(response);
+  if(!response.ok){const message=typeof data==='object'&&data&&'message' in data?String((data as any).message):'Public catalog request failed';throw new ApiError(mapStatus(response.status),'CATALOG_ERROR',message);}
+  return data;
+}
 export async function authPassword(email:string,password:string){const e=env();const r=await fetch(`${e.url}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:e.publishable,'content-type':'application/json'},body:JSON.stringify({email,password}),cache:'no-store'});const body=await readBody(r);if(!r.ok)throw new ApiError(401,'INVALID_CREDENTIALS','Invalid email or password');return body as any;}
 export async function refreshSession(refresh_token:string){const e=env();const r=await fetch(`${e.url}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:e.publishable,'content-type':'application/json'},body:JSON.stringify({refresh_token}),cache:'no-store'});const body=await readBody(r);if(!r.ok)throw new ApiError(401,'SESSION_EXPIRED','Session expired');return body as any;}
 export async function authUser(accessToken:string){const e=env();const r=await fetch(`${e.url}/auth/v1/user`,{headers:{apikey:e.publishable,authorization:`Bearer ${accessToken}`},cache:'no-store'});if(!r.ok)throw new ApiError(401,'SESSION_EXPIRED','Session expired');return await r.json() as {id:string;email?:string};}

@@ -37,8 +37,12 @@ export function normalizeArabic(input:string):string{
   return input.normalize('NFKD').replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g,'').replace(/ـ/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim().toLowerCase();
 }
 export function safeLike(input:string):string{return input.replace(/[,%()]/g,' ').trim().slice(0,120);}
-export function publicExternalEligible(row:Record<string,unknown>):boolean{
-  return row.station_source==='EXTERNAL'&&row.is_active===true&&row.production_enabled===true&&row.rights_status==='APPROVED'&&row.commercial_use_status==='ALLOWED'&&row.deleted_at==null;
+export function publicExternalEligible(row:Record<string,unknown>,environment='production'):boolean{
+  if(row.station_source!=='EXTERNAL'||row.is_active!==true||row.deleted_at!=null)return false;
+  if(environment==='development'){
+    return ['PLAYABLE_IN_DEVELOPMENT','APPROVED_FOR_PUBLIC_RELEASE'].includes(String(row.availability_status??''))&&['HEALTHY','DEGRADED'].includes(String(row.health_status??''));
+  }
+  return row.availability_status==='APPROVED_FOR_PUBLIC_RELEASE'&&row.production_enabled===true&&row.rights_status==='APPROVED'&&row.commercial_use_status==='ALLOWED';
 }
 export function publicInternalEligible(row:Record<string,unknown>,environment:string):boolean{
   return row.station_source==='INTERNAL'&&row.is_active===true&&row.deleted_at==null&&(environment==='development'||row.production_enabled===true);

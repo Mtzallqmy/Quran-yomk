@@ -189,16 +189,24 @@ class IslamicRadioApiService implements RadioService {
         throw const FormatException('stations is missing');
       }
 
-      final stations = rawStations
-          .whereType<Map>()
-          .map((row) => QuranRadioStation.fromJson(Map<String, dynamic>.from(row)))
-          .where((station) => station.id > 0 && station.streamUrl.isNotEmpty)
-          .toList(growable: false)
-        ..sort((a, b) {
-          final playable = (b.isPlayable ? 1 : 0).compareTo(a.isPlayable ? 1 : 0);
-          if (playable != 0) return playable;
-          return a.displayName.compareTo(b.displayName);
-        });
+      final stations =
+          rawStations
+              .whereType<Map>()
+              .map(
+                (row) =>
+                    QuranRadioStation.fromJson(Map<String, dynamic>.from(row)),
+              )
+              .where(
+                (station) => station.id > 0 && station.streamUrl.isNotEmpty,
+              )
+              .toList(growable: false)
+            ..sort((a, b) {
+              final playable = (b.isPlayable ? 1 : 0).compareTo(
+                a.isPlayable ? 1 : 0,
+              );
+              if (playable != 0) return playable;
+              return a.displayName.compareTo(b.displayName);
+            });
 
       if (stations.isEmpty) {
         throw const FormatException('No valid stations in catalog');

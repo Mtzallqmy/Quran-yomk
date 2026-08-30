@@ -230,9 +230,7 @@ class WebSocketTranscriptionService implements TranscriptionService {
     }
     if (configured) {
       _status.add(
-        const TranscriptionStatus(
-          TranscriptionConnectionState.disconnected,
-        ),
+        const TranscriptionStatus(TranscriptionConnectionState.disconnected),
       );
     }
   }

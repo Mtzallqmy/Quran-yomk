@@ -98,9 +98,9 @@ class RadioController extends AsyncNotifier<QuranRadioState> {
     final current = state.value;
     state = const AsyncLoading<QuranRadioState>().copyWithPrevious(state);
     try {
-      final stations = await ref.read(radioServiceProvider).fetchStations(
-        refresh: true,
-      );
+      final stations = await ref
+          .read(radioServiceProvider)
+          .fetchStations(refresh: true);
       state = AsyncData(
         QuranRadioState(
           stations: stations,
@@ -111,9 +111,10 @@ class RadioController extends AsyncNotifier<QuranRadioState> {
         ),
       );
     } catch (error, stackTrace) {
-      state = AsyncError<QuranRadioState>(error, stackTrace).copyWithPrevious(
-        state,
-      );
+      state = AsyncError<QuranRadioState>(
+        error,
+        stackTrace,
+      ).copyWithPrevious(state);
     }
   }
 
@@ -188,9 +189,7 @@ class RadioController extends AsyncNotifier<QuranRadioState> {
     if (current == null) return;
     try {
       await ref.read(radioPlaybackProvider).stop();
-      state = AsyncData(
-        current.copyWith(isPlaying: false, isBuffering: false),
-      );
+      state = AsyncData(current.copyWith(isPlaying: false, isBuffering: false));
     } catch (error) {
       _setPlaybackError(error);
     }

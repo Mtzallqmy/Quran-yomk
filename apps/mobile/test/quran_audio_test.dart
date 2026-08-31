@@ -28,20 +28,25 @@ void main() {
               headers: <String, String>{'content-length': '12345'},
             );
           }
-          return http.Response(
-            jsonEncode(<String, dynamic>{
-              'data': <Map<String, dynamic>>[
-                <String, dynamic>{
-                  'identifier': 'ar.alafasy',
-                  'language': 'ar',
-                  'name': 'مشاري العفاسي',
-                  'englishName': 'Mishary Alafasy',
-                  'format': 'audio',
-                  'type': 'versebyverse',
-                },
-              ],
-            }),
+          return http.Response.bytes(
+            utf8.encode(
+              jsonEncode(<String, dynamic>{
+                'data': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'identifier': 'ar.alafasy',
+                    'language': 'ar',
+                    'name': 'مشاري العفاسي',
+                    'englishName': 'Mishary Alafasy',
+                    'format': 'audio',
+                    'type': 'versebyverse',
+                  },
+                ],
+              }),
+            ),
             200,
+            headers: const <String, String>{
+              'content-type': 'application/json; charset=utf-8',
+            },
           );
         }),
       );
@@ -80,24 +85,29 @@ void main() {
   test('MP3Quran schema is isolated and normalized', () async {
     final provider = Mp3QuranAudioProvider(
       client: MockClient(
-        (_) async => http.Response(
-          jsonEncode(<String, dynamic>{
-            'reciters': <Map<String, dynamic>>[
-              <String, dynamic>{
-                'id': 5,
-                'name': 'أحمد العجمي',
-                'moshaf': <Map<String, dynamic>>[
-                  <String, dynamic>{
-                    'id': 5,
-                    'name': 'حفص عن عاصم',
-                    'server': 'https://server.example/ajm/',
-                    'surah_list': '1,2,114',
-                  },
-                ],
-              },
-            ],
-          }),
+        (_) async => http.Response.bytes(
+          utf8.encode(
+            jsonEncode(<String, dynamic>{
+              'reciters': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'id': 5,
+                  'name': 'أحمد العجمي',
+                  'moshaf': <Map<String, dynamic>>[
+                    <String, dynamic>{
+                      'id': 5,
+                      'name': 'حفص عن عاصم',
+                      'server': 'https://server.example/ajm/',
+                      'surah_list': '1,2,114',
+                    },
+                  ],
+                },
+              ],
+            }),
+          ),
           200,
+          headers: const <String, String>{
+            'content-type': 'application/json; charset=utf-8',
+          },
         ),
       ),
     );

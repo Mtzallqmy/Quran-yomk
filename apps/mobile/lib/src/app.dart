@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'branding.dart';
 import 'l10n.dart';
 import 'screens/favorites.dart';
 import 'screens/home.dart';
-import 'screens/library.dart';
+import 'screens/mushaf.dart';
 import 'screens/player.dart';
 import 'screens/radio.dart';
 import 'screens/reciters.dart';
@@ -17,6 +16,7 @@ import 'theme.dart';
 
 class TarteelApp extends ConsumerWidget {
   const TarteelApp({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(servicesProvider).settings;
@@ -24,19 +24,13 @@ class TarteelApp extends ConsumerWidget {
       animation: settings,
       builder: (context, _) => MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'Tarteel',
+        onGenerateTitle: (context) => context.l10n.appName,
         locale: settings.locale,
-        supportedLocales: const <Locale>[Locale('ar'), Locale('en')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
         theme: TarteelTheme.light(),
         darkTheme: TarteelTheme.dark(),
         themeMode: settings.themeMode,
-        builder: (context, child) => Directionality(
-          textDirection: settings.locale.languageCode == 'ar'
-              ? TextDirection.rtl
-              : TextDirection.ltr,
-          child: child ?? const SizedBox.shrink(),
-        ),
         home: const RootShell(),
       ),
     );
@@ -45,28 +39,30 @@ class TarteelApp extends ConsumerWidget {
 
 class RootShell extends StatefulWidget {
   const RootShell({super.key});
+
   @override
   State<RootShell> createState() => _RootShellState();
 }
 
 class _RootShellState extends State<RootShell> {
   int index = 0;
+
   final pages = const <Widget>[
     HomePage(),
     RadioPage(),
+    MushafPage(),
     RecitersPage(),
-    LibraryPage(),
     FavoritesPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final s = TarteelStrings.of(context);
+    final s = context.l10n;
     final titles = <String>[
       s.home,
       s.radio,
+      s.mushaf,
       s.reciters,
-      s.library,
       s.favorites,
     ];
     return Scaffold(
@@ -88,9 +84,9 @@ class _RootShellState extends State<RootShell> {
         actions: <Widget>[
           IconButton(
             tooltip: s.search,
-            onPressed: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute<void>(builder: (_) => const SearchPage())),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SearchPage()),
+            ),
             icon: const Icon(Icons.search),
           ),
           IconButton(
@@ -123,14 +119,14 @@ class _RootShellState extends State<RootShell> {
                 label: s.radio,
               ),
               NavigationDestination(
+                icon: const Icon(Icons.auto_stories_outlined),
+                selectedIcon: const Icon(Icons.auto_stories),
+                label: s.mushaf,
+              ),
+              NavigationDestination(
                 icon: const Icon(Icons.record_voice_over_outlined),
                 selectedIcon: const Icon(Icons.record_voice_over),
                 label: s.reciters,
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.menu_book_outlined),
-                selectedIcon: const Icon(Icons.menu_book),
-                label: s.library,
               ),
               NavigationDestination(
                 icon: const Icon(Icons.favorite_border),

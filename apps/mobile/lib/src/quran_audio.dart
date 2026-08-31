@@ -271,9 +271,12 @@ class AlQuranCloudAudioProvider implements QuranAudioProvider {
         .send(request)
         .timeout(const Duration(seconds: 12));
     if (response.statusCode < 200 || response.statusCode >= 400) return null;
-    return response.contentLength == null || response.contentLength == 0
-        ? null
-        : response.contentLength;
+    final streamedLength = response.contentLength;
+    if (streamedLength != null && streamedLength > 0) return streamedLength;
+    final declaredLength = int.tryParse(
+      response.headers['content-length'] ?? '',
+    );
+    return declaredLength != null && declaredLength > 0 ? declaredLength : null;
   }
 }
 

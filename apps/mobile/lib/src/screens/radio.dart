@@ -310,9 +310,18 @@ class _VirtualRadioCard extends ConsumerWidget {
                                 _categoryNames[program.category] ??
                                     program.category,
                               ),
-                            if (station?.providerName != null)
-                              _MetaChip('المصدر: ${station!.providerName}'),
-                            if (station?.healthStatus != null)
+                            if (resolution.isManaged)
+                              _MetaChip(
+                                'المزود: ${resolution.managedProvider == 'RADIO_CO' ? 'Radio.co' : resolution.managedProvider ?? 'Managed Radio'}',
+                              ),
+                            if (station != null)
+                              _MetaChip('المصدر الحالي: ${station.nameAr}'),
+                            if (resolution.isManaged &&
+                                resolution.managedStatus != null)
+                              _MetaChip(
+                                _managedStatusLabel(resolution.managedStatus!),
+                              )
+                            else if (station?.healthStatus != null)
                               _MetaChip(_healthLabel(station!.healthStatus!)),
                           ],
                         ),
@@ -328,8 +337,7 @@ class _VirtualRadioCard extends ConsumerWidget {
                           children: <Widget>[
                             Expanded(
                               child: FilledButton.icon(
-                                onPressed:
-                                    !resolution.available || station == null
+                                onPressed: !resolution.isPlayable
                                     ? null
                                     : () async {
                                         if (buffering) return;
@@ -381,7 +389,11 @@ class _VirtualRadioCard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'إذاعة ترتيل قناة افتراضية تختار مصدرًا خارجيًا متاحًا وفق الجدول؛ الصوت يصل مباشرةً من مزود البث ولا يُعاد بثه عبر خوادم ترتيل.',
+                          resolution.isManaged
+                              ? 'الصوت يصل عبر رابط إذاعة ترتيل الثابت من مزود البث المُدار؛ Supabase يحدد البرنامج والمصدر، ولا يتصل Flutter بمصدر الـRelay مباشرةً.'
+                              : resolution.managedConfigured
+                              ? 'تكامل البث المُدار مهيأ لكنه غير مفعّل بعد؛ يعمل هذا الوضع كبديل تطويري مباشر إلى أن ينجح Sync Schedule واختبار Relay.'
+                              : 'إذاعة ترتيل قناة افتراضية تختار مصدرًا خارجيًا متاحًا وفق الجدول؛ الصوت يصل مباشرةً من مزود البث ولا يُعاد بثه عبر خوادم ترتيل.',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
@@ -429,8 +441,9 @@ class _CatalogControls extends StatelessWidget {
     final providers = <String, String>{};
     for (final station in external) {
       final key = station.provider;
-      if (key != null && key.isNotEmpty)
+      if (key != null && key.isNotEmpty) {
         providers[key] = station.providerName ?? key;
+      }
     }
     final providerEntries = providers.entries.toList()
       ..sort((a, b) => a.value.compareTo(b.value));
@@ -647,6 +660,12 @@ String _healthLabel(String value) => switch (value.toUpperCase()) {
   'UNAVAILABLE' || 'UNREACHABLE' => 'غير متاح',
   'UNSUPPORTED' => 'غير مدعوم',
   _ => 'غير مفحوص',
+};
+
+String _managedStatusLabel(String value) => switch (value.toLowerCase()) {
+  'onair' => 'Radio.co: على الهواء',
+  'offair' => 'Radio.co: خارج الهواء',
+  _ => 'Radio.co: ${value.toLowerCase()}',
 };
 
 String _timeLabel(DateTime value) {

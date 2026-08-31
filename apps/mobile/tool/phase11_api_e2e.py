@@ -5,6 +5,10 @@ This intentionally does not talk to PostgreSQL directly and does not use a
 service-role credential. It exercises the same public Edge API contract shipped
 in Flutter, then probes only a bounded representative set of returned external
 URLs. Continuous audio is never proxied through Supabase.
+
+Virtual Radio is failover-aware: a failed current source is acceptable only when
+the resolver returns a different fallback source and that fallback yields real
+audio. The primary failure remains recorded in the evidence file.
 """
 from __future__ import annotations
 
@@ -128,6 +132,7 @@ def main() -> None:
         "live_hls": station_query(category="LIVE_TV_AUDIO"),
         "radiojar": station_query(provider="radiojar"),
         "islamic_radio_api": station_query(provider="islamic-radio-api"),
+        "islamic_app": station_query(provider="islamic-app"),
     }
     results = [probe_station(label, station) for label, station in representatives.items()]
 
@@ -145,9 +150,32 @@ def main() -> None:
         raise RuntimeError("Virtual Tarteel Radio fallback did not resolve")
     if fallback_station.get("id") == virtual_station.get("id"):
         raise RuntimeError("Virtual Tarteel Radio fallback reused the failed station")
+    if (fallback_payload.get("channel") or {}).get("id") != (virtual.get("channel") or {}).get("id"):
+        raise RuntimeError("Virtual Tarteel Radio fallback changed the logical channel identity")
     fallback = probe_station("virtual_tarteel_fallback", fallback_station)
 
-    failed = [item["label"] for item in results + [current, fallback] if item["result"] != "PASS"]
+    failed = [item["label"] for item in results if item["result"] != "PASS"]
+    failover_accepted = current["result"] != "PASS" and fallback["result"] == "PASS"
+    virtual_path_passed = current["result"] == "PASS" or failover_accepted
+    if not virtual_path_passed:
+        failed.extend(
+            item["label"] for item in (current, fallback) if item["result"] != "PASS"
+        )
+    if failover_accepted:
+        print(
+            json.dumps(
+                {
+                    "event": "VIRTUAL_FAILOVER_ACCEPTED",
+                    "failed_station_id": current.get("station_id"),
+                    "fallback_station_id": fallback.get("station_id"),
+                    "logical_channel": (virtual.get("channel") or {}).get("name_ar"),
+                    "fallback_audio_ms": fallback.get("first_audio_ms"),
+                },
+                ensure_ascii=False,
+            ),
+            flush=True,
+        )
+
     evidence = {
         "api_base": BASE,
         "external_catalog_unique": len(unique),
@@ -156,6 +184,9 @@ def main() -> None:
         "virtual_program": (virtual.get("program") or {}).get("title_ar"),
         "current_station_id": virtual_station.get("id"),
         "fallback_station_id": fallback_station.get("id"),
+        "virtual_primary_result": current["result"],
+        "virtual_fallback_result": fallback["result"],
+        "virtual_failover_accepted": failover_accepted,
         "results": results + [current, fallback],
         "failed": failed,
         "verified_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

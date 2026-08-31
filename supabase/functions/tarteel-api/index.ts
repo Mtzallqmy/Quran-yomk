@@ -107,27 +107,12 @@ Deno.serve(async (req: Request) => {
         p_now: new Date().toISOString(),
       }, apiKey) as Record<string, unknown> | null;
       const available = data?.available === true;
-      console.info(JSON.stringify({
-        event: "VIRTUAL_RADIO_RESOLUTION",
-        request_id: requestId,
-        slug,
-        available,
-        station_id: available && data?.station && typeof data.station === "object"
-          ? (data.station as Record<string, unknown>).id ?? null
-          : null,
-        excluded_count: excluded.length,
-      }));
+      console.info(JSON.stringify({ event: "VIRTUAL_RADIO_RESOLUTION", request_id: requestId, slug, available, station_id: available && data?.station && typeof data.station === "object" ? (data.station as Record<string, unknown>).id ?? null : null, excluded_count: excluded.length }));
       if (!available) {
         const code = String(data?.error_code ?? "NO_VIRTUAL_SOURCE_AVAILABLE");
-        return response({ data, error: { code, message: "لا يوجد مصدر متاح لإذاعة ترتيل حاليًا", request_id: requestId } }, 503, {
-          "x-request-id": requestId,
-          "cache-control": "no-store",
-        });
+        return response({ data, error: { code, message: "لا يوجد مصدر متاح لإذاعة ترتيل حاليًا", request_id: requestId } }, 503, { "x-request-id": requestId, "cache-control": "no-store" });
       }
-      return response({ data }, 200, {
-        "x-request-id": requestId,
-        "cache-control": "public, max-age=0, s-maxage=3",
-      });
+      return response({ data }, 200, { "x-request-id": requestId, "cache-control": "public, max-age=0, s-maxage=3" });
     }
 
     if (parts[0] === "stations") {
@@ -140,6 +125,10 @@ Deno.serve(async (req: Request) => {
       const station = rows[0] as Record<string, unknown> | undefined;
       if (!station) return fail(404, "NOT_FOUND", "Station not found", requestId);
       if (parts.length === 2) return response({ data: station }, 200, { "x-request-id": requestId, "cache-control": "public, max-age=30, s-maxage=300" });
+      if (parts[2] === "offline-clip-policy") {
+        const data = await rpc("tarteel_public_offline_clip_policy", { p_station_id: station.id }, apiKey);
+        return response({ data }, 200, { "x-request-id": requestId, "cache-control": "public, max-age=60, s-maxage=300" });
+      }
       if (parts[2] === "now-playing") {
         if (station.station_source !== "INTERNAL") {
           return response({ data: { station: { id: station.id, slug: station.slug, name_ar: station.name_ar, name_en: station.name_en }, media: null, title: null, subtitle: null, started_at: null, expected_end_at: null, source: null, is_live: true, server_time: new Date().toISOString() } }, 200, { "x-request-id": requestId, "cache-control": "public, max-age=0, s-maxage=3" });
@@ -149,12 +138,8 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (parts[0] === "content-sources" && parts.length === 1) {
-      return response({ data: asArray(await rpc("tarteel_public_content_sources", {}, apiKey)) }, 200, { "x-request-id": requestId, "cache-control": "public, max-age=300, s-maxage=3600" });
-    }
-    if (parts[0] === "categories" && parts.length === 1) {
-      return response({ data: asArray(await rpc("tarteel_public_categories", {}, apiKey)) }, 200, { "x-request-id": requestId, "cache-control": "public, max-age=300, s-maxage=3600" });
-    }
+    if (parts[0] === "content-sources" && parts.length === 1) return response({ data: asArray(await rpc("tarteel_public_content_sources", {}, apiKey)) }, 200, { "x-request-id": requestId, "cache-control": "public, max-age=300, s-maxage=3600" });
+    if (parts[0] === "categories" && parts.length === 1) return response({ data: asArray(await rpc("tarteel_public_categories", {}, apiKey)) }, 200, { "x-request-id": requestId, "cache-control": "public, max-age=300, s-maxage=3600" });
     if (parts[0] === "surahs" && parts.length === 1) {
       const data = asArray(await rpc("tarteel_public_surahs", {}, apiKey));
       if (data.length !== 114) return fail(503, "CATALOG_INTEGRITY", "Surah catalog is incomplete", requestId);
@@ -174,9 +159,7 @@ Deno.serve(async (req: Request) => {
         if (!rows[0]) return fail(404, "NOT_FOUND", "Reciter not found", requestId);
         return response({ data: rows[0] }, 200, { "x-request-id": requestId });
       }
-      if (parts[2] === "surahs") {
-        return response({ data: asArray(await rpc("tarteel_public_reciter_tracks", { p_reciter_id: id }, apiKey)) }, 200, { "x-request-id": requestId, "cache-control": "public, max-age=0, s-maxage=30" });
-      }
+      if (parts[2] === "surahs") return response({ data: asArray(await rpc("tarteel_public_reciter_tracks", { p_reciter_id: id }, apiKey)) }, 200, { "x-request-id": requestId, "cache-control": "public, max-age=0, s-maxage=30" });
     }
     if (parts[0] === "featured" && parts.length === 1) {
       const { rows } = await catalog(new URLSearchParams(), apiKey);
@@ -191,10 +174,7 @@ Deno.serve(async (req: Request) => {
       const q = (u.searchParams.get("q") ?? "").trim();
       if (q.length < 2) return fail(422, "VALIDATION_ERROR", "q must contain at least 2 characters", requestId);
       const stations = (await catalog(new URLSearchParams({ search: q, limit: "10" }), apiKey)).rows;
-      const [reciterRaw, surahRaw] = await Promise.all([
-        rpc("tarteel_public_reciters", { p_search: q, p_limit: 10, p_offset: 0, p_id: null }, apiKey),
-        rpc("tarteel_public_surahs", {}, apiKey),
-      ]);
+      const [reciterRaw, surahRaw] = await Promise.all([rpc("tarteel_public_reciters", { p_search: q, p_limit: 10, p_offset: 0, p_id: null }, apiKey), rpc("tarteel_public_surahs", {}, apiKey)]);
       const normalized = q.toLowerCase();
       const surahs = asArray(surahRaw).filter((item) => {
         const s = item as Record<string, unknown>;

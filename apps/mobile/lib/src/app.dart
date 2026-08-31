@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'branding.dart';
 import 'l10n.dart';
 import 'screens/favorites.dart';
 import 'screens/home.dart';
@@ -70,7 +71,20 @@ class _RootShellState extends State<RootShell> {
     ];
     return Scaffold(
       appBar: AppBar(
-        title: Text('${s.appName} — ${titles[index]}'),
+        titleSpacing: 12,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const TarteelBrandMark(size: 34),
+            const SizedBox(width: 9),
+            Flexible(
+              child: Text(
+                '${s.appName} — ${titles[index]}',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         actions: <Widget>[
           IconButton(
             tooltip: s.search,

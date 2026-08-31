@@ -164,8 +164,9 @@ class TarteelAudioHandler extends BaseAudioHandler
   @override
   Future<void> updateVirtualMetadata(VirtualRadioResolution resolution) async {
     if (_virtualRadio == null ||
-        resolution.channelId != _virtualRadio!.channelId)
+        resolution.channelId != _virtualRadio!.channelId) {
       return;
+    }
     _virtualRadio = resolution;
     mediaItem.add(_virtualItem(resolution));
   }
@@ -174,7 +175,7 @@ class TarteelAudioHandler extends BaseAudioHandler
       MediaItem(
         id: 'station:${station.id}',
         title: title ?? station.nameAr,
-        artist: subtitle ?? station.providerName ?? 'بث مباشر',
+        artist: subtitle ?? 'بث مباشر',
         artUri: station.logoUrl == null ? null : Uri.tryParse(station.logoUrl!),
         isLive: true,
         extras: <String, dynamic>{
@@ -286,8 +287,9 @@ class TarteelAudioHandler extends BaseAudioHandler
   @override
   Future<void> play() async {
     _shouldPlay = true;
-    if (_player.processingState == ProcessingState.completed && !isLive)
+    if (_player.processingState == ProcessingState.completed && !isLive) {
       await seek(Duration.zero);
+    }
     unawaited(_player.play());
     _broadcastState();
   }
@@ -389,8 +391,9 @@ class TarteelAudioHandler extends BaseAudioHandler
     if (station == null ||
         !_shouldPlay ||
         station.playbackUrl == null ||
-        _reconnectTimer != null)
+        _reconnectTimer != null) {
       return;
+    }
     const backoff = <int>[2, 4, 8];
     if (_reconnectAttempt >= backoff.length) return;
     final delay = Duration(seconds: backoff[_reconnectAttempt++]);
@@ -400,8 +403,8 @@ class TarteelAudioHandler extends BaseAudioHandler
       try {
         await _loadUrl(station.playbackUrl!);
         unawaited(_player.play());
-      } catch (error) {
-        _errors.add('تعذر إعادة الاتصال بالبث: $error');
+      } catch (_) {
+        _errors.add('تعذر إعادة الاتصال بالبث');
         _scheduleLiveReconnect();
       }
     });
@@ -421,45 +424,28 @@ class TarteelAudioHandler extends BaseAudioHandler
       ProcessingState.ready => AudioProcessingState.ready,
       ProcessingState.completed => AudioProcessingState.completed,
     };
-    final controls = isLive
-        ? <MediaControl>[
-            MediaControl.stop,
-            _player.playing ? MediaControl.pause : MediaControl.play,
-          ]
-        : <MediaControl>[
-            MediaControl.skipToPrevious,
-            _player.playing ? MediaControl.pause : MediaControl.play,
-            MediaControl.skipToNext,
-            MediaControl.stop,
-          ];
     playbackState.add(
-      playbackState.value.copyWith(
-        controls: controls,
-        systemActions: isLive
-            ? const <MediaAction>{}
-            : const <MediaAction>{
-                MediaAction.seek,
-                MediaAction.seekForward,
-                MediaAction.seekBackward,
-              },
+      PlaybackState(
+        controls: <MediaControl>[
+          if (!isLive) MediaControl.skipToPrevious,
+          _player.playing ? MediaControl.pause : MediaControl.play,
+          MediaControl.stop,
+          if (!isLive) MediaControl.skipToNext,
+        ],
+        systemActions: const <MediaAction>{MediaAction.seek},
         androidCompactActionIndices: isLive
             ? const <int>[0, 1]
-            : const <int>[0, 1, 2],
+            : const <int>[0, 1, 3],
         processingState: processing,
         playing: _player.playing,
         updatePosition: _player.position,
         bufferedPosition: _player.bufferedPosition,
         speed: _player.speed,
         queueIndex: isLive ? null : _trackIndex,
+        repeatMode: _player.loopMode == LoopMode.one
+            ? AudioServiceRepeatMode.one
+            : AudioServiceRepeatMode.none,
       ),
     );
-  }
-
-  Future<void> disposeHandler() async {
-    _cancelReconnect();
-    cancelSleepTimer();
-    await _sleepRemaining.close();
-    await _errors.close();
-    await _player.dispose();
   }
 }

@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common.dart';
 import '../models.dart';
 import '../services.dart';
+import 'content_sources.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final services = ref.watch(servicesProvider);
@@ -77,77 +79,24 @@ class SettingsPage extends ConsumerWidget {
             ),
             const SectionHeader('حول التطبيق'),
             const ListTile(
+              leading: Icon(Icons.info_outline),
               title: Text('ترتيل — Tarteel'),
               subtitle: Text(
                 'الإصدار 0.1.0 (1)\nالمطور: معتز العلقمي\nتعز، اليمن',
               ),
             ),
-            const SectionHeader('مصادر المحتوى'),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'يتيح ترتيل الوصول إلى بعض الإذاعات والمصادر الصوتية الخارجية من خلال خدمات ومصادر البث الخاصة بمقدميها. تبقى حقوق المحتوى والعلامات الخاصة بكل مصدر لأصحابها. عند تشغيل بث خارجي يتصل جهازك مباشرة ببنية مقدم البث، ولا يتحكم ترتيل في تلك البنية التحتية.\n\nTarteel provides access to some external radio and audio sources through services operated by their respective providers. Content and trademark rights remain with their owners. Playing an external stream may connect your device directly to the provider infrastructure, which Tarteel does not control.',
+            ListTile(
+              leading: const Icon(Icons.copyright_outlined),
+              title: const Text('مصادر المحتوى وحقوق النشر'),
+              subtitle: const Text(
+                'المصادر، attribution، الشروط وحالة الحقوق',
               ),
-            ),
-            FutureBuilder<List<ContentSource>>(
-              future: services.repository.api.contentSources(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done &&
-                    !snapshot.hasData)
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: LinearProgressIndicator(),
-                  );
-                if (snapshot.hasError)
-                  return const ListTile(
-                    leading: Icon(Icons.error_outline),
-                    title: Text('تعذر تحميل مصادر المحتوى'),
-                    subtitle: Text('يمكن إعادة المحاولة عند توفر الاتصال.'),
-                  );
-                final sources = snapshot.data ?? const <ContentSource>[];
-                return Column(
-                  children: sources
-                      .map(
-                        (source) => ExpansionTile(
-                          leading: const Icon(Icons.source_outlined),
-                          title: Text(source.providerName),
-                          subtitle: Text(source.attribution ?? source.provider),
-                          children: <Widget>[
-                            ListTile(
-                              title: const Text('أساس التكامل'),
-                              subtitle: Text(source.integrationBasis),
-                            ),
-                            if (source.licenseType != null)
-                              ListTile(
-                                title: const Text('نوع الإذن/الترخيص'),
-                                subtitle: Text(source.licenseType!),
-                              ),
-                            if (source.commercialUseStatus != null)
-                              ListTile(
-                                title: const Text('الاستخدام التجاري'),
-                                subtitle: Text(source.commercialUseStatus!),
-                              ),
-                            if (source.redistributionMode != null)
-                              ListTile(
-                                title: const Text('طريقة التوزيع'),
-                                subtitle: Text(source.redistributionMode!),
-                              ),
-                            if (source.providerUrl != null)
-                              ListTile(
-                                title: const Text('المصدر'),
-                                subtitle: Text(source.providerUrl!),
-                              ),
-                            if (source.termsUrl != null)
-                              ListTile(
-                                title: const Text('الشروط/المرجع'),
-                                subtitle: Text(source.termsUrl!),
-                              ),
-                          ],
-                        ),
-                      )
-                      .toList(growable: false),
-                );
-              },
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ContentSourcesPage(),
+                ),
+              ),
             ),
             FutureBuilder<JsonMap>(
               future: services.repository.appConfig(),
@@ -165,13 +114,6 @@ class SettingsPage extends ConsumerWidget {
                 );
               },
             ),
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'الشعار والأيقونة والألوان الحالية قابلة للاستبدال حتى اعتماد الأصول النهائية من المالك.',
-                textAlign: TextAlign.center,
-              ),
-            ),
           ],
         ),
       ),
@@ -181,8 +123,10 @@ class SettingsPage extends ConsumerWidget {
 
 class _LegalTile extends StatelessWidget {
   const _LegalTile({required this.title, required this.value});
+
   final String title;
   final dynamic value;
+
   @override
   Widget build(BuildContext context) {
     final url = value is String && (value as String).isNotEmpty
@@ -191,7 +135,7 @@ class _LegalTile extends StatelessWidget {
     return ListTile(
       leading: const Icon(Icons.description_outlined),
       title: Text(title),
-      subtitle: Text(url ?? 'غير متوفر حاليًا — TBD'),
+      subtitle: Text(url ?? 'غير متوفر حاليًا'),
       enabled: false,
     );
   }

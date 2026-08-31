@@ -8,6 +8,9 @@ import 'src/app.dart';
 import 'src/mushaf_store.dart';
 import 'src/offline_clip_service.dart';
 import 'src/playback.dart';
+import 'src/quran_audio.dart';
+import 'src/quran_download_service.dart';
+import 'src/quran_playback_store.dart';
 import 'src/repository.dart';
 import 'src/services.dart';
 import 'src/storage.dart';
@@ -36,6 +39,17 @@ Future<void> main() async {
   final mushaf = MushafStore(preferences)..load();
   final offlineClips = createOfflineClipService(preferences);
   await offlineClips.initialize();
+  final quranDownloads = createQuranDownloadService(preferences);
+  await quranDownloads.initialize();
+  final quranAudio = QuranAudioRepository(
+    providers: <QuranAudioProvider>[
+      AlQuranCloudAudioProvider(),
+      Mp3QuranAudioProvider(),
+    ],
+    localLookup: quranDownloads,
+  );
+  final quranPlayback = QuranPlaybackStore(preferences)..load();
+  quranPlayback.bind(playback);
   final api = TarteelApiClient();
   final repository = TarteelRepository(api, MetadataCache(preferences));
   final services = AppServices(
@@ -45,6 +59,9 @@ Future<void> main() async {
     mushaf: mushaf,
     offlineClips: offlineClips,
     playback: playback,
+    quranAudio: quranAudio,
+    quranDownloads: quranDownloads,
+    quranPlayback: quranPlayback,
   );
 
   runApp(

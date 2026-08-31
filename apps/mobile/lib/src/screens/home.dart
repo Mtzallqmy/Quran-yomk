@@ -120,9 +120,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                                     item.nameAr,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleMedium,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium,
                                   ),
                                 ),
                                 const Icon(Icons.play_circle_outline),
@@ -179,9 +179,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                                       station.nameAr,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleSmall,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall,
                                     ),
                                   ),
                                   Column(

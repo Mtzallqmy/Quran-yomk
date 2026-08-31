@@ -1,0 +1,380 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+import 'models.dart';
+
+enum QuranAudioProviderKind { alQuranCloud, mp3Quran }
+
+class QuranAudioCatalogReciter {
+  const QuranAudioCatalogReciter({
+    required this.id,
+    required this.provider,
+    required this.edition,
+    required this.nameAr,
+    required this.nameEn,
+    required this.availableSurahs,
+    required this.bitrates,
+    this.riwayah,
+    this.serverUrl,
+    this.supportsAyahAudio = false,
+  });
+
+  final String id;
+  final QuranAudioProviderKind provider;
+  final String edition;
+  final String nameAr;
+  final String nameEn;
+  final String? riwayah;
+  final String? serverUrl;
+  final Set<int> availableSurahs;
+  final Set<int> bitrates;
+  final bool supportsAyahAudio;
+
+  Reciter toReciter() => Reciter(
+    id: id,
+    slug: id.replaceAll(':', '-'),
+    nameAr: nameAr,
+    nameEn: nameEn,
+    rewaya: riwayah,
+  );
+}
+
+class QuranAudioRequest {
+  const QuranAudioRequest({
+    required this.surah,
+    this.reciter,
+    this.bitrateKbps = 128,
+    this.ayahGlobalNumber,
+    this.ayahInSurah,
+  });
+
+  final Surah surah;
+  final QuranAudioCatalogReciter? reciter;
+  final int bitrateKbps;
+  final int? ayahGlobalNumber;
+  final int? ayahInSurah;
+
+  bool get isAyah => ayahGlobalNumber != null;
+}
+
+class QuranAudioMedia {
+  const QuranAudioMedia({
+    required this.id,
+    required this.provider,
+    required this.reciter,
+    required this.surah,
+    required this.bitrateKbps,
+    required this.playbackUri,
+    required this.downloadUri,
+    required this.rightsStatus,
+    required this.rehostingAllowed,
+    this.ayahGlobalNumber,
+    this.ayahInSurah,
+    this.expectedSize,
+    this.checksumSha256,
+    this.localPath,
+  });
+
+  final String id;
+  final QuranAudioProviderKind provider;
+  final QuranAudioCatalogReciter reciter;
+  final Surah surah;
+  final int bitrateKbps;
+  final int? ayahGlobalNumber;
+  final int? ayahInSurah;
+  final Uri playbackUri;
+  final Uri downloadUri;
+  final int? expectedSize;
+  final String? checksumSha256;
+  final String? localPath;
+  final bool rehostingAllowed;
+  final String rightsStatus;
+
+  bool get isLocal => localPath != null;
+  String get storageKey => <Object?>[
+    provider.name,
+    reciter.edition,
+    bitrateKbps,
+    surah.number,
+    ayahGlobalNumber ?? 0,
+  ].join('|');
+
+  QuranAudioMedia asLocal(String path, {String? checksum, int? size}) =>
+      QuranAudioMedia(
+        id: id,
+        provider: provider,
+        reciter: reciter,
+        surah: surah,
+        bitrateKbps: bitrateKbps,
+        ayahGlobalNumber: ayahGlobalNumber,
+        ayahInSurah: ayahInSurah,
+        playbackUri: Uri.file(path),
+        downloadUri: downloadUri,
+        expectedSize: size ?? expectedSize,
+        checksumSha256: checksum ?? checksumSha256,
+        localPath: path,
+        rehostingAllowed: rehostingAllowed,
+        rightsStatus: rightsStatus,
+      );
+}
+
+abstract class QuranAudioProvider {
+  QuranAudioProviderKind get kind;
+  Future<List<QuranAudioCatalogReciter>> reciters({int? surahNumber});
+  Future<QuranAudioMedia?> resolve(QuranAudioRequest request);
+}
+
+abstract class QuranAudioLocalLookup {
+  Future<QuranAudioMedia?> localMedia(QuranAudioMedia remote);
+}
+
+class QuranAudioRepository {
+  QuranAudioRepository({
+    required List<QuranAudioProvider> providers,
+    required QuranAudioLocalLookup localLookup,
+  }) : _providers = List<QuranAudioProvider>.unmodifiable(providers),
+       _localLookup = localLookup;
+
+  final List<QuranAudioProvider> _providers;
+  final QuranAudioLocalLookup _localLookup;
+  final Map<String, List<QuranAudioCatalogReciter>> _catalogCache =
+      <String, List<QuranAudioCatalogReciter>>{};
+
+  Future<List<QuranAudioCatalogReciter>> reciters({
+    int? surahNumber,
+    bool refresh = false,
+  }) async {
+    final key = '${surahNumber ?? 0}';
+    if (!refresh && _catalogCache[key] case final cached?) return cached;
+    final settled = await Future.wait(
+      _providers.map(
+        (provider) => provider
+            .reciters(surahNumber: surahNumber)
+            .catchError((_) => <QuranAudioCatalogReciter>[]),
+      ),
+    );
+    final values = settled.expand((rows) => rows).toList(growable: false);
+    _catalogCache[key] = values;
+    return values;
+  }
+
+  Future<QuranAudioMedia> resolve(QuranAudioRequest request) async {
+    final preferredKind = request.reciter?.provider;
+    final ordered = <QuranAudioProvider>[
+      ..._providers.where((provider) => provider.kind == preferredKind),
+      ..._providers.where((provider) => provider.kind != preferredKind),
+    ];
+    Object? lastError;
+    for (final provider in ordered) {
+      try {
+        final remote = await provider.resolve(request);
+        if (remote == null) continue;
+        return await _localLookup.localMedia(remote) ?? remote;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw StateError('QURAN_AUDIO_UNAVAILABLE: ${lastError ?? 'NO_SOURCE'}');
+  }
+}
+
+class AlQuranCloudAudioProvider implements QuranAudioProvider {
+  AlQuranCloudAudioProvider({http.Client? client})
+    : _client = client ?? http.Client();
+
+  static const _api = 'https://api.alquran.cloud/v1';
+  static const _cdn = 'https://cdn.islamic.network/quran';
+  static const _supportedBitrates = <int>{64, 128, 192};
+  final http.Client _client;
+
+  @override
+  QuranAudioProviderKind get kind => QuranAudioProviderKind.alQuranCloud;
+
+  @override
+  Future<List<QuranAudioCatalogReciter>> reciters({int? surahNumber}) async {
+    final response = await _client
+        .get(Uri.parse('$_api/edition/format/audio'))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw StateError('ALQURAN_EDITIONS_HTTP_${response.statusCode}');
+    }
+    final root = jsonDecode(response.body);
+    final rows = root is Map && root['data'] is List
+        ? root['data'] as List
+        : const <dynamic>[];
+    return rows
+        .whereType<Map>()
+        .map((raw) => Map<String, dynamic>.from(raw))
+        .where((row) => row['language'] == 'ar')
+        .map((row) {
+          final edition = row['identifier'] as String? ?? '';
+          return QuranAudioCatalogReciter(
+            id: 'alquran:$edition',
+            provider: kind,
+            edition: edition,
+            nameAr: row['name'] as String? ?? edition,
+            nameEn: row['englishName'] as String? ?? edition,
+            riwayah: row['type'] as String?,
+            availableSurahs: Set<int>.from(
+              List<int>.generate(114, (index) => index + 1),
+            ),
+            bitrates: _supportedBitrates,
+            supportsAyahAudio: row['type'] == 'versebyverse',
+          );
+        })
+        .where((reciter) => reciter.edition.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<QuranAudioMedia?> resolve(QuranAudioRequest request) async {
+    var reciter = request.reciter;
+    if (reciter != null && reciter.provider != kind) reciter = null;
+    reciter ??= (await reciters(surahNumber: request.surah.number)).firstWhere(
+      (value) => value.edition == 'ar.alafasy',
+      orElse: () => throw StateError('ALQURAN_DEFAULT_RECITER_MISSING'),
+    );
+    if (request.isAyah && !reciter.supportsAyahAudio) return null;
+
+    final bitrate = _supportedBitrates.contains(request.bitrateKbps)
+        ? request.bitrateKbps
+        : 128;
+    final relative = request.isAyah
+        ? 'audio/$bitrate/${reciter.edition}/${request.ayahGlobalNumber}.mp3'
+        : 'audio-surah/$bitrate/${reciter.edition}/${request.surah.number}.mp3';
+    final uri = Uri.parse('$_cdn/$relative');
+    final size = await _probe(uri);
+    if (size == null) return null;
+    return QuranAudioMedia(
+      id: request.isAyah
+          ? 'alquran:${reciter.edition}:ayah:${request.ayahGlobalNumber}:$bitrate'
+          : 'alquran:${reciter.edition}:surah:${request.surah.number}:$bitrate',
+      provider: kind,
+      reciter: reciter,
+      surah: request.surah,
+      bitrateKbps: bitrate,
+      ayahGlobalNumber: request.ayahGlobalNumber,
+      ayahInSurah: request.ayahInSurah,
+      playbackUri: uri,
+      downloadUri: uri,
+      expectedSize: size,
+      rehostingAllowed: false,
+      rightsStatus: 'DOCUMENTED_DIRECT_EXTERNAL',
+    );
+  }
+
+  Future<int?> _probe(Uri uri) async {
+    final request = http.Request('HEAD', uri);
+    final response = await _client
+        .send(request)
+        .timeout(const Duration(seconds: 12));
+    if (response.statusCode < 200 || response.statusCode >= 400) return null;
+    return response.contentLength == null || response.contentLength == 0
+        ? null
+        : response.contentLength;
+  }
+}
+
+class Mp3QuranAudioProvider implements QuranAudioProvider {
+  Mp3QuranAudioProvider({http.Client? client})
+    : _client = client ?? http.Client();
+
+  static const _api = 'https://www.mp3quran.net/api/v3';
+  final http.Client _client;
+
+  @override
+  QuranAudioProviderKind get kind => QuranAudioProviderKind.mp3Quran;
+
+  @override
+  Future<List<QuranAudioCatalogReciter>> reciters({int? surahNumber}) async {
+    final query = <String, String>{'language': 'ar'};
+    if (surahNumber != null) query['sura'] = '$surahNumber';
+    final uri = Uri.parse('$_api/reciters').replace(queryParameters: query);
+    final response = await _client
+        .get(uri)
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw StateError('MP3QURAN_RECITERS_HTTP_${response.statusCode}');
+    }
+    final root = jsonDecode(response.body);
+    final rows = root is Map && root['reciters'] is List
+        ? root['reciters'] as List
+        : const <dynamic>[];
+    final result = <QuranAudioCatalogReciter>[];
+    for (final rawReciter in rows.whereType<Map>()) {
+      final reciter = Map<String, dynamic>.from(rawReciter);
+      final reciterId = (reciter['id'] as num?)?.toInt() ?? 0;
+      for (final rawMoshaf
+          in (reciter['moshaf'] as List? ?? const <dynamic>[])
+              .whereType<Map>()) {
+        final moshaf = Map<String, dynamic>.from(rawMoshaf);
+        final moshafId = (moshaf['id'] as num?)?.toInt() ?? 0;
+        final server = moshaf['server'] as String? ?? '';
+        final surahs = (moshaf['surah_list'] as String? ?? '')
+            .split(',')
+            .map(int.tryParse)
+            .whereType<int>()
+            .where((number) => number >= 1 && number <= 114)
+            .toSet();
+        if (reciterId == 0 ||
+            moshafId == 0 ||
+            !server.startsWith('https://') ||
+            surahs.isEmpty) {
+          continue;
+        }
+        result.add(
+          QuranAudioCatalogReciter(
+            id: 'mp3quran:$reciterId:$moshafId',
+            provider: kind,
+            edition: '$reciterId-$moshafId',
+            nameAr: reciter['name'] as String? ?? '',
+            nameEn: reciter['name'] as String? ?? '',
+            riwayah: moshaf['name'] as String?,
+            serverUrl: server,
+            availableSurahs: surahs,
+            bitrates: const <int>{},
+          ),
+        );
+      }
+    }
+    return result;
+  }
+
+  @override
+  Future<QuranAudioMedia?> resolve(QuranAudioRequest request) async {
+    if (request.isAyah) return null;
+    var reciter = request.reciter;
+    if (reciter != null && reciter.provider != kind) reciter = null;
+    reciter ??= (await reciters(surahNumber: request.surah.number)).firstOrNull;
+    if (reciter == null ||
+        !reciter.availableSurahs.contains(request.surah.number)) {
+      return null;
+    }
+    final server = reciter.serverUrl?.replaceAll(RegExp(r'/+$'), '');
+    if (server == null || server.isEmpty) return null;
+    final uri = Uri.parse(
+      '$server/${request.surah.number.toString().padLeft(3, '0')}.mp3',
+    );
+    if (uri.scheme != 'https') return null;
+    return QuranAudioMedia(
+      id: 'mp3quran:${reciter.edition}:surah:${request.surah.number}',
+      provider: kind,
+      reciter: reciter,
+      surah: request.surah,
+      bitrateKbps: 0,
+      playbackUri: uri,
+      downloadUri: uri,
+      rehostingAllowed: false,
+      rightsStatus: 'DOCUMENTED_DIRECT_EXTERNAL',
+    );
+  }
+}
+
+extension<T> on Iterable<T> {
+  T? get firstOrNull {
+    final iterator = this.iterator;
+    return iterator.moveNext() ? iterator.current : null;
+  }
+}

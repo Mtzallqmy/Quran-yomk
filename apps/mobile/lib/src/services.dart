@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'mushaf_store.dart';
 import 'offline_clip_service.dart';
 import 'playback.dart';
+import 'quran_audio.dart';
+import 'quran_download_service.dart';
+import 'quran_playback_store.dart';
 import 'repository.dart';
 import 'storage.dart';
 
@@ -21,6 +24,9 @@ class AppServices {
     required this.mushaf,
     required this.offlineClips,
     required this.playback,
+    required this.quranAudio,
+    required this.quranDownloads,
+    required this.quranPlayback,
   });
 
   final TarteelRepository repository;
@@ -29,6 +35,9 @@ class AppServices {
   final MushafStore mushaf;
   final OfflineClipService offlineClips;
   final PlaybackPort playback;
+  final QuranAudioRepository quranAudio;
+  final QuranDownloadService quranDownloads;
+  final QuranPlaybackStore quranPlayback;
 }
 
 final servicesProvider = Provider<AppServices>(

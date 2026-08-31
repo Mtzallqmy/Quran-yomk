@@ -111,9 +111,9 @@ class QuranPassage {
     ),
     number: (json['number'] as num?)?.toInt() ?? 1,
     source: json['source'] as String? ?? 'UNKNOWN',
-    verses: jsonList(
-      json['verses'],
-    ).map((item) => QuranVerse.fromJson(jsonMap(item))).toList(growable: false),
+    verses: jsonList(json['verses'])
+        .map((item) => QuranVerse.fromJson(jsonMap(item)))
+        .toList(growable: false),
     themeSections: jsonList(json['theme_sections'])
         .map((item) => QuranThemeSection.fromJson(jsonMap(item)))
         .toList(growable: false),
@@ -153,9 +153,9 @@ class QuranAudioReciter {
     nameEn: json['name_en'] as String? ?? '',
     rewayaAr: json['rewaya_ar'] as String? ?? '',
     rewayaEn: json['rewaya_en'] as String? ?? '',
-    availableSurahs: jsonList(
-      json['available_surahs'],
-    ).map((value) => (value as num).toInt()).toSet(),
+    availableSurahs: jsonList(json['available_surahs'])
+        .map((value) => (value as num).toInt())
+        .toSet(),
     imageUrl: json['image_url'] as String?,
   );
 

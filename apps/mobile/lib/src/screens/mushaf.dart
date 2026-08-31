@@ -5,6 +5,7 @@ import '../common.dart';
 import '../l10n.dart';
 import '../models.dart';
 import '../mushaf_store.dart';
+import '../quran_audio.dart';
 import '../quran_models.dart';
 import '../services.dart';
 import '../tajweed.dart';
@@ -21,7 +22,8 @@ class _MushafPageState extends ConsumerState<MushafPage> {
   int _number = 1;
   late Future<List<Surah>> _surahsFuture;
   late Future<QuranPassage> _passageFuture;
-  QuranAudioReciter? _selectedReciter;
+  QuranAudioCatalogReciter? _selectedReciter;
+  int _bitrateKbps = 128;
   bool _audioBusy = false;
 
   @override
@@ -84,13 +86,13 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     final l10n = context.l10n;
     final future = ref
         .read(servicesProvider)
-        .repository
-        .quranAudioReciters(surahNumber);
-    final selected = await showModalBottomSheet<QuranAudioReciter>(
+        .quranAudio
+        .reciters(surahNumber: surahNumber);
+    final selected = await showModalBottomSheet<QuranAudioCatalogReciter>(
       context: context,
       isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: FutureBuilder<List<QuranAudioReciter>>(
+        child: FutureBuilder<List<QuranAudioCatalogReciter>>(
           future: future,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
@@ -108,7 +110,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                 ),
               );
             }
-            final values = snapshot.data ?? const <QuranAudioReciter>[];
+            final values = snapshot.data ?? const <QuranAudioCatalogReciter>[];
             if (values.isEmpty) {
               return SizedBox(
                 height: 260,
@@ -128,20 +130,19 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                   final english =
                       Localizations.localeOf(context).languageCode == 'en';
                   return ListTile(
-                    leading: Artwork(
-                      url: reciter.imageUrl,
-                      size: 44,
-                      icon: Icons.record_voice_over_outlined,
-                    ),
+                    leading: const Icon(Icons.record_voice_over_outlined),
                     title: Text(
                       english && reciter.nameEn.isNotEmpty
                           ? reciter.nameEn
                           : reciter.nameAr,
                     ),
                     subtitle: Text(
-                      english && reciter.rewayaEn.isNotEmpty
-                          ? reciter.rewayaEn
-                          : reciter.rewayaAr,
+                      <String>[
+                        if (reciter.riwayah != null) reciter.riwayah!,
+                        reciter.provider == QuranAudioProviderKind.alQuranCloud
+                            ? 'AlQuran Cloud'
+                            : 'MP3Quran',
+                      ].join(' • '),
                     ),
                     trailing: const Icon(Icons.chevron_left),
                     onTap: () => Navigator.pop(context, reciter),
@@ -167,26 +168,85 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     if (reciter == null) return;
     setState(() => _audioBusy = true);
     try {
-      final tracks = await ref
-          .read(servicesProvider)
-          .repository
-          .quranAudioTracks(reciter.id);
-      final mapped = tracks.map((track) => track.toTrack(reciter!.id)).toList();
-      final index = mapped.indexWhere(
-        (track) => track.surah.number == surahNumber,
+      final services = ref.read(servicesProvider);
+      final surah = await _surah(surahNumber);
+      final media = await services.quranAudio.resolve(
+        QuranAudioRequest(
+          surah: surah,
+          reciter: reciter,
+          bitrateKbps: _bitrateKbps,
+        ),
       );
-      if (index < 0) throw StateError('SURAH_AUDIO_NOT_AVAILABLE');
-      await ref
-          .read(servicesProvider)
-          .playback
-          .playTracks(mapped, index, reciter.toReciter());
+      await services.playback.playQuranAudio(<QuranAudioMedia>[media], 0);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.noAudioForSurah)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.noAudioForSurah)));
     } finally {
       if (mounted) setState(() => _audioBusy = false);
+    }
+  }
+
+  Future<Surah> _surah(int number) async {
+    final values = await _surahsFuture;
+    return values.firstWhere((value) => value.number == number);
+  }
+
+  Future<void> _playAyah(QuranVerse verse) async {
+    final services = ref.read(servicesProvider);
+    var reciter = _selectedReciter;
+    if (reciter == null || !reciter.supportsAyahAudio) {
+      await _chooseReciter(verse.surahNumber);
+      reciter = _selectedReciter;
+    }
+    if (reciter == null) return;
+    setState(() => _audioBusy = true);
+    try {
+      final media = await services.quranAudio.resolve(
+        QuranAudioRequest(
+          surah: await _surah(verse.surahNumber),
+          reciter: reciter,
+          bitrateKbps: _bitrateKbps,
+          ayahGlobalNumber: verse.globalNumber,
+          ayahInSurah: verse.ayahNumber,
+        ),
+      );
+      await services.playback.playQuranAudio(<QuranAudioMedia>[media], 0);
+      await _remember(verse);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.l10n.noAudioForSurah)));
+    } finally {
+      if (mounted) setState(() => _audioBusy = false);
+    }
+  }
+
+  Future<void> _downloadSurah(int surahNumber) async {
+    final services = ref.read(servicesProvider);
+    var reciter = _selectedReciter;
+    if (reciter == null) {
+      await _chooseReciter(surahNumber);
+      reciter = _selectedReciter;
+    }
+    if (reciter == null) return;
+    try {
+      final media = await services.quranAudio.resolve(
+        QuranAudioRequest(
+          surah: await _surah(surahNumber),
+          reciter: reciter,
+          bitrateKbps: _bitrateKbps,
+        ),
+      );
+      await services.quranDownloads.download(media);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('بدأ تنزيل السورة للتشغيل بدون إنترنت')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('تعذر بدء تنزيل السورة')));
     }
   }
 
@@ -266,13 +326,18 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                             passage: passage,
                             selectedReciter: _selectedReciter,
                             audioBusy: _audioBusy,
+                            bitrateKbps: _bitrateKbps,
                             onChooseReciter: () => _chooseReciter(surahNumber),
                             onPlay: () => _playSurah(surahNumber),
+                            onBitrate: (value) =>
+                                setState(() => _bitrateKbps = value),
+                            onDownload: () => _downloadSurah(surahNumber),
                           ),
                           _QuranText(
                             passage: passage,
                             store: mushaf,
                             onRemember: _remember,
+                            onPlayAyah: _playAyah,
                           ),
                           _NavigationControls(
                             mode: _mode,
@@ -405,15 +470,21 @@ class _AudioAndReadingControls extends ConsumerWidget {
     required this.passage,
     required this.selectedReciter,
     required this.audioBusy,
+    required this.bitrateKbps,
     required this.onChooseReciter,
     required this.onPlay,
+    required this.onBitrate,
+    required this.onDownload,
   });
 
   final QuranPassage passage;
-  final QuranAudioReciter? selectedReciter;
+  final QuranAudioCatalogReciter? selectedReciter;
   final bool audioBusy;
+  final int bitrateKbps;
   final VoidCallback onChooseReciter;
   final VoidCallback onPlay;
+  final ValueChanged<int> onBitrate;
+  final VoidCallback onDownload;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -461,6 +532,56 @@ class _AudioAndReadingControls extends ConsumerWidget {
               const SizedBox(height: 8),
               Row(
                 children: <Widget>[
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: bitrateKbps,
+                      decoration: const InputDecoration(
+                        labelText: 'جودة التلاوة',
+                        prefixIcon: Icon(Icons.high_quality_outlined),
+                      ),
+                      items: const <DropdownMenuItem<int>>[
+                        DropdownMenuItem(value: 64, child: Text('64 kbps')),
+                        DropdownMenuItem(value: 128, child: Text('128 kbps')),
+                        DropdownMenuItem(value: 192, child: Text('192 kbps')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) onBitrate(value);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    tooltip: 'تنزيل السورة',
+                    onPressed: selectedReciter == null ? null : onDownload,
+                    icon: const Icon(Icons.download_for_offline_outlined),
+                  ),
+                ],
+              ),
+              if (ref.watch(servicesProvider).quranDownloads.supported)
+                AnimatedBuilder(
+                  animation: ref.watch(servicesProvider).quranDownloads,
+                  builder: (context, _) {
+                    final downloads = ref
+                        .read(servicesProvider)
+                        .quranDownloads
+                        .tasks;
+                    final active = downloads
+                        .where(
+                          (task) =>
+                              task.state.name == 'downloading' ||
+                              task.state.name == 'queued',
+                        )
+                        .firstOrNull;
+                    if (active == null) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: LinearProgressIndicator(value: active.progress),
+                    );
+                  },
+                ),
+              const SizedBox(height: 8),
+              Row(
+                children: <Widget>[
                   const Icon(Icons.text_fields),
                   Expanded(
                     child: Slider(
@@ -505,11 +626,13 @@ class _QuranText extends StatelessWidget {
     required this.passage,
     required this.store,
     required this.onRemember,
+    required this.onPlayAyah,
   });
 
   final QuranPassage passage;
   final MushafStore store;
   final ValueChanged<QuranVerse> onRemember;
+  final ValueChanged<QuranVerse> onPlayAyah;
 
   @override
   Widget build(BuildContext context) {
@@ -573,9 +696,9 @@ class _QuranText extends StatelessWidget {
                                       '  ﴿${arabicIndicNumber(verse.ayahNumber)}﴾',
                                   style: base.copyWith(
                                     fontSize: 20 * store.fontScale,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
                                   ),
                                 ),
                               ],
@@ -583,17 +706,27 @@ class _QuranText extends StatelessWidget {
                           ),
                         ),
                       ),
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        tooltip: store.isBookmarked(verse.verseKey)
-                            ? context.l10n.removeBookmark
-                            : context.l10n.bookmark,
-                        onPressed: () => store.toggleBookmark(verse),
-                        icon: Icon(
-                          store.isBookmarked(verse.verseKey)
-                              ? Icons.bookmark
-                              : Icons.bookmark_border,
-                        ),
+                      Column(
+                        children: <Widget>[
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            tooltip: context.l10n.play,
+                            onPressed: () => onPlayAyah(verse),
+                            icon: const Icon(Icons.play_circle_outline),
+                          ),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            tooltip: store.isBookmarked(verse.verseKey)
+                                ? context.l10n.removeBookmark
+                                : context.l10n.bookmark,
+                            onPressed: () => store.toggleBookmark(verse),
+                            icon: Icon(
+                              store.isBookmarked(verse.verseKey)
+                                  ? Icons.bookmark
+                                  : Icons.bookmark_border,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

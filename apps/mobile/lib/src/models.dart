@@ -396,15 +396,15 @@ class SearchBundle {
   final List<Reciter> reciters;
   final List<Surah> surahs;
   factory SearchBundle.fromJson(JsonMap json) => SearchBundle(
-    stations: _list(
-      json['stations'],
-    ).map((e) => Station.fromJson(_map(e))).toList(growable: false),
-    reciters: _list(
-      json['reciters'],
-    ).map((e) => Reciter.fromJson(_map(e))).toList(growable: false),
-    surahs: _list(
-      json['surahs'],
-    ).map((e) => Surah.fromJson(_map(e))).toList(growable: false),
+    stations: _list(json['stations'])
+        .map((e) => Station.fromJson(_map(e)))
+        .toList(growable: false),
+    reciters: _list(json['reciters'])
+        .map((e) => Reciter.fromJson(_map(e)))
+        .toList(growable: false),
+    surahs: _list(json['surahs'])
+        .map((e) => Surah.fromJson(_map(e)))
+        .toList(growable: false),
   );
 }
 

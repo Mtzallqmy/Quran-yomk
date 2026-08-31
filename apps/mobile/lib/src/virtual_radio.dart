@@ -47,12 +47,18 @@ class VirtualRadioResolution {
     required this.timezone,
     required this.available,
     required this.serverTime,
+    required this.mode,
     this.artworkUrl,
     this.program,
     this.station,
     this.nextChangeAt,
     this.nextProgramTitleAr,
     this.selectionTier,
+    this.playbackUrl,
+    this.managedProvider,
+    this.managedStatus,
+    this.managedConfigured = false,
+    this.managedEnabled = false,
   });
 
   final String channelId;
@@ -60,6 +66,7 @@ class VirtualRadioResolution {
   final String channelNameAr;
   final String timezone;
   final bool available;
+  final String mode;
   final String? artworkUrl;
   final VirtualRadioProgram? program;
   final Station? station;
@@ -67,6 +74,15 @@ class VirtualRadioResolution {
   final DateTime? nextChangeAt;
   final String? nextProgramTitleAr;
   final int? selectionTier;
+  final String? playbackUrl;
+  final String? managedProvider;
+  final String? managedStatus;
+  final bool managedConfigured;
+  final bool managedEnabled;
+
+  bool get isManaged => mode == 'MANAGED';
+  bool get isPlayable =>
+      available && playbackUrl != null && playbackUrl!.isNotEmpty && station != null;
 
   factory VirtualRadioResolution.fromJson(JsonMap json) {
     final channel = json['channel'] is Map
@@ -75,7 +91,7 @@ class VirtualRadioResolution {
     final program = json['program'] is Map
         ? Map<String, dynamic>.from(json['program'] as Map)
         : null;
-    final station = json['station'] is Map
+    final sourceStation = json['station'] is Map
         ? Map<String, dynamic>.from(json['station'] as Map)
         : null;
     final next = json['next_program'] is Map
@@ -84,6 +100,42 @@ class VirtualRadioResolution {
     final resolution = json['resolution'] is Map
         ? Map<String, dynamic>.from(json['resolution'] as Map)
         : <String, dynamic>{};
+    final playback = json['playback'] is Map
+        ? Map<String, dynamic>.from(json['playback'] as Map)
+        : <String, dynamic>{};
+    final managed = json['managed_radio'] is Map
+        ? Map<String, dynamic>.from(json['managed_radio'] as Map)
+        : <String, dynamic>{};
+    final mode = json['mode']?.toString() ?? 'DIRECT_FALLBACK';
+    final playbackUrl = playback['url'] is String
+        ? playback['url'] as String
+        : sourceStation?['playback_url']?.toString();
+
+    Map<String, dynamic>? playbackStation;
+    if (sourceStation != null) {
+      playbackStation = <String, dynamic>{...sourceStation};
+      if (playbackUrl != null && playbackUrl.isNotEmpty) {
+        playbackStation['playback_url'] = playbackUrl;
+      }
+      if (mode == 'MANAGED') {
+        playbackStation['stream_type'] = 'MANAGED_RADIO';
+      }
+    } else if (mode == 'MANAGED' && playbackUrl != null && playbackUrl.isNotEmpty) {
+      playbackStation = <String, dynamic>{
+        'id': channel['id']?.toString() ?? 'tarteel',
+        'slug': channel['slug']?.toString() ?? 'tarteel',
+        'name_ar': channel['name_ar']?.toString() ?? 'إذاعة ترتيل',
+        'name_en': channel['name_en']?.toString() ?? 'Tarteel Radio',
+        'logo_url': channel['artwork_url'],
+        'station_source': 'MANAGED',
+        'stream_type': 'MANAGED_RADIO',
+        'playback_url': playbackUrl,
+        'health_status': managed['provider_status'],
+        'provider': managed['provider']?.toString().toLowerCase(),
+        'provider_name': managed['provider'] == 'RADIO_CO' ? 'Radio.co' : managed['provider'],
+      };
+    }
+
     return VirtualRadioResolution(
       channelId: channel['id']?.toString() ?? 'tarteel',
       channelSlug: channel['slug']?.toString() ?? 'tarteel',
@@ -93,8 +145,9 @@ class VirtualRadioResolution {
           ? channel['artwork_url'] as String
           : null,
       available: json['available'] == true,
+      mode: mode,
       program: program == null ? null : VirtualRadioProgram.fromJson(program),
-      station: station == null ? null : Station.fromJson(station),
+      station: playbackStation == null ? null : Station.fromJson(playbackStation),
       serverTime:
           DateTime.tryParse(json['server_time']?.toString() ?? '') ??
           DateTime.now().toUtc(),
@@ -103,6 +156,11 @@ class VirtualRadioResolution {
       selectionTier: resolution['selection_tier'] is num
           ? (resolution['selection_tier'] as num).toInt()
           : null,
+      playbackUrl: playbackUrl,
+      managedProvider: managed['provider']?.toString(),
+      managedStatus: managed['provider_status']?.toString(),
+      managedConfigured: managed['configured'] == true,
+      managedEnabled: managed['enabled'] == true,
     );
   }
 }
@@ -158,9 +216,7 @@ class VirtualRadioController extends AsyncNotifier<VirtualRadioResolution> {
   Future<void> play() async {
     var value = state.valueOrNull;
     value ??= await _resolve();
-    if (!value.available ||
-        value.station == null ||
-        !value.station!.isPlayable) {
+    if (!value.isPlayable) {
       throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
     }
     _playing = true;
@@ -170,7 +226,9 @@ class VirtualRadioController extends AsyncNotifier<VirtualRadioResolution> {
       state = AsyncData(value);
       _scheduleBoundary(value);
     } catch (_) {
-      _failedStations.add(value.station!.id);
+      if (!value.isManaged && value.station != null) {
+        _failedStations.add(value.station!.id);
+      }
       await failover();
     }
   }
@@ -197,19 +255,34 @@ class VirtualRadioController extends AsyncNotifier<VirtualRadioResolution> {
     _failoverBusy = true;
     try {
       final current = state.valueOrNull;
+      if (current?.isManaged == true) {
+        _failedStations.clear();
+        final next = await _resolve();
+        if (!next.isPlayable) {
+          throw StateError('MANAGED_RADIO_UNAVAILABLE');
+        }
+        state = AsyncData(next);
+        _recentPlaybackErrors = 0;
+        if (_playing) {
+          await ref.read(servicesProvider).playback.playVirtualRadio(next);
+        }
+        _scheduleBoundary(next);
+        return;
+      }
+
       if (current?.station != null) _failedStations.add(current!.station!.id);
-      if (_failedStations.length > 8)
+      if (_failedStations.length > 8) {
         throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
+      }
       final next = await _resolve();
-      if (!next.available ||
-          next.station == null ||
-          !next.station!.isPlayable) {
+      if (!next.isPlayable) {
         throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
       }
       state = AsyncData(next);
       _recentPlaybackErrors = 0;
-      if (_playing)
+      if (_playing) {
         await ref.read(servicesProvider).playback.playVirtualRadio(next);
+      }
       _scheduleBoundary(next);
     } catch (error, stackTrace) {
       _playing = false;
@@ -251,8 +324,8 @@ class VirtualRadioController extends AsyncNotifier<VirtualRadioResolution> {
       final previous = state.valueOrNull;
       final next = await _resolve();
       state = AsyncData(next);
-      if (_playing && next.available && next.station != null) {
-        if (previous?.station?.id == next.station!.id) {
+      if (_playing && next.isPlayable) {
+        if (next.isManaged || previous?.station?.id == next.station!.id) {
           await ref.read(servicesProvider).playback.updateVirtualMetadata(next);
         } else {
           await ref.read(servicesProvider).playback.playVirtualRadio(next);

@@ -69,16 +69,19 @@ void main() {
     },
   );
 
-  test('managed resolution uses the fixed managed stream without changing Tarteel identity', () {
-    const fixed = 'https://streaming.radio.co/example/listen';
-    final value = VirtualRadioResolution.fromJson(
-      resolutionJson(playbackUrl: fixed, mode: 'MANAGED'),
-    );
-    expect(value.channelNameAr, 'إذاعة ترتيل');
-    expect(value.station?.playbackUrl, fixed);
-    expect(value.station?.isPlayable, isTrue);
-    expect(value.program?.titleAr, 'تلاوات مختارة');
-  });
+  test(
+    'managed resolution uses the fixed managed stream without changing Tarteel identity',
+    () {
+      const fixed = 'https://streaming.radio.co/example/listen';
+      final value = VirtualRadioResolution.fromJson(
+        resolutionJson(playbackUrl: fixed, mode: 'MANAGED'),
+      );
+      expect(value.channelNameAr, 'إذاعة ترتيل');
+      expect(value.station?.playbackUrl, fixed);
+      expect(value.station?.isPlayable, isTrue);
+      expect(value.program?.titleAr, 'تلاوات مختارة');
+    },
+  );
 
   test('virtual API sends bounded failed station IDs to the resolver', () async {
     Uri? seen;

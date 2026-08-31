@@ -4,6 +4,13 @@ import 'playback.dart';
 import 'repository.dart';
 import 'storage.dart';
 
+/// Compatibility helper for Riverpod releases where AsyncValue.valueOrNull
+/// is not part of the public API. Keeps call sites concise without reading a
+/// previous value from loading/error states.
+extension AsyncValueCompat<T> on AsyncValue<T> {
+  T? get valueOrNull => asData?.value;
+}
+
 class AppServices {
   const AppServices({
     required this.repository,

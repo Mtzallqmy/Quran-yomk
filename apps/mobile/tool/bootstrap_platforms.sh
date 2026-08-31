@@ -70,6 +70,22 @@ manifest.write_text('''<manifest xmlns:android="http://schemas.android.com/apk/r
     </queries>
 </manifest>
 ''')
+
+# Keep the async UI guard tied to the exact BuildContext that crosses the
+# await boundary. The source change is committed by the formatter step once,
+# after which this becomes a no-op on subsequent runs.
+player = Path('lib/src/screens/player.dart')
+player_text = player.read_text()
+old = "      if (!mounted) return;\n      ScaffoldMessenger.of(\n        context,"
+occurrences = player_text.count(old)
+if occurrences not in (0, 2):
+    raise SystemExit(f'Unexpected offline clip context guard count: {occurrences}')
+if occurrences:
+    player_text = player_text.replace(
+        old,
+        "      if (!context.mounted) return;\n      ScaffoldMessenger.of(\n        context,",
+    )
+    player.write_text(player_text)
 PY
 
 grep -q 'minSdk = 26' android/app/build.gradle.kts

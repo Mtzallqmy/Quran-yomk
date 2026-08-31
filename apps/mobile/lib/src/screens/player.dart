@@ -5,12 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
+import '../l10n.dart';
+import '../offline_clip_service.dart';
 import '../services.dart';
 import '../transcription.dart';
 import '../virtual_radio.dart';
+import 'saved_clips.dart';
 
 class MiniPlayerBar extends ConsumerWidget {
   const MiniPlayerBar({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playback = ref.watch(servicesProvider).playback;
@@ -60,7 +64,9 @@ class MiniPlayerBar extends ConsumerWidget {
                         final playing = state.data?.playing == true;
                         final virtual = item.extras?['kind'] == 'virtual_radio';
                         return IconButton(
-                          tooltip: playing ? 'إيقاف مؤقت' : 'تشغيل',
+                          tooltip: playing
+                              ? context.l10n.pause
+                              : context.l10n.play,
                           onPressed: () => virtual
                               ? playing
                                     ? ref
@@ -94,6 +100,7 @@ class MiniPlayerBar extends ConsumerWidget {
 
 class FullPlayerPage extends ConsumerStatefulWidget {
   const FullPlayerPage({super.key});
+
   @override
   ConsumerState<FullPlayerPage> createState() => _FullPlayerPageState();
 }
@@ -111,12 +118,12 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
     _mediaSubscription = playback.mediaItemStream.listen((item) {
       _latest = item;
       if (item?.isLive == true && item?.extras?['kind'] == 'station') {
-        _refreshNowPlaying();
+        unawaited(_refreshNowPlaying());
       }
     });
     _nowPlayingTimer = Timer.periodic(
       const Duration(seconds: 5),
-      (_) => _refreshNowPlaying(),
+      (_) => unawaited(_refreshNowPlaying()),
     );
   }
 
@@ -130,7 +137,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
       final value = await services.repository.nowPlaying(slug);
       await services.playback.updateLiveMetadata(value);
     } catch (_) {
-      // Metadata freshness must never interrupt a live stream.
+      // Metadata freshness must never interrupt playback.
     }
   }
 
@@ -143,16 +150,18 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final services = ref.watch(servicesProvider);
     final playback = services.playback;
     return Scaffold(
-      appBar: AppBar(title: const Text('المشغل')),
+      appBar: AppBar(title: Text(l10n.player)),
       body: StreamBuilder<MediaItem?>(
         stream: playback.mediaItemStream,
         builder: (context, itemSnapshot) {
           final item = itemSnapshot.data;
-          if (item == null)
-            return const EmptyPane(message: 'لا يوجد تشغيل حالي');
+          if (item == null) {
+            return EmptyPane(message: l10n.noCurrentPlayback);
+          }
           final live = item.isLive == true;
           final entityId = item.extras?['entity_id'] as String?;
           final kind = item.extras?['kind'] as String?;
@@ -169,10 +178,10 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
               ),
               const SizedBox(height: 20),
               if (live)
-                const Center(
+                Center(
                   child: Chip(
-                    avatar: Icon(Icons.circle, size: 12),
-                    label: Text('مباشر'),
+                    avatar: const Icon(Icons.circle, size: 12),
+                    label: Text(l10n.live),
                   ),
                 ),
               Text(
@@ -185,33 +194,23 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(item.artist!, textAlign: TextAlign.center),
                 ),
-              if (virtual && item.extras?['source_station_name'] is String)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    'المصدر الحالي: ${item.extras!['source_station_name']}',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
               const SizedBox(height: 20),
               if (!live) _SeekBar(playback: playback),
               StreamBuilder<PlaybackState>(
                 stream: playback.playbackStateStream,
                 builder: (context, stateSnapshot) {
                   final playing = stateSnapshot.data?.playing == true;
+                  final processing = stateSnapshot.data?.processingState;
                   final buffering =
-                      stateSnapshot.data?.processingState ==
-                          AudioProcessingState.buffering ||
-                      stateSnapshot.data?.processingState ==
-                          AudioProcessingState.loading;
+                      processing == AudioProcessingState.buffering ||
+                      processing == AudioProcessingState.loading;
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
                       if (!live)
                         IconButton(
                           iconSize: 40,
-                          tooltip: 'السابق',
+                          tooltip: l10n.previous,
                           onPressed: playback.skipToPrevious,
                           icon: const Icon(Icons.skip_previous),
                         ),
@@ -227,7 +226,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                       else
                         IconButton(
                           iconSize: 64,
-                          tooltip: playing ? 'إيقاف مؤقت' : 'تشغيل',
+                          tooltip: playing ? l10n.pause : l10n.play,
                           onPressed: () => virtual
                               ? playing
                                     ? ref
@@ -246,14 +245,14 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                       if (!live)
                         IconButton(
                           iconSize: 40,
-                          tooltip: 'التالي',
+                          tooltip: l10n.next,
                           onPressed: playback.skipToNext,
                           icon: const Icon(Icons.skip_next),
                         ),
                       if (live)
                         IconButton(
                           iconSize: 40,
-                          tooltip: 'إيقاف البث',
+                          tooltip: l10n.stopLive,
                           onPressed: virtual
                               ? ref.read(virtualRadioProvider.notifier).stop
                               : playback.stop,
@@ -268,6 +267,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
               Wrap(
                 alignment: WrapAlignment.center,
                 spacing: 8,
+                runSpacing: 8,
                 children: <Widget>[
                   if (entityId != null &&
                       (kind == 'station' || kind == 'track'))
@@ -277,8 +277,8 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                         final favorite = kind == 'station'
                             ? services.favorites.isStation(entityId)
                             : services.favorites.isTrack(entityId);
-                        return IconButton(
-                          tooltip: 'المفضلة',
+                        return IconButton.filledTonal(
+                          tooltip: l10n.favorite,
                           onPressed: () => kind == 'station'
                               ? services.favorites.toggleStation(entityId)
                               : services.favorites.toggleTrack(entityId),
@@ -288,14 +288,25 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                         );
                       },
                     ),
-                  IconButton(
-                    tooltip: 'مؤقت النوم',
-                    onPressed: () => _showSleepTimer(context, playback),
+                  IconButton.filledTonal(
+                    tooltip: l10n.sleepTimer,
+                    onPressed: () => _showSleepTimer(context, playback, kind),
                     icon: const Icon(Icons.bedtime_outlined),
                   ),
+                  if (kind == 'station') _OfflineClipAction(item: item),
+                  if (services.offlineClips.supported)
+                    IconButton.filledTonal(
+                      tooltip: l10n.savedClips,
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const SavedClipsPage(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.offline_pin_outlined),
+                    ),
                   if (!live)
                     PopupMenuButton<double>(
-                      tooltip: 'سرعة التشغيل',
+                      tooltip: l10n.defaultRecitationSpeed,
                       icon: const Icon(Icons.speed),
                       onSelected: (value) async {
                         await services.settings.setPlaybackSpeed(value);
@@ -309,9 +320,9 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                         PopupMenuItem(value: 2.0, child: Text('2×')),
                       ],
                     ),
-                  if (!live)
-                    IconButton(
-                      tooltip: 'تكرار السورة',
+                  if (kind == 'track')
+                    IconButton.filledTonal(
+                      tooltip: l10n.repeatSurah,
                       onPressed: () async {
                         setState(() => _repeatOne = !_repeatOne);
                         await playback.setRepeatOne(_repeatOne);
@@ -327,8 +338,11 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                 stream: playback.sleepRemainingStream,
                 builder: (context, snapshot) => snapshot.data == null
                     ? const SizedBox.shrink()
-                    : Center(
-                        child: Text('يتوقف بعد ${_format(snapshot.data!)}'),
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: Center(
+                          child: Text(l10n.stopsAfter(_format(snapshot.data!))),
+                        ),
                       ),
               ),
             ],
@@ -338,37 +352,256 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
     );
   }
 
-  Future<void> _showSleepTimer(BuildContext context, dynamic playback) async {
-    final value = await showModalBottomSheet<Duration?>(
+  Future<void> _showSleepTimer(
+    BuildContext context,
+    dynamic playback,
+    String? kind,
+  ) async {
+    final l10n = context.l10n;
+    final choice = await showModalBottomSheet<_SleepChoice>(
       context: context,
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: ListView(
+          shrinkWrap: true,
           children: <Widget>[
-            const ListTile(title: Text('مؤقت النوم')),
-            for (final minutes in <int>[15, 30, 45, 60])
+            ListTile(title: Text(l10n.sleepTimer)),
+            for (final option in <(int, String)>[
+              (10, l10n.minutes10),
+              (20, l10n.minutes20),
+              (30, l10n.minutes30),
+              (45, l10n.minutes45),
+              (60, l10n.minutes60),
+            ])
               ListTile(
-                title: Text('$minutes دقيقة'),
-                onTap: () => Navigator.pop(context, Duration(minutes: minutes)),
+                leading: const Icon(Icons.schedule),
+                title: Text(option.$2),
+                onTap: () => Navigator.pop(
+                  context,
+                  _SleepChoice.duration(Duration(minutes: option.$1)),
+                ),
+              ),
+            if (kind == 'track')
+              ListTile(
+                leading: const Icon(Icons.skip_next_outlined),
+                title: Text(l10n.endOfCurrentRecitation),
+                onTap: () => Navigator.pop(
+                  context,
+                  const _SleepChoice.atEnd(),
+                ),
               ),
             ListTile(
-              title: const Text('إلغاء المؤقت'),
-              onTap: () {
-                playback.cancelSleepTimer();
-                Navigator.pop(context);
-              },
+              leading: const Icon(Icons.timer_off_outlined),
+              title: Text(l10n.cancelSleepTimer),
+              onTap: () => Navigator.pop(
+                context,
+                const _SleepChoice.cancel(),
+              ),
             ),
           ],
         ),
       ),
     );
-    if (value != null) playback.setSleepTimer(value);
+    if (choice == null) return;
+    switch (choice.kind) {
+      case _SleepChoiceKind.duration:
+        playback.setSleepTimer(choice.duration!);
+      case _SleepChoiceKind.atEnd:
+        playback.setSleepTimerAtEnd();
+      case _SleepChoiceKind.cancel:
+        playback.cancelSleepTimer();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.timerCancelled)),
+          );
+        }
+    }
   }
+}
+
+enum _SleepChoiceKind { duration, atEnd, cancel }
+
+class _SleepChoice {
+  const _SleepChoice.duration(this.duration) : kind = _SleepChoiceKind.duration;
+  const _SleepChoice.atEnd()
+    : kind = _SleepChoiceKind.atEnd,
+      duration = null;
+  const _SleepChoice.cancel()
+    : kind = _SleepChoiceKind.cancel,
+      duration = null;
+
+  final _SleepChoiceKind kind;
+  final Duration? duration;
+}
+
+class _OfflineClipAction extends ConsumerStatefulWidget {
+  const _OfflineClipAction({required this.item});
+
+  final MediaItem item;
+
+  @override
+  ConsumerState<_OfflineClipAction> createState() => _OfflineClipActionState();
+}
+
+class _OfflineClipActionState extends ConsumerState<_OfflineClipAction> {
+  Future<_ClipAvailability>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _OfflineClipAction oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.id != widget.item.id) _future = _load();
+  }
+
+  Future<_ClipAvailability> _load() async {
+    final slug = widget.item.extras?['slug'];
+    if (slug is! String || slug.isEmpty) {
+      return const _ClipAvailability.unavailable();
+    }
+    final services = ref.read(servicesProvider);
+    try {
+      final station = await services.repository.api.station(slug);
+      final policy = await services.repository.api.offlineClipPolicy(slug);
+      return _ClipAvailability(station: station, policy: policy);
+    } catch (_) {
+      return const _ClipAvailability.unavailable();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clips = ref.watch(servicesProvider).offlineClips;
+    return FutureBuilder<_ClipAvailability>(
+      future: _future,
+      builder: (context, snapshot) {
+        final value = snapshot.data;
+        if (value == null ||
+            value.station == null ||
+            value.policy == null ||
+            !value.policy!.allowed ||
+            !value.policy!.supportedStream ||
+            !clips.supported) {
+          return const SizedBox.shrink();
+        }
+        final station = value.station!;
+        return AnimatedBuilder(
+          animation: clips,
+          builder: (context, _) {
+            if (clips.activeStationId == station.id) {
+              return FilledButton.tonalIcon(
+                onPressed: () => _stop(context, clips),
+                icon: const Icon(Icons.stop_circle_outlined),
+                label: Text(
+                  '${context.l10n.stopSaving} • ${_format(clips.activeElapsed)}',
+                ),
+              );
+            }
+            if (clips.activeStationId != null) {
+              return const SizedBox.shrink();
+            }
+            return FilledButton.tonalIcon(
+              onPressed: () => _chooseDuration(context, value),
+              icon: const Icon(Icons.download_for_offline_outlined),
+              label: Text(context.l10n.saveOfflineClip),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _chooseDuration(
+    BuildContext context,
+    _ClipAvailability value,
+  ) async {
+    final l10n = context.l10n;
+    final choice = await showModalBottomSheet<int>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: <Widget>[
+            ListTile(title: Text(l10n.saveOfflineClip)),
+            ListTile(
+              title: Text(l10n.save5Minutes),
+              onTap: () => Navigator.pop(context, 5),
+            ),
+            ListTile(
+              title: Text(l10n.save10Minutes),
+              onTap: () => Navigator.pop(context, 10),
+            ),
+            ListTile(
+              title: Text(l10n.save30Minutes),
+              onTap: () => Navigator.pop(context, 30),
+            ),
+            ListTile(
+              title: Text(l10n.saveUntilStopped),
+              onTap: () => Navigator.pop(context, 0),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    final clips = ref.read(servicesProvider).offlineClips;
+    try {
+      await clips.start(
+        station: value.station!,
+        policy: value.policy!,
+        maxDuration: choice == 0 ? null : Duration(minutes: choice),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.clipSavingStarted)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.clipSavingFailed)),
+      );
+    }
+  }
+
+  Future<void> _stop(BuildContext context, OfflineClipService clips) async {
+    final l10n = context.l10n;
+    try {
+      final saved = await clips.stop();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            saved == null ? l10n.clipSavingFailed : l10n.clipSavingStopped,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.clipSavingFailed)),
+      );
+    }
+  }
+}
+
+class _ClipAvailability {
+  const _ClipAvailability({required this.station, required this.policy});
+  const _ClipAvailability.unavailable()
+    : station = null,
+      policy = null;
+
+  final dynamic station;
+  final OfflineClipPolicy? policy;
 }
 
 class _VolumeControl extends StatelessWidget {
   const _VolumeControl({required this.playback});
+
   final dynamic playback;
+
   @override
   Widget build(BuildContext context) => StreamBuilder<double>(
     stream: playback.volumeStream as Stream<double>,
@@ -397,6 +630,7 @@ class _VolumeControl extends StatelessWidget {
 
 class _TranscriptionStatus extends ConsumerWidget {
   const _TranscriptionStatus();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final service = ref.watch(transcriptionServiceProvider);
@@ -407,8 +641,8 @@ class _TranscriptionStatus extends ConsumerWidget {
         icon: const Icon(Icons.closed_caption_outlined),
         label: Text(
           service.supported
-              ? 'التفريغ المباشر'
-              : 'التفريغ المباشر غير متاح في هذا الإصدار',
+              ? context.l10n.liveTranscription
+              : context.l10n.transcriptionUnavailable,
         ),
       ),
     );
@@ -417,7 +651,9 @@ class _TranscriptionStatus extends ConsumerWidget {
 
 class _SeekBar extends StatelessWidget {
   const _SeekBar({required this.playback});
+
   final dynamic playback;
+
   @override
   Widget build(BuildContext context) => StreamBuilder<Duration?>(
     stream: playback.durationStream as Stream<Duration?>,

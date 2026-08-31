@@ -66,8 +66,9 @@ class TarteelApiClient {
         if (entry.value != null && entry.value!.isNotEmpty)
           entry.key: entry.value!,
     };
-    return Uri.parse('$baseUrl/${path.replaceFirst(RegExp(r'^/'), '')}')
-        .replace(queryParameters: filtered.isEmpty ? null : filtered);
+    return Uri.parse(
+      '$baseUrl/${path.replaceFirst(RegExp(r'^/'), '')}',
+    ).replace(queryParameters: filtered.isEmpty ? null : filtered);
   }
 
   Future<JsonMap> _get(
@@ -152,9 +153,9 @@ class TarteelApiClient {
       },
     );
     return PageResult<Station>(
-      data: jsonList(root['data'])
-          .map((e) => Station.fromJson(jsonMap(e)))
-          .toList(growable: false),
+      data: jsonList(
+        root['data'],
+      ).map((e) => Station.fromJson(jsonMap(e))).toList(growable: false),
       page: root['page'] is int ? root['page'] as int : page,
       limit: root['limit'] is int ? root['limit'] as int : limit,
       total: root['total'] is int ? root['total'] as int : 0,
@@ -199,15 +200,13 @@ class TarteelApiClient {
     ))['data'],
   );
 
-  Future<List<ContentSource>> contentSources() async =>
-      jsonList((await _get('content-sources'))['data'])
-          .map((e) => ContentSource.fromJson(jsonMap(e)))
-          .toList(growable: false);
+  Future<List<ContentSource>> contentSources() async => jsonList(
+    (await _get('content-sources'))['data'],
+  ).map((e) => ContentSource.fromJson(jsonMap(e))).toList(growable: false);
 
-  Future<List<Category>> categories() async =>
-      jsonList((await _get('categories'))['data'])
-          .map((e) => Category.fromJson(jsonMap(e)))
-          .toList(growable: false);
+  Future<List<Category>> categories() async => jsonList(
+    (await _get('categories'))['data'],
+  ).map((e) => Category.fromJson(jsonMap(e))).toList(growable: false);
 
   Future<PageResult<Reciter>> reciters({
     String? query,
@@ -219,9 +218,9 @@ class TarteelApiClient {
       query: <String, String?>{'q': query, 'page': '$page', 'limit': '$limit'},
     );
     return PageResult<Reciter>(
-      data: jsonList(root['data'])
-          .map((e) => Reciter.fromJson(jsonMap(e)))
-          .toList(growable: false),
+      data: jsonList(
+        root['data'],
+      ).map((e) => Reciter.fromJson(jsonMap(e))).toList(growable: false),
       page: root['page'] is int ? root['page'] as int : page,
       limit: root['limit'] is int ? root['limit'] as int : limit,
       total: root['total'] is int ? root['total'] as int : 0,
@@ -232,15 +231,14 @@ class TarteelApiClient {
   Future<Reciter> reciter(String id) async =>
       Reciter.fromJson(jsonMap((await _get('reciters/$id'))['data']));
 
-  Future<List<ReciterTrack>> reciterTracks(String id) async =>
-      jsonList((await _get('reciters/$id/surahs', allowRetry: false))['data'])
-          .map((e) => ReciterTrack.fromJson(jsonMap(e)))
-          .toList(growable: false);
+  Future<List<ReciterTrack>> reciterTracks(String id) async => jsonList(
+    (await _get('reciters/$id/surahs', allowRetry: false))['data'],
+  ).map((e) => ReciterTrack.fromJson(jsonMap(e))).toList(growable: false);
 
   Future<List<Surah>> surahs() async {
-    final values = jsonList((await _get('surahs'))['data'])
-        .map((e) => Surah.fromJson(jsonMap(e)))
-        .toList(growable: false);
+    final values = jsonList(
+      (await _get('surahs'))['data'],
+    ).map((e) => Surah.fromJson(jsonMap(e))).toList(growable: false);
     if (values.length != 114 ||
         values.asMap().entries.any(
           (entry) => entry.value.number != entry.key + 1,
@@ -278,15 +276,14 @@ class TarteelApiClient {
         'quran/reciters/${Uri.encodeComponent(reciterId)}/tracks',
       ))['data'],
     );
-    return jsonList(root['tracks'])
-        .map((e) => QuranAudioTrack.fromJson(jsonMap(e)))
-        .toList(growable: false);
+    return jsonList(
+      root['tracks'],
+    ).map((e) => QuranAudioTrack.fromJson(jsonMap(e))).toList(growable: false);
   }
 
-  Future<List<FeaturedItem>> featured() async =>
-      jsonList((await _get('featured'))['data'])
-          .map((e) => FeaturedItem.fromJson(jsonMap(e)))
-          .toList(growable: false);
+  Future<List<FeaturedItem>> featured() async => jsonList(
+    (await _get('featured'))['data'],
+  ).map((e) => FeaturedItem.fromJson(jsonMap(e))).toList(growable: false);
 
   Future<JsonMap> appConfig() async =>
       jsonMap((await _get('app-config'))['data']);

@@ -571,9 +571,9 @@ class _VirtualRadioCard extends ConsumerWidget {
                                       Expanded(
                                         child: Text(
                                           resolution.channelNameAr,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleLarge,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.titleLarge,
                                         ),
                                       ),
                                       const Chip(label: Text('مباشر')),
@@ -581,9 +581,9 @@ class _VirtualRadioCard extends ConsumerWidget {
                                   ),
                                   Text(
                                     program?.titleAr ?? 'بث مختار',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleMedium,
                                   ),
                                 ],
                               ),
@@ -620,23 +620,24 @@ class _VirtualRadioCard extends ConsumerWidget {
                                           }
                                         } catch (_) {
                                           if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                                SnackBar(
-                                                  content: const Text(
-                                                    'تعذر تشغيل إذاعة ترتيل.',
-                                                  ),
-                                                  action: SnackBarAction(
-                                                    label: 'إعادة المحاولة',
-                                                    onPressed: () => ref
-                                                        .read(
-                                                          virtualRadioProvider
-                                                              .notifier,
-                                                        )
-                                                        .retry(),
-                                                  ),
-                                                ),
-                                              );
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: const Text(
+                                                'تعذر تشغيل إذاعة ترتيل.',
+                                              ),
+                                              action: SnackBarAction(
+                                                label: 'إعادة المحاولة',
+                                                onPressed: () => ref
+                                                    .read(
+                                                      virtualRadioProvider
+                                                          .notifier,
+                                                    )
+                                                    .retry(),
+                                              ),
+                                            ),
+                                          );
                                         }
                                       },
                                 icon: loading

@@ -100,16 +100,18 @@ class SavedClipsPage extends ConsumerWidget {
     final l10n = context.l10n;
     if (!await services.offlineClips.exists(clip)) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.fileMissing)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.fileMissing)));
       return;
     }
     try {
       await services.playback.playOfflineClip(clip);
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.unablePlaySavedClip)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.unablePlaySavedClip)));
     }
   }
 

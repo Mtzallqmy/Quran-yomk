@@ -87,4 +87,5 @@ if [[ "${CI:-}" == "true" ]]; then
   python3 tool/external_radio_ci.py
   python3 tool/phase11_api_e2e.py
   python3 tool/offline_clip_ci.py
+  python3 tool/app_rights_ci.py
 fi

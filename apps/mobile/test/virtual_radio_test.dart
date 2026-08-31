@@ -87,13 +87,16 @@ void main() {
     Uri? seen;
     final client = MockClient((request) async {
       seen = request.url;
-      return http.Response(
-        jsonEncode(<String, dynamic>{
-          'data': resolutionJson(
-            stationId: '22222222-2222-4222-8222-222222222222',
-          ),
-        }),
+      return http.Response.bytes(
+        utf8.encode(
+          jsonEncode(<String, dynamic>{
+            'data': resolutionJson(
+              stationId: '22222222-2222-4222-8222-222222222222',
+            ),
+          }),
+        ),
         200,
+        headers: const {'content-type': 'application/json; charset=utf-8'},
       );
     });
     final api = TarteelApiClient(

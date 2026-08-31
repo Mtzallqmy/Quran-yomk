@@ -10,3 +10,6 @@ schema_paths = ["./migrations/*.sql"]
 
 [functions.tarteel-api]
 verify_jwt = false
+
+[functions.managed-radio]
+verify_jwt = true

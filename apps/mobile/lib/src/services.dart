@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'mushaf_store.dart';
+import 'offline_clip_service.dart';
 import 'playback.dart';
 import 'repository.dart';
 import 'storage.dart';
@@ -16,11 +18,16 @@ class AppServices {
     required this.repository,
     required this.favorites,
     required this.settings,
+    required this.mushaf,
+    required this.offlineClips,
     required this.playback,
   });
+
   final TarteelRepository repository;
   final FavoritesStore favorites;
   final SettingsStore settings;
+  final MushafStore mushaf;
+  final OfflineClipService offlineClips;
   final PlaybackPort playback;
 }
 

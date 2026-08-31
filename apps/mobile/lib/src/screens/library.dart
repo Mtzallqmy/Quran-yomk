@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common.dart';
 import '../models.dart';
 import '../services.dart';
+import 'radio.dart';
+import 'search.dart';
 
 class LibraryPage extends ConsumerStatefulWidget {
   const LibraryPage({super.key});
@@ -19,6 +21,7 @@ class _LibraryData {
 
 class _LibraryPageState extends ConsumerState<LibraryPage> {
   late Future<_LibraryData> future;
+
   @override
   void initState() {
     super.initState();
@@ -27,22 +30,29 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
 
   Future<_LibraryData> load({bool refresh = false}) async {
     final repo = ref.read(servicesProvider).repository;
-    final categories = await repo.categories(refresh: refresh);
-    final surahs = await repo.surahs(refresh: refresh);
-    return _LibraryData(categories, surahs);
+    final values = await Future.wait<dynamic>([
+      repo.categories(refresh: refresh),
+      repo.surahs(refresh: refresh),
+    ]);
+    return _LibraryData(
+      values[0] as List<Category>,
+      values[1] as List<Surah>,
+    );
   }
 
   @override
   Widget build(BuildContext context) => FutureBuilder<_LibraryData>(
     future: future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData)
+      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
         return const LoadingPane();
-      if (snapshot.hasError && !snapshot.hasData)
+      }
+      if (snapshot.hasError && !snapshot.hasData) {
         return ErrorPane(
           error: snapshot.error!,
           onRetry: () => setState(() => future = load(refresh: true)),
         );
+      }
       final data = snapshot.data;
       if (data == null) return const EmptyPane();
       return RefreshIndicator(
@@ -52,28 +62,64 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         },
         child: ListView(
           children: <Widget>[
-            const SectionHeader('التصنيفات'),
+            const SectionHeader('تصفح حسب القسم'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: data.categories
-                    .map(
-                      (category) => Chip(
-                        avatar: const Icon(Icons.folder_outlined, size: 18),
-                        label: Text(category.nameAr),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 2.7,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: data.categories.length,
+                itemBuilder: (context, index) {
+                  final category = data.categories[index];
+                  return Card(
+                    margin: EdgeInsets.zero,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => RadioPage(initialCategory: category.slug),
+                        ),
                       ),
-                    )
-                    .toList(growable: false),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
+                          children: <Widget>[
+                            const Icon(Icons.folder_open_outlined),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                category.nameAr,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const Icon(Icons.chevron_left, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-            const SectionHeader('سور القرآن — 114 سورة'),
+            SectionHeader('سور القرآن — ${data.surahs.length} سورة'),
             for (final surah in data.surahs)
               ListTile(
                 leading: CircleAvatar(child: Text('${surah.number}')),
                 title: Text(surah.nameAr),
                 subtitle: Text('${surah.nameEn} • ${surah.ayahCount} آية'),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => SearchPage(initialQuery: surah.nameAr),
+                  ),
+                ),
               ),
             const SizedBox(height: 24),
           ],

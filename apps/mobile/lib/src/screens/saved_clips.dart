@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
+import '../l10n.dart';
 import '../offline_clip_service.dart';
 import '../services.dart';
 
@@ -10,17 +11,16 @@ class SavedClipsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final services = ref.watch(servicesProvider);
     final clips = services.offlineClips;
     return Scaffold(
-      appBar: AppBar(title: const Text('المحفوظات')),
+      appBar: AppBar(title: Text(l10n.savedClips)),
       body: AnimatedBuilder(
         animation: clips,
         builder: (context, _) {
           if (!clips.supported) {
-            return const EmptyPane(
-              message: 'الحفظ بدون إنترنت غير متاح على هذه المنصة.',
-            );
+            return EmptyPane(message: l10n.savedClipsUnsupported);
           }
           final values = clips.clips;
           return ListView(
@@ -35,21 +35,27 @@ class SavedClipsPage extends ConsumerWidget {
                       height: 28,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    title: const Text('جارٍ حفظ مقطع…'),
+                    title: Text(l10n.savingClip),
                     subtitle: Text(
                       '${_duration(clips.activeElapsed)} • ${_bytes(clips.activeBytes)}',
                     ),
                     trailing: IconButton.filledTonal(
-                      tooltip: 'إيقاف الحفظ',
-                      onPressed: clips.stop,
+                      tooltip: l10n.stopSaving,
+                      onPressed: () async {
+                        await clips.stop();
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(l10n.clipSavingStopped)),
+                        );
+                      },
                       icon: const Icon(Icons.stop),
                     ),
                   ),
                 ),
               if (values.isEmpty && clips.activeStationId == null)
-                const Padding(
-                  padding: EdgeInsets.only(top: 96),
-                  child: EmptyPane(message: 'لا توجد مقاطع محفوظة بعد'),
+                Padding(
+                  padding: const EdgeInsets.only(top: 96),
+                  child: EmptyPane(message: l10n.noSavedClips),
                 )
               else
                 for (final clip in values)
@@ -59,40 +65,19 @@ class SavedClipsPage extends ConsumerWidget {
                       leading: Artwork(url: clip.artworkUrl, size: 52),
                       title: Text(clip.stationNameAr),
                       subtitle: Text(
-                        '${_date(clip.createdAt)} • ${_duration(clip.duration)} • ${_bytes(clip.sizeBytes)}${clip.partial ? ' • محفوظ جزئيًا' : ''}',
+                        '${_date(clip.createdAt)} • ${_duration(clip.duration)} • ${_bytes(clip.sizeBytes)}${clip.partial ? ' • ${l10n.savedPartially}' : ''}',
                       ),
-                      onTap: () async {
-                        if (!await clips.exists(clip)) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('ملف المقطع غير موجود.'),
-                            ),
-                          );
-                          return;
-                        }
-                        try {
-                          await services.playback.playOfflineClip(clip);
-                        } catch (_) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('تعذر تشغيل المقطع المحفوظ.'),
-                            ),
-                          );
-                        }
-                      },
+                      onTap: () => _play(context, services, clip),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
                           IconButton(
-                            tooltip: 'تشغيل',
-                            onPressed: () =>
-                                services.playback.playOfflineClip(clip),
+                            tooltip: l10n.play,
+                            onPressed: () => _play(context, services, clip),
                             icon: const Icon(Icons.play_arrow),
                           ),
                           IconButton(
-                            tooltip: 'حذف',
+                            tooltip: l10n.delete,
                             onPressed: () => _delete(context, clips, clip),
                             icon: const Icon(Icons.delete_outline),
                           ),
@@ -107,24 +92,48 @@ class SavedClipsPage extends ConsumerWidget {
     );
   }
 
+  Future<void> _play(
+    BuildContext context,
+    AppServices services,
+    OfflineClip clip,
+  ) async {
+    final l10n = context.l10n;
+    if (!await services.offlineClips.exists(clip)) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.fileMissing)),
+      );
+      return;
+    }
+    try {
+      await services.playback.playOfflineClip(clip);
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.unablePlaySavedClip)),
+      );
+    }
+  }
+
   Future<void> _delete(
     BuildContext context,
     OfflineClipService service,
     OfflineClip clip,
   ) async {
+    final l10n = context.l10n;
     final yes = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('حذف المقطع؟'),
+        title: Text(l10n.deleteClipQuestion),
         content: Text(clip.stationNameAr),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -141,8 +150,9 @@ String _duration(Duration value) {
 }
 
 String _bytes(int value) {
-  if (value >= 1024 * 1024)
+  if (value >= 1024 * 1024) {
     return '${(value / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
   if (value >= 1024) return '${(value / 1024).toStringAsFixed(0)} KB';
   return '$value B';
 }

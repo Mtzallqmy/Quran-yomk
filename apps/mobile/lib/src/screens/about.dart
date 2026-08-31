@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../branding.dart';
-import '../common.dart';
+import '../models.dart';
 import '../services.dart';
 import 'content_sources.dart';
 
@@ -31,7 +31,7 @@ class AboutPage extends ConsumerWidget {
             leading: const Icon(Icons.source_outlined),
             title: const Text('مصادر المحتوى وحقوق النشر'),
             subtitle: const Text(
-              'المصادر الخارجية، الإسناد، والشروط المرتبطة بها',
+              'المصادر الخارجية، نسب المحتوى، والشروط المرتبطة بها',
             ),
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(

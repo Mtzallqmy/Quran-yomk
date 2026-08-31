@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 
 import 'models.dart';
 import 'offline_clip_contract.dart';
+import 'quran_audio.dart';
 import 'virtual_radio.dart';
 
 abstract class PlaybackPort {
@@ -26,6 +27,7 @@ abstract class PlaybackPort {
     int index,
     Reciter reciter,
   );
+  Future<void> playQuranAudio(List<QuranAudioMedia> media, int index);
   Future<void> playOfflineClip(OfflineClip clip);
   Future<void> play();
   Future<void> pause();
@@ -69,6 +71,7 @@ class TarteelAudioHandler extends BaseAudioHandler
   VirtualRadioResolution? _virtualRadio;
   Reciter? _reciter;
   List<ReciterTrack> _tracks = const <ReciterTrack>[];
+  List<QuranAudioMedia> _quranMedia = const <QuranAudioMedia>[];
   int _trackIndex = 0;
   int _reconnectAttempt = 0;
   bool _shouldPlay = false;
@@ -130,6 +133,7 @@ class TarteelAudioHandler extends BaseAudioHandler
     _liveStation = null;
     _reciter = null;
     _tracks = const <ReciterTrack>[];
+    _quranMedia = const <QuranAudioMedia>[];
     _trackIndex = 0;
     _reconnectAttempt = 0;
   }
@@ -147,6 +151,61 @@ class TarteelAudioHandler extends BaseAudioHandler
     await _loadUrl(station.playbackUrl!);
     await _player.setSpeed(1.0);
     unawaited(_player.play());
+    _broadcastState();
+  }
+
+  @override
+  Future<void> playQuranAudio(List<QuranAudioMedia> media, int index) async {
+    if (media.isEmpty) throw StateError('NO_QURAN_AUDIO');
+    if (index < 0 || index >= media.length) {
+      throw RangeError.index(index, media);
+    }
+    cancelSleepTimer();
+    _resetSourceState();
+    _quranMedia = List<QuranAudioMedia>.unmodifiable(media);
+    _trackIndex = index;
+    _shouldPlay = true;
+    queue.add(_quranMedia.map(_quranItem).toList(growable: false));
+    await _loadQuran(_trackIndex);
+    unawaited(_player.play());
+    _broadcastState();
+  }
+
+  MediaItem _quranItem(QuranAudioMedia media) => MediaItem(
+    id: 'quran:${media.id}',
+    title: media.ayahInSurah == null
+        ? media.surah.nameAr
+        : '${media.surah.nameAr} — ${media.ayahInSurah}',
+    artist: media.reciter.nameAr,
+    isLive: false,
+    extras: <String, dynamic>{
+      'kind': 'quran_audio',
+      'entity_id': media.id,
+      'provider': media.provider.name,
+      'reciter_id': media.reciter.id,
+      'edition': media.reciter.edition,
+      'riwayah': media.reciter.riwayah,
+      'bitrate_kbps': media.bitrateKbps,
+      'surah_number': media.surah.number,
+      'ayah_number': media.ayahInSurah,
+      'url': media.playbackUri.toString(),
+      'local': media.isLocal,
+    },
+  );
+
+  Future<void> _loadQuran(int index) async {
+    final media = _quranMedia[index];
+    _trackIndex = index;
+    mediaItem.add(_quranItem(media));
+    if (media.localPath != null) {
+      await _player.setFilePath(media.localPath!, preload: true);
+    } else {
+      if (!_secureUrl(media.playbackUri.toString())) {
+        throw StateError('QURAN_AUDIO_INSECURE');
+      }
+      await _loadUrl(media.playbackUri.toString());
+    }
+    await _player.setSpeed(1.0);
     _broadcastState();
   }
 
@@ -355,23 +414,32 @@ class TarteelAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> skipToNext() async {
-    if (isLive || _tracks.isEmpty) return;
+    if (isLive || (_tracks.isEmpty && _quranMedia.isEmpty)) return;
     final next = _trackIndex + 1;
-    if (next >= _tracks.length) return;
-    await _loadTrack(next);
+    final length = _quranMedia.isNotEmpty ? _quranMedia.length : _tracks.length;
+    if (next >= length) return;
+    if (_quranMedia.isNotEmpty) {
+      await _loadQuran(next);
+    } else {
+      await _loadTrack(next);
+    }
     if (_shouldPlay) unawaited(_player.play());
   }
 
   @override
   Future<void> skipToPrevious() async {
-    if (isLive || _tracks.isEmpty) return;
+    if (isLive || (_tracks.isEmpty && _quranMedia.isEmpty)) return;
     if (_player.position > const Duration(seconds: 5)) {
       await _player.seek(Duration.zero);
       return;
     }
     final previous = _trackIndex - 1;
     if (previous < 0) return;
-    await _loadTrack(previous);
+    if (_quranMedia.isNotEmpty) {
+      await _loadQuran(previous);
+    } else {
+      await _loadTrack(previous);
+    }
     if (_shouldPlay) unawaited(_player.play());
   }
 
@@ -489,17 +557,19 @@ class TarteelAudioHandler extends BaseAudioHandler
     playbackState.add(
       PlaybackState(
         controls: <MediaControl>[
-          if (!isLive && _tracks.isNotEmpty) MediaControl.skipToPrevious,
+          if (!isLive && (_tracks.isNotEmpty || _quranMedia.isNotEmpty))
+            MediaControl.skipToPrevious,
           _player.playing ? MediaControl.pause : MediaControl.play,
           MediaControl.stop,
-          if (!isLive && _tracks.isNotEmpty) MediaControl.skipToNext,
+          if (!isLive && (_tracks.isNotEmpty || _quranMedia.isNotEmpty))
+            MediaControl.skipToNext,
         ],
         systemActions: isLive
             ? const <MediaAction>{}
             : const <MediaAction>{MediaAction.seek},
         androidCompactActionIndices: isLive
             ? const <int>[0, 1]
-            : _tracks.isEmpty
+            : _tracks.isEmpty && _quranMedia.isEmpty
             ? const <int>[0, 1]
             : const <int>[0, 1, 3],
         processingState: processing,
@@ -507,7 +577,9 @@ class TarteelAudioHandler extends BaseAudioHandler
         updatePosition: _player.position,
         bufferedPosition: _player.bufferedPosition,
         speed: _player.speed,
-        queueIndex: !isLive && _tracks.isNotEmpty ? _trackIndex : null,
+        queueIndex: !isLive && (_tracks.isNotEmpty || _quranMedia.isNotEmpty)
+            ? _trackIndex
+            : null,
         repeatMode: _player.loopMode == LoopMode.one
             ? AudioServiceRepeatMode.one
             : AudioServiceRepeatMode.none,

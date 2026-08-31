@@ -1,0 +1,215 @@
+name: Tarteel Android Release APK
+
+on:
+  push:
+    branches:
+      - main
+      - feature/quran-radio-real-integration
+      - release/android-apk
+    paths:
+      - 'apps/mobile/**'
+      - 'docs/ANDROID_RELEASE_ACCEPTANCE.md'
+      - 'docs/THIRD_PARTY_CONTENT.md'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'supabase/migrations/**'
+      - '.github/workflows/android-release-apk.yml'
+  pull_request:
+    paths:
+      - 'apps/mobile/**'
+      - 'docs/ANDROID_RELEASE_ACCEPTANCE.md'
+      - 'docs/THIRD_PARTY_CONTENT.md'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'supabase/migrations/**'
+      - '.github/workflows/android-release-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-release:
+    name: Verify and build Android APKs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Toolchain identity
+        run: |
+          flutter --version
+          dart --version
+          java -version
+
+      - name: Flutter dependencies
+        run: flutter pub get
+
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Flutter analyze
+        run: flutter analyze
+
+      - name: Unit and widget tests
+        run: flutter test
+
+      - name: Mushaf tests
+        run: flutter test test/mushaf_test.dart
+
+      - name: Quran audio repository and download tests
+        run: flutter test test/quran_audio_test.dart
+
+      - name: Live Mushaf API acceptance
+        run: python3 tool/quran_ci.py
+
+      - name: Live Quran audio provider acceptance
+        run: python3 tool/quran_audio_ci.py
+
+      - name: Verify Android release configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'minSdk = 26' android/app/build.gradle.kts
+          grep -q 'android:usesCleartextTraffic="false"' android/app/src/main/AndroidManifest.xml
+          grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' android/app/src/main/AndroidManifest.xml
+
+      - name: Build universal release APK
+        run: flutter build apk --release
+
+      - name: Preserve universal APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release/android
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            release/android/tarteel-release-universal.apk
+
+      - name: Build ARM64 release APK
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+
+      - name: Collect and verify APK evidence
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_DIR=release/android
+          UNIVERSAL="$RELEASE_DIR/tarteel-release-universal.apk"
+          ARM64_SOURCE=build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          ARM64="$RELEASE_DIR/tarteel-release-arm64-v8a.apk"
+          test -s "$UNIVERSAL"
+          test -s "$ARM64_SOURCE"
+          cp "$ARM64_SOURCE" "$ARM64"
+
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)
+          test -x "$AAPT"
+          "$AAPT" dump badging "$UNIVERSAL" > "$RELEASE_DIR/universal-badging.txt"
+          "$AAPT" dump badging "$ARM64" > "$RELEASE_DIR/arm64-badging.txt"
+
+          grep -q "sdkVersion:'26'" "$RELEASE_DIR/universal-badging.txt"
+          grep -q "sdkVersion:'26'" "$RELEASE_DIR/arm64-badging.txt"
+
+          unzip -Z1 "$UNIVERSAL" | sort > "$RELEASE_DIR/universal-files.txt"
+          unzip -Z1 "$ARM64" | sort > "$RELEASE_DIR/arm64-files.txt"
+          grep -q '^lib/arm64-v8a/.*\.so$' "$RELEASE_DIR/universal-files.txt"
+          grep -q '^lib/arm64-v8a/.*\.so$' "$RELEASE_DIR/arm64-files.txt"
+          if grep -E '^lib/(armeabi-v7a|x86|x86_64)/.*\.so$' "$RELEASE_DIR/arm64-files.txt"; then
+            echo 'ARM64 APK contains a non-ARM64 native library.' >&2
+            exit 1
+          fi
+
+          package_line=$(grep -m1 '^package:' "$RELEASE_DIR/universal-badging.txt")
+          version_name=$(sed -n "s/.*versionName='\([^']*\)'.*/\1/p" <<< "$package_line")
+          version_code=$(sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" <<< "$package_line")
+          target_sdk=$(sed -n "s/^targetSdkVersion:'\([^']*\)'.*/\1/p" "$RELEASE_DIR/universal-badging.txt")
+          universal_abis=$(sed -n "s#^lib/\([^/]*\)/.*\.so#\1#p" "$RELEASE_DIR/universal-files.txt" | sort -u | paste -sd, -)
+          arm64_abis=$(sed -n "s#^lib/\([^/]*\)/.*\.so#\1#p" "$RELEASE_DIR/arm64-files.txt" | sort -u | paste -sd, -)
+          universal_size=$(stat -c '%s' "$UNIVERSAL")
+          arm64_size=$(stat -c '%s' "$ARM64")
+          universal_sha256=$(sha256sum "$UNIVERSAL" | awk '{print $1}')
+          arm64_sha256=$(sha256sum "$ARM64" | awk '{print $1}')
+
+          sha256sum "$UNIVERSAL" "$ARM64" > "$RELEASE_DIR/SHA256SUMS.txt"
+          cat > "$RELEASE_DIR/release-metadata.json" <<EOF
+          {
+            "versionName": "$version_name",
+            "versionCode": "$version_code",
+            "minSdk": 26,
+            "targetSdk": $target_sdk,
+            "physicalDeviceAndroid8Test": "NOT_RUN_NO_PHYSICAL_DEVICE_IN_GITHUB_HOSTED_RUNNER",
+            "apks": [
+              {
+                "file": "tarteel-release-universal.apk",
+                "sizeBytes": $universal_size,
+                "sha256": "$universal_sha256",
+                "abis": "$universal_abis"
+              },
+              {
+                "file": "tarteel-release-arm64-v8a.apk",
+                "sizeBytes": $arm64_size,
+                "sha256": "$arm64_sha256",
+                "abis": "$arm64_abis"
+              }
+            ]
+          }
+          EOF
+          cp ../../docs/ANDROID_RELEASE_ACCEPTANCE.md "$RELEASE_DIR/DEVICE_ACCEPTANCE.md"
+          cp release/quran/quran-live-smoke.json "$RELEASE_DIR/"
+          cp release/quran-audio/quran-audio-live-smoke.json "$RELEASE_DIR/"
+          {
+            echo "versionName=$version_name"
+            echo "versionCode=$version_code"
+            echo "targetSdk=$target_sdk"
+            echo "universalAbis=$universal_abis"
+            echo "arm64Abis=$arm64_abis"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo '## Tarteel Android release evidence'
+            echo
+            echo "- versionName: \`$version_name\`"
+            echo "- versionCode: \`$version_code\`"
+            echo '- minSdk: `26`'
+            echo "- targetSdk: \`$target_sdk\`"
+            echo "- Universal ABIs: \`$universal_abis\`"
+            echo "- ARM64 APK ABIs: \`$arm64_abis\`"
+            echo '- Physical-device Android 8 test: **NOT RUN** (no physical device on the hosted runner)'
+            echo
+            echo '```text'
+            cat "$RELEASE_DIR/SHA256SUMS.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: APK secret guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          for apk in release/android/*.apk; do
+            if strings "$apk" | grep -Ei '(RADIO_CO_(CLIENT_SECRET|REFRESH_TOKEN|ACCESS_TOKEN|DJ_PASSWORD)|\.dj\.radio\.co)'; then
+              echo "Privileged Radio.co material was found in $apk" >&2
+              exit 1
+            fi
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarteel-android-release-${{ github.run_number }}
+          path: apps/mobile/release/android
+          if-no-files-found: error
+          retention-days: 30

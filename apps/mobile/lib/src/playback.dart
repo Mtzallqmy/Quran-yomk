@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'models.dart';
+import 'offline_clip_contract.dart';
 import 'virtual_radio.dart';
 
 abstract class PlaybackPort {
@@ -25,6 +26,7 @@ abstract class PlaybackPort {
     int index,
     Reciter reciter,
   );
+  Future<void> playOfflineClip(OfflineClip clip);
   Future<void> play();
   Future<void> pause();
   Future<void> stop();
@@ -36,6 +38,7 @@ abstract class PlaybackPort {
   Future<void> setRepeatOne(bool enabled);
   Future<void> updateLiveMetadata(NowPlaying value);
   void setSleepTimer(Duration duration);
+  void setSleepTimerAtEnd();
   void cancelSleepTimer();
 }
 
@@ -48,8 +51,8 @@ class TarteelAudioHandler extends BaseAudioHandler
       if (playing) _reconnectAttempt = 0;
       _broadcastState();
     });
-    _player.errorStream.listen((error) {
-      _errors.add(error.message ?? 'تعذر تشغيل البث الصوتي');
+    _player.errorStream.listen((_) {
+      _errors.add('PLAYBACK_ERROR');
       _scheduleLiveReconnect();
     });
   }
@@ -61,6 +64,7 @@ class TarteelAudioHandler extends BaseAudioHandler
   Timer? _sleepTimer;
   Timer? _reconnectTimer;
   DateTime? _sleepDeadline;
+  bool _sleepAtEnd = false;
   Station? _liveStation;
   VirtualRadioResolution? _virtualRadio;
   Reciter? _reciter;
@@ -108,8 +112,7 @@ class TarteelAudioHandler extends BaseAudioHandler
         if (event.type == AudioInterruptionType.duck) {
           await _player.setVolume(_volumeBeforeDuck);
         }
-        if (_resumeAfterInterruption &&
-            event.type == AudioInterruptionType.pause) {
+        if (_resumeAfterInterruption && event.type == AudioInterruptionType.pause) {
           await play();
         }
         _resumeAfterInterruption = false;
@@ -118,18 +121,25 @@ class TarteelAudioHandler extends BaseAudioHandler
   }
 
   bool _secureUrl(String? url) =>
-      url != null && Uri.tryParse(url)?.scheme == 'https';
+      url != null && Uri.tryParse(url)?.scheme.toLowerCase() == 'https';
+
+  void _resetSourceState() {
+    _cancelReconnect();
+    _virtualRadio = null;
+    _liveStation = null;
+    _reciter = null;
+    _tracks = const <ReciterTrack>[];
+    _trackIndex = 0;
+    _reconnectAttempt = 0;
+  }
 
   @override
   Future<void> playStation(Station station) async {
     if (!station.isPlayable) throw StateError('STATION_UNAVAILABLE');
     if (!_secureUrl(station.playbackUrl)) throw StateError('STREAM_INSECURE');
-    _cancelReconnect();
-    _virtualRadio = null;
+    cancelSleepTimer();
+    _resetSourceState();
     _liveStation = station;
-    _reciter = null;
-    _tracks = const <ReciterTrack>[];
-    _trackIndex = 0;
     _shouldPlay = true;
     queue.add(const <MediaItem>[]);
     mediaItem.add(_stationItem(station));
@@ -146,12 +156,10 @@ class TarteelAudioHandler extends BaseAudioHandler
       throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
     }
     if (!_secureUrl(station.playbackUrl)) throw StateError('STREAM_INSECURE');
-    _cancelReconnect();
+    cancelSleepTimer();
+    _resetSourceState();
     _virtualRadio = resolution;
     _liveStation = station;
-    _reciter = null;
-    _tracks = const <ReciterTrack>[];
-    _trackIndex = 0;
     _shouldPlay = true;
     queue.add(const <MediaItem>[]);
     mediaItem.add(_virtualItem(resolution));
@@ -175,7 +183,7 @@ class TarteelAudioHandler extends BaseAudioHandler
       MediaItem(
         id: 'station:${station.id}',
         title: title ?? station.nameAr,
-        artist: subtitle ?? 'بث مباشر',
+        artist: subtitle,
         artUri: station.logoUrl == null ? null : Uri.tryParse(station.logoUrl!),
         isLive: true,
         extras: <String, dynamic>{
@@ -193,7 +201,7 @@ class TarteelAudioHandler extends BaseAudioHandler
     return MediaItem(
       id: 'virtual:${resolution.channelId}',
       title: resolution.channelNameAr,
-      artist: resolution.program?.titleAr ?? 'بث مختار',
+      artist: resolution.program?.titleAr,
       artUri: resolution.artworkUrl == null
           ? null
           : Uri.tryParse(resolution.artworkUrl!),
@@ -221,7 +229,7 @@ class TarteelAudioHandler extends BaseAudioHandler
       _stationItem(
         station,
         title: value.title ?? station.nameAr,
-        subtitle: value.subtitle ?? 'بث مباشر',
+        subtitle: value.subtitle,
       ),
     );
   }
@@ -232,23 +240,19 @@ class TarteelAudioHandler extends BaseAudioHandler
     int index,
     Reciter reciter,
   ) async {
-    final playable = tracks
-        .where((track) => track.isPlayable)
-        .toList(growable: false);
-    if (playable.isEmpty) throw StateError('No playable tracks');
+    final playable = tracks.where((track) => track.isPlayable).toList(growable: false);
+    if (playable.isEmpty) throw StateError('NO_PLAYABLE_TRACKS');
+    if (index < 0 || index >= tracks.length) throw RangeError.index(index, tracks);
     final selected = tracks[index];
     final mappedIndex = playable.indexWhere((track) => track.id == selected.id);
-    _cancelReconnect();
-    _virtualRadio = null;
-    _liveStation = null;
+    cancelSleepTimer();
+    _resetSourceState();
     _reciter = reciter;
     _tracks = playable;
     _trackIndex = mappedIndex < 0 ? 0 : mappedIndex;
     _shouldPlay = true;
     queue.add(
-      playable
-          .map((track) => _trackItem(track, reciter))
-          .toList(growable: false),
+      playable.map((track) => _trackItem(track, reciter)).toList(growable: false),
     );
     await _loadTrack(_trackIndex);
     unawaited(_player.play());
@@ -282,6 +286,34 @@ class TarteelAudioHandler extends BaseAudioHandler
     _broadcastState();
   }
 
+  @override
+  Future<void> playOfflineClip(OfflineClip clip) async {
+    if (kIsWeb) throw UnsupportedError('OFFLINE_CLIP_PLAYBACK_UNSUPPORTED');
+    cancelSleepTimer();
+    _resetSourceState();
+    _shouldPlay = true;
+    queue.add(const <MediaItem>[]);
+    mediaItem.add(
+      MediaItem(
+        id: 'offline:${clip.id}',
+        title: clip.stationNameAr,
+        artUri: clip.artworkUrl == null ? null : Uri.tryParse(clip.artworkUrl!),
+        duration: clip.duration,
+        isLive: false,
+        extras: <String, dynamic>{
+          'kind': 'offline_clip',
+          'entity_id': clip.id,
+          'path': clip.filePath,
+          'station_id': clip.stationId,
+        },
+      ),
+    );
+    await _player.setFilePath(clip.filePath, preload: true);
+    await _player.setSpeed(1.0);
+    unawaited(_player.play());
+    _broadcastState();
+  }
+
   Future<void> _loadUrl(String url) => _player.setUrl(url, preload: true);
 
   @override
@@ -298,6 +330,7 @@ class TarteelAudioHandler extends BaseAudioHandler
   Future<void> pause() async {
     _shouldPlay = false;
     await _player.pause();
+    _broadcastState();
   }
 
   @override
@@ -379,10 +412,33 @@ class TarteelAudioHandler extends BaseAudioHandler
   }
 
   @override
+  void setSleepTimerAtEnd() {
+    if (isLive) return;
+    cancelSleepTimer();
+    _sleepAtEnd = true;
+    _sleepTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      final duration = _player.duration;
+      if (!_sleepAtEnd || duration == null || duration == Duration.zero) {
+        _sleepRemaining.add(null);
+        return;
+      }
+      final remaining = duration - _player.position;
+      if (remaining <= const Duration(seconds: 1) ||
+          _player.processingState == ProcessingState.completed) {
+        cancelSleepTimer();
+        await pause();
+      } else {
+        _sleepRemaining.add(remaining);
+      }
+    });
+  }
+
+  @override
   void cancelSleepTimer() {
     _sleepTimer?.cancel();
     _sleepTimer = null;
     _sleepDeadline = null;
+    _sleepAtEnd = false;
     _sleepRemaining.add(null);
   }
 
@@ -404,7 +460,7 @@ class TarteelAudioHandler extends BaseAudioHandler
         await _loadUrl(station.playbackUrl!);
         unawaited(_player.play());
       } catch (_) {
-        _errors.add('تعذر إعادة الاتصال بالبث');
+        _errors.add('LIVE_RECONNECT_FAILED');
         _scheduleLiveReconnect();
       }
     });
@@ -427,21 +483,25 @@ class TarteelAudioHandler extends BaseAudioHandler
     playbackState.add(
       PlaybackState(
         controls: <MediaControl>[
-          if (!isLive) MediaControl.skipToPrevious,
+          if (!isLive && _tracks.isNotEmpty) MediaControl.skipToPrevious,
           _player.playing ? MediaControl.pause : MediaControl.play,
           MediaControl.stop,
-          if (!isLive) MediaControl.skipToNext,
+          if (!isLive && _tracks.isNotEmpty) MediaControl.skipToNext,
         ],
-        systemActions: const <MediaAction>{MediaAction.seek},
+        systemActions: isLive
+            ? const <MediaAction>{}
+            : const <MediaAction>{MediaAction.seek},
         androidCompactActionIndices: isLive
             ? const <int>[0, 1]
-            : const <int>[0, 1, 3],
+            : _tracks.isEmpty
+                ? const <int>[0, 1]
+                : const <int>[0, 1, 3],
         processingState: processing,
         playing: _player.playing,
         updatePosition: _player.position,
         bufferedPosition: _player.bufferedPosition,
         speed: _player.speed,
-        queueIndex: isLive ? null : _trackIndex,
+        queueIndex: !isLive && _tracks.isNotEmpty ? _trackIndex : null,
         repeatMode: _player.loopMode == LoopMode.one
             ? AudioServiceRepeatMode.one
             : AudioServiceRepeatMode.none,

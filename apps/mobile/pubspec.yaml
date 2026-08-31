@@ -1,5 +1,5 @@
 name: tarteel
-description: Tarteel listener MVP for Quran live radio and on-demand recitations.
+description: Tarteel listener for Quran live radio, Mushaf reading, and recitations.
 publish_to: none
 version: 0.1.0+1
 
@@ -26,4 +26,5 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
+  generate: true
   uses-material-design: true

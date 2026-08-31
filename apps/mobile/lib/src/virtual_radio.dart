@@ -82,7 +82,10 @@ class VirtualRadioResolution {
 
   bool get isManaged => mode == 'MANAGED';
   bool get isPlayable =>
-      available && playbackUrl != null && playbackUrl!.isNotEmpty && station != null;
+      available &&
+      playbackUrl != null &&
+      playbackUrl!.isNotEmpty &&
+      station != null;
 
   factory VirtualRadioResolution.fromJson(JsonMap json) {
     final channel = json['channel'] is Map
@@ -120,7 +123,9 @@ class VirtualRadioResolution {
       if (mode == 'MANAGED') {
         playbackStation['stream_type'] = 'MANAGED_RADIO';
       }
-    } else if (mode == 'MANAGED' && playbackUrl != null && playbackUrl.isNotEmpty) {
+    } else if (mode == 'MANAGED' &&
+        playbackUrl != null &&
+        playbackUrl.isNotEmpty) {
       playbackStation = <String, dynamic>{
         'id': channel['id']?.toString() ?? 'tarteel',
         'slug': channel['slug']?.toString() ?? 'tarteel',
@@ -132,7 +137,9 @@ class VirtualRadioResolution {
         'playback_url': playbackUrl,
         'health_status': managed['provider_status'],
         'provider': managed['provider']?.toString().toLowerCase(),
-        'provider_name': managed['provider'] == 'RADIO_CO' ? 'Radio.co' : managed['provider'],
+        'provider_name': managed['provider'] == 'RADIO_CO'
+            ? 'Radio.co'
+            : managed['provider'],
       };
     }
 
@@ -147,7 +154,9 @@ class VirtualRadioResolution {
       available: json['available'] == true,
       mode: mode,
       program: program == null ? null : VirtualRadioProgram.fromJson(program),
-      station: playbackStation == null ? null : Station.fromJson(playbackStation),
+      station: playbackStation == null
+          ? null
+          : Station.fromJson(playbackStation),
       serverTime:
           DateTime.tryParse(json['server_time']?.toString() ?? '') ??
           DateTime.now().toUtc(),

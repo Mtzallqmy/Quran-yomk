@@ -37,10 +37,7 @@ class SettingsPage extends ConsumerWidget {
                     value: ThemeMode.light,
                     title: Text(l10n.light),
                   ),
-                  RadioListTile(
-                    value: ThemeMode.dark,
-                    title: Text(l10n.dark),
-                  ),
+                  RadioListTile(value: ThemeMode.dark, title: Text(l10n.dark)),
                 ],
               ),
             ),
@@ -89,9 +86,7 @@ class SettingsPage extends ConsumerWidget {
               subtitle: Text(l10n.savedClipsSubtitle),
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const SavedClipsPage(),
-                ),
+                MaterialPageRoute<void>(builder: (_) => const SavedClipsPage()),
               ),
             ),
             SectionHeader(l10n.aboutSection),

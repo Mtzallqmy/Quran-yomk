@@ -38,15 +38,19 @@ class _MushafPageState extends ConsumerState<MushafPage> {
   }
 
   int _maxFor(QuranBrowseMode mode) => switch (mode) {
-        QuranBrowseMode.surah => 114,
-        QuranBrowseMode.juz => 30,
-        QuranBrowseMode.page => 604,
-      };
+    QuranBrowseMode.surah => 114,
+    QuranBrowseMode.juz => 30,
+    QuranBrowseMode.page => 604,
+  };
 
   int _clampNumber(QuranBrowseMode mode, int value) =>
       value.clamp(1, _maxFor(mode));
 
-  Future<void> _load(QuranBrowseMode mode, int number, {bool refresh = false}) async {
+  Future<void> _load(
+    QuranBrowseMode mode,
+    int number, {
+    bool refresh = false,
+  }) async {
     final next = _clampNumber(mode, number);
     setState(() {
       _mode = mode;
@@ -121,7 +125,8 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                 itemCount: values.length,
                 itemBuilder: (context, index) {
                   final reciter = values[index];
-                  final english = Localizations.localeOf(context).languageCode == 'en';
+                  final english =
+                      Localizations.localeOf(context).languageCode == 'en';
                   return ListTile(
                     leading: Artwork(
                       url: reciter.imageUrl,
@@ -148,7 +153,8 @@ class _MushafPageState extends ConsumerState<MushafPage> {
         ),
       ),
     );
-    if (selected != null && mounted) setState(() => _selectedReciter = selected);
+    if (selected != null && mounted)
+      setState(() => _selectedReciter = selected);
   }
 
   Future<void> _playSurah(int surahNumber) async {
@@ -166,7 +172,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           .repository
           .quranAudioTracks(reciter.id);
       final mapped = tracks.map((track) => track.toTrack(reciter!.id)).toList();
-      final index = mapped.indexWhere((track) => track.surah.number == surahNumber);
+      final index = mapped.indexWhere(
+        (track) => track.surah.number == surahNumber,
+      );
       if (index < 0) throw StateError('SURAH_AUDIO_NOT_AVAILABLE');
       await ref
           .read(servicesProvider)
@@ -174,9 +182,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           .playTracks(mapped, index, reciter.toReciter());
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.noAudioForSurah)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.noAudioForSurah)));
     } finally {
       if (mounted) setState(() => _audioBusy = false);
     }
@@ -429,8 +437,8 @@ class _AudioAndReadingControls extends ConsumerWidget {
                         selectedReciter == null
                             ? l10n.chooseReciter
                             : english && selectedReciter!.nameEn.isNotEmpty
-                                ? selectedReciter!.nameEn
-                                : selectedReciter!.nameAr,
+                            ? selectedReciter!.nameEn
+                            : selectedReciter!.nameAr,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -471,7 +479,9 @@ class _AudioAndReadingControls extends ConsumerWidget {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 value: store.showTajweed && passage.tajweedAvailable,
-                onChanged: passage.tajweedAvailable ? store.setShowTajweed : null,
+                onChanged: passage.tajweedAvailable
+                    ? store.setShowTajweed
+                    : null,
                 title: Text(l10n.showTajweed),
               ),
               SwitchListTile(
@@ -503,7 +513,8 @@ class _QuranText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = Theme.of(context).textTheme.headlineSmall?.copyWith(
+    final base =
+        Theme.of(context).textTheme.headlineSmall?.copyWith(
           height: 2.05,
           fontSize: 25 * store.fontScale,
           fontFamily: 'serif',
@@ -514,71 +525,81 @@ class _QuranText extends StatelessWidget {
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Column(
-          children: passage.verses.map((verse) {
-            final section = passage.themeSections.where((item) => item.contains(verse)).firstOrNull;
-            final color = store.showThemes && section != null
-                ? _themeColor(context, section.rukuNumber)
-                : Colors.transparent;
-            final tajweed = store.showTajweed &&
-                passage.tajweedAvailable &&
-                verse.textTajweed != null &&
-                verse.textTajweed!.isNotEmpty;
-            final spans = tajweed
-                ? TajweedMarkup.spans(
-                    verse.textTajweed!,
-                    base,
-                    Theme.of(context).colorScheme,
-                  )
-                : <InlineSpan>[TextSpan(text: verse.textUthmani, style: base)];
-            return Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(vertical: 3),
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(8),
-                      onTap: () => onRemember(verse),
-                      child: RichText(
-                        textAlign: TextAlign.justify,
-                        textDirection: TextDirection.rtl,
-                        text: TextSpan(
-                          children: <InlineSpan>[
-                            ...spans,
-                            TextSpan(
-                              text: '  ﴿${arabicIndicNumber(verse.ayahNumber)}﴾',
-                              style: base.copyWith(
-                                fontSize: 20 * store.fontScale,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
+          children: passage.verses
+              .map((verse) {
+                final section = passage.themeSections
+                    .where((item) => item.contains(verse))
+                    .firstOrNull;
+                final color = store.showThemes && section != null
+                    ? _themeColor(context, section.rukuNumber)
+                    : Colors.transparent;
+                final tajweed =
+                    store.showTajweed &&
+                    passage.tajweedAvailable &&
+                    verse.textTajweed != null &&
+                    verse.textTajweed!.isNotEmpty;
+                final spans = tajweed
+                    ? TajweedMarkup.spans(
+                        verse.textTajweed!,
+                        base,
+                        Theme.of(context).colorScheme,
+                      )
+                    : <InlineSpan>[
+                        TextSpan(text: verse.textUthmani, style: base),
+                      ];
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(vertical: 3),
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => onRemember(verse),
+                          child: RichText(
+                            textAlign: TextAlign.justify,
+                            textDirection: TextDirection.rtl,
+                            text: TextSpan(
+                              children: <InlineSpan>[
+                                ...spans,
+                                TextSpan(
+                                  text:
+                                      '  ﴿${arabicIndicNumber(verse.ayahNumber)}﴾',
+                                  style: base.copyWith(
+                                    fontSize: 20 * store.fontScale,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: store.isBookmarked(verse.verseKey)
+                            ? context.l10n.removeBookmark
+                            : context.l10n.bookmark,
+                        onPressed: () => store.toggleBookmark(verse),
+                        icon: Icon(
+                          store.isBookmarked(verse.verseKey)
+                              ? Icons.bookmark
+                              : Icons.bookmark_border,
+                        ),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    tooltip: store.isBookmarked(verse.verseKey)
-                        ? context.l10n.removeBookmark
-                        : context.l10n.bookmark,
-                    onPressed: () => store.toggleBookmark(verse),
-                    icon: Icon(
-                      store.isBookmarked(verse.verseKey)
-                          ? Icons.bookmark
-                          : Icons.bookmark_border,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(growable: false),
+                );
+              })
+              .toList(growable: false),
         ),
       ),
     );
@@ -627,8 +648,8 @@ class _NavigationControls extends StatelessWidget {
                 mode == QuranBrowseMode.page
                     ? l10n.previousPage
                     : mode == QuranBrowseMode.surah
-                        ? l10n.previousSurah
-                        : l10n.previous,
+                    ? l10n.previousSurah
+                    : l10n.previous,
               ),
             ),
           ),
@@ -645,8 +666,8 @@ class _NavigationControls extends StatelessWidget {
                 mode == QuranBrowseMode.page
                     ? l10n.nextPage
                     : mode == QuranBrowseMode.surah
-                        ? l10n.nextSurah
-                        : l10n.next,
+                    ? l10n.nextSurah
+                    : l10n.next,
               ),
             ),
           ),

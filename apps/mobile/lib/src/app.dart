@@ -58,13 +58,7 @@ class _RootShellState extends State<RootShell> {
   @override
   Widget build(BuildContext context) {
     final s = context.l10n;
-    final titles = <String>[
-      s.home,
-      s.radio,
-      s.mushaf,
-      s.reciters,
-      s.favorites,
-    ];
+    final titles = <String>[s.home, s.radio, s.mushaf, s.reciters, s.favorites];
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 12,
@@ -84,9 +78,9 @@ class _RootShellState extends State<RootShell> {
         actions: <Widget>[
           IconButton(
             tooltip: s.search,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const SearchPage()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const SearchPage())),
             icon: const Icon(Icons.search),
           ),
           IconButton(

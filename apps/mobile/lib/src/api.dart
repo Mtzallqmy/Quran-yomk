@@ -254,10 +254,7 @@ class TarteelApiClient {
   Future<QuranPassage> quranPassage(QuranBrowseMode mode, int number) async =>
       QuranPassage.fromJson(
         jsonMap(
-          (await _get(
-            'quran/${mode.name}/$number',
-            allowRetry: true,
-          ))['data'],
+          (await _get('quran/${mode.name}/$number', allowRetry: true))['data'],
         ),
       );
 
@@ -279,9 +276,9 @@ class TarteelApiClient {
         'quran/reciters/${Uri.encodeComponent(reciterId)}/tracks',
       ))['data'],
     );
-    return jsonList(root['tracks'])
-        .map((e) => QuranAudioTrack.fromJson(jsonMap(e)))
-        .toList(growable: false);
+    return jsonList(
+      root['tracks'],
+    ).map((e) => QuranAudioTrack.fromJson(jsonMap(e))).toList(growable: false);
   }
 
   Future<List<FeaturedItem>> featured() async => jsonList(

@@ -23,25 +23,25 @@ class MushafPosition {
   final int? pageNumber;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'mode': mode.name,
-        'number': number,
-        'verse_key': verseKey,
-        'surah_number': surahNumber,
-        'ayah_number': ayahNumber,
-        'page_number': pageNumber,
-      };
+    'mode': mode.name,
+    'number': number,
+    'verse_key': verseKey,
+    'surah_number': surahNumber,
+    'ayah_number': ayahNumber,
+    'page_number': pageNumber,
+  };
 
   factory MushafPosition.fromJson(Map<String, dynamic> json) => MushafPosition(
-        mode: QuranBrowseMode.values.firstWhere(
-          (value) => value.name == json['mode'],
-          orElse: () => QuranBrowseMode.surah,
-        ),
-        number: (json['number'] as num?)?.toInt() ?? 1,
-        verseKey: json['verse_key'] as String?,
-        surahNumber: (json['surah_number'] as num?)?.toInt(),
-        ayahNumber: (json['ayah_number'] as num?)?.toInt(),
-        pageNumber: (json['page_number'] as num?)?.toInt(),
-      );
+    mode: QuranBrowseMode.values.firstWhere(
+      (value) => value.name == json['mode'],
+      orElse: () => QuranBrowseMode.surah,
+    ),
+    number: (json['number'] as num?)?.toInt() ?? 1,
+    verseKey: json['verse_key'] as String?,
+    surahNumber: (json['surah_number'] as num?)?.toInt(),
+    ayahNumber: (json['ayah_number'] as num?)?.toInt(),
+    pageNumber: (json['page_number'] as num?)?.toInt(),
+  );
 }
 
 class MushafBookmark {
@@ -60,21 +60,22 @@ class MushafBookmark {
   final DateTime createdAt;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'verse_key': verseKey,
-        'surah_number': surahNumber,
-        'ayah_number': ayahNumber,
-        'page_number': pageNumber,
-        'created_at': createdAt.toIso8601String(),
-      };
+    'verse_key': verseKey,
+    'surah_number': surahNumber,
+    'ayah_number': ayahNumber,
+    'page_number': pageNumber,
+    'created_at': createdAt.toIso8601String(),
+  };
 
   factory MushafBookmark.fromJson(Map<String, dynamic> json) => MushafBookmark(
-        verseKey: json['verse_key'] as String? ?? '',
-        surahNumber: (json['surah_number'] as num?)?.toInt() ?? 1,
-        ayahNumber: (json['ayah_number'] as num?)?.toInt() ?? 1,
-        pageNumber: (json['page_number'] as num?)?.toInt() ?? 1,
-        createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0),
-      );
+    verseKey: json['verse_key'] as String? ?? '',
+    surahNumber: (json['surah_number'] as num?)?.toInt() ?? 1,
+    ayahNumber: (json['ayah_number'] as num?)?.toInt() ?? 1,
+    pageNumber: (json['page_number'] as num?)?.toInt() ?? 1,
+    createdAt:
+        DateTime.tryParse(json['created_at'] as String? ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0),
+  );
 }
 
 class MushafStore extends ChangeNotifier {
@@ -106,7 +107,9 @@ class MushafStore extends ChangeNotifier {
       try {
         final value = jsonDecode(rawPosition);
         if (value is Map) {
-          lastPosition = MushafPosition.fromJson(Map<String, dynamic>.from(value));
+          lastPosition = MushafPosition.fromJson(
+            Map<String, dynamic>.from(value),
+          );
         }
       } catch (_) {}
     }
@@ -118,8 +121,9 @@ class MushafStore extends ChangeNotifier {
         if (values is List) {
           for (final value in values) {
             if (value is! Map) continue;
-            final bookmark =
-                MushafBookmark.fromJson(Map<String, dynamic>.from(value));
+            final bookmark = MushafBookmark.fromJson(
+              Map<String, dynamic>.from(value),
+            );
             if (bookmark.verseKey.isNotEmpty) {
               _bookmarks[bookmark.verseKey] = bookmark;
             }
@@ -176,7 +180,7 @@ class MushafStore extends ChangeNotifier {
   }
 
   Future<void> _persistBookmarks() => _prefs.setString(
-        _bookmarksKey,
-        jsonEncode(_bookmarks.values.map((value) => value.toJson()).toList()),
-      );
+    _bookmarksKey,
+    jsonEncode(_bookmarks.values.map((value) => value.toJson()).toList()),
+  );
 }

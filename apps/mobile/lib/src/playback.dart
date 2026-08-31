@@ -112,7 +112,8 @@ class TarteelAudioHandler extends BaseAudioHandler
         if (event.type == AudioInterruptionType.duck) {
           await _player.setVolume(_volumeBeforeDuck);
         }
-        if (_resumeAfterInterruption && event.type == AudioInterruptionType.pause) {
+        if (_resumeAfterInterruption &&
+            event.type == AudioInterruptionType.pause) {
           await play();
         }
         _resumeAfterInterruption = false;
@@ -240,9 +241,12 @@ class TarteelAudioHandler extends BaseAudioHandler
     int index,
     Reciter reciter,
   ) async {
-    final playable = tracks.where((track) => track.isPlayable).toList(growable: false);
+    final playable = tracks
+        .where((track) => track.isPlayable)
+        .toList(growable: false);
     if (playable.isEmpty) throw StateError('NO_PLAYABLE_TRACKS');
-    if (index < 0 || index >= tracks.length) throw RangeError.index(index, tracks);
+    if (index < 0 || index >= tracks.length)
+      throw RangeError.index(index, tracks);
     final selected = tracks[index];
     final mappedIndex = playable.indexWhere((track) => track.id == selected.id);
     cancelSleepTimer();
@@ -252,7 +256,9 @@ class TarteelAudioHandler extends BaseAudioHandler
     _trackIndex = mappedIndex < 0 ? 0 : mappedIndex;
     _shouldPlay = true;
     queue.add(
-      playable.map((track) => _trackItem(track, reciter)).toList(growable: false),
+      playable
+          .map((track) => _trackItem(track, reciter))
+          .toList(growable: false),
     );
     await _loadTrack(_trackIndex);
     unawaited(_player.play());
@@ -494,8 +500,8 @@ class TarteelAudioHandler extends BaseAudioHandler
         androidCompactActionIndices: isLive
             ? const <int>[0, 1]
             : _tracks.isEmpty
-                ? const <int>[0, 1]
-                : const <int>[0, 1, 3],
+            ? const <int>[0, 1]
+            : const <int>[0, 1, 3],
         processingState: processing,
         playing: _player.playing,
         updatePosition: _player.position,

@@ -193,32 +193,36 @@ class TarteelRepository {
         'total_pages': result.totalPages,
         'tajweed_available': result.tajweedAvailable,
         'verses': result.verses
-            .map((verse) => <String, dynamic>{
-                  'global_number': verse.globalNumber,
-                  'surah_number': verse.surahNumber,
-                  'ayah_number': verse.ayahNumber,
-                  'verse_key': verse.verseKey,
-                  'text_uthmani': verse.textUthmani,
-                  'text_tajweed': verse.textTajweed,
-                  'juz_number': verse.juzNumber,
-                  'page_number': verse.pageNumber,
-                  'ruku_number': verse.rukuNumber,
-                  'hizb_quarter': verse.hizbQuarter,
-                  'sajda': verse.sajda,
-                  'surah_name_ar': verse.surahNameAr,
-                  'surah_name_en': verse.surahNameEn,
-                })
+            .map(
+              (verse) => <String, dynamic>{
+                'global_number': verse.globalNumber,
+                'surah_number': verse.surahNumber,
+                'ayah_number': verse.ayahNumber,
+                'verse_key': verse.verseKey,
+                'text_uthmani': verse.textUthmani,
+                'text_tajweed': verse.textTajweed,
+                'juz_number': verse.juzNumber,
+                'page_number': verse.pageNumber,
+                'ruku_number': verse.rukuNumber,
+                'hizb_quarter': verse.hizbQuarter,
+                'sajda': verse.sajda,
+                'surah_name_ar': verse.surahNameAr,
+                'surah_name_en': verse.surahNameEn,
+              },
+            )
             .toList(growable: false),
         'theme_sections': result.themeSections
-            .map((section) => <String, dynamic>{
-                  'surah_number': section.surahNumber,
-                  'from_ayah': section.fromAyah,
-                  'to_ayah': section.toAyah,
-                  'title_ar': section.titleAr,
-                  'title_en': section.titleEn,
-                  'color_key': section.colorKey,
-                  'ruku_number': section.rukuNumber,
-                })
+            .map(
+              (section) => <String, dynamic>{
+                'surah_number': section.surahNumber,
+                'from_ayah': section.fromAyah,
+                'to_ayah': section.toAyah,
+                'title_ar': section.titleAr,
+                'title_en': section.titleEn,
+                'color_key': section.colorKey,
+                'ruku_number': section.rukuNumber,
+              },
+            )
             .toList(growable: false),
       });
       return result;
@@ -234,9 +238,7 @@ class TarteelRepository {
     bool refresh = false,
   }) async {
     final key = 'quran:audio-reciters:$surahNumber';
-    final cached = refresh
-        ? null
-        : cache.read(key, const Duration(hours: 6));
+    final cached = refresh ? null : cache.read(key, const Duration(hours: 6));
     if (cached is List) {
       return cached
           .map((e) => QuranAudioReciter.fromJson(jsonMap(e)))
@@ -247,17 +249,19 @@ class TarteelRepository {
       await cache.write(
         key,
         values
-            .map((reciter) => <String, dynamic>{
-                  'id': reciter.id,
-                  'provider_reciter_id': reciter.providerReciterId,
-                  'moshaf_id': reciter.moshafId,
-                  'name_ar': reciter.nameAr,
-                  'name_en': reciter.nameEn,
-                  'rewaya_ar': reciter.rewayaAr,
-                  'rewaya_en': reciter.rewayaEn,
-                  'image_url': reciter.imageUrl,
-                  'available_surahs': reciter.availableSurahs.toList()..sort(),
-                })
+            .map(
+              (reciter) => <String, dynamic>{
+                'id': reciter.id,
+                'provider_reciter_id': reciter.providerReciterId,
+                'moshaf_id': reciter.moshafId,
+                'name_ar': reciter.nameAr,
+                'name_en': reciter.nameEn,
+                'rewaya_ar': reciter.rewayaAr,
+                'rewaya_en': reciter.rewayaEn,
+                'image_url': reciter.imageUrl,
+                'available_surahs': reciter.availableSurahs.toList()..sort(),
+              },
+            )
             .toList(growable: false),
       );
       return values;

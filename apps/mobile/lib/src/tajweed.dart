@@ -14,7 +14,12 @@ class TajweedMarkup {
 
     void flush() {
       if (buffer.isEmpty) return;
-      result.add(TextSpan(text: buffer.toString(), style: _style(activeCode, base, colors)));
+      result.add(
+        TextSpan(
+          text: buffer.toString(),
+          style: _style(activeCode, base, colors),
+        ),
+      );
       buffer.clear();
     }
 
@@ -43,7 +48,9 @@ class TajweedMarkup {
       index += 1;
     }
     flush();
-    return result.isEmpty ? <InlineSpan>[TextSpan(text: value, style: base)] : result;
+    return result.isEmpty
+        ? <InlineSpan>[TextSpan(text: value, style: base)]
+        : result;
   }
 
   static String plainText(String value) {
@@ -68,11 +75,7 @@ class TajweedMarkup {
     return buffer.toString();
   }
 
-  static TextStyle _style(
-    String code,
-    TextStyle base,
-    ColorScheme colors,
-  ) {
+  static TextStyle _style(String code, TextStyle base, ColorScheme colors) {
     if (code.isEmpty) return base;
     final normalized = code.toLowerCase();
     if (normalized.startsWith('h') || normalized.startsWith('s')) {

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
+import '../l10n.dart';
 import '../services.dart';
 import 'about.dart';
+import 'saved_clips.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -12,51 +14,56 @@ class SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final services = ref.watch(servicesProvider);
     final settings = services.settings;
+    final l10n = context.l10n;
     return AnimatedBuilder(
       animation: settings,
       builder: (context, _) => Scaffold(
-        appBar: AppBar(title: const Text('الإعدادات')),
+        appBar: AppBar(title: Text(l10n.settings)),
         body: ListView(
           children: <Widget>[
-            const SectionHeader('المظهر'),
+            SectionHeader(l10n.appearance),
             RadioGroup<ThemeMode>(
               groupValue: settings.themeMode,
               onChanged: (value) {
                 if (value != null) settings.setThemeMode(value);
               },
-              child: const Column(
+              child: Column(
                 children: <Widget>[
                   RadioListTile(
                     value: ThemeMode.system,
-                    title: Text('حسب النظام'),
+                    title: Text(l10n.followSystem),
                   ),
-                  RadioListTile(value: ThemeMode.light, title: Text('فاتح')),
-                  RadioListTile(value: ThemeMode.dark, title: Text('داكن')),
+                  RadioListTile(
+                    value: ThemeMode.light,
+                    title: Text(l10n.light),
+                  ),
+                  RadioListTile(
+                    value: ThemeMode.dark,
+                    title: Text(l10n.dark),
+                  ),
                 ],
               ),
             ),
-            const SectionHeader('اللغة'),
+            SectionHeader(l10n.language),
             ListTile(
               leading: const Icon(Icons.language),
-              title: const Text('اللغة'),
+              title: Text(l10n.language),
               trailing: DropdownButton<String>(
                 value: settings.locale.languageCode,
-                items: const <DropdownMenuItem<String>>[
-                  DropdownMenuItem(value: 'ar', child: Text('العربية')),
-                  DropdownMenuItem(value: 'en', child: Text('English')),
+                items: <DropdownMenuItem<String>>[
+                  DropdownMenuItem(value: 'ar', child: Text(l10n.arabic)),
+                  DropdownMenuItem(value: 'en', child: Text(l10n.english)),
                 ],
                 onChanged: (value) {
                   if (value != null) settings.setLocale(Locale(value));
                 },
               ),
             ),
-            const SectionHeader('التشغيل'),
+            SectionHeader(l10n.playback),
             ListTile(
               leading: const Icon(Icons.speed),
-              title: const Text('سرعة التلاوة الافتراضية'),
-              subtitle: const Text(
-                'تُطبق على التلاوات عند الطلب فقط، ولا تُطبق على البث المباشر.',
-              ),
+              title: Text(l10n.defaultRecitationSpeed),
+              subtitle: Text(l10n.defaultRecitationSpeedHelp),
               trailing: DropdownButton<double>(
                 value: settings.playbackSpeed,
                 items: const <DropdownMenuItem<double>>[
@@ -73,16 +80,25 @@ class SettingsPage extends ConsumerWidget {
             ),
             ListTile(
               leading: const Icon(Icons.bedtime_outlined),
-              title: const Text('إلغاء مؤقت النوم'),
+              title: Text(l10n.cancelSleepTimer),
               onTap: services.playback.cancelSleepTimer,
             ),
-            const SectionHeader('حول التطبيق'),
+            ListTile(
+              leading: const Icon(Icons.offline_pin_outlined),
+              title: Text(l10n.savedClips),
+              subtitle: Text(l10n.savedClipsSubtitle),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SavedClipsPage(),
+                ),
+              ),
+            ),
+            SectionHeader(l10n.aboutSection),
             ListTile(
               leading: const Icon(Icons.info_outline),
-              title: const Text('حول ترتيل'),
-              subtitle: const Text(
-                'معلومات التطبيق ومصادر المحتوى وحقوق النشر',
-              ),
+              title: Text(l10n.aboutTarteel),
+              subtitle: Text(l10n.aboutSubtitle),
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const AboutPage()),

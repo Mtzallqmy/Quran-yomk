@@ -92,14 +92,18 @@ class _RadioPageState extends ConsumerState<RadioPage> {
       return;
     }
     if (Uri.tryParse(url)?.scheme != 'https') {
-      _showError('هذه المحطة تستخدم اتصال HTTP غير آمن، لذلك لا تُشغّل في نسخة Android الحالية.');
+      _showError(
+        'هذه المحطة تستخدم اتصال HTTP غير آمن، لذلك لا تُشغّل في نسخة Android الحالية.',
+      );
       return;
     }
     setState(() => pendingStationId = station.id);
     try {
       await ref.read(servicesProvider).playback.playStation(station);
     } catch (error) {
-      final webNote = kIsWeb ? ' وقد يمنع المتصفح بعض المصادر بسبب سياسات CORS.' : '';
+      final webNote = kIsWeb
+          ? ' وقد يمنع المتصفح بعض المصادر بسبب سياسات CORS.'
+          : '';
       _showError('تعذر تشغيل ${station.nameAr}. حاول مرة أخرى.$webNote');
       debugPrint('Tarteel station playback error: $error');
     } finally {
@@ -124,7 +128,9 @@ class _RadioPageState extends ConsumerState<RadioPage> {
     final catalog = ref.watch(radioProvider);
     final virtual = ref.watch(virtualRadioProvider);
     final stations = catalog.asData?.value ?? const <Station>[];
-    final external = stations.where((station) => station.isExternal).toList(growable: false);
+    final external = stations
+        .where((station) => station.isExternal)
+        .toList(growable: false);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -168,7 +174,9 @@ class _RadioPageState extends ConsumerState<RadioPage> {
               ),
             ],
             data: (values) => _catalogSlivers(
-              values.where((station) => station.isExternal).toList(growable: false),
+              values
+                  .where((station) => station.isExternal)
+                  .toList(growable: false),
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 28)),
@@ -211,7 +219,9 @@ class _RadioPageState extends ConsumerState<RadioPage> {
         if (values.isEmpty)
           const SliverFillRemaining(
             hasScrollBody: false,
-            child: EmptyPane(message: 'لا توجد محطات متاحة في هذا القسم حاليًا'),
+            child: EmptyPane(
+              message: 'لا توجد محطات متاحة في هذا القسم حاليًا',
+            ),
           )
         else
           SliverList.builder(
@@ -223,7 +233,9 @@ class _RadioPageState extends ConsumerState<RadioPage> {
 
     final sections = <Widget>[];
     for (final category in _categoryOrder) {
-      final values = stations.where((station) => station.category == category).toList(growable: false);
+      final values = stations
+          .where((station) => station.category == category)
+          .toList(growable: false);
       if (values.isEmpty) continue;
       values.sort(_stationRanking);
       sections.add(
@@ -253,19 +265,24 @@ class _RadioPageState extends ConsumerState<RadioPage> {
 
   List<Station> _filteredStations(List<Station> stations) {
     final q = _normalizeSearch(query);
-    final result = stations.where((station) {
-      if (selectedCategory != null && station.category != selectedCategory) return false;
-      if (q.isEmpty) return true;
-      final haystack = _normalizeSearch(<String?>[
-        station.nameAr,
-        station.nameEn,
-        station.providerName,
-        station.provider,
-        station.category,
-        _categoryNames[station.category],
-      ].whereType<String>().join(' '));
-      return haystack.contains(q);
-    }).toList(growable: false);
+    final result = stations
+        .where((station) {
+          if (selectedCategory != null && station.category != selectedCategory)
+            return false;
+          if (q.isEmpty) return true;
+          final haystack = _normalizeSearch(
+            <String?>[
+              station.nameAr,
+              station.nameEn,
+              station.providerName,
+              station.provider,
+              station.category,
+              _categoryNames[station.category],
+            ].whereType<String>().join(' '),
+          );
+          return haystack.contains(q);
+        })
+        .toList(growable: false);
     result.sort(_stationRanking);
     return result;
   }
@@ -274,7 +291,9 @@ class _RadioPageState extends ConsumerState<RadioPage> {
     stream: ref.read(servicesProvider).playback.mediaItemStream,
     builder: (context, snapshot) {
       final media = snapshot.data;
-      final active = media?.extras?['kind'] == 'station' && media?.extras?['entity_id'] == station.id;
+      final active =
+          media?.extras?['kind'] == 'station' &&
+          media?.extras?['entity_id'] == station.id;
       return _StationCard(
         station: station,
         active: active,
@@ -349,17 +368,28 @@ class _RadioExplorer extends StatelessWidget {
             height: 48,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: _categoryOrder.where((category) => (counts[category] ?? 0) > 0).length,
+              itemCount: _categoryOrder
+                  .where((category) => (counts[category] ?? 0) > 0)
+                  .length,
               separatorBuilder: (_, _) => const SizedBox(width: 6),
               itemBuilder: (context, index) {
-                final available = _categoryOrder.where((category) => (counts[category] ?? 0) > 0).toList(growable: false);
+                final available = _categoryOrder
+                    .where((category) => (counts[category] ?? 0) > 0)
+                    .toList(growable: false);
                 final category = available[index];
                 final count = counts[category] ?? 0;
                 return ChoiceChip(
-                  avatar: Icon(_categoryIcons[category] ?? Icons.radio_outlined, size: 18),
-                  label: Text('${_categoryNames[category] ?? category}  $count'),
+                  avatar: Icon(
+                    _categoryIcons[category] ?? Icons.radio_outlined,
+                    size: 18,
+                  ),
+                  label: Text(
+                    '${_categoryNames[category] ?? category}  $count',
+                  ),
                   selected: selectedCategory == category,
-                  onSelected: (_) => onCategory(selectedCategory == category ? null : category),
+                  onSelected: (_) => onCategory(
+                    selectedCategory == category ? null : category,
+                  ),
                 );
               },
             ),
@@ -401,7 +431,12 @@ class _StationSection extends ConsumerWidget {
             children: <Widget>[
               Icon(icon, size: 22),
               const SizedBox(width: 8),
-              Expanded(child: Text(title, style: Theme.of(context).textTheme.titleLarge)),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
               Text('$count', style: Theme.of(context).textTheme.labelMedium),
               const SizedBox(width: 6),
               TextButton(onPressed: onShowAll, child: const Text('عرض الكل')),
@@ -421,7 +456,9 @@ class _StationSection extends ConsumerWidget {
                 stream: ref.read(servicesProvider).playback.mediaItemStream,
                 builder: (context, snapshot) {
                   final media = snapshot.data;
-                  final active = media?.extras?['kind'] == 'station' && media?.extras?['entity_id'] == station.id;
+                  final active =
+                      media?.extras?['kind'] == 'station' &&
+                      media?.extras?['entity_id'] == station.id;
                   return _CompactStationCard(
                     station: station,
                     active: active,
@@ -439,7 +476,11 @@ class _StationSection extends ConsumerWidget {
 }
 
 class _SectionTitleSliver extends StatelessWidget {
-  const _SectionTitleSliver({required this.title, required this.subtitle, this.onBack});
+  const _SectionTitleSliver({
+    required this.title,
+    required this.subtitle,
+    this.onBack,
+  });
 
   final String title;
   final String subtitle;
@@ -452,10 +493,18 @@ class _SectionTitleSliver extends StatelessWidget {
       child: Row(
         children: <Widget>[
           if (onBack != null) ...<Widget>[
-            IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_forward)),
+            IconButton(
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_forward),
+            ),
             const SizedBox(width: 4),
           ],
-          Expanded(child: Text(title, style: Theme.of(context).textTheme.headlineSmall)),
+          Expanded(
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+          ),
           Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
@@ -491,7 +540,8 @@ class _VirtualRadioCard extends ConsumerWidget {
                 subtitle: Text('تعذر تحديد مصدر البث الحالي'),
               ),
               FilledButton.icon(
-                onPressed: () => ref.read(virtualRadioProvider.notifier).retry(),
+                onPressed: () =>
+                    ref.read(virtualRadioProvider.notifier).retry(),
                 icon: const Icon(Icons.refresh),
                 label: const Text('إعادة المحاولة'),
               ),
@@ -510,9 +560,12 @@ class _VirtualRadioCard extends ConsumerWidget {
                   builder: (context, stateSnapshot) {
                     final state = stateSnapshot.data;
                     final playing = logicalActive && state?.playing == true;
-                    final buffering = logicalActive &&
-                        (state?.processingState == AudioProcessingState.loading ||
-                            state?.processingState == AudioProcessingState.buffering);
+                    final buffering =
+                        logicalActive &&
+                        (state?.processingState ==
+                                AudioProcessingState.loading ||
+                            state?.processingState ==
+                                AudioProcessingState.buffering);
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
@@ -529,15 +582,20 @@ class _VirtualRadioCard extends ConsumerWidget {
                                       Expanded(
                                         child: Text(
                                           resolution.channelNameAr,
-                                          style: Theme.of(context).textTheme.titleLarge,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.titleLarge,
                                         ),
                                       ),
                                       const Chip(label: Text('مباشر')),
                                     ],
                                   ),
                                   Text(
-                                    program?.titleAr ?? 'بث مختار من إذاعات القرآن',
-                                    style: Theme.of(context).textTheme.titleMedium,
+                                    program?.titleAr ??
+                                        'بث مختار من إذاعات القرآن',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleMedium,
                                   ),
                                   if (program?.subtitleAr != null)
                                     Text(
@@ -556,14 +614,21 @@ class _VirtualRadioCard extends ConsumerWidget {
                           runSpacing: 6,
                           children: <Widget>[
                             if (program != null)
-                              _MetaChip(_categoryNames[program.category] ?? program.category),
+                              _MetaChip(
+                                _categoryNames[program.category] ??
+                                    program.category,
+                              ),
                             if (resolution.isManaged)
                               _MetaChip(
                                 'المزود: ${resolution.managedProvider == 'RADIO_CO' ? 'Radio.co' : resolution.managedProvider ?? 'Managed Radio'}',
                               ),
-                            if (station != null) _MetaChip('المصدر الحالي: ${station.nameAr}'),
-                            if (resolution.isManaged && resolution.managedStatus != null)
-                              _MetaChip(_managedStatusLabel(resolution.managedStatus!))
+                            if (station != null)
+                              _MetaChip('المصدر الحالي: ${station.nameAr}'),
+                            if (resolution.isManaged &&
+                                resolution.managedStatus != null)
+                              _MetaChip(
+                                _managedStatusLabel(resolution.managedStatus!),
+                              )
                             else if (station?.healthStatus != null)
                               _MetaChip(_healthLabel(station!.healthStatus!)),
                           ],
@@ -589,18 +654,32 @@ class _VirtualRadioCard extends ConsumerWidget {
                                         } else if (logicalActive) {
                                           await playback.play();
                                         } else {
-                                          await ref.read(virtualRadioProvider.notifier).play();
+                                          await ref
+                                              .read(
+                                                virtualRadioProvider.notifier,
+                                              )
+                                              .play();
                                         }
                                       },
                                 icon: buffering
                                     ? const SizedBox(
                                         width: 20,
                                         height: 20,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
                                       )
-                                    : Icon(playing ? Icons.pause : Icons.play_arrow),
+                                    : Icon(
+                                        playing
+                                            ? Icons.pause
+                                            : Icons.play_arrow,
+                                      ),
                                 label: Text(
-                                  buffering ? 'جارٍ الاتصال…' : playing ? 'إيقاف مؤقت' : 'تشغيل إذاعة ترتيل',
+                                  buffering
+                                      ? 'جارٍ الاتصال…'
+                                      : playing
+                                      ? 'إيقاف مؤقت'
+                                      : 'تشغيل إذاعة ترتيل',
                                 ),
                               ),
                             ),
@@ -608,7 +687,9 @@ class _VirtualRadioCard extends ConsumerWidget {
                               const SizedBox(width: 8),
                               IconButton.filledTonal(
                                 tooltip: 'إيقاف',
-                                onPressed: () => ref.read(virtualRadioProvider.notifier).stop(),
+                                onPressed: () => ref
+                                    .read(virtualRadioProvider.notifier)
+                                    .stop(),
                                 icon: const Icon(Icons.stop),
                               ),
                             ],
@@ -675,7 +756,11 @@ class _CompactStationCard extends ConsumerWidget {
                         tooltip: 'المفضلة',
                         visualDensity: VisualDensity.compact,
                         onPressed: () => favorites.toggleStation(station.id),
-                        icon: Icon(favorites.isStation(station.id) ? Icons.favorite : Icons.favorite_border),
+                        icon: Icon(
+                          favorites.isStation(station.id)
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                        ),
                       ),
                     ),
                   ],
@@ -690,15 +775,25 @@ class _CompactStationCard extends ConsumerWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: <Widget>[
-                    _MetaChip(station.healthStatus == null ? 'غير مفحوص' : _healthLabel(station.healthStatus!)),
+                    _MetaChip(
+                      station.healthStatus == null
+                          ? 'غير مفحوص'
+                          : _healthLabel(station.healthStatus!),
+                    ),
                     const Spacer(),
                     if (pending)
-                      const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                      const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     else
                       IconButton.filled(
                         visualDensity: VisualDensity.compact,
                         onPressed: playable ? onPlay : null,
-                        icon: Icon(active ? Icons.graphic_eq : Icons.play_arrow),
+                        icon: Icon(
+                          active ? Icons.graphic_eq : Icons.play_arrow,
+                        ),
                       ),
                   ],
                 ),
@@ -762,16 +857,22 @@ class _StationCard extends ConsumerWidget {
                       runSpacing: 5,
                       children: <Widget>[
                         if (station.category != null)
-                          _MetaChip(_categoryNames[station.category] ?? station.category!),
+                          _MetaChip(
+                            _categoryNames[station.category] ??
+                                station.category!,
+                          ),
                         _MetaChip(station.streamType),
-                        if (station.healthStatus != null) _MetaChip(_healthLabel(station.healthStatus!)),
+                        if (station.healthStatus != null)
+                          _MetaChip(_healthLabel(station.healthStatus!)),
                       ],
                     ),
                     if (!secure && station.playbackUrl != null) ...<Widget>[
                       const SizedBox(height: 6),
                       Text(
                         'HTTP غير آمن — غير متاح في Android',
-                        style: TextStyle(color: Theme.of(context).colorScheme.error),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ],
                   ],
@@ -783,20 +884,29 @@ class _StationCard extends ConsumerWidget {
                     animation: services.favorites,
                     builder: (context, _) => IconButton(
                       tooltip: 'المفضلة',
-                      onPressed: () => services.favorites.toggleStation(station.id),
+                      onPressed: () =>
+                          services.favorites.toggleStation(station.id),
                       icon: Icon(
-                        services.favorites.isStation(station.id) ? Icons.favorite : Icons.favorite_border,
+                        services.favorites.isStation(station.id)
+                            ? Icons.favorite
+                            : Icons.favorite_border,
                       ),
                     ),
                   ),
                   if (pending)
                     const Padding(
                       padding: EdgeInsets.all(10),
-                      child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
                     )
                   else
                     IconButton.filled(
-                      tooltip: playable ? (active ? 'إعادة التشغيل' : 'تشغيل') : 'غير متاح',
+                      tooltip: playable
+                          ? (active ? 'إعادة التشغيل' : 'تشغيل')
+                          : 'غير متاح',
                       onPressed: playable ? onPlay : null,
                       icon: Icon(active ? Icons.graphic_eq : Icons.play_arrow),
                     ),

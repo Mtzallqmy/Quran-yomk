@@ -65,7 +65,11 @@ class _TarteelMarkPainter extends CustomPainter {
       ..quadraticBezierTo(w * 0.36, h * 0.68, w * 0.22, h * 0.75)
       ..close();
     canvas.drawPath(book, line);
-    canvas.drawLine(Offset(w * 0.50, h * 0.65), Offset(w * 0.50, h * 0.77), line);
+    canvas.drawLine(
+      Offset(w * 0.50, h * 0.65),
+      Offset(w * 0.50, h * 0.77),
+      line,
+    );
 
     final minaret = Path()
       ..moveTo(w * 0.47, h * 0.52)

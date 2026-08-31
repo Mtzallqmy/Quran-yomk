@@ -76,10 +76,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       final next = values[0] as SearchBundle;
       final categories = values[1] as List<Category>;
       final normalized = _normalize(trimmed);
-      final matchedCategories = categories.where((category) {
-        final haystack = _normalize('${category.nameAr} ${category.nameEn ?? ''} ${category.slug}');
-        return haystack.contains(normalized);
-      }).toList(growable: false);
+      final matchedCategories = categories
+          .where((category) {
+            final haystack = _normalize(
+              '${category.nameAr} ${category.nameEn ?? ''} ${category.slug}',
+            );
+            return haystack.contains(normalized);
+          })
+          .toList(growable: false);
       if (mounted) {
         setState(() {
           result = next;
@@ -100,7 +104,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       return;
     }
     if (Uri.tryParse(url)?.scheme != 'https') {
-      _message('هذه المحطة تستخدم رابط HTTP غير آمن ولا يمكن تشغيلها في نسخة Android الحالية.');
+      _message(
+        'هذه المحطة تستخدم رابط HTTP غير آمن ولا يمكن تشغيلها في نسخة Android الحالية.',
+      );
       return;
     }
     try {
@@ -118,7 +124,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    final total = result.stations.length +
+    final total =
+        result.stations.length +
         result.reciters.length +
         result.surahs.length +
         categoryResults.length;
@@ -144,16 +151,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       )
                     : controller.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'مسح',
-                            onPressed: () {
-                              controller.clear();
-                              runSearch('');
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.close),
-                          ),
+                    ? null
+                    : IconButton(
+                        tooltip: 'مسح',
+                        onPressed: () {
+                          controller.clear();
+                          runSearch('');
+                          setState(() {});
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
                 hintText: 'محطة، قارئ، سورة، تفسير، أذكار…',
               ),
               onChanged: (value) {
@@ -183,7 +190,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           else
             Expanded(
               child: ListView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 children: <Widget>[
                   if (categoryResults.isNotEmpty) ...<Widget>[
                     const SectionHeader('الأقسام'),
@@ -195,11 +203,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         children: categoryResults
                             .map(
                               (category) => ActionChip(
-                                avatar: const Icon(Icons.grid_view_outlined, size: 18),
+                                avatar: const Icon(
+                                  Icons.grid_view_outlined,
+                                  size: 18,
+                                ),
                                 label: Text(category.nameAr),
                                 onPressed: () => Navigator.of(context).push(
                                   MaterialPageRoute<void>(
-                                    builder: (_) => RadioPage(initialCategory: category.slug),
+                                    builder: (_) => RadioPage(
+                                      initialCategory: category.slug,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -221,10 +234,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             station.healthStatus,
                           ].whereType<String>().join(' • '),
                         ),
-                        onTap: station.isPlayable ? () => _playStation(station) : null,
+                        onTap: station.isPlayable
+                            ? () => _playStation(station)
+                            : null,
                         trailing: IconButton.filledTonal(
                           tooltip: station.isPlayable ? 'تشغيل' : 'غير متاح',
-                          onPressed: station.isPlayable ? () => _playStation(station) : null,
+                          onPressed: station.isPlayable
+                              ? () => _playStation(station)
+                              : null,
                           icon: const Icon(Icons.play_arrow),
                         ),
                       ),
@@ -238,7 +255,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           icon: Icons.person_outline,
                         ),
                         title: Text(reciter.nameAr),
-                        subtitle: reciter.rewaya == null ? null : Text(reciter.rewaya!),
+                        subtitle: reciter.rewaya == null
+                            ? null
+                            : Text(reciter.rewaya!),
                         trailing: const Icon(Icons.chevron_left),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -253,11 +272,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       ListTile(
                         leading: CircleAvatar(child: Text('${surah.number}')),
                         title: Text(surah.nameAr),
-                        subtitle: Text('${surah.nameEn} • ${surah.ayahCount} آية'),
+                        subtitle: Text(
+                          '${surah.nameEn} • ${surah.ayahCount} آية',
+                        ),
                         trailing: const Icon(Icons.search),
                         onTap: () {
                           controller.text = surah.nameAr;
-                          controller.selection = TextSelection.collapsed(offset: controller.text.length);
+                          controller.selection = TextSelection.collapsed(
+                            offset: controller.text.length,
+                          );
                           runSearch(surah.nameAr);
                         },
                       ),

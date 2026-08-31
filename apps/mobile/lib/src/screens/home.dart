@@ -140,7 +140,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                       .take(10)
                       .toList(growable: false);
                   if (playable.isEmpty) {
-                    return const Center(child: Text('لا توجد إذاعات متاحة حاليًا'));
+                    return const Center(
+                      child: Text('لا توجد إذاعات متاحة حاليًا'),
+                    );
                   }
                   return ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -164,8 +166,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: <Widget>[
                                         Text(
                                           station.nameAr,
@@ -188,7 +192,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                                         Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: <Widget>[
-                                            const Icon(Icons.play_arrow, size: 18),
+                                            const Icon(
+                                              Icons.play_arrow,
+                                              size: 18,
+                                            ),
                                             const SizedBox(width: 4),
                                             Text(
                                               station.streamType,

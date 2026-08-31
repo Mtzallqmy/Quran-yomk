@@ -34,17 +34,15 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       repo.categories(refresh: refresh),
       repo.surahs(refresh: refresh),
     ]);
-    return _LibraryData(
-      values[0] as List<Category>,
-      values[1] as List<Surah>,
-    );
+    return _LibraryData(values[0] as List<Category>, values[1] as List<Surah>);
   }
 
   @override
   Widget build(BuildContext context) => FutureBuilder<_LibraryData>(
     future: future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
         return const LoadingPane();
       }
       if (snapshot.hasError && !snapshot.hasData) {
@@ -83,7 +81,8 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                       borderRadius: BorderRadius.circular(12),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => RadioPage(initialCategory: category.slug),
+                          builder: (_) =>
+                              RadioPage(initialCategory: category.slug),
                         ),
                       ),
                       child: Padding(

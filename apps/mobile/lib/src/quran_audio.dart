@@ -133,12 +133,11 @@ abstract class QuranAudioLocalLookup {
 class QuranAudioRepository {
   QuranAudioRepository({
     required List<QuranAudioProvider> providers,
-    required QuranAudioLocalLookup localLookup,
-  }) : _providers = List<QuranAudioProvider>.unmodifiable(providers),
-       _localLookup = localLookup;
+    required this.localLookup,
+  }) : _providers = List<QuranAudioProvider>.unmodifiable(providers);
 
   final List<QuranAudioProvider> _providers;
-  final QuranAudioLocalLookup _localLookup;
+  final QuranAudioLocalLookup localLookup;
   final Map<String, List<QuranAudioCatalogReciter>> _catalogCache =
       <String, List<QuranAudioCatalogReciter>>{};
 
@@ -147,7 +146,8 @@ class QuranAudioRepository {
     bool refresh = false,
   }) async {
     final key = '${surahNumber ?? 0}';
-    if (!refresh && _catalogCache[key] case final cached?) return cached;
+    final cached = _catalogCache[key];
+    if (!refresh && cached != null) return cached;
     final settled = await Future.wait(
       _providers.map(
         (provider) => provider
@@ -171,7 +171,7 @@ class QuranAudioRepository {
       try {
         final remote = await provider.resolve(request);
         if (remote == null) continue;
-        return await _localLookup.localMedia(remote) ?? remote;
+        return await localLookup.localMedia(remote) ?? remote;
       } catch (error) {
         lastError = error;
       }
@@ -201,11 +201,11 @@ class AlQuranCloudAudioProvider implements QuranAudioProvider {
       throw StateError('ALQURAN_EDITIONS_HTTP_${response.statusCode}');
     }
     final root = jsonDecode(response.body);
-    final rows = root is Map && root['data'] is List
-        ? root['data'] as List
+    final rows = root is Map<String, dynamic> && root['data'] is List
+        ? root['data'] as List<dynamic>
         : const <dynamic>[];
     return rows
-        .whereType<Map>()
+        .whereType<Map<Object?, Object?>>()
         .map((raw) => Map<String, dynamic>.from(raw))
         .where((row) => row['language'] == 'ar')
         .map((row) {
@@ -299,16 +299,16 @@ class Mp3QuranAudioProvider implements QuranAudioProvider {
       throw StateError('MP3QURAN_RECITERS_HTTP_${response.statusCode}');
     }
     final root = jsonDecode(response.body);
-    final rows = root is Map && root['reciters'] is List
-        ? root['reciters'] as List
+    final rows = root is Map<String, dynamic> && root['reciters'] is List
+        ? root['reciters'] as List<dynamic>
         : const <dynamic>[];
     final result = <QuranAudioCatalogReciter>[];
-    for (final rawReciter in rows.whereType<Map>()) {
+    for (final rawReciter in rows.whereType<Map<Object?, Object?>>()) {
       final reciter = Map<String, dynamic>.from(rawReciter);
       final reciterId = (reciter['id'] as num?)?.toInt() ?? 0;
       for (final rawMoshaf
-          in (reciter['moshaf'] as List? ?? const <dynamic>[])
-              .whereType<Map>()) {
+          in (reciter['moshaf'] as List<dynamic>? ?? const <dynamic>[])
+              .whereType<Map<Object?, Object?>>()) {
         final moshaf = Map<String, dynamic>.from(rawMoshaf);
         final moshafId = (moshaf['id'] as num?)?.toInt() ?? 0;
         final server = moshaf['server'] as String? ?? '';

@@ -43,8 +43,8 @@ class _IoQuranDownloadService extends QuranDownloadService {
     if (raw != null && raw.isNotEmpty) {
       try {
         final decoded = jsonDecode(raw);
-        if (decoded is List) {
-          for (final value in decoded.whereType<Map>()) {
+        if (decoded is List<dynamic>) {
+          for (final value in decoded.whereType<Map<Object?, Object?>>()) {
             final record = _TaskRecord.fromJson(
               Map<String, dynamic>.from(value),
             );

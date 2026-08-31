@@ -29,6 +29,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   List<Category> categoryResults = const <Category>[];
   bool loading = false;
   Object? error;
+  String? pendingStationId;
 
   @override
   void initState() {
@@ -63,6 +64,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       });
       return;
     }
+
     setState(() {
       loading = true;
       error = null;
@@ -76,14 +78,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       final next = values[0] as SearchBundle;
       final categories = values[1] as List<Category>;
       final normalized = _normalize(trimmed);
-      final matchedCategories = categories
-          .where((category) {
-            final haystack = _normalize(
-              '${category.nameAr} ${category.nameEn ?? ''} ${category.slug}',
-            );
-            return haystack.contains(normalized);
-          })
-          .toList(growable: false);
+      final matchedCategories = categories.where((category) {
+        final haystack = _normalize(
+          '${category.nameAr} ${category.nameEn ?? ''} ${category.slug}',
+        );
+        return haystack.contains(normalized);
+      }).toList(growable: false);
       if (mounted) {
         setState(() {
           result = next;
@@ -98,37 +98,45 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Future<void> _playStation(Station station) async {
-    final url = station.playbackUrl;
-    if (url == null || url.isEmpty) {
-      _message('هذه المحطة غير متاحة للتشغيل حاليًا.');
+    if (!_canPlay(station)) {
+      _playbackError(station);
       return;
     }
-    if (Uri.tryParse(url)?.scheme != 'https') {
-      _message(
-        'هذه المحطة تستخدم رابط HTTP غير آمن ولا يمكن تشغيلها في نسخة Android الحالية.',
-      );
-      return;
-    }
+    setState(() => pendingStationId = station.id);
     try {
       await ref.read(servicesProvider).playback.playStation(station);
-      if (mounted) _message('جارٍ تشغيل ${station.nameAr}');
-    } catch (_) {
-      _message('تعذر تشغيل ${station.nameAr}. حاول مرة أخرى.');
+    } catch (e) {
+      debugPrint('Tarteel search playback error: $e');
+      _playbackError(station);
+    } finally {
+      if (mounted && pendingStationId == station.id) {
+        setState(() => pendingStationId = null);
+      }
     }
   }
 
-  void _message(String value) {
+  void _playbackError(Station station) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('تعذر تشغيل ${station.nameAr}.'),
+        action: SnackBarAction(
+          label: 'إعادة المحاولة',
+          onPressed: () => _playStation(station),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final services = ref.watch(servicesProvider);
     final total =
         result.stations.length +
         result.reciters.length +
         result.surahs.length +
         categoryResults.length;
+
     return Scaffold(
       appBar: AppBar(title: const Text('البحث في ترتيل')),
       body: Column(
@@ -151,16 +159,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       )
                     : controller.text.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'مسح',
-                        onPressed: () {
-                          controller.clear();
-                          runSearch('');
-                          setState(() {});
-                        },
-                        icon: const Icon(Icons.close),
-                      ),
+                        ? null
+                        : IconButton(
+                            tooltip: 'مسح',
+                            onPressed: () {
+                              controller.clear();
+                              runSearch('');
+                              setState(() {});
+                            },
+                            icon: const Icon(Icons.close),
+                          ),
                 hintText: 'محطة، قارئ، سورة، تفسير، أذكار…',
               ),
               onChanged: (value) {
@@ -224,25 +232,52 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   if (result.stations.isNotEmpty) ...<Widget>[
                     const SectionHeader('الإذاعات'),
                     for (final station in result.stations)
-                      ListTile(
-                        leading: Artwork(url: station.logoUrl),
-                        title: Text(station.nameAr),
-                        subtitle: Text(
-                          <String?>[
-                            station.providerName ?? station.provider,
-                            station.category,
-                            station.healthStatus,
-                          ].whereType<String>().join(' • '),
-                        ),
-                        onTap: station.isPlayable
-                            ? () => _playStation(station)
-                            : null,
-                        trailing: IconButton.filledTonal(
-                          tooltip: station.isPlayable ? 'تشغيل' : 'غير متاح',
-                          onPressed: station.isPlayable
+                      AnimatedBuilder(
+                        animation: services.favorites,
+                        builder: (context, _) => ListTile(
+                          leading: Artwork(url: station.logoUrl),
+                          title: Text(
+                            station.nameAr,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: _canPlay(station)
                               ? () => _playStation(station)
                               : null,
-                          icon: const Icon(Icons.play_arrow),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              IconButton(
+                                tooltip: 'المفضلة',
+                                onPressed: () =>
+                                    services.favorites.toggleStation(station.id),
+                                icon: Icon(
+                                  services.favorites.isStation(station.id)
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                ),
+                              ),
+                              if (pendingStationId == station.id)
+                                const Padding(
+                                  padding: EdgeInsets.all(10),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              else
+                                IconButton.filledTonal(
+                                  tooltip: 'تشغيل',
+                                  onPressed: _canPlay(station)
+                                      ? () => _playStation(station)
+                                      : null,
+                                  icon: const Icon(Icons.play_arrow),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                   ],
@@ -293,6 +328,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       ),
     );
   }
+}
+
+bool _canPlay(Station station) {
+  final url = station.playbackUrl;
+  return station.isPlayable &&
+      url != null &&
+      Uri.tryParse(url)?.scheme.toLowerCase() == 'https';
 }
 
 String _normalize(String value) => value

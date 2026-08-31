@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 
 type Json=Record<string,any>;
-const box:React.CSSProperties={border:'1px solid #e5e7eb',borderRadius:14,padding:16,background:'#fff'};
-const grid:React.CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:12};
+const box:CSSProperties={border:'1px solid #e5e7eb',borderRadius:14,padding:16,background:'#fff'};
+const grid:CSSProperties={display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:12};
 
 export default function ManagedRadioPage(){
   const [data,setData]=useState<Json|null>(null);

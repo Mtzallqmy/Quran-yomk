@@ -260,23 +260,26 @@ class _RadioPageState extends ConsumerState<RadioPage> {
 
   List<Station> _filteredStations(List<Station> stations) {
     final q = _normalizeSearch(query);
-    final result = stations.where((station) {
-      if (selectedCategory != null && station.category != selectedCategory) {
-        return false;
-      }
-      if (q.isEmpty) return true;
-      final haystack = _normalizeSearch(
-        <String?>[
-          station.nameAr,
-          station.nameEn,
-          station.providerName,
-          station.provider,
-          station.category,
-          _categoryNames[station.category],
-        ].whereType<String>().join(' '),
-      );
-      return haystack.contains(q);
-    }).toList(growable: false);
+    final result = stations
+        .where((station) {
+          if (selectedCategory != null &&
+              station.category != selectedCategory) {
+            return false;
+          }
+          if (q.isEmpty) return true;
+          final haystack = _normalizeSearch(
+            <String?>[
+              station.nameAr,
+              station.nameEn,
+              station.providerName,
+              station.provider,
+              station.category,
+              _categoryNames[station.category],
+            ].whereType<String>().join(' '),
+          );
+          return haystack.contains(q);
+        })
+        .toList(growable: false);
     result.sort(_stationRanking);
     return result;
   }
@@ -487,7 +490,10 @@ class _SectionTitleSliver extends StatelessWidget {
             const SizedBox(width: 4),
           ],
           Expanded(
-            child: Text(title, style: Theme.of(context).textTheme.headlineSmall),
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
           ),
           Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
         ],
@@ -524,7 +530,8 @@ class _VirtualRadioCard extends ConsumerWidget {
                 subtitle: Text('تعذر تشغيل الإذاعة الآن'),
               ),
               FilledButton.icon(
-                onPressed: () => ref.read(virtualRadioProvider.notifier).retry(),
+                onPressed: () =>
+                    ref.read(virtualRadioProvider.notifier).retry(),
                 icon: const Icon(Icons.refresh),
                 label: const Text('إعادة المحاولة'),
               ),
@@ -564,9 +571,9 @@ class _VirtualRadioCard extends ConsumerWidget {
                                       Expanded(
                                         child: Text(
                                           resolution.channelNameAr,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleLarge,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.titleLarge,
                                         ),
                                       ),
                                       const Chip(label: Text('مباشر')),
@@ -574,9 +581,9 @@ class _VirtualRadioCard extends ConsumerWidget {
                                   ),
                                   Text(
                                     program?.titleAr ?? 'بث مختار',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleMedium,
                                   ),
                                 ],
                               ),
@@ -613,8 +620,9 @@ class _VirtualRadioCard extends ConsumerWidget {
                                           }
                                         } catch (_) {
                                           if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             SnackBar(
                                               content: const Text(
                                                 'تعذر تشغيل إذاعة ترتيل.',
@@ -649,8 +657,8 @@ class _VirtualRadioCard extends ConsumerWidget {
                                   loading
                                       ? 'جارٍ التشغيل…'
                                       : playing
-                                          ? 'إيقاف مؤقت'
-                                          : 'تشغيل',
+                                      ? 'إيقاف مؤقت'
+                                      : 'تشغيل',
                                 ),
                               ),
                             ),

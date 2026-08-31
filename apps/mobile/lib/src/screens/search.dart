@@ -78,12 +78,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       final next = values[0] as SearchBundle;
       final categories = values[1] as List<Category>;
       final normalized = _normalize(trimmed);
-      final matchedCategories = categories.where((category) {
-        final haystack = _normalize(
-          '${category.nameAr} ${category.nameEn ?? ''} ${category.slug}',
-        );
-        return haystack.contains(normalized);
-      }).toList(growable: false);
+      final matchedCategories = categories
+          .where((category) {
+            final haystack = _normalize(
+              '${category.nameAr} ${category.nameEn ?? ''} ${category.slug}',
+            );
+            return haystack.contains(normalized);
+          })
+          .toList(growable: false);
       if (mounted) {
         setState(() {
           result = next;
@@ -159,16 +161,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       )
                     : controller.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'مسح',
-                            onPressed: () {
-                              controller.clear();
-                              runSearch('');
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.close),
-                          ),
+                    ? null
+                    : IconButton(
+                        tooltip: 'مسح',
+                        onPressed: () {
+                          controller.clear();
+                          runSearch('');
+                          setState(() {});
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
                 hintText: 'محطة، قارئ، سورة، تفسير، أذكار…',
               ),
               onChanged: (value) {
@@ -249,8 +251,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             children: <Widget>[
                               IconButton(
                                 tooltip: 'المفضلة',
-                                onPressed: () =>
-                                    services.favorites.toggleStation(station.id),
+                                onPressed: () => services.favorites
+                                    .toggleStation(station.id),
                                 icon: Icon(
                                   services.favorites.isStation(station.id)
                                       ? Icons.favorite

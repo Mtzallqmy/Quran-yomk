@@ -23,8 +23,7 @@ class ContentSourcesPage extends ConsumerWidget {
           if (snapshot.hasError && !snapshot.hasData) {
             return ErrorPane(
               error: snapshot.error!,
-              onRetry: () =>
-                  services.repository.api.contentSources(),
+              onRetry: () => services.repository.api.contentSources(),
             );
           }
 
@@ -75,10 +74,7 @@ class ContentSourcesPage extends ConsumerWidget {
                         title: 'المصدر',
                         value: source.providerUrl ?? source.sourceUrl,
                       ),
-                      _InfoTile(
-                        title: 'مرجع الشروط',
-                        value: source.termsUrl,
-                      ),
+                      _InfoTile(title: 'مرجع الشروط', value: source.termsUrl),
                       _InfoTile(
                         title: 'مرجع الترخيص',
                         value: source.licenseUrl,

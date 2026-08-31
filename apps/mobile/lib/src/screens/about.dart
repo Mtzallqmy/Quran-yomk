@@ -30,10 +30,14 @@ class AboutPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.source_outlined),
             title: const Text('مصادر المحتوى وحقوق النشر'),
-            subtitle: const Text('المصادر الخارجية، الإسناد، والشروط المرتبطة بها'),
+            subtitle: const Text(
+              'المصادر الخارجية، الإسناد، والشروط المرتبطة بها',
+            ),
             trailing: const Icon(Icons.chevron_left),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const ContentSourcesPage()),
+              MaterialPageRoute<void>(
+                builder: (_) => const ContentSourcesPage(),
+              ),
             ),
           ),
           FutureBuilder<JsonMap>(
@@ -42,7 +46,10 @@ class AboutPage extends ConsumerWidget {
               final config = snapshot.data ?? const <String, dynamic>{};
               return Column(
                 children: <Widget>[
-                  _LegalTile(title: 'سياسة الخصوصية', value: config['privacy_url']),
+                  _LegalTile(
+                    title: 'سياسة الخصوصية',
+                    value: config['privacy_url'],
+                  ),
                   _LegalTile(title: 'الشروط', value: config['terms_url']),
                   _LegalTile(title: 'الدعم', value: config['support_url']),
                 ],
@@ -70,7 +77,9 @@ class _LegalTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = value is String && (value as String).isNotEmpty ? value as String : null;
+    final url = value is String && (value as String).isNotEmpty
+        ? value as String
+        : null;
     return ListTile(
       leading: const Icon(Icons.description_outlined),
       title: Text(title),

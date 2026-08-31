@@ -80,7 +80,9 @@ class SettingsPage extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.info_outline),
               title: const Text('حول ترتيل'),
-              subtitle: const Text('معلومات التطبيق ومصادر المحتوى وحقوق النشر'),
+              subtitle: const Text(
+                'معلومات التطبيق ومصادر المحتوى وحقوق النشر',
+              ),
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const AboutPage()),

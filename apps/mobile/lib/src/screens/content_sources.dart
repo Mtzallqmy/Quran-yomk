@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
+import '../l10n.dart';
 import '../models.dart';
 import '../services.dart';
 
@@ -10,9 +11,10 @@ class ContentSourcesPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final services = ref.watch(servicesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('مصادر المحتوى وحقوق النشر')),
+      appBar: AppBar(title: Text(l10n.thirdPartyRights)),
       body: FutureBuilder<List<ContentSource>>(
         future: services.repository.api.contentSources(),
         builder: (context, snapshot) {
@@ -31,20 +33,16 @@ class ContentSourcesPage extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.only(bottom: 24),
             children: <Widget>[
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text(
-                  'يتيح ترتيل الوصول إلى بعض الإذاعات والمصادر الصوتية الخارجية من خلال خدمات ومصادر البث الخاصة بمقدميها. تبقى حقوق المحتوى والعلامات والمصادر الصوتية لأصحابها. لا يدّعي ترتيل ملكية محتوى الطرف الثالث أو اعتماده من الجهات المشغلة.',
-                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(l10n.externalSourceDisclaimer),
               ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: Text(
-                  'عند تشغيل محطة خارجية قد يتصل جهازك مباشرة ببنية مزود البث. تحفظ بيانات المصدر والترخيص وحالة الحقوق داخليًا لأغراض التدقيق والامتثال.',
-                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Text(l10n.thirdPartyOwnershipNotice),
               ),
               if (sources.isEmpty)
-                const EmptyPane(message: 'لا توجد مصادر مسجلة حاليًا')
+                EmptyPane(message: l10n.contentSourceUnavailable)
               else
                 for (final source in sources)
                   ExpansionTile(
@@ -55,28 +53,31 @@ class ContentSourcesPage extends ConsumerWidget {
                         : Text(source.attribution!),
                     children: <Widget>[
                       _InfoTile(
-                        title: 'أساس التكامل',
+                        title: _label(context, 'integration'),
                         value: source.integrationBasis,
                       ),
                       _InfoTile(
-                        title: 'نوع الترخيص أو الإذن',
+                        title: _label(context, 'license'),
                         value: source.licenseType,
                       ),
                       _InfoTile(
-                        title: 'حالة الاستخدام التجاري',
+                        title: _label(context, 'commercial'),
                         value: source.commercialUseStatus,
                       ),
                       _InfoTile(
-                        title: 'طريقة التوزيع',
+                        title: _label(context, 'distribution'),
                         value: source.redistributionMode,
                       ),
                       _InfoTile(
-                        title: 'المصدر',
+                        title: _label(context, 'source'),
                         value: source.providerUrl ?? source.sourceUrl,
                       ),
-                      _InfoTile(title: 'مرجع الشروط', value: source.termsUrl),
                       _InfoTile(
-                        title: 'مرجع الترخيص',
+                        title: _label(context, 'terms'),
+                        value: source.termsUrl,
+                      ),
+                      _InfoTile(
+                        title: _label(context, 'licenseRef'),
                         value: source.licenseUrl,
                       ),
                     ],
@@ -86,6 +87,19 @@ class ContentSourcesPage extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  String _label(BuildContext context, String key) {
+    final english = Localizations.localeOf(context).languageCode == 'en';
+    return switch (key) {
+      'integration' => english ? 'Integration basis' : 'أساس التكامل',
+      'license' => english ? 'License / permission' : 'نوع الترخيص أو الإذن',
+      'commercial' => english ? 'Commercial use' : 'حالة الاستخدام التجاري',
+      'distribution' => english ? 'Distribution mode' : 'طريقة التوزيع',
+      'source' => english ? 'Source' : 'المصدر',
+      'terms' => english ? 'Terms reference' : 'مرجع الشروط',
+      _ => english ? 'License reference' : 'مرجع الترخيص',
+    };
   }
 }
 

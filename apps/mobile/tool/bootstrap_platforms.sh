@@ -77,8 +77,8 @@ grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' android/app/src/main/AndroidManifest
 grep -q 'android:usesCleartextTraffic="false"' android/app/src/main/AndroidManifest.xml
 grep -q 'AudioServiceActivity' android/app/src/main/AndroidManifest.xml
 
-# Phase 11 acceptance probes real upstream/provider streams centrally in CI.
-# Listener devices never probe the provider catalog themselves.
+# Acceptance probes real upstream/provider streams centrally in CI.
+# Listener devices never probe provider catalogs themselves.
 if [[ "${CI:-}" == "true" ]]; then
   if ! command -v ffprobe >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
     sudo apt-get update
@@ -86,4 +86,5 @@ if [[ "${CI:-}" == "true" ]]; then
   fi
   python3 tool/external_radio_ci.py
   python3 tool/phase11_api_e2e.py
+  python3 tool/offline_clip_ci.py
 fi

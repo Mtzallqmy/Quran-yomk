@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'models.dart';
+import 'offline_clip_contract.dart';
+import 'quran_models.dart';
 
 class ApiException implements Exception {
   const ApiException(
@@ -98,7 +100,7 @@ class TarteelApiClient {
               : 'HTTP_${response.statusCode}',
           error['message'] is String
               ? error['message'] as String
-              : 'تعذر الاتصال بالخدمة',
+              : 'Service request failed',
           statusCode: response.statusCode,
           requestId: error['request_id'] is String
               ? error['request_id'] as String
@@ -126,7 +128,7 @@ class TarteelApiClient {
     }
     throw ApiException(
       'NETWORK_UNAVAILABLE',
-      'تعذر الوصول إلى خدمة ترتيل',
+      'Unable to reach Tarteel service',
       requestId: lastError?.runtimeType.toString(),
     );
   }
@@ -164,6 +166,17 @@ class TarteelApiClient {
   Future<Station> station(String slug) async => Station.fromJson(
     jsonMap((await _get('stations/${Uri.encodeComponent(slug)}'))['data']),
   );
+
+  Future<OfflineClipPolicy> offlineClipPolicy(String slug) async =>
+      OfflineClipPolicy.fromJson(
+        jsonMap(
+          (await _get(
+            'stations/${Uri.encodeComponent(slug)}/offline-clip-policy',
+            allowRetry: false,
+          ))['data'],
+        ),
+      );
+
   Future<NowPlaying> nowPlaying(String slug) async => NowPlaying.fromJson(
     jsonMap(
       (await _get(
@@ -172,6 +185,7 @@ class TarteelApiClient {
       ))['data'],
     ),
   );
+
   Future<JsonMap> virtualRadio({
     List<String> failedStationIds = const <String>[],
   }) async => jsonMap(
@@ -185,9 +199,11 @@ class TarteelApiClient {
       allowRetry: false,
     ))['data'],
   );
+
   Future<List<ContentSource>> contentSources() async => jsonList(
     (await _get('content-sources'))['data'],
   ).map((e) => ContentSource.fromJson(jsonMap(e))).toList(growable: false);
+
   Future<List<Category>> categories() async => jsonList(
     (await _get('categories'))['data'],
   ).map((e) => Category.fromJson(jsonMap(e))).toList(growable: false);
@@ -214,6 +230,7 @@ class TarteelApiClient {
 
   Future<Reciter> reciter(String id) async =>
       Reciter.fromJson(jsonMap((await _get('reciters/$id'))['data']));
+
   Future<List<ReciterTrack>> reciterTracks(String id) async => jsonList(
     (await _get('reciters/$id/surahs', allowRetry: false))['data'],
   ).map((e) => ReciterTrack.fromJson(jsonMap(e))).toList(growable: false);
@@ -228,17 +245,52 @@ class TarteelApiClient {
         )) {
       throw const ApiException(
         'CATALOG_INTEGRITY',
-        'فهرس السور غير مكتمل أو غير مرتب',
+        'Surah catalog is incomplete or unordered',
       );
     }
     return values;
   }
 
+  Future<QuranPassage> quranPassage(QuranBrowseMode mode, int number) async =>
+      QuranPassage.fromJson(
+        jsonMap(
+          (await _get(
+            'quran/${mode.name}/$number',
+            allowRetry: true,
+          ))['data'],
+        ),
+      );
+
+  Future<List<QuranAudioReciter>> quranAudioReciters(int surahNumber) async {
+    final root = jsonMap(
+      (await _get(
+        'quran/reciters',
+        query: <String, String?>{'surah': '$surahNumber'},
+      ))['data'],
+    );
+    return jsonList(root['reciters'])
+        .map((e) => QuranAudioReciter.fromJson(jsonMap(e)))
+        .toList(growable: false);
+  }
+
+  Future<List<QuranAudioTrack>> quranAudioTracks(String reciterId) async {
+    final root = jsonMap(
+      (await _get(
+        'quran/reciters/${Uri.encodeComponent(reciterId)}/tracks',
+      ))['data'],
+    );
+    return jsonList(root['tracks'])
+        .map((e) => QuranAudioTrack.fromJson(jsonMap(e)))
+        .toList(growable: false);
+  }
+
   Future<List<FeaturedItem>> featured() async => jsonList(
     (await _get('featured'))['data'],
   ).map((e) => FeaturedItem.fromJson(jsonMap(e))).toList(growable: false);
+
   Future<JsonMap> appConfig() async =>
       jsonMap((await _get('app-config'))['data']);
+
   Future<SearchBundle> search(String query) async {
     if (query.trim().length < 2) {
       return const SearchBundle(

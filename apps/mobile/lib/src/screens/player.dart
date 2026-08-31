@@ -385,18 +385,12 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
               ListTile(
                 leading: const Icon(Icons.skip_next_outlined),
                 title: Text(l10n.endOfCurrentRecitation),
-                onTap: () => Navigator.pop(
-                  context,
-                  const _SleepChoice.atEnd(),
-                ),
+                onTap: () => Navigator.pop(context, const _SleepChoice.atEnd()),
               ),
             ListTile(
               leading: const Icon(Icons.timer_off_outlined),
               title: Text(l10n.cancelSleepTimer),
-              onTap: () => Navigator.pop(
-                context,
-                const _SleepChoice.cancel(),
-              ),
+              onTap: () => Navigator.pop(context, const _SleepChoice.cancel()),
             ),
           ],
         ),
@@ -413,9 +407,9 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
     }
     playback.cancelSleepTimer();
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.timerCancelled)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.timerCancelled)));
     }
   }
 }
@@ -424,12 +418,8 @@ enum _SleepChoiceKind { duration, atEnd, cancel }
 
 class _SleepChoice {
   const _SleepChoice.duration(this.duration) : kind = _SleepChoiceKind.duration;
-  const _SleepChoice.atEnd()
-    : kind = _SleepChoiceKind.atEnd,
-      duration = null;
-  const _SleepChoice.cancel()
-    : kind = _SleepChoiceKind.cancel,
-      duration = null;
+  const _SleepChoice.atEnd() : kind = _SleepChoiceKind.atEnd, duration = null;
+  const _SleepChoice.cancel() : kind = _SleepChoiceKind.cancel, duration = null;
 
   final _SleepChoiceKind kind;
   final Duration? duration;
@@ -557,14 +547,14 @@ class _OfflineClipActionState extends ConsumerState<_OfflineClipAction> {
         maxDuration: choice == 0 ? null : Duration(minutes: choice),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.clipSavingStarted)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.clipSavingStarted)));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.clipSavingFailed)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.clipSavingFailed)));
     }
   }
 
@@ -582,18 +572,16 @@ class _OfflineClipActionState extends ConsumerState<_OfflineClipAction> {
       );
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.clipSavingFailed)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.clipSavingFailed)));
     }
   }
 }
 
 class _ClipAvailability {
   const _ClipAvailability({required this.station, required this.policy});
-  const _ClipAvailability.unavailable()
-    : station = null,
-      policy = null;
+  const _ClipAvailability.unavailable() : station = null, policy = null;
 
   final Station? station;
   final OfflineClipPolicy? policy;

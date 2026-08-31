@@ -63,7 +63,11 @@ function normalizePassage(
 
   const normalized: Json[] = verses.map((value) => {
     const row = asMap(value);
-    const surah = asMap(row.surah);
+    // AlQuran Cloud embeds `surah` on juz/page ayahs, but for /surah/{n}
+    // the surah identity lives on the response root. Normalize both shapes
+    // into the same Tarteel contract so verse keys are stable everywhere.
+    const embeddedSurah = asMap(row.surah);
+    const surah = mode === "surah" ? root : embeddedSurah;
     const globalNumber = numberValue(row.number);
     const surahNumber = numberValue(surah.number);
     const ayahNumber = numberValue(row.numberInSurah);

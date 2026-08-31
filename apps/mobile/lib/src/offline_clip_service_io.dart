@@ -16,6 +16,12 @@ class _IoOfflineClipService extends OfflineClipService {
 
   static const _metadataKey = 'offline_clips:v1';
   static const _minimumUsefulBytes = 8192;
+  static const _supportedCatalogTypes = <String>{
+    'MP3_STREAM',
+    'AAC_STREAM',
+    'SHOUTCAST',
+    'ICECAST',
+  };
 
   final SharedPreferences _preferences;
   final List<OfflineClip> _clips = <OfflineClip>[];
@@ -78,8 +84,8 @@ class _IoOfflineClipService extends OfflineClipService {
     if (!policy.allowed || !policy.supportedStream) {
       throw StateError('OFFLINE_CLIP_NOT_ALLOWED');
     }
-    final type = station.streamType.toUpperCase();
-    if (type != 'MP3_STREAM' && type != 'AAC_STREAM') {
+    final catalogType = station.streamType.toUpperCase();
+    if (!_supportedCatalogTypes.contains(catalogType)) {
       throw StateError('OFFLINE_CLIP_STREAM_UNSUPPORTED');
     }
     final uri = Uri.tryParse(station.playbackUrl ?? '');
@@ -91,16 +97,11 @@ class _IoOfflineClipService extends OfflineClipService {
     _bytes = 0;
     _startedAt = DateTime.now();
     _station = station;
-    _format = type == 'MP3_STREAM' ? 'mp3' : 'aac';
 
     try {
       final root = await getApplicationDocumentsDirectory();
       final directory = Directory('${root.path}/offline_clips');
       await directory.create(recursive: true);
-      final id =
-          '${_startedAt!.millisecondsSinceEpoch}_${station.id.replaceAll('-', '').substring(0, 8)}';
-      _filePath = '${directory.path}/$id.${_format!}';
-      _sink = File(_filePath!).openWrite(mode: FileMode.writeOnly);
 
       _client = HttpClient()..connectionTimeout = const Duration(seconds: 12);
       final request = await _client!.getUrl(uri);
@@ -117,10 +118,20 @@ class _IoOfflineClipService extends OfflineClipService {
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw HttpException('HTTP_${response.statusCode}', uri: uri);
       }
+
       final mime = response.headers.contentType?.mimeType.toLowerCase();
-      if (!_mimeCompatible(mime, type)) {
+      final detectedFormat = _detectAudioFormat(mime, catalogType);
+      if (detectedFormat == null) {
         throw StateError('OFFLINE_CLIP_CONTENT_UNSUPPORTED');
       }
+      _format = detectedFormat;
+      final compactId = station.id.replaceAll('-', '');
+      final stationPart = compactId.length > 8
+          ? compactId.substring(0, 8)
+          : compactId.padRight(8, '0');
+      final id = '${_startedAt!.millisecondsSinceEpoch}_$stationPart';
+      _filePath = '${directory.path}/$id.$detectedFormat';
+      _sink = File(_filePath!).openWrite(mode: FileMode.writeOnly);
 
       _progressTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         notifyListeners();
@@ -137,7 +148,7 @@ class _IoOfflineClipService extends OfflineClipService {
           _sink?.add(chunk);
         },
         onError: (Object error, StackTrace stack) {
-          _lastError = 'انقطع الاتصال أثناء حفظ المقطع';
+          _lastError = 'OFFLINE_CLIP_STREAM_INTERRUPTED';
           unawaited(_finish(partial: true));
         },
         onDone: () => unawaited(_finish(partial: false)),
@@ -145,20 +156,28 @@ class _IoOfflineClipService extends OfflineClipService {
       );
       notifyListeners();
     } catch (error) {
-      _lastError = 'تعذر بدء حفظ المقطع';
+      _lastError = 'OFFLINE_CLIP_START_FAILED';
       await _discardActive();
       rethrow;
     }
   }
 
-  bool _mimeCompatible(String? mime, String type) {
-    if (mime == null || mime.isEmpty || mime == 'application/octet-stream') {
-      return true; // Normalized stream type remains the available evidence.
+  String? _detectAudioFormat(String? mime, String catalogType) {
+    if (mime == 'audio/mpeg' || mime == 'audio/mp3') return 'mp3';
+    if (mime == 'audio/aac' ||
+        mime == 'audio/aacp' ||
+        mime == 'audio/x-aac') {
+      return 'aac';
     }
-    if (type == 'MP3_STREAM') {
-      return mime == 'audio/mpeg' || mime == 'audio/mp3';
-    }
-    return mime == 'audio/aac' || mime == 'audio/aacp' || mime == 'audio/x-aac';
+
+    // Direct MP3/AAC catalog entries may omit a useful Content-Type. For
+    // SHOUTCAST/ICECAST we require a positive audio MIME probe instead of
+    // guessing from the protocol label.
+    final unknownMime =
+        mime == null || mime.isEmpty || mime == 'application/octet-stream';
+    if (unknownMime && catalogType == 'MP3_STREAM') return 'mp3';
+    if (unknownMime && catalogType == 'AAC_STREAM') return 'aac';
+    return null;
   }
 
   @override

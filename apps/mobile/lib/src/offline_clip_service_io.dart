@@ -164,9 +164,7 @@ class _IoOfflineClipService extends OfflineClipService {
 
   String? _detectAudioFormat(String? mime, String catalogType) {
     if (mime == 'audio/mpeg' || mime == 'audio/mp3') return 'mp3';
-    if (mime == 'audio/aac' ||
-        mime == 'audio/aacp' ||
-        mime == 'audio/x-aac') {
+    if (mime == 'audio/aac' || mime == 'audio/aacp' || mime == 'audio/x-aac') {
       return 'aac';
     }
 

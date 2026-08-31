@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
 import '../l10n.dart';
+import '../models.dart';
 import '../offline_clip_service.dart';
 import '../services.dart';
 import '../transcription.dart';
@@ -402,18 +403,19 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
       ),
     );
     if (choice == null) return;
-    switch (choice.kind) {
-      case _SleepChoiceKind.duration:
-        playback.setSleepTimer(choice.duration!);
-      case _SleepChoiceKind.atEnd:
-        playback.setSleepTimerAtEnd();
-      case _SleepChoiceKind.cancel:
-        playback.cancelSleepTimer();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.timerCancelled)),
-          );
-        }
+    if (choice.kind == _SleepChoiceKind.duration) {
+      playback.setSleepTimer(choice.duration!);
+      return;
+    }
+    if (choice.kind == _SleepChoiceKind.atEnd) {
+      playback.setSleepTimerAtEnd();
+      return;
+    }
+    playback.cancelSleepTimer();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.timerCancelled)),
+      );
     }
   }
 }
@@ -593,7 +595,7 @@ class _ClipAvailability {
     : station = null,
       policy = null;
 
-  final dynamic station;
+  final Station? station;
   final OfflineClipPolicy? policy;
 }
 

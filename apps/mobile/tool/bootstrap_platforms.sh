@@ -77,13 +77,14 @@ grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' android/app/src/main/AndroidManifest
 grep -q 'android:usesCleartextTraffic="false"' android/app/src/main/AndroidManifest.xml
 grep -q 'AudioServiceActivity' android/app/src/main/AndroidManifest.xml
 
-# Acceptance probes real upstream/provider streams centrally in CI.
+# Acceptance probes real deployed APIs and provider streams centrally in CI.
 # Listener devices never probe provider catalogs themselves.
 if [[ "${CI:-}" == "true" ]]; then
   if ! command -v ffprobe >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
     sudo apt-get update
     sudo apt-get install -y --no-install-recommends ffmpeg curl
   fi
+  python3 tool/quran_ci.py
   python3 tool/external_radio_ci.py
   python3 tool/phase11_api_e2e.py
   python3 tool/offline_clip_ci.py

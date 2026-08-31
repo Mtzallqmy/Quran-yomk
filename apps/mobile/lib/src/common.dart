@@ -4,78 +4,82 @@ import 'l10n.dart';
 
 class LoadingPane extends StatelessWidget {
   const LoadingPane({super.key});
+
   @override
-  Widget build(BuildContext context) =>
-      const Center(child: CircularProgressIndicator());
+  Widget build(BuildContext context) => const Center(
+        child: CircularProgressIndicator(),
+      );
 }
 
 class EmptyPane extends StatelessWidget {
   const EmptyPane({super.key, this.message});
+
   final String? message;
+
   @override
   Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Text(
-        message ?? TarteelStrings.of(context).noData,
-        textAlign: TextAlign.center,
-      ),
-    ),
-  );
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            message ?? context.l10n.noData,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
 }
 
 class ErrorPane extends StatelessWidget {
   const ErrorPane({super.key, required this.error, required this.onRetry});
+
   final Object error;
   final VoidCallback onRetry;
+
   @override
-  Widget build(BuildContext context) {
-    final strings = TarteelStrings.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            const Icon(Icons.cloud_off_outlined, size: 44),
-            const SizedBox(height: 12),
-            Text(strings.offline, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Text(
-              '$error',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: Text(strings.retry),
-            ),
-          ],
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Icon(Icons.cloud_off_outlined, size: 44),
+              const SizedBox(height: 12),
+              Text(
+                context.l10n.offlineMessage,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: Text(context.l10n.retry),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class SectionHeader extends StatelessWidget {
   const SectionHeader(this.title, {super.key, this.action});
+
   final String title;
   final Widget? action;
+
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
-    child: Row(
-      children: <Widget>[
-        Expanded(
-          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            if (action != null) action!,
+          ],
         ),
-        if (action != null) action!,
-      ],
-    ),
-  );
+      );
 }
 
 class Artwork extends StatelessWidget {
@@ -85,9 +89,11 @@ class Artwork extends StatelessWidget {
     this.size = 52,
     this.icon = Icons.graphic_eq,
   });
+
   final String? url;
   final double size;
   final IconData icon;
+
   @override
   Widget build(BuildContext context) {
     final fallback = Container(

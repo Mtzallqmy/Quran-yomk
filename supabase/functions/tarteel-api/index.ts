@@ -100,7 +100,7 @@ Deno.serve(async (req: Request) => {
         return fail(422, "VALIDATION_ERROR", "Invalid virtual radio slug", requestId);
       }
       const excluded = uuidList(u.searchParams.get("failed_station_ids"));
-      const data = await rpc("tarteel_public_virtual_radio", {
+      const data = await rpc("tarteel_public_virtual_radio_managed", {
         p_slug: slug,
         p_environment: Deno.env.get("TARTEEL_PUBLIC_ENVIRONMENT") ?? "development",
         p_exclude_station_ids: excluded,

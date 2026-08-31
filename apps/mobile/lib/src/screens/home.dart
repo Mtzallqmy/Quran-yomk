@@ -5,6 +5,7 @@ import '../common.dart';
 import '../models.dart';
 import '../repository.dart';
 import '../services.dart';
+import 'radio.dart';
 import 'reciters.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -132,80 +133,81 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SectionHeader('إذاعات القرآن'),
             SizedBox(
               height: 150,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                scrollDirection: Axis.horizontal,
-                itemCount: data.stations
-                    .where((station) => station.isPlayable)
-                    .take(10)
-                    .length,
-                separatorBuilder: (_, _) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
+              child: Builder(
+                builder: (context) {
                   final playable = data.stations
                       .where((station) => station.isPlayable)
                       .take(10)
                       .toList(growable: false);
-                  final station = playable[index];
-                  return SizedBox(
-                    width: 270,
-                    child: Card(
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () => _playStation(station),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: <Widget>[
-                              Artwork(url: station.logoUrl, size: 58),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Text(
-                                      station.nameAr,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleSmall,
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      station.isInternal
-                                          ? 'ترتيل الداخلي'
-                                          : station.providerName ??
-                                                'محطة خارجية',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
+                  if (playable.isEmpty) {
+                    return const Center(child: Text('لا توجد إذاعات متاحة حاليًا'));
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: playable.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      final station = playable[index];
+                      return SizedBox(
+                        width: 270,
+                        child: Card(
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => _playStation(station),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: <Widget>[
+                                  Artwork(url: station.logoUrl, size: 58),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: <Widget>[
-                                        const Icon(Icons.play_arrow, size: 18),
-                                        const SizedBox(width: 4),
                                         Text(
-                                          station.streamType,
+                                          station.nameAr,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
                                           style: Theme.of(
                                             context,
-                                          ).textTheme.labelSmall,
+                                          ).textTheme.titleSmall,
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          station.providerName ?? 'محطة خارجية',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodySmall,
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: <Widget>[
+                                            const Icon(Icons.play_arrow, size: 18),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              station.streamType,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.labelSmall,
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   );
                 },
               ),
@@ -262,8 +264,18 @@ class _HomePageState extends ConsumerState<HomePage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: data.categories
-                    .take(12)
-                    .map((category) => Chip(label: Text(category.nameAr)))
+                    .map(
+                      (category) => ActionChip(
+                        avatar: const Icon(Icons.grid_view_outlined, size: 18),
+                        label: Text(category.nameAr),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                RadioPage(initialCategory: category.slug),
+                          ),
+                        ),
+                      ),
+                    )
                     .toList(growable: false),
               ),
             ),

@@ -97,7 +97,8 @@ class _IoOfflineClipService extends OfflineClipService {
       final root = await getApplicationDocumentsDirectory();
       final directory = Directory('${root.path}/offline_clips');
       await directory.create(recursive: true);
-      final id = '${_startedAt!.millisecondsSinceEpoch}_${station.id.replaceAll('-', '').substring(0, 8)}';
+      final id =
+          '${_startedAt!.millisecondsSinceEpoch}_${station.id.replaceAll('-', '').substring(0, 8)}';
       _filePath = '${directory.path}/$id.${_format!}';
       _sink = File(_filePath!).openWrite(mode: FileMode.writeOnly);
 
@@ -105,9 +106,14 @@ class _IoOfflineClipService extends OfflineClipService {
       final request = await _client!.getUrl(uri);
       request.followRedirects = true;
       request.maxRedirects = 5;
-      request.headers.set(HttpHeaders.acceptHeader, 'audio/mpeg,audio/aac,audio/aacp,*/*;q=0.1');
+      request.headers.set(
+        HttpHeaders.acceptHeader,
+        'audio/mpeg,audio/aac,audio/aacp,*/*;q=0.1',
+      );
       request.headers.set('Icy-MetaData', '0');
-      final response = await request.close().timeout(const Duration(seconds: 15));
+      final response = await request.close().timeout(
+        const Duration(seconds: 15),
+      );
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw HttpException('HTTP_${response.statusCode}', uri: uri);
       }
@@ -163,7 +169,10 @@ class _IoOfflineClipService extends OfflineClipService {
   }
 
   Future<OfflineClip?> _finish({required bool partial}) async {
-    if (_finishing || _station == null || _startedAt == null || _filePath == null) {
+    if (_finishing ||
+        _station == null ||
+        _startedAt == null ||
+        _filePath == null) {
       return null;
     }
     _finishing = true;
@@ -258,7 +267,7 @@ class _IoOfflineClipService extends OfflineClipService {
   Future<bool> exists(OfflineClip clip) => File(clip.filePath).exists();
 
   Future<void> _persist() => _preferences.setString(
-        _metadataKey,
-        jsonEncode(_clips.map((clip) => clip.toJson()).toList(growable: false)),
-      );
+    _metadataKey,
+    jsonEncode(_clips.map((clip) => clip.toJson()).toList(growable: false)),
+  );
 }

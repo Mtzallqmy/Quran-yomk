@@ -65,7 +65,9 @@ class SavedClipsPage extends ConsumerWidget {
                         if (!await clips.exists(clip)) {
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('ملف المقطع غير موجود.')),
+                            const SnackBar(
+                              content: Text('ملف المقطع غير موجود.'),
+                            ),
                           );
                           return;
                         }
@@ -85,7 +87,8 @@ class SavedClipsPage extends ConsumerWidget {
                         children: <Widget>[
                           IconButton(
                             tooltip: 'تشغيل',
-                            onPressed: () => services.playback.playOfflineClip(clip),
+                            onPressed: () =>
+                                services.playback.playOfflineClip(clip),
                             icon: const Icon(Icons.play_arrow),
                           ),
                           IconButton(
@@ -138,7 +141,8 @@ String _duration(Duration value) {
 }
 
 String _bytes(int value) {
-  if (value >= 1024 * 1024) return '${(value / (1024 * 1024)).toStringAsFixed(1)} MB';
+  if (value >= 1024 * 1024)
+    return '${(value / (1024 * 1024)).toStringAsFixed(1)} MB';
   if (value >= 1024) return '${(value / 1024).toStringAsFixed(0)} KB';
   return '$value B';
 }

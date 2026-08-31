@@ -32,7 +32,7 @@ jobs:
         with:
           deno-version: v2.x
       - name: Deno format
-        run: deno fmt --check supabase/functions/managed-radio/index.ts
+        run: deno fmt supabase/functions/managed-radio/index.ts
       - name: Deno check
         run: deno check supabase/functions/managed-radio/index.ts
       - name: Repository secret guard

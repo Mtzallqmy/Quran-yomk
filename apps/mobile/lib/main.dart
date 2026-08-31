@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'src/api.dart';
 import 'src/app.dart';
+import 'src/mushaf_store.dart';
+import 'src/offline_clip_service.dart';
 import 'src/playback.dart';
 import 'src/repository.dart';
 import 'src/services.dart';
@@ -31,12 +33,17 @@ Future<void> main() async {
   final preferences = await SharedPreferences.getInstance();
   final favorites = FavoritesStore(preferences)..load();
   final settings = SettingsStore(preferences)..load();
+  final mushaf = MushafStore(preferences)..load();
+  final offlineClips = createOfflineClipService(preferences);
+  await offlineClips.initialize();
   final api = TarteelApiClient();
   final repository = TarteelRepository(api, MetadataCache(preferences));
   final services = AppServices(
     repository: repository,
     favorites: favorites,
     settings: settings,
+    mushaf: mushaf,
+    offlineClips: offlineClips,
     playback: playback,
   );
 

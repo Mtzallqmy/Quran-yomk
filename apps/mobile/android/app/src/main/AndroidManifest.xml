@@ -7,7 +7,6 @@
         android:label="ترتيل"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
         android:usesCleartextTraffic="false">
         <activity
             android:name="com.ryanheise.audioservice.AudioServiceActivity"

@@ -546,12 +546,12 @@ class _OfflineClipActionState extends ConsumerState<_OfflineClipAction> {
         policy: value.policy!,
         maxDuration: choice == 0 ? null : Duration(minutes: choice),
       );
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(l10n.clipSavingStarted)));
     } catch (_) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(l10n.clipSavingFailed)));

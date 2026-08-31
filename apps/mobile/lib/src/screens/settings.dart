@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
-import '../models.dart';
 import '../services.dart';
-import 'content_sources.dart';
+import 'about.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -78,65 +77,18 @@ class SettingsPage extends ConsumerWidget {
               onTap: services.playback.cancelSleepTimer,
             ),
             const SectionHeader('حول التطبيق'),
-            const ListTile(
-              leading: Icon(Icons.info_outline),
-              title: Text('ترتيل — Tarteel'),
-              subtitle: Text(
-                'الإصدار 0.1.0 (1)\nالمطور: معتز العلقمي\nتعز، اليمن',
-              ),
-            ),
             ListTile(
-              leading: const Icon(Icons.copyright_outlined),
-              title: const Text('مصادر المحتوى وحقوق النشر'),
-              subtitle: const Text(
-                'المصادر، attribution، الشروط وحالة الحقوق',
-              ),
+              leading: const Icon(Icons.info_outline),
+              title: const Text('حول ترتيل'),
+              subtitle: const Text('معلومات التطبيق ومصادر المحتوى وحقوق النشر'),
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ContentSourcesPage(),
-                ),
+                MaterialPageRoute<void>(builder: (_) => const AboutPage()),
               ),
-            ),
-            FutureBuilder<JsonMap>(
-              future: services.repository.appConfig(),
-              builder: (context, snapshot) {
-                final config = snapshot.data ?? const <String, dynamic>{};
-                return Column(
-                  children: <Widget>[
-                    _LegalTile(
-                      title: 'سياسة الخصوصية',
-                      value: config['privacy_url'],
-                    ),
-                    _LegalTile(title: 'الشروط', value: config['terms_url']),
-                    _LegalTile(title: 'الدعم', value: config['support_url']),
-                  ],
-                );
-              },
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _LegalTile extends StatelessWidget {
-  const _LegalTile({required this.title, required this.value});
-
-  final String title;
-  final dynamic value;
-
-  @override
-  Widget build(BuildContext context) {
-    final url = value is String && (value as String).isNotEmpty
-        ? value as String
-        : null;
-    return ListTile(
-      leading: const Icon(Icons.description_outlined),
-      title: Text(title),
-      subtitle: Text(url ?? 'غير متوفر حاليًا'),
-      enabled: false,
     );
   }
 }

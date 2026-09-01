@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/mushaf-assets.yml'
       - 'apps/mobile/tool/mushaf_assets.py'
+      - 'apps/mobile/tool/publish_mushaf_supabase.py'
+      - 'supabase/migrations/**mushaf_assets**'
   workflow_dispatch:
 
 permissions:
@@ -15,27 +17,19 @@ concurrency:
   group: mushaf-assets-v1
   cancel-in-progress: false
 
+env:
+  MUSHAF_VERSION: v1
+  MUSHAF_GENERATED_AT: '2026-09-01T00:00:00Z'
+  SUPABASE_PROJECT_URL: https://qkroecnecdxghcqvvoxn.supabase.co
+
 jobs:
-  build-assets:
+  build-validate-publish:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 100
     steps:
       - uses: actions/checkout@v4
 
-      - name: Skip immutable asset release when already complete
-        id: existing
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view mushaf-assets-v1 >/dev/null 2>&1 \
-            && git ls-remote --exit-code --heads origin mushaf-assets-v1 >/dev/null; then
-            echo 'ready=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'ready=false' >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Download source artwork and V4 renderer
-        if: steps.existing.outputs.ready != 'true'
+      - name: Download pinned source artwork and QCF V4 renderer
         run: |
           set -euo pipefail
           git clone --depth=1 --filter=blob:none --sparse \
@@ -45,17 +39,16 @@ jobs:
             b91d39e1065b57bdda3e94aca8ecf3575e50e1e6
           git -C "$RUNNER_TEMP/quran-svg" checkout \
             b91d39e1065b57bdda3e94aca8ecf3575e50e1e6
+
           renderer_url='https://github.com/NedaaDevs/quran-image-generator/releases/download/v0.9.0/quran-gen-v4-linux-x64.tar.gz'
           curl --fail --location "$renderer_url" \
             --output "$RUNNER_TEMP/quran-gen-v4-linux-x64.tar.gz"
           echo '285a9a82c424f388233bacd90918b07410bb59a5e1e5c446ddcd4f44e5bae2e9  '"$RUNNER_TEMP/quran-gen-v4-linux-x64.tar.gz" \
             | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/quran-gen-v4-linux-x64.tar.gz" \
-            -C "$RUNNER_TEMP"
+          tar -xzf "$RUNNER_TEMP/quran-gen-v4-linux-x64.tar.gz" -C "$RUNNER_TEMP"
           chmod +x "$RUNNER_TEMP/quran-gen-v4-linux-x64"
 
-      - name: Render 604 QCF V4 Tajweed WebP pages
-        if: steps.existing.outputs.ready != 'true'
+      - name: Render 604 Tajweed QCF V4 WebP pages and bounds
         working-directory: ${{ runner.temp }}
         run: |
           set -euo pipefail
@@ -65,63 +58,98 @@ jobs:
           python3 "$GITHUB_WORKSPACE/apps/mobile/tool/mushaf_assets.py" split-bounds \
             output/v4/1080/webp/bounds.json assets/qcf-v4/1080/bounds
 
-      - name: Verify both editions have identical 604-page verse mapping
-        if: steps.existing.outputs.ready != 'true'
+      - name: Validate 604 pages and identical verse mapping
         run: |
           set -euo pipefail
           NORMAL="$RUNNER_TEMP/quran-svg/mushafs/hafs/kfqc"
           TAJWEED="$RUNNER_TEMP/assets/qcf-v4/1080"
           python3 apps/mobile/tool/mushaf_assets.py validate "$NORMAL" "$TAJWEED"
 
-          mkdir -p "$RUNNER_TEMP/packs/madinahHafsSvg/pages" \
-            "$RUNNER_TEMP/packs/madinahHafsSvg/bounds" \
-            "$RUNNER_TEMP/packs/madinahTajweedQcfV4"
-          cp "$NORMAL"/svg/*.svg "$RUNNER_TEMP/packs/madinahHafsSvg/pages/"
-          cp "$NORMAL"/json/*.json "$RUNNER_TEMP/packs/madinahHafsSvg/bounds/"
-          cp -R "$TAJWEED"/pages "$TAJWEED"/bounds \
-            "$RUNNER_TEMP/packs/madinahTajweedQcfV4/"
-          python3 apps/mobile/tool/mushaf_assets.py manifest \
-            "$RUNNER_TEMP/packs/madinahHafsSvg"
-          python3 apps/mobile/tool/mushaf_assets.py manifest \
-            "$RUNNER_TEMP/packs/madinahTajweedQcfV4"
-
-      - name: Build resumable Offline Packs
-        if: steps.existing.outputs.ready != 'true'
-        working-directory: ${{ runner.temp }}/packs
-        run: |
-          (cd madinahHafsSvg && zip -q -r ../../madinah-hafs-svg-pack.zip .)
-          (cd madinahTajweedQcfV4 && zip -q -r ../../madinah-tajweed-qcf-v4-pack.zip .)
-          sha256sum ../madinah-*-pack.zip > ../MUSHAF-PACK-SHA256SUMS.txt
-
-      - name: Publish per-page Tajweed CDN branch
-        if: steps.existing.outputs.ready != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        working-directory: ${{ runner.temp }}
+      - name: Stage immutable Supabase Storage hierarchy
         run: |
           set -euo pipefail
-          git clone --no-checkout \
-            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            asset-repo
-          cd asset-repo
-          git checkout --orphan mushaf-assets-v1
-          git rm -rf . >/dev/null 2>&1 || true
-          mkdir -p qcf-v4
-          cp -R ../assets/qcf-v4/1080 qcf-v4/
-          git add qcf-v4
-          git -c user.name='github-actions[bot]' \
-            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-            commit -m 'assets: publish verified QCF V4 Mushaf pages'
-          git push --force origin mushaf-assets-v1
+          ROOT="$RUNNER_TEMP/mushaf-publish/$MUSHAF_VERSION"
+          NORMAL="$RUNNER_TEMP/quran-svg/mushafs/hafs/kfqc"
+          TAJWEED="$RUNNER_TEMP/assets/qcf-v4/1080"
+          mkdir -p "$ROOT/hafs/pages" "$ROOT/hafs/bounds" \
+            "$ROOT/tajweed/pages" "$ROOT/tajweed/bounds" "$ROOT/packs"
+          cp "$NORMAL"/svg/*.svg "$ROOT/hafs/pages/"
+          cp "$NORMAL"/json/*.json "$ROOT/hafs/bounds/"
+          cp "$TAJWEED"/pages/*.webp "$ROOT/tajweed/pages/"
+          cp "$TAJWEED"/bounds/*.json "$ROOT/tajweed/bounds/"
 
-      - name: Publish immutable Offline Pack release
-        if: steps.existing.outputs.ready != 'true'
+          python3 apps/mobile/tool/mushaf_assets.py manifest "$ROOT/hafs" \
+            --version "$MUSHAF_VERSION" --edition hafs \
+            --generated-at "$MUSHAF_GENERATED_AT"
+          python3 apps/mobile/tool/mushaf_assets.py manifest "$ROOT/tajweed" \
+            --version "$MUSHAF_VERSION" --edition tajweed \
+            --generated-at "$MUSHAF_GENERATED_AT"
+
+          test "$(find "$ROOT/hafs/pages" -type f -name '*.svg' | wc -l)" -eq 604
+          test "$(find "$ROOT/hafs/bounds" -type f -name '*.json' | wc -l)" -eq 604
+          test "$(find "$ROOT/tajweed/pages" -type f -name '*.webp' | wc -l)" -eq 604
+          test "$(find "$ROOT/tajweed/bounds" -type f -name '*.json' | wc -l)" -eq 604
+
+      - name: Build verified Offline Packs
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/mushaf-publish/$MUSHAF_VERSION"
+          (cd "$ROOT/hafs" && zip -q -r "$ROOT/packs/madinah-hafs-svg-pack.zip" pages bounds manifest.json)
+          (cd "$ROOT/tajweed" && zip -q -r "$ROOT/packs/madinah-tajweed-qcf-v4-pack.zip" pages bounds manifest.json)
+          (cd "$ROOT/packs" && sha256sum \
+            madinah-hafs-svg-pack.zip madinah-tajweed-qcf-v4-pack.zip \
+            > MUSHAF-PACK-SHA256SUMS.txt)
+          test -s "$ROOT/packs/madinah-hafs-svg-pack.zip"
+          test -s "$ROOT/packs/madinah-tajweed-qcf-v4-pack.zip"
+          sha256sum -c "$ROOT/packs/MUSHAF-PACK-SHA256SUMS.txt" \
+            --ignore-missing
+
+      - name: Publish immutable assets to Supabase Storage
+        env:
+          SUPABASE_SERVER_KEY: ${{ secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVER_KEY" || {
+            echo 'Configure SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY in GitHub Actions secrets.' >&2
+            exit 1
+          }
+          python3 apps/mobile/tool/publish_mushaf_supabase.py \
+            "$RUNNER_TEMP/mushaf-publish" --bucket mushaf-assets
+
+      - name: Verify Supabase public CDN delivery
+        run: |
+          set -euo pipefail
+          BASE="$SUPABASE_PROJECT_URL/storage/v1/object/public/mushaf-assets/$MUSHAF_VERSION"
+          curl --fail --silent --range 0-255 "$BASE/hafs/pages/001.svg" | grep -q '<svg'
+          curl --fail --silent --range 0-11 "$BASE/tajweed/pages/001.webp" | grep -q 'WEBP'
+          curl --fail --silent "$BASE/hafs/manifest.json" | grep -q '"pageCount": 604'
+          curl --fail --silent "$BASE/tajweed/manifest.json" | grep -q '"pageCount": 604'
+          curl --fail --silent "$BASE/packs/MUSHAF-PACK-SHA256SUMS.txt" | grep -q 'madinah-hafs-svg-pack.zip'
+
+      - name: Preserve GitHub Release as emergency backup
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create mushaf-assets-v1 \
-            "$RUNNER_TEMP/madinah-hafs-svg-pack.zip" \
-            "$RUNNER_TEMP/madinah-tajweed-qcf-v4-pack.zip" \
-            "$RUNNER_TEMP/MUSHAF-PACK-SHA256SUMS.txt" \
-            --title 'Tarteel Mushaf assets v1' \
-            --notes '604-page MADINAH_HAFS_SVG and pre-rendered MADINAH_TAJWEED_QCF_V4 Offline Packs.'
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/mushaf-publish/$MUSHAF_VERSION"
+          if gh release view mushaf-assets-v1 >/dev/null 2>&1; then
+            echo 'Existing immutable GitHub backup release retained.'
+          else
+            gh release create mushaf-assets-v1 \
+              "$ROOT/packs/madinah-hafs-svg-pack.zip" \
+              "$ROOT/packs/madinah-tajweed-qcf-v4-pack.zip" \
+              "$ROOT/packs/MUSHAF-PACK-SHA256SUMS.txt" \
+              --title 'Tarteel Mushaf assets v1' \
+              --notes 'Emergency backup for verified 604-page Mushaf assets. Production delivery is Supabase Storage.'
+          fi
+
+      - name: Upload build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: tarteel-mushaf-assets-${{ env.MUSHAF_VERSION }}-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/mushaf-publish/${{ env.MUSHAF_VERSION }}/hafs/manifest.json
+            ${{ runner.temp }}/mushaf-publish/${{ env.MUSHAF_VERSION }}/tajweed/manifest.json
+            ${{ runner.temp }}/mushaf-publish/${{ env.MUSHAF_VERSION }}/packs/MUSHAF-PACK-SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30

@@ -153,8 +153,8 @@ class MushafPageRepository extends ChangeNotifier {
 
   Future<bool> isPageCached(int page, MushafPageEdition edition) async {
     await _ensureInitialized();
-    return _imageFile(page, edition).exists() &&
-        _metadataFile(page, edition).exists();
+    return await _imageFile(page, edition).exists() &&
+        await _metadataFile(page, edition).exists();
   }
 
   Future<void> downloadOfflinePack(MushafPageEdition edition) async {
@@ -293,7 +293,9 @@ class MushafPageRepository extends ChangeNotifier {
       if (!entry.isFile || entry.name.contains('..')) continue;
       final target = File('${_editionDirectory(edition).path}/${entry.name}');
       await target.parent.create(recursive: true);
-      await target.writeAsBytes(entry.readBytes(), flush: true);
+      final bytes = entry.readBytes();
+      if (bytes == null) throw const FormatException('Invalid ZIP entry');
+      await target.writeAsBytes(bytes, flush: true);
     }
     await temporary.delete();
     return true;

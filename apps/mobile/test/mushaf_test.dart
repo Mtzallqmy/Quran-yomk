@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tarteel/src/islamic_content.dart';
 import 'package:tarteel/src/mushaf_store.dart';
 import 'package:tarteel/src/mushaf_pages.dart';
 import 'package:tarteel/src/quran_models.dart';
@@ -131,5 +132,29 @@ void main() {
     expect(regions.single.verseKey, '75:20');
     expect(regions.single.rects, hasLength(2));
     expect(regions.single.contains(810, 60), isTrue);
+  });
+
+  test('thematic segments map ayah ranges without changing Quran text', () {
+    final values = parseIslamicThemeSegments(<String, dynamic>{
+      'surahs': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'surah_number': 1,
+          'segments': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'start': 1,
+              'end': 4,
+              'theme': 'حمد الله وتمجيده',
+              'description': 'الثناء على الله',
+              'category': 'duaa_supplication',
+              'color': '#E8F5E9',
+            },
+          ],
+        },
+      ],
+    });
+    expect(values.single.contains(1, 3), isTrue);
+    expect(values.single.contains(1, 5), isFalse);
+    expect(values.single.colorValue, 0xffe8f5e9);
+    expect(verse.textUthmani, 'بِسۡمِ ٱللَّهِ');
   });
 }

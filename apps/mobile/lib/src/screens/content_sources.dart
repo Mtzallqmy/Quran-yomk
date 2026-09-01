@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
+import '../islamic_content.dart';
 import '../l10n.dart';
 import '../models.dart';
 import '../services.dart';
@@ -23,9 +24,15 @@ class ContentSourcesPage extends ConsumerWidget {
             return const LoadingPane();
           }
           if (snapshot.hasError && !snapshot.hasData) {
-            return ErrorPane(
-              error: snapshot.error!,
-              onRetry: () => services.repository.api.contentSources(),
+            return ListView(
+              padding: const EdgeInsets.only(bottom: 24),
+              children: <Widget>[
+                const _IslamicLibrarySource(),
+                ErrorPane(
+                  error: snapshot.error!,
+                  onRetry: () => services.repository.api.contentSources(),
+                ),
+              ],
             );
           }
 
@@ -41,6 +48,7 @@ class ContentSourcesPage extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Text(l10n.thirdPartyOwnershipNotice),
               ),
+              const _IslamicLibrarySource(),
               if (sources.isEmpty)
                 EmptyPane(message: l10n.contentSourceUnavailable)
               else
@@ -101,6 +109,31 @@ class ContentSourcesPage extends ConsumerWidget {
       _ => english ? 'License reference' : 'مرجع الترخيص',
     };
   }
+}
+
+class _IslamicLibrarySource extends StatelessWidget {
+  const _IslamicLibrarySource();
+
+  @override
+  Widget build(BuildContext context) => const ExpansionTile(
+    initiallyExpanded: true,
+    leading: Icon(Icons.local_library_outlined),
+    title: Text('Islamic Library Data — Open Source Islamic Dataset'),
+    subtitle: Text('المصدر الرئيسي لطبقة المحتوى الإسلامي المحلية'),
+    children: <Widget>[
+      _InfoTile(title: 'المصدر', value: islamicLibraryRepositoryUrl),
+      _InfoTile(title: 'إصدار البيانات المثبت', value: islamicLibraryRevision),
+      _InfoTile(
+        title: 'طريقة التوزيع',
+        value: 'CDN مباشر → تخزين الجهاز؛ لا إعادة استضافة عامة عبر Supabase',
+      ),
+      _InfoTile(
+        title: 'الترخيص والإسناد',
+        value:
+            'يُحتفظ بترخيص وإسناد كل نص أو ترجمة أو خط أو ملف صوتي على حدة. لا يُعامل توفر الملف في المستودع كترخيص موحد.',
+      ),
+    ],
+  );
 }
 
 class _InfoTile extends StatelessWidget {

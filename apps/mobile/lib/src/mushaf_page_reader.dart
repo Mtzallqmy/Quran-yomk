@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:share_plus/share_plus.dart';
 
+import 'islamic_content.dart';
 import 'mushaf_pages.dart';
 import 'mushaf_store.dart';
 import 'quran_models.dart';
@@ -12,6 +14,7 @@ class MushafPageReader extends StatefulWidget {
   const MushafPageReader({
     super.key,
     required this.repository,
+    required this.contentRepository,
     required this.store,
     required this.initialPage,
     required this.onPageChanged,
@@ -25,6 +28,7 @@ class MushafPageReader extends StatefulWidget {
   });
 
   final MushafPageRepository repository;
+  final IslamicContentRepository contentRepository;
   final MushafStore store;
   final int initialPage;
   final ValueChanged<int> onPageChanged;
@@ -108,6 +112,120 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     if (verse != null) widget.onPlayAyah(verse);
   }
 
+  Future<void> _showSelectedActions() async {
+    final selected = _selected;
+    if (selected == null || !mounted) return;
+    final verse = await widget.resolveVerse(_page, selected.verseKey);
+    if (verse == null || !mounted) return;
+    final content = await widget.contentRepository.ayahContent(
+      selected.surahNumber,
+      selected.ayahNumber,
+    );
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.72,
+        minChildSize: 0.45,
+        maxChildSize: 0.94,
+        builder: (context, controller) => ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'الآية ${selected.verseKey}',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            if (content.theme != null) ...<Widget>[
+              const SizedBox(height: 12),
+              ListTile(
+                tileColor: Color(content.theme!.colorValue),
+                leading: const Icon(Icons.palette_outlined),
+                title: Text(content.theme!.titleAr),
+                subtitle: Text(content.theme!.descriptionAr),
+              ),
+            ],
+            if (content.tafseer != null) ...<Widget>[
+              const SizedBox(height: 12),
+              Text(
+                'التفسير الميسر',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 6),
+              SelectableText(
+                content.tafseer!,
+                textDirection: TextDirection.rtl,
+              ),
+            ],
+            const Divider(height: 28),
+            ListTile(
+              leading: const Icon(Icons.play_circle_outline),
+              title: const Text('تشغيل التلاوة'),
+              onTap: () {
+                Navigator.pop(context);
+                widget.onPlayAyah(verse);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_outlined),
+              title: const Text('نسخ الآية'),
+              onTap: () async {
+                await Clipboard.setData(
+                  ClipboardData(text: content.arabic ?? verse.textUthmani),
+                );
+                if (context.mounted) Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share_outlined),
+              title: const Text('مشاركة'),
+              onTap: () => SharePlus.instance.share(
+                ShareParams(
+                  text:
+                      '${content.arabic ?? verse.textUthmani}\n'
+                      '[${selected.verseKey}]',
+                ),
+              ),
+            ),
+            ListTile(
+              leading: Icon(
+                widget.store.isBookmarked(verse.verseKey)
+                    ? Icons.bookmark
+                    : Icons.bookmark_border,
+              ),
+              title: const Text('حفظ / إزالة الإشارة المرجعية'),
+              onTap: () async {
+                await widget.store.toggleBookmark(verse);
+                if (context.mounted) Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.color_lens_outlined),
+              title: const Text('إظهار أحكام التجويد'),
+              onTap: () {
+                Navigator.pop(context);
+                _setEdition(MushafPageEdition.madinahTajweedQcfV4);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _offlinePack() async {
     if (!mounted) return;
     await showModalBottomSheet<void>(
@@ -143,6 +261,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               page: index + 1,
               edition: _edition,
               repository: widget.repository,
+              contentRepository: widget.contentRepository,
+              showThemes: widget.store.showThemes,
               selectedVerseKey: _selected?.verseKey,
               onRegionTap: _select,
               onBackgroundTap: _toggleControls,
@@ -176,6 +296,19 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                         tooltip: 'عرض نصي',
                         onPressed: widget.onShowText,
                         icon: const Icon(Icons.text_fields),
+                      ),
+                      IconButton(
+                        tooltip: widget.store.showThemes
+                            ? 'إيقاف ألوان الموضوعات'
+                            : 'تشغيل ألوان الموضوعات',
+                        onPressed: () => widget.store.setShowThemes(
+                          !widget.store.showThemes,
+                        ),
+                        icon: Icon(
+                          widget.store.showThemes
+                              ? Icons.palette
+                              : Icons.palette_outlined,
+                        ),
                       ),
                       Expanded(
                         child: SegmentedButton<MushafPageEdition>(
@@ -245,6 +378,13 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                         icon: const Icon(Icons.play_circle_fill),
                       ),
                       IconButton(
+                        tooltip: 'إجراءات الآية',
+                        onPressed: _selected == null
+                            ? null
+                            : _showSelectedActions,
+                        icon: const Icon(Icons.more_horiz),
+                      ),
+                      IconButton(
                         tooltip: 'تشغيل السورة',
                         onPressed: widget.onPlaySurah,
                         icon: const Icon(Icons.queue_music),
@@ -282,6 +422,8 @@ class _PageSurface extends StatefulWidget {
     required this.page,
     required this.edition,
     required this.repository,
+    required this.contentRepository,
+    required this.showThemes,
     required this.selectedVerseKey,
     required this.onRegionTap,
     required this.onBackgroundTap,
@@ -290,6 +432,8 @@ class _PageSurface extends StatefulWidget {
   final int page;
   final MushafPageEdition edition;
   final MushafPageRepository repository;
+  final IslamicContentRepository contentRepository;
+  final bool showThemes;
   final String? selectedVerseKey;
   final ValueChanged<MushafAyahRegion> onRegionTap;
   final VoidCallback onBackgroundTap;
@@ -299,7 +443,7 @@ class _PageSurface extends StatefulWidget {
 }
 
 class _PageSurfaceState extends State<_PageSurface> {
-  late Future<MushafPageAsset> _future;
+  late Future<_MushafPageData> _future;
   final TransformationController _transform = TransformationController();
   Offset? _doubleTapPosition;
   bool _zoomed = false;
@@ -307,17 +451,29 @@ class _PageSurfaceState extends State<_PageSurface> {
   @override
   void initState() {
     super.initState();
-    _future = widget.repository.page(widget.page, widget.edition);
+    _future = _load();
   }
 
   @override
   void didUpdateWidget(covariant _PageSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.page != widget.page || oldWidget.edition != widget.edition) {
+    if (oldWidget.page != widget.page ||
+        oldWidget.edition != widget.edition ||
+        oldWidget.showThemes != widget.showThemes) {
       _transform.value = Matrix4.identity();
       _zoomed = false;
-      _future = widget.repository.page(widget.page, widget.edition);
+      _future = _load();
     }
+  }
+
+  Future<_MushafPageData> _load() async {
+    final asset = await widget.repository.page(widget.page, widget.edition);
+    final themes = widget.showThemes
+        ? await widget.contentRepository.themesForVerseKeys(
+            asset.regions.map((region) => region.verseKey),
+          )
+        : const <String, IslamicThemeSegment>{};
+    return _MushafPageData(asset: asset, themes: themes);
   }
 
   @override
@@ -347,7 +503,7 @@ class _PageSurfaceState extends State<_PageSurface> {
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<MushafPageAsset>(
+  Widget build(BuildContext context) => FutureBuilder<_MushafPageData>(
     future: _future,
     builder: (context, snapshot) {
       if (snapshot.hasError) {
@@ -360,7 +516,7 @@ class _PageSurfaceState extends State<_PageSurface> {
               Text('تعذر تحميل صفحة المصحف ${widget.page}'),
               TextButton.icon(
                 onPressed: () => setState(() {
-                  _future = widget.repository.page(widget.page, widget.edition);
+                  _future = _load();
                 }),
                 icon: const Icon(Icons.refresh),
                 label: const Text('إعادة المحاولة'),
@@ -369,10 +525,11 @@ class _PageSurfaceState extends State<_PageSurface> {
           ),
         );
       }
-      final asset = snapshot.data;
-      if (asset == null) {
+      final data = snapshot.data;
+      if (data == null) {
         return const Center(child: CircularProgressIndicator());
       }
+      final asset = data.asset;
       return LayoutBuilder(
         builder: (context, constraints) {
           final aspect = asset.width / asset.height;
@@ -442,6 +599,7 @@ class _PageSurfaceState extends State<_PageSurface> {
                             regions: asset.regions,
                             selectedVerseKey: widget.selectedVerseKey,
                             nativeSize: Size(asset.width, asset.height),
+                            themes: data.themes,
                           ),
                         ),
                       ],
@@ -462,22 +620,27 @@ class _RegionPainter extends CustomPainter {
     required this.regions,
     required this.selectedVerseKey,
     required this.nativeSize,
+    required this.themes,
   });
 
   final List<MushafAyahRegion> regions;
   final String? selectedVerseKey;
   final Size nativeSize;
+  final Map<String, IslamicThemeSegment> themes;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (selectedVerseKey == null) return;
-    final paint = Paint()
-      ..color = const Color(0x4077a95c)
-      ..style = PaintingStyle.fill;
     final scaleX = size.width / nativeSize.width;
     final scaleY = size.height / nativeSize.height;
     for (final region in regions) {
-      if (region.verseKey != selectedVerseKey) continue;
+      final selected = region.verseKey == selectedVerseKey;
+      final theme = themes[region.verseKey];
+      if (!selected && theme == null) continue;
+      final paint = Paint()
+        ..color = selected
+            ? const Color(0x5077a95c)
+            : Color(theme!.colorValue).withValues(alpha: 0.22)
+        ..style = PaintingStyle.fill;
       for (final rect in region.rects) {
         canvas.drawRect(
           Rect.fromLTWH(
@@ -496,7 +659,15 @@ class _RegionPainter extends CustomPainter {
   bool shouldRepaint(covariant _RegionPainter oldDelegate) =>
       oldDelegate.selectedVerseKey != selectedVerseKey ||
       oldDelegate.regions != regions ||
-      oldDelegate.nativeSize != nativeSize;
+      oldDelegate.nativeSize != nativeSize ||
+      oldDelegate.themes != themes;
+}
+
+class _MushafPageData {
+  const _MushafPageData({required this.asset, required this.themes});
+
+  final MushafPageAsset asset;
+  final Map<String, IslamicThemeSegment> themes;
 }
 
 class _OfflinePackSheet extends StatefulWidget {

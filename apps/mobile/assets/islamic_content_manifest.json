@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "source": "Islamic Library Data — Open Source Islamic Dataset",
+  "repository": "https://github.com/mohammed-2-5/islamic-library-data",
+  "revision": "4beafb9f6c9e05e7a1f1573b856dbc511859f716",
+  "cdn": "https://cdn.jsdelivr.net/gh/mohammed-2-5/islamic-library-data@4beafb9f6c9e05e7a1f1573b856dbc511859f716/",
+  "license_notice": "Each resource retains its upstream attribution and license. The upstream repository README describes classical texts as public-domain texts, code as MIT, and fonts under their original licenses, but the repository has no root LICENSE file at this revision.",
+  "assets": [
+    {"path":"quran/quran_segments.json","size":294572,"sha256":"2e84008f97d27ae3bd26ffacbf8ff31768d49d8bc2da10a6a9f565fbc675e50f","group":"quran","rights":"UPSTREAM_README"},
+    {"path":"quran/hizb_quarters.json","size":6838,"sha256":"74f02d5a2ec81a2657daa4862168f928d015098ea58c3b43a8e832218eccf2a5","group":"quran","rights":"UPSTREAM_README"},
+    {"path":"quran/quran_duas.json","size":10200,"sha256":"edd8ab107188718e81be1b97d4ceda46cc35788580fb6405a7a2f4c714bbe4e0","group":"quran","rights":"UPSTREAM_README"},
+    {"path":"quran/quran_symbols.json","size":6478,"sha256":"501cd5d9843beb56bd5e398bea6a44785e4952c98c96bec1c99598537e6c2b3f","group":"quran","rights":"UPSTREAM_README"},
+    {"path":"quran/qcf_v2_pages.json","size":380389,"sha256":"e4ec17a55173e70538433dcf17e8d3de05db8e9a7de6868355115d2615002526","group":"quran","rights":"UPSTREAM_README"},
+    {"path":"quran/mushaf_pages.json","size":22383,"sha256":"e97f3f29f0174b7027d9c3d336a853d92c093f1c7d74728db2721e47dba8724d","group":"quran","rights":"UPSTREAM_README"},
+    {"path":"quran/qcf_surah_starts.json","size":3183,"sha256":"78a5297711777ac09c9fd3022078b42efb9c52e464b6851eb5e99cd7cc5a1678","group":"quran","rights":"UPSTREAM_README"},
+    {"path":"tafseer/muyassar.json","size":2754275,"sha256":"64f0d9c681b9bb9a150169604565f0dd11a884ebdda0b4ec19f35ffa954b57c8","group":"tafseer","rights":"UPSTREAM_README"},
+    {"path":"data/catalog.json","size":28030,"sha256":"e78b9c192f70ffb219406dd251883f2f1eb18d3dea8aed005f3f379497a8fde0","group":"library","rights":"PER_ITEM"},
+    {"path":"names_of_allah/names_of_allah.json","size":48528,"sha256":"4948f8b1beb892c1877b2a967eb14af5af39d7cb447b25109dd3658fb8b340ff","group":"names","rights":"UPSTREAM_README"},
+    {"path":"prophet_stories/index.json","size":12422,"sha256":"23325c140cfcadc5323d0eca1d92400cc5174b5869ece5f61db69e6143c79c2c","group":"stories","rights":"UPSTREAM_README"},
+    {"path":"forties/nawawi40.json","size":71317,"sha256":"d824cec8d82751669a9ed1d41f2854219f8e6770a2cab151ed87f9a501357def","group":"hadith","rights":"UPSTREAM_README"},
+    {"path":"forties/qudsi40.json","size":83412,"sha256":"55210e39051cc102da28c2ba3c5fe3c8c27fae9f1afd322138f5f38ddc0eaa3b","group":"hadith","rights":"UPSTREAM_README"},
+    {"path":"forties/shahwaliullah40.json","size":9556,"sha256":"1a1501422af8c08469bb06f21e4283004f4c51430e9278b486bcb5a4bf1e6263","group":"hadith","rights":"UPSTREAM_README"},
+    {"path":"azkar/azkar-sabah.json","size":13612,"sha256":"a20a165830a6519314215512cb1eba244fb85794fac73ec72c7c0aa7f164e276","group":"azkar","rights":"UPSTREAM_README"},
+    {"path":"azkar/azkar-masaa.json","size":10812,"sha256":"bdb257062f6bc3dfba559c1e61a8caa4643e36d2036d0e771892dff7de3ef0b5","group":"azkar","rights":"UPSTREAM_README"},
+    {"path":"azkar/ruqyah-shariah.json","size":16617,"sha256":"17c0226539e6e42648309f13f1c87423c2bf7c93f04967f1081f4168514bc361","group":"azkar","rights":"UPSTREAM_README"},
+    {"path":"azkar/famous-doaa.json","size":11889,"sha256":"6c89b3f2ba8c5a0ac312eae531f11b916d72af57b1c916938ccc2bcf986552b5","group":"azkar","rights":"UPSTREAM_README"}
+  ],
+  "patterns": {
+    "quran_ar": "quran/chapters/ar/{surah}.json",
+    "quran_en": "quran/chapters/en/{surah}.json",
+    "tajweed": "quran/tajweed/{surah}.json",
+    "hadith": "hadith/{collection}.json",
+    "story": "prophet_stories/{id}.json",
+    "quiz": "prophet_stories/quizzes/{id}.json",
+    "book_chapter": "data/books/{category}/{book}/chapters/{chapter}.json"
+  }
+}

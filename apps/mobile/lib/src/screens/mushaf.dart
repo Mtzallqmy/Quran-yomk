@@ -302,6 +302,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
         if (mushaf.presentation == MushafReaderPresentation.page) {
           return MushafPageReader(
             repository: services.mushafPages,
+            contentRepository: services.islamicContent,
             store: mushaf,
             initialPage: _number,
             onPageChanged: _pageChanged,

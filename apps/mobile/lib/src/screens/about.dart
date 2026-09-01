@@ -28,7 +28,7 @@ class AboutPage extends ConsumerWidget {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 6),
-          Text(l10n.versionLabel('0.1.0 (1)'), textAlign: TextAlign.center),
+          Text(l10n.versionLabel('0.3.0 (3)'), textAlign: TextAlign.center),
           const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),

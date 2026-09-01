@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'islamic_content.dart';
 import 'mushaf_store.dart';
 import 'mushaf_pages.dart';
 import 'offline_clip_service.dart';
@@ -24,6 +25,7 @@ class AppServices {
     required this.settings,
     required this.mushaf,
     required this.mushafPages,
+    required this.islamicContent,
     required this.offlineClips,
     required this.playback,
     required this.quranAudio,
@@ -36,6 +38,7 @@ class AppServices {
   final SettingsStore settings;
   final MushafStore mushaf;
   final MushafPageRepository mushafPages;
+  final IslamicContentRepository islamicContent;
   final OfflineClipService offlineClips;
   final PlaybackPort playback;
   final QuranAudioRepository quranAudio;

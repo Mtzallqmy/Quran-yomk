@@ -5,6 +5,7 @@ import 'branding.dart';
 import 'l10n.dart';
 import 'screens/favorites.dart';
 import 'screens/home.dart';
+import 'screens/islamic_library.dart';
 import 'screens/mushaf.dart';
 import 'screens/player.dart';
 import 'screens/radio.dart';
@@ -83,6 +84,15 @@ class _RootShellState extends State<RootShell> {
                 ],
               ),
               actions: <Widget>[
+                IconButton(
+                  tooltip: 'المكتبة الإسلامية',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const IslamicLibraryPage(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.local_library_outlined),
+                ),
                 IconButton(
                   tooltip: s.search,
                   onPressed: () => Navigator.of(context).push(

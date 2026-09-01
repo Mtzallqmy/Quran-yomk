@@ -74,6 +74,12 @@ jobs:
       - name: Mushaf tests
         run: flutter test test/mushaf_test.dart
 
+      - name: Islamic Library Data repository and live integrity tests
+        run: |
+          python3 -m py_compile tool/islamic_content_acceptance.py
+          python3 tool/islamic_content_acceptance.py \
+            assets/islamic_content_manifest.json --live
+
       - name: Mushaf page-asset contract tests
         run: |
           python3 -m py_compile tool/mushaf_assets.py

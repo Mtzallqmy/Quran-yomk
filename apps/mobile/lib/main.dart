@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'src/api.dart';
 import 'src/app.dart';
+import 'src/islamic_content.dart';
 import 'src/mushaf_store.dart';
 import 'src/mushaf_pages.dart';
 import 'src/offline_clip_service.dart';
@@ -40,6 +43,9 @@ Future<void> main() async {
   final mushaf = MushafStore(preferences)..load();
   final mushafPages = MushafPageRepository();
   await mushafPages.initialize();
+  final islamicContent = IslamicContentRepository();
+  await islamicContent.initialize();
+  unawaited(islamicContent.synchronizeInBackground());
   final offlineClips = createOfflineClipService(preferences);
   await offlineClips.initialize();
   final quranDownloads = createQuranDownloadService(preferences);
@@ -61,6 +67,7 @@ Future<void> main() async {
     settings: settings,
     mushaf: mushaf,
     mushafPages: mushafPages,
+    islamicContent: islamicContent,
     offlineClips: offlineClips,
     playback: playback,
     quranAudio: quranAudio,

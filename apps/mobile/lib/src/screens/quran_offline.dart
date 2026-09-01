@@ -21,10 +21,19 @@ class QuranOfflinePage extends ConsumerWidget {
         builder: (context, _) {
           final groups = <String, List<QuranDownloadTask>>{};
           for (final task in services.quranDownloads.tasks) {
-            groups.putIfAbsent(task.media.reciter.identityKey, () => <QuranDownloadTask>[]).add(task);
+            groups
+                .putIfAbsent(
+                  task.media.reciter.identityKey,
+                  () => <QuranDownloadTask>[],
+                )
+                .add(task);
           }
           final values = groups.values.toList(growable: false)
-            ..sort((a, b) => a.first.media.reciter.nameAr.compareTo(b.first.media.reciter.nameAr));
+            ..sort(
+              (a, b) => a.first.media.reciter.nameAr.compareTo(
+                b.first.media.reciter.nameAr,
+              ),
+            );
           if (values.isEmpty) {
             return Center(
               child: Padding(
@@ -68,12 +77,20 @@ class _ReciterDownloadGroup extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reciter = tasks.first.media.reciter;
-    final sorted = [...tasks]..sort((a, b) => a.media.surah.number.compareTo(b.media.surah.number));
-    final completed = sorted.where((task) => task.state == QuranDownloadState.completed).length;
+    final sorted = [...tasks]
+      ..sort((a, b) => a.media.surah.number.compareTo(b.media.surah.number));
+    final completed = sorted
+        .where((task) => task.state == QuranDownloadState.completed)
+        .length;
     final totalBytes = sorted
         .where((task) => task.state == QuranDownloadState.completed)
-        .fold<int>(0, (sum, task) => sum + (task.totalBytes ?? task.downloadedBytes));
-    final title = english && reciter.nameEn.isNotEmpty ? reciter.nameEn : reciter.nameAr;
+        .fold<int>(
+          0,
+          (sum, task) => sum + (task.totalBytes ?? task.downloadedBytes),
+        );
+    final title = english && reciter.nameEn.isNotEmpty
+        ? reciter.nameEn
+        : reciter.nameAr;
     return Card(
       child: ExpansionTile(
         leading: const CircleAvatar(child: Icon(Icons.record_voice_over)),
@@ -139,9 +156,13 @@ class _OfflineSurahTile extends ConsumerWidget {
       QuranDownloadState.failed => english ? 'Failed' : 'فشل التنزيل',
       QuranDownloadState.cancelled => english ? 'Cancelled' : 'ملغاة',
     };
+    final surah = task.media.surah;
+    final title = english && surah.nameEn.isNotEmpty
+        ? surah.nameEn
+        : surah.nameAr;
     return ListTile(
-      leading: CircleAvatar(child: Text('${task.media.surah.number}')),
-      title: Text(english ? (task.media.surah.nameEn ?? task.media.surah.nameAr) : task.media.surah.nameAr),
+      leading: CircleAvatar(child: Text('${surah.number}')),
+      title: Text(title),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[

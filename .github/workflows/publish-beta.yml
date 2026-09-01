@@ -29,10 +29,12 @@ jobs:
           test -s artifact/tarteel-release-arm64-v8a.apk
           test -s artifact/tarteel-release-universal.apk
           test -s artifact/SHA256SUMS.txt
-          sha256sum -c artifact/SHA256SUMS.txt || {
-            echo 'Artifact checksum verification failed.' >&2
-            exit 1
-          }
+          expected_universal=$(grep 'tarteel-release-universal.apk' artifact/SHA256SUMS.txt | awk '{print $1}')
+          expected_arm64=$(grep 'tarteel-release-arm64-v8a.apk' artifact/SHA256SUMS.txt | awk '{print $1}')
+          actual_universal=$(sha256sum artifact/tarteel-release-universal.apk | awk '{print $1}')
+          actual_arm64=$(sha256sum artifact/tarteel-release-arm64-v8a.apk | awk '{print $1}')
+          test "$expected_universal" = "$actual_universal"
+          test "$expected_arm64" = "$actual_arm64"
 
       - name: Publish v0.1.0-beta.1
         env:

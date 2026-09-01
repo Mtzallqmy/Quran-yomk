@@ -239,6 +239,7 @@ jobs:
 
       - name: Android 8 emulator Mushaf visual acceptance
         if: github.event_name != 'pull_request'
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 26

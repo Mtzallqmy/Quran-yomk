@@ -41,7 +41,9 @@ import xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
 expected = sys.argv[2]
 for node in root.iter("node"):
-    if expected in (node.attrib.get("text", ""), node.attrib.get("content-desc", "")):
+    text = node.attrib.get("text", "")
+    desc = node.attrib.get("content-desc", "")
+    if expected in text or expected in desc:
         values = [int(value) for value in re.findall(r"\d+", node.attrib["bounds"])]
         print((values[0] + values[2]) // 2, (values[1] + values[3]) // 2)
         break

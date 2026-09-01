@@ -75,12 +75,24 @@ class MushafPageAsset {
   final double height;
 }
 
+class MushafAssetUnavailableOfflineException implements Exception {
+  const MushafAssetUnavailableOfflineException(this.page, this.edition);
+
+  final int page;
+  final MushafPageEdition edition;
+
+  @override
+  String toString() =>
+      'Mushaf page $page (${edition.name}) is not cached and could not be downloaded.';
+}
+
 class MushafOfflineProgress {
   const MushafOfflineProgress({
     required this.edition,
     required this.completedPages,
     required this.totalPages,
     required this.receivedBytes,
+    this.totalBytes,
     this.currentPage,
     this.error,
   });
@@ -89,38 +101,59 @@ class MushafOfflineProgress {
   final int completedPages;
   final int totalPages;
   final int receivedBytes;
+  final int? totalBytes;
   final int? currentPage;
   final Object? error;
 
-  double get progress => totalPages == 0 ? 0 : completedPages / totalPages;
+  double get progress {
+    if (totalBytes != null && totalBytes! > 0) {
+      return (receivedBytes / totalBytes!).clamp(0, 1);
+    }
+    return totalPages == 0 ? 0 : completedPages / totalPages;
+  }
 }
 
-/// Local-first page asset repository. The Quran artwork is always rendered as
-/// an SVG/WebP file; this class never exposes Quran text to the page widget.
+/// Local-first page asset repository. Heavy Mushaf assets are distributed from
+/// immutable Supabase Storage paths and cached under application support data.
 class MushafPageRepository extends ChangeNotifier {
-  MushafPageRepository({http.Client? client})
-    : _client = client ?? http.Client();
+  MushafPageRepository({http.Client? client, Directory? root})
+    : _client = client ?? http.Client(),
+      _root = root;
 
+  static const assetVersion = 'v1';
   static const normalPageBaseUrl = String.fromEnvironment(
     'TARTEEL_HAFS_SVG_BASE_URL',
     defaultValue:
-        'https://raw.githubusercontent.com/quranpedia/quran-svg/b91d39e1065b57bdda3e94aca8ecf3575e50e1e6/mushafs/hafs/kfqc',
+        'https://qkroecnecdxghcqvvoxn.supabase.co/storage/v1/object/public/mushaf-assets/v1/hafs',
   );
   static const tajweedPageBaseUrl = String.fromEnvironment(
     'TARTEEL_TAJWEED_PAGE_BASE_URL',
     defaultValue:
-        'https://raw.githubusercontent.com/Mtzallqmy/Quran-yomk/mushaf-assets-v1/qcf-v4/1080',
+        'https://qkroecnecdxghcqvvoxn.supabase.co/storage/v1/object/public/mushaf-assets/v1/tajweed',
   );
   static const normalPackUrl = String.fromEnvironment(
     'TARTEEL_HAFS_OFFLINE_PACK_URL',
     defaultValue:
-        'https://github.com/Mtzallqmy/Quran-yomk/releases/download/mushaf-assets-v1/madinah-hafs-svg-pack.zip',
+        'https://qkroecnecdxghcqvvoxn.supabase.co/storage/v1/object/public/mushaf-assets/v1/packs/madinah-hafs-svg-pack.zip',
   );
   static const tajweedPackUrl = String.fromEnvironment(
     'TARTEEL_TAJWEED_OFFLINE_PACK_URL',
     defaultValue:
-        'https://github.com/Mtzallqmy/Quran-yomk/releases/download/mushaf-assets-v1/madinah-tajweed-qcf-v4-pack.zip',
+        'https://qkroecnecdxghcqvvoxn.supabase.co/storage/v1/object/public/mushaf-assets/v1/packs/madinah-tajweed-qcf-v4-pack.zip',
   );
+  static const packChecksumsUrl =
+      'https://qkroecnecdxghcqvvoxn.supabase.co/storage/v1/object/public/mushaf-assets/v1/packs/MUSHAF-PACK-SHA256SUMS.txt';
+
+  static const _githubHafsBase =
+      'https://raw.githubusercontent.com/quranpedia/quran-svg/b91d39e1065b57bdda3e94aca8ecf3575e50e1e6/mushafs/hafs/kfqc';
+  static const _githubTajweedBase =
+      'https://raw.githubusercontent.com/Mtzallqmy/Quran-yomk/mushaf-assets-v1/qcf-v4/1080';
+  static const _githubHafsPack =
+      'https://github.com/Mtzallqmy/Quran-yomk/releases/download/mushaf-assets-v1/madinah-hafs-svg-pack.zip';
+  static const _githubTajweedPack =
+      'https://github.com/Mtzallqmy/Quran-yomk/releases/download/mushaf-assets-v1/madinah-tajweed-qcf-v4-pack.zip';
+  static const _githubPackChecksums =
+      'https://github.com/Mtzallqmy/Quran-yomk/releases/download/mushaf-assets-v1/MUSHAF-PACK-SHA256SUMS.txt';
 
   final http.Client _client;
   Directory? _root;
@@ -128,16 +161,29 @@ class MushafPageRepository extends ChangeNotifier {
   MushafOfflineProgress? offlineProgress;
 
   Future<void> initialize() async {
-    final support = await getApplicationSupportDirectory();
-    _root = Directory('${support.path}/mushaf-pages');
+    if (_root == null) {
+      final support = await getApplicationSupportDirectory();
+      _root = Directory('${support.path}/mushaf-pages');
+    }
     await _root!.create(recursive: true);
   }
 
   Future<MushafPageAsset> page(int page, MushafPageEdition edition) async {
     _checkPage(page);
     await _ensureInitialized();
-    final image = await _ensureFile(page, edition, metadata: false);
-    final metadata = await _ensureFile(page, edition, metadata: true);
+    final manifest = await _loadManifestBestEffort(edition);
+    final image = await _ensureFile(
+      page,
+      edition,
+      metadata: false,
+      manifest: manifest,
+    );
+    final metadata = await _ensureFile(
+      page,
+      edition,
+      metadata: true,
+      manifest: manifest,
+    );
     final regions = edition == MushafPageEdition.madinahHafsSvg
         ? parseMadinahHafsRegions(await metadata.readAsString())
         : parseQcfV4TajweedRegions(await metadata.readAsString(), page);
@@ -152,9 +198,29 @@ class MushafPageRepository extends ChangeNotifier {
   }
 
   Future<bool> isPageCached(int page, MushafPageEdition edition) async {
+    _checkPage(page);
     await _ensureInitialized();
-    return await _imageFile(page, edition).exists() &&
-        await _metadataFile(page, edition).exists();
+    final manifest = await _readLocalManifest(edition);
+    return await _isValid(
+          _imageFile(page, edition),
+          metadata: false,
+          expectedSha: _expectedSha(manifest, _assetRelative(page, edition, false)),
+        ) &&
+        await _isValid(
+          _metadataFile(page, edition),
+          metadata: true,
+          expectedSha: _expectedSha(manifest, _assetRelative(page, edition, true)),
+        );
+  }
+
+  Future<bool> isOfflinePackAvailable(MushafPageEdition edition) async {
+    await _ensureInitialized();
+    try {
+      await _verifyEdition(edition);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> downloadOfflinePack(MushafPageEdition edition) async {
@@ -168,15 +234,25 @@ class MushafPageRepository extends ChangeNotifier {
     );
     notifyListeners();
     try {
-      // A release pack is preferred because it is one resumable transfer and
-      // avoids hundreds of CDN requests. Fall back to verified page downloads.
       final installed = await _tryInstallPack(edition);
+      if (_cancelRequested) return;
       if (!installed) {
+        final manifest = await _loadManifestBestEffort(edition);
         var bytes = 0;
         for (var page = 1; page <= mushafPageCount; page++) {
           if (_cancelRequested) return;
-          final image = await _ensureFile(page, edition, metadata: false);
-          final metadata = await _ensureFile(page, edition, metadata: true);
+          final image = await _ensureFile(
+            page,
+            edition,
+            metadata: false,
+            manifest: manifest,
+          );
+          final metadata = await _ensureFile(
+            page,
+            edition,
+            metadata: true,
+            manifest: manifest,
+          );
           bytes += await image.length() + await metadata.length();
           offlineProgress = MushafOfflineProgress(
             edition: edition,
@@ -189,11 +265,13 @@ class MushafPageRepository extends ChangeNotifier {
         }
       }
       await _verifyEdition(edition);
+      final size = await _editionSize(edition);
       offlineProgress = MushafOfflineProgress(
         edition: edition,
         completedPages: mushafPageCount,
         totalPages: mushafPageCount,
-        receivedBytes: await _editionSize(edition),
+        receivedBytes: size,
+        totalBytes: size,
       );
       notifyListeners();
     } catch (error) {
@@ -202,6 +280,7 @@ class MushafPageRepository extends ChangeNotifier {
         completedPages: offlineProgress?.completedPages ?? 0,
         totalPages: mushafPageCount,
         receivedBytes: offlineProgress?.receivedBytes ?? 0,
+        totalBytes: offlineProgress?.totalBytes,
         error: error,
       );
       notifyListeners();
@@ -217,6 +296,10 @@ class MushafPageRepository extends ChangeNotifier {
     await _ensureInitialized();
     final directory = _editionDirectory(edition);
     if (directory.existsSync()) await directory.delete(recursive: true);
+    final installing = _installingDirectory(edition);
+    if (installing.existsSync()) await installing.delete(recursive: true);
+    final partial = _packPartial(edition);
+    if (await partial.exists()) await partial.delete();
     offlineProgress = null;
     notifyListeners();
   }
@@ -225,103 +308,334 @@ class MushafPageRepository extends ChangeNotifier {
     int page,
     MushafPageEdition edition, {
     required bool metadata,
+    Map<String, dynamic>? manifest,
   }) async {
     final target = metadata
         ? _metadataFile(page, edition)
         : _imageFile(page, edition);
-    if (await _isValid(target, metadata: metadata)) return target;
+    final relative = _assetRelative(page, edition, metadata);
+    final expectedSha = _expectedSha(manifest, relative);
+    if (await _isValid(target, metadata: metadata, expectedSha: expectedSha)) {
+      return target;
+    }
+    if (await target.exists()) await target.delete();
     await target.parent.create(recursive: true);
-    final uri = Uri.parse(_url(page, edition, metadata: metadata));
-    final response = await _client.get(uri);
-    if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
-      throw HttpException('Mushaf asset HTTP ${response.statusCode}', uri: uri);
+
+    Object? lastError;
+    for (final url in _assetUrls(page, edition, metadata: metadata)) {
+      final uri = Uri.parse(url);
+      try {
+        final response = await _client.get(uri);
+        if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
+          lastError = HttpException(
+            'Mushaf asset HTTP ${response.statusCode}',
+            uri: uri,
+          );
+          continue;
+        }
+        final partial = File('${target.path}.partial');
+        await partial.writeAsBytes(response.bodyBytes, flush: true);
+        if (!await _isValid(
+          partial,
+          metadata: metadata,
+          expectedSha: expectedSha,
+        )) {
+          await partial.delete();
+          lastError = const FormatException('Invalid Mushaf page asset');
+          continue;
+        }
+        if (await target.exists()) await target.delete();
+        await partial.rename(target.path);
+        return target;
+      } catch (error) {
+        lastError = error;
+      }
     }
-    final partial = File('${target.path}.partial');
-    await partial.writeAsBytes(response.bodyBytes, flush: true);
-    if (!await _isValid(partial, metadata: metadata)) {
-      await partial.delete();
-      throw const FormatException('Invalid Mushaf page asset');
-    }
-    await partial.rename(target.path);
-    return target;
+    debugPrint('Mushaf asset download failed: $lastError');
+    throw MushafAssetUnavailableOfflineException(page, edition);
   }
 
-  String _url(int page, MushafPageEdition edition, {required bool metadata}) {
+  String _assetRelative(
+    int page,
+    MushafPageEdition edition,
+    bool metadata,
+  ) {
+    final number = page.toString().padLeft(3, '0');
+    return '${metadata ? 'bounds' : 'pages'}/$number.${metadata ? 'json' : edition.fileExtension}';
+  }
+
+  List<String> _assetUrls(
+    int page,
+    MushafPageEdition edition, {
+    required bool metadata,
+  }) {
     final number = page.toString().padLeft(3, '0');
     if (edition == MushafPageEdition.madinahHafsSvg) {
-      return '$normalPageBaseUrl/${metadata ? 'json' : 'svg'}/$number.${metadata ? 'json' : 'svg'}';
+      return <String>[
+        '$normalPageBaseUrl/${metadata ? 'bounds' : 'pages'}/$number.${metadata ? 'json' : 'svg'}',
+        '$_githubHafsBase/${metadata ? 'json' : 'svg'}/$number.${metadata ? 'json' : 'svg'}',
+      ];
     }
-    return '$tajweedPageBaseUrl/${metadata ? 'bounds' : 'pages'}/$number.${metadata ? 'json' : 'webp'}';
+    return <String>[
+      '$tajweedPageBaseUrl/${metadata ? 'bounds' : 'pages'}/$number.${metadata ? 'json' : 'webp'}',
+      '$_githubTajweedBase/${metadata ? 'bounds' : 'pages'}/$number.${metadata ? 'json' : 'webp'}',
+    ];
+  }
+
+  Future<Map<String, dynamic>?> _loadManifestBestEffort(
+    MushafPageEdition edition,
+  ) async {
+    final local = await _readLocalManifest(edition);
+    if (local != null) return local;
+    final url = edition == MushafPageEdition.madinahHafsSvg
+        ? '$normalPageBaseUrl/manifest.json'
+        : '$tajweedPageBaseUrl/manifest.json';
+    try {
+      final response = await _client.get(Uri.parse(url));
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) return null;
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is! Map<String, dynamic> || !_manifestLooksValid(decoded, edition)) {
+        return null;
+      }
+      final target = _manifestFile(edition);
+      await target.parent.create(recursive: true);
+      final partial = File('${target.path}.partial');
+      await partial.writeAsBytes(response.bodyBytes, flush: true);
+      if (await target.exists()) await target.delete();
+      await partial.rename(target.path);
+      return decoded;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _readLocalManifest(
+    MushafPageEdition edition,
+  ) async {
+    final file = _manifestFile(edition);
+    if (!await file.exists()) return null;
+    try {
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is Map<String, dynamic> && _manifestLooksValid(decoded, edition)) {
+        return decoded;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  bool _manifestLooksValid(
+    Map<String, dynamic> manifest,
+    MushafPageEdition edition,
+  ) {
+    final count = manifest['pageCount'] ?? manifest['pages'];
+    if (count != mushafPageCount) return false;
+    final manifestEdition = manifest['edition'];
+    if (manifestEdition != null) {
+      final expected = edition == MushafPageEdition.madinahHafsSvg
+          ? 'hafs'
+          : 'tajweed';
+      if (manifestEdition != expected) return false;
+    }
+    return manifest['files'] is Map || manifest['sha256'] is Map;
+  }
+
+  String? _expectedSha(Map<String, dynamic>? manifest, String relative) {
+    if (manifest == null) return null;
+    final files = manifest['files'];
+    if (files is Map) {
+      final value = files[relative];
+      if (value is Map && value['sha256'] is String) {
+        return value['sha256'] as String;
+      }
+      if (value is String) return value;
+    }
+    final legacy = manifest['sha256'];
+    if (legacy is Map && legacy[relative] is String) {
+      return legacy[relative] as String;
+    }
+    return null;
   }
 
   Future<bool> _tryInstallPack(MushafPageEdition edition) async {
-    final url = edition == MushafPageEdition.madinahHafsSvg
-        ? normalPackUrl
-        : tajweedPackUrl;
-    final temporary = File('${_root!.path}/${edition.name}.zip.partial');
-    final existingBytes = await temporary.exists()
-        ? await temporary.length()
-        : 0;
-    final request = http.Request('GET', Uri.parse(url));
-    if (existingBytes > 0) request.headers['Range'] = 'bytes=$existingBytes-';
-    final response = await _client.send(request);
-    if (response.statusCode != 200 && response.statusCode != 206) return false;
-    if (response.statusCode == 200 && existingBytes > 0) {
-      await temporary.writeAsBytes(const <int>[], flush: true);
-    }
-    final resumedBytes = response.statusCode == 206 ? existingBytes : 0;
-    final sink = temporary.openWrite(mode: FileMode.append);
-    var received = resumedBytes;
-    await for (final chunk in response.stream) {
-      if (_cancelRequested) {
+    final expectedSha = await _expectedPackSha(edition);
+    if (expectedSha == null) return false;
+    final temporary = _packPartial(edition);
+
+    for (final url in _packUrls(edition)) {
+      try {
+        final existingBytes = await temporary.exists()
+            ? await temporary.length()
+            : 0;
+        final request = http.Request('GET', Uri.parse(url));
+        if (existingBytes > 0) {
+          request.headers['Range'] = 'bytes=$existingBytes-';
+        }
+        final response = await _client.send(request);
+        if (response.statusCode != 200 && response.statusCode != 206) continue;
+        if (response.statusCode == 200 && existingBytes > 0) {
+          await temporary.writeAsBytes(const <int>[], flush: true);
+        }
+        final resumedBytes = response.statusCode == 206 ? existingBytes : 0;
+        final totalBytes = _responseTotalBytes(response, resumedBytes);
+        final sink = temporary.openWrite(mode: FileMode.append);
+        var received = resumedBytes;
+        await for (final chunk in response.stream) {
+          if (_cancelRequested) {
+            await sink.close();
+            return false;
+          }
+          received += chunk.length;
+          sink.add(chunk);
+          offlineProgress = MushafOfflineProgress(
+            edition: edition,
+            completedPages: 0,
+            totalPages: mushafPageCount,
+            receivedBytes: received,
+            totalBytes: totalBytes,
+          );
+          notifyListeners();
+        }
         await sink.close();
-        return false;
+        if (sha256Hex(await temporary.readAsBytes()) != expectedSha) {
+          await temporary.delete();
+          continue;
+        }
+        await _extractAndInstallPack(temporary, edition);
+        await temporary.delete();
+        return true;
+      } catch (_) {
+        // Try the emergency GitHub backup, then fall back to per-page delivery.
       }
-      received += chunk.length;
-      sink.add(chunk);
-      offlineProgress = MushafOfflineProgress(
-        edition: edition,
-        completedPages: 0,
-        totalPages: mushafPageCount,
-        receivedBytes: received,
-      );
-      notifyListeners();
     }
-    await sink.close();
-    final archive = ZipDecoder().decodeBytes(await temporary.readAsBytes());
-    for (final entry in archive) {
-      if (!entry.isFile || entry.name.contains('..')) continue;
-      final target = File('${_editionDirectory(edition).path}/${entry.name}');
-      await target.parent.create(recursive: true);
-      final bytes = entry.readBytes();
-      if (bytes == null) throw const FormatException('Invalid ZIP entry');
-      await target.writeAsBytes(bytes, flush: true);
+    return false;
+  }
+
+  int? _responseTotalBytes(http.StreamedResponse response, int resumedBytes) {
+    final contentRange = response.headers['content-range'];
+    if (contentRange != null) {
+      final match = RegExp(r'/([0-9]+)$').firstMatch(contentRange);
+      if (match != null) return int.tryParse(match.group(1)!);
     }
-    await temporary.delete();
-    return true;
+    final length = response.contentLength;
+    if (length != null) return resumedBytes + length;
+    return null;
+  }
+
+  List<String> _packUrls(MushafPageEdition edition) =>
+      edition == MushafPageEdition.madinahHafsSvg
+      ? <String>[normalPackUrl, _githubHafsPack]
+      : <String>[tajweedPackUrl, _githubTajweedPack];
+
+  Future<String?> _expectedPackSha(MushafPageEdition edition) async {
+    final filename = edition == MushafPageEdition.madinahHafsSvg
+        ? 'madinah-hafs-svg-pack.zip'
+        : 'madinah-tajweed-qcf-v4-pack.zip';
+    for (final url in <String>[packChecksumsUrl, _githubPackChecksums]) {
+      try {
+        final response = await _client.get(Uri.parse(url));
+        if (response.statusCode != 200) continue;
+        for (final line in const LineSplitter().convert(response.body)) {
+          if (line.trim().endsWith(filename)) {
+            final value = line.trim().split(RegExp(r'\s+')).first;
+            if (RegExp(r'^[0-9a-f]{64}$').hasMatch(value)) return value;
+          }
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  Future<void> _extractAndInstallPack(
+    File archiveFile,
+    MushafPageEdition edition,
+  ) async {
+    final staging = _installingDirectory(edition);
+    if (staging.existsSync()) await staging.delete(recursive: true);
+    await staging.create(recursive: true);
+
+    final input = InputFileStream(archiveFile.path);
+    try {
+      final archive = ZipDecoder().decodeStream(input);
+      for (final entry in archive) {
+        if (!entry.isFile) continue;
+        if (!_isSafeArchivePath(entry.name)) {
+          throw const FormatException('Unsafe Mushaf ZIP path');
+        }
+        final target = File('${staging.path}/${entry.name}');
+        await target.parent.create(recursive: true);
+        final bytes = entry.readBytes();
+        if (bytes == null) throw const FormatException('Invalid ZIP entry');
+        await target.writeAsBytes(bytes, flush: true);
+      }
+    } finally {
+      input.close();
+    }
+
+    await _verifyDirectory(staging, edition);
+    final destination = _editionDirectory(edition);
+    if (destination.existsSync()) await destination.delete(recursive: true);
+    await staging.rename(destination.path);
+  }
+
+  bool _isSafeArchivePath(String name) {
+    if (name.isEmpty || name.startsWith('/') || name.startsWith('\\')) {
+      return false;
+    }
+    final parts = name.replaceAll('\\', '/').split('/');
+    return !parts.any((part) => part == '..' || part.isEmpty);
   }
 
   Future<void> _verifyEdition(MushafPageEdition edition) async {
+    await _verifyDirectory(_editionDirectory(edition), edition);
+  }
+
+  Future<void> _verifyDirectory(
+    Directory directory,
+    MushafPageEdition edition,
+  ) async {
+    final manifestFile = File('${directory.path}/manifest.json');
+    if (!await manifestFile.exists()) {
+      throw const FormatException('Missing Mushaf manifest');
+    }
+    final decoded = jsonDecode(await manifestFile.readAsString());
+    if (decoded is! Map<String, dynamic> || !_manifestLooksValid(decoded, edition)) {
+      throw const FormatException('Invalid Mushaf manifest');
+    }
+
     for (var page = 1; page <= mushafPageCount; page++) {
-      if (!await _isValid(_imageFile(page, edition), metadata: false) ||
-          !await _isValid(_metadataFile(page, edition), metadata: true)) {
+      final number = page.toString().padLeft(3, '0');
+      final imageRelative = 'pages/$number.${edition.fileExtension}';
+      final boundsRelative = 'bounds/$number.json';
+      final image = File('${directory.path}/$imageRelative');
+      final bounds = File('${directory.path}/$boundsRelative');
+      if (!await _isValid(
+            image,
+            metadata: false,
+            expectedSha: _expectedSha(decoded, imageRelative),
+          ) ||
+          !await _isValid(
+            bounds,
+            metadata: true,
+            expectedSha: _expectedSha(decoded, boundsRelative),
+          )) {
         throw StateError('Offline Mushaf verification failed at page $page');
       }
     }
-    final manifest = File('${_editionDirectory(edition).path}/manifest.json');
-    if (await manifest.exists()) {
-      final decoded = jsonDecode(await manifest.readAsString());
-      final files = Map<String, dynamic>.from(
-        (decoded as Map<String, dynamic>)['sha256'] as Map,
-      );
-      for (final entry in files.entries) {
-        if (entry.key.contains('..') || entry.key.startsWith('/')) {
+
+    final files = decoded['files'] ?? decoded['sha256'];
+    if (files is Map) {
+      for (final rawEntry in files.entries) {
+        final relative = rawEntry.key.toString();
+        if (!_isSafeArchivePath(relative)) {
           throw const FormatException('Unsafe Mushaf manifest path');
         }
-        final file = File('${_editionDirectory(edition).path}/${entry.key}');
-        if (!await file.exists() ||
-            sha256Hex(await file.readAsBytes()) != entry.value) {
-          throw StateError('Mushaf checksum failed: ${entry.key}');
+        final expected = rawEntry.value is Map
+            ? (rawEntry.value as Map)['sha256']?.toString()
+            : rawEntry.value.toString();
+        if (expected == null) continue;
+        final file = File('${directory.path}/$relative');
+        if (!await file.exists() || sha256Hex(await file.readAsBytes()) != expected) {
+          throw StateError('Mushaf checksum failed: $relative');
         }
       }
     }
@@ -337,7 +651,11 @@ class MushafPageRepository extends ChangeNotifier {
     return size;
   }
 
-  Future<bool> _isValid(File file, {required bool metadata}) async {
+  Future<bool> _isValid(
+    File file, {
+    required bool metadata,
+    String? expectedSha,
+  }) async {
     if (!await file.exists() || await file.length() < (metadata ? 2 : 64)) {
       return false;
     }
@@ -348,22 +666,38 @@ class MushafPageRepository extends ChangeNotifier {
     if (metadata) {
       try {
         final value = jsonDecode(await file.readAsString());
-        return value is List || value is Map;
+        if (value is! List && value is! Map) return false;
       } catch (_) {
         return false;
       }
+    } else if (isSvg) {
+      if (!utf8.decode(bytes, allowMalformed: true).contains('<svg')) {
+        return false;
+      }
+    } else if (bytes.length < 12 ||
+        ascii.decode(bytes.take(4).toList(), allowInvalid: true) != 'RIFF' ||
+        ascii.decode(bytes.skip(8).take(4).toList(), allowInvalid: true) !=
+            'WEBP') {
+      return false;
     }
-    if (isSvg) {
-      return utf8.decode(bytes, allowMalformed: true).contains('<svg');
+    if (expectedSha != null &&
+        sha256Hex(await file.readAsBytes()) != expectedSha) {
+      return false;
     }
-    return bytes.length >= 12 &&
-        ascii.decode(bytes.take(4).toList(), allowInvalid: true) == 'RIFF' &&
-        ascii.decode(bytes.skip(8).take(4).toList(), allowInvalid: true) ==
-            'WEBP';
+    return true;
   }
 
   Directory _editionDirectory(MushafPageEdition edition) =>
       Directory('${_root!.path}/${edition.name}');
+
+  Directory _installingDirectory(MushafPageEdition edition) =>
+      Directory('${_root!.path}/${edition.name}.installing');
+
+  File _packPartial(MushafPageEdition edition) =>
+      File('${_root!.path}/${edition.name}.zip.partial');
+
+  File _manifestFile(MushafPageEdition edition) =>
+      File('${_editionDirectory(edition).path}/manifest.json');
 
   File _imageFile(int page, MushafPageEdition edition) {
     final number = page.toString().padLeft(3, '0');
@@ -378,7 +712,7 @@ class MushafPageRepository extends ChangeNotifier {
   }
 
   Future<void> _ensureInitialized() async {
-    if (_root == null) await initialize();
+    if (_root == null || !_root!.existsSync()) await initialize();
   }
 
   void _checkPage(int page) {

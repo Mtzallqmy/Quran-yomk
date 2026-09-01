@@ -95,10 +95,14 @@ jobs:
 
       - name: Publish per-page Tajweed CDN branch
         if: steps.existing.outputs.ready != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         working-directory: ${{ runner.temp }}
         run: |
           set -euo pipefail
-          git clone --no-checkout "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" asset-repo
+          git clone --no-checkout \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            asset-repo
           cd asset-repo
           git checkout --orphan mushaf-assets-v1
           git rm -rf . >/dev/null 2>&1 || true

@@ -45,10 +45,50 @@ for node in root.iter("node"):
     desc = node.attrib.get("content-desc", "")
     if expected in text or expected in desc:
         values = [int(value) for value in re.findall(r"\d+", node.attrib["bounds"])]
-        print((values[0] + values[2]) // 2, (values[1] + values[3]) // 2)
-        break
+        if len(values) == 4:
+            print((values[0] + values[2]) // 2, (values[1] + values[3]) // 2)
+            break
 else:
     raise SystemExit(f"node not found: {expected}")
+PY
+  )
+  adb shell input tap $point
+}
+
+# Find a visible node by exact-or-substring match, then tap it. This avoids
+# depending on how Flutter merges SegmentedButton semantics on Android 8.
+tap_matching_node() {
+  local expected=$1
+  dump_ui
+  local point
+  point=$(python3 - "$evidence_dir/window.xml" "$expected" <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+expected = sys.argv[2]
+candidates = []
+for node in root.iter("node"):
+    text = node.attrib.get("text", "")
+    desc = node.attrib.get("content-desc", "")
+    haystack = f"{text} {desc}"
+    if expected not in haystack:
+        continue
+    values = [int(value) for value in re.findall(r"\d+", node.attrib.get("bounds", ""))]
+    if len(values) != 4:
+        continue
+    x1, y1, x2, y2 = values
+    if x2 <= x1 or y2 <= y1:
+        continue
+    candidates.append(((x2-x1)*(y2-y1), (x1+x2)//2, (y1+y2)//2, text, desc))
+if not candidates:
+    raise SystemExit(f"node not found: {expected}")
+# Prefer the smallest matching actionable semantic region; parent merged nodes
+# are typically much larger than the actual segment.
+candidates.sort(key=lambda item: item[0])
+_, x, y, _, _ = candidates[0]
+print(x, y)
 PY
   )
   adb shell input tap $point
@@ -59,11 +99,12 @@ tap_text "المصحف"
 wait_for "صفحة مصحف المدينة 1"
 adb exec-out screencap -p > "$evidence_dir/mushaf-hafs-svg-page-001.png"
 
-# Mushaf controls auto-hide after a few seconds. Tapping the page restores them
-# before the edition switch, keeping this API 26 acceptance deterministic.
+# The reader controls auto-hide. A page tap always restores the overlay (or
+# selects an ayah, which also restores it). Then select the Tajweed segment by
+# its merged Android accessibility semantics rather than exact text equality.
 adb shell input tap 540 960
-wait_for "تجويد"
-tap_text "تجويد"
+sleep 1
+tap_matching_node "تجويد"
 wait_for "صفحة مصحف التجويد 1"
 adb exec-out screencap -p > "$evidence_dir/mushaf-tajweed-webp-page-001.png"
 

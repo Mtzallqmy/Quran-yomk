@@ -158,6 +158,127 @@ void main() {
     },
   );
 
+  test('explicit reciter never falls through to another provider', () async {
+    const selected = QuranAudioCatalogReciter(
+      id: 'mp3quran:10:20',
+      provider: QuranAudioProviderKind.mp3Quran,
+      edition: '10-20',
+      nameAr: 'عبدالباسط عبدالصمد',
+      nameEn: 'Abdul Basit Abdus Samad',
+      availableSurahs: <int>{1},
+      bitrates: <int>{},
+      serverUrl: 'https://example.invalid/abdulbasit',
+    );
+    const wrong = QuranAudioCatalogReciter(
+      id: 'alquran:ar.alafasy',
+      provider: QuranAudioProviderKind.alQuranCloud,
+      edition: 'ar.alafasy',
+      nameAr: 'مشاري العفاسي',
+      nameEn: 'Mishary Alafasy',
+      availableSurahs: <int>{1},
+      bitrates: <int>{128},
+    );
+    final wrongMedia = QuranAudioMedia(
+      id: 'wrong',
+      provider: QuranAudioProviderKind.alQuranCloud,
+      reciter: wrong,
+      surah: fatihah,
+      bitrateKbps: 128,
+      playbackUri: Uri.parse('https://cdn.example/wrong.mp3'),
+      downloadUri: Uri.parse('https://cdn.example/wrong.mp3'),
+      rightsStatus: 'APPROVED',
+      rehostingAllowed: false,
+    );
+    final repository = QuranAudioRepository(
+      providers: <QuranAudioProvider>[
+        _NullProvider(QuranAudioProviderKind.mp3Quran),
+        _StaticProvider(wrongMedia),
+      ],
+      localLookup: _NullLocalLookup(),
+    );
+
+    await expectLater(
+      repository.resolve(
+        const QuranAudioRequest(surah: fatihah, reciter: selected),
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message.toString(),
+          'message',
+          contains('QURAN_AUDIO_UNAVAILABLE'),
+        ),
+      ),
+    );
+  });
+
+  test('repository rejects a resolved media identity mismatch', () async {
+    const selected = QuranAudioCatalogReciter(
+      id: 'mp3quran:10:20',
+      provider: QuranAudioProviderKind.mp3Quran,
+      edition: '10-20',
+      nameAr: 'عبدالباسط عبدالصمد',
+      nameEn: 'Abdul Basit Abdus Samad',
+      availableSurahs: <int>{1},
+      bitrates: <int>{},
+    );
+    const wrong = QuranAudioCatalogReciter(
+      id: 'mp3quran:99:88',
+      provider: QuranAudioProviderKind.mp3Quran,
+      edition: '99-88',
+      nameAr: 'إبراهيم الأخضر',
+      nameEn: 'Ibrahim Al Akhdar',
+      availableSurahs: <int>{1},
+      bitrates: <int>{},
+    );
+    final wrongMedia = QuranAudioMedia(
+      id: 'wrong-same-provider',
+      provider: QuranAudioProviderKind.mp3Quran,
+      reciter: wrong,
+      surah: fatihah,
+      bitrateKbps: 0,
+      playbackUri: Uri.parse('https://cdn.example/wrong.mp3'),
+      downloadUri: Uri.parse('https://cdn.example/wrong.mp3'),
+      rightsStatus: 'APPROVED',
+      rehostingAllowed: false,
+    );
+    final repository = QuranAudioRepository(
+      providers: <QuranAudioProvider>[_KindStaticProvider(wrongMedia)],
+      localLookup: _NullLocalLookup(),
+    );
+
+    await expectLater(
+      repository.resolve(
+        const QuranAudioRequest(surah: fatihah, reciter: selected),
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message.toString(),
+          'message',
+          contains('QURAN_AUDIO_RECITER_MISMATCH'),
+        ),
+      ),
+    );
+  });
+
+  test('provider refuses explicit reciter from another provider', () async {
+    const selected = QuranAudioCatalogReciter(
+      id: 'mp3quran:10:20',
+      provider: QuranAudioProviderKind.mp3Quran,
+      edition: '10-20',
+      nameAr: 'عبدالباسط عبدالصمد',
+      nameEn: 'Abdul Basit Abdus Samad',
+      availableSurahs: <int>{1},
+      bitrates: <int>{},
+    );
+    final provider = AlQuranCloudAudioProvider(
+      client: MockClient((_) async => http.Response('', 500)),
+    );
+    final media = await provider.resolve(
+      const QuranAudioRequest(surah: fatihah, reciter: selected),
+    );
+    expect(media, isNull);
+  });
+
   test('full Mushaf download requires exactly 114 resolved surahs', () async {
     final service = _DownloadContractFake();
     expect(
@@ -179,6 +300,29 @@ class _StaticProvider implements QuranAudioProvider {
   Future<QuranAudioMedia?> resolve(QuranAudioRequest request) async => media;
 }
 
+class _KindStaticProvider implements QuranAudioProvider {
+  _KindStaticProvider(this.media);
+  final QuranAudioMedia media;
+  @override
+  QuranAudioProviderKind get kind => media.provider;
+  @override
+  Future<List<QuranAudioCatalogReciter>> reciters({int? surahNumber}) async =>
+      <QuranAudioCatalogReciter>[media.reciter];
+  @override
+  Future<QuranAudioMedia?> resolve(QuranAudioRequest request) async => media;
+}
+
+class _NullProvider implements QuranAudioProvider {
+  _NullProvider(this.kind);
+  @override
+  final QuranAudioProviderKind kind;
+  @override
+  Future<List<QuranAudioCatalogReciter>> reciters({int? surahNumber}) async =>
+      const <QuranAudioCatalogReciter>[];
+  @override
+  Future<QuranAudioMedia?> resolve(QuranAudioRequest request) async => null;
+}
+
 class _LocalLookup implements QuranAudioLocalLookup {
   @override
   Future<QuranAudioMedia?> localMedia(QuranAudioMedia remote) async =>
@@ -186,6 +330,11 @@ class _LocalLookup implements QuranAudioLocalLookup {
         '/verified/offline/1.mp3',
         checksum: List<String>.filled(64, 'a').join(),
       );
+}
+
+class _NullLocalLookup implements QuranAudioLocalLookup {
+  @override
+  Future<QuranAudioMedia?> localMedia(QuranAudioMedia remote) async => null;
 }
 
 class _DownloadContractFake extends QuranDownloadService {

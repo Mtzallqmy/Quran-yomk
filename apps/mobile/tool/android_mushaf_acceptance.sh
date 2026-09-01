@@ -59,6 +59,10 @@ tap_text "المصحف"
 wait_for "صفحة مصحف المدينة 1"
 adb exec-out screencap -p > "$evidence_dir/mushaf-hafs-svg-page-001.png"
 
+# Mushaf controls auto-hide after a few seconds. Tapping the page restores them
+# before the edition switch, keeping this API 26 acceptance deterministic.
+adb shell input tap 540 960
+wait_for "تجويد"
 tap_text "تجويد"
 wait_for "صفحة مصحف التجويد 1"
 adb exec-out screencap -p > "$evidence_dir/mushaf-tajweed-webp-page-001.png"

@@ -32,6 +32,11 @@ class QuranAudioCatalogReciter {
   final Set<int> bitrates;
   final bool supportsAyahAudio;
 
+  String get identityKey => '${provider.name}|$id|$edition';
+
+  bool sameIdentity(QuranAudioCatalogReciter other) =>
+      identityKey == other.identityKey;
+
   Reciter toReciter() => Reciter(
     id: id,
     slug: id.replaceAll(':', '-'),
@@ -95,7 +100,7 @@ class QuranAudioMedia {
   bool get isLocal => localPath != null;
   String get storageKey => <Object?>[
     provider.name,
-    reciter.edition,
+    reciter.identityKey,
     bitrateKbps,
     surah.number,
     ayahGlobalNumber ?? 0,
@@ -161,16 +166,27 @@ class QuranAudioRepository {
   }
 
   Future<QuranAudioMedia> resolve(QuranAudioRequest request) async {
-    final preferredKind = request.reciter?.provider;
-    final ordered = <QuranAudioProvider>[
-      ..._providers.where((provider) => provider.kind == preferredKind),
-      ..._providers.where((provider) => provider.kind != preferredKind),
-    ];
+    final explicitReciter = request.reciter;
+    final ordered = explicitReciter == null
+        ? _providers
+        : _providers
+              .where((provider) => provider.kind == explicitReciter.provider)
+              .toList(growable: false);
+    if (ordered.isEmpty) {
+      throw StateError('QURAN_AUDIO_PROVIDER_UNAVAILABLE');
+    }
+
     Object? lastError;
     for (final provider in ordered) {
       try {
         final remote = await provider.resolve(request);
         if (remote == null) continue;
+        if (explicitReciter != null &&
+            !remote.reciter.sameIdentity(explicitReciter)) {
+          throw StateError(
+            'QURAN_AUDIO_RECITER_MISMATCH:${explicitReciter.identityKey}:${remote.reciter.identityKey}',
+          );
+        }
         return await localLookup.localMedia(remote) ?? remote;
       } catch (error) {
         lastError = error;
@@ -231,11 +247,12 @@ class AlQuranCloudAudioProvider implements QuranAudioProvider {
   @override
   Future<QuranAudioMedia?> resolve(QuranAudioRequest request) async {
     var reciter = request.reciter;
-    if (reciter != null && reciter.provider != kind) reciter = null;
+    if (reciter != null && reciter.provider != kind) return null;
     reciter ??= (await reciters(surahNumber: request.surah.number)).firstWhere(
       (value) => value.edition == 'ar.alafasy',
       orElse: () => throw StateError('ALQURAN_DEFAULT_RECITER_MISSING'),
     );
+    if (!reciter.availableSurahs.contains(request.surah.number)) return null;
     if (request.isAyah && !reciter.supportsAyahAudio) return null;
 
     final bitrate = _supportedBitrates.contains(request.bitrateKbps)
@@ -349,7 +366,7 @@ class Mp3QuranAudioProvider implements QuranAudioProvider {
   Future<QuranAudioMedia?> resolve(QuranAudioRequest request) async {
     if (request.isAyah) return null;
     var reciter = request.reciter;
-    if (reciter != null && reciter.provider != kind) reciter = null;
+    if (reciter != null && reciter.provider != kind) return null;
     reciter ??= (await reciters(surahNumber: request.surah.number)).firstOrNull;
     if (reciter == null ||
         !reciter.availableSurahs.contains(request.surah.number)) {

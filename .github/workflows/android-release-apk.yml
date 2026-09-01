@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-release-${{ github.ref }}
@@ -254,3 +254,59 @@ jobs:
           path: apps/mobile/release/android
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish Tarteel first beta release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG='v0.1.0-beta.1'
+          TITLE='ترتيل v0.1.0 Beta 1'
+          NOTES_FILE=$(mktemp)
+          cat > "$NOTES_FILE" <<'EOF'
+          ## ترتيل — الإصدار التجريبي الأول
+
+          أول نسخة APK تجريبية للتحميل المباشر والاختبار.
+
+          ### المتطلبات
+          - Android 8.0 (API 26) أو أحدث.
+          - نسخة ARM64 مخصصة للأجهزة الحديثة 64-bit.
+          - نسخة Universal للتوافق الأوسع.
+
+          ### أبرز الميزات
+          - إذاعات القرآن والإذاعات الإسلامية.
+          - إذاعة ترتيل الافتراضية حسب الوقت مع fallback.
+          - مشغل صوت في الخلفية وMedia Controls.
+          - مصحف صفحات كامل 604 صفحة.
+          - مصحف المدينة العادي + إصدار التجويد الملون.
+          - اختيار القارئ وتشغيل السور والآيات.
+          - تنزيل التلاوات وصفحات المصحف للاستخدام دون إنترنت.
+          - العلامات المرجعية واستعادة آخر موضع قراءة.
+          - حفظ مقاطع إذاعية مدعومة للاستماع بدون إنترنت.
+          - مؤقت نوم.
+          - العربية والإنجليزية.
+
+          هذه نسخة تجريبية وليست إصدار متجر Google Play.
+          EOF
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              release/android/tarteel-release-arm64-v8a.apk \
+              release/android/tarteel-release-universal.apk \
+              release/android/SHA256SUMS.txt \
+              release/android/release-metadata.json \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" \
+              release/android/tarteel-release-arm64-v8a.apk \
+              release/android/tarteel-release-universal.apk \
+              release/android/SHA256SUMS.txt \
+              release/android/release-metadata.json \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "$TITLE" \
+              --notes-file "$NOTES_FILE" \
+              --prerelease
+          fi

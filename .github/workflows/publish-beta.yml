@@ -36,12 +36,12 @@ jobs:
           test "$expected_universal" = "$actual_universal"
           test "$expected_arm64" = "$actual_arm64"
 
-      - name: Publish v0.1.0-beta.1
+      - name: Publish first beta release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='v0.1.0-beta.1'
+          TAG='tarteel-beta-1'
           TARGET='4114e890cc5d6d986219266709bc5ef3f16e5cd5'
           cat > notes.md <<'EOF'
           ## ترتيل — الإصدار التجريبي الأول

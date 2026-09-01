@@ -1,0 +1,87 @@
+name: Publish Tarteel First Beta
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-beta.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish-beta:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download verified Android artifact from run 34
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifact
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            /repos/${GITHUB_REPOSITORY}/actions/artifacts/9784116943/zip \
+            > artifact.zip
+          unzip -q artifact.zip -d artifact
+          test -s artifact/tarteel-release-arm64-v8a.apk
+          test -s artifact/tarteel-release-universal.apk
+          test -s artifact/SHA256SUMS.txt
+          sha256sum -c artifact/SHA256SUMS.txt || {
+            echo 'Artifact checksum verification failed.' >&2
+            exit 1
+          }
+
+      - name: Publish v0.1.0-beta.1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='v0.1.0-beta.1'
+          TARGET='4114e890cc5d6d986219266709bc5ef3f16e5cd5'
+          cat > notes.md <<'EOF'
+          ## ترتيل — الإصدار التجريبي الأول
+
+          أول نسخة تجريبية APK للتحميل المباشر والاختبار.
+
+          **التوافق:** Android 8.0 (API 26) أو أحدث.
+
+          ### ملفات التحميل
+          - `tarteel-release-arm64-v8a.apk` — موصى به لمعظم أجهزة Android الحديثة 64-bit.
+          - `tarteel-release-universal.apk` — نسخة Universal للتوافق الأوسع.
+          - `SHA256SUMS.txt` — بصمات التحقق من الملفات.
+
+          ### أبرز الميزات
+          - إذاعات القرآن والإذاعات الإسلامية وإذاعة ترتيل الافتراضية.
+          - تشغيل الصوت في الخلفية وMedia Controls.
+          - مصحف كامل 604 صفحة، عادي وتجويد ملون.
+          - اختيار القارئ وتشغيل السور والآيات.
+          - تنزيل التلاوات وصفحات المصحف للاستخدام دون إنترنت.
+          - العلامات المرجعية واستعادة آخر موضع قراءة.
+          - المقاطع المحفوظة ومؤقت النوم.
+          - العربية والإنجليزية.
+
+          هذه نسخة تجريبية وليست إصدار Google Play.
+          EOF
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              artifact/tarteel-release-arm64-v8a.apk \
+              artifact/tarteel-release-universal.apk \
+              artifact/SHA256SUMS.txt \
+              artifact/release-metadata.json \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" \
+              artifact/tarteel-release-arm64-v8a.apk \
+              artifact/tarteel-release-universal.apk \
+              artifact/SHA256SUMS.txt \
+              artifact/release-metadata.json \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$TARGET" \
+              --title 'ترتيل v0.1.0 Beta 1' \
+              --notes-file notes.md \
+              --prerelease
+          fi

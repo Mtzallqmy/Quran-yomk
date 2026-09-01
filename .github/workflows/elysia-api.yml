@@ -1,0 +1,35 @@
+name: Tarteel Elysia API
+
+on:
+  push:
+    branches:
+      - main
+      - feature/reciter-offline-ux-remote-updates
+    paths:
+      - 'services/tarteel-api-elysia/**'
+      - '.github/workflows/elysia-api.yml'
+  pull_request:
+    paths:
+      - 'services/tarteel-api-elysia/**'
+      - '.github/workflows/elysia-api.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: services/tarteel-api-elysia
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install
+        run: bun install
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Tests
+        run: bun test

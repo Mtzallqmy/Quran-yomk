@@ -8,13 +8,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'src/api.dart';
 import 'src/app.dart';
 import 'src/islamic_content.dart';
-import 'src/mushaf_store.dart';
 import 'src/mushaf_pages.dart';
+import 'src/mushaf_store.dart';
 import 'src/offline_clip_service.dart';
 import 'src/playback.dart';
 import 'src/quran_audio.dart';
 import 'src/quran_download_service.dart';
 import 'src/quran_playback_store.dart';
+import 'src/remote_config.dart';
 import 'src/repository.dart';
 import 'src/services.dart';
 import 'src/storage.dart';
@@ -61,6 +62,8 @@ Future<void> main() async {
   quranPlayback.bind(playback);
   final api = TarteelApiClient();
   final repository = TarteelRepository(api, MetadataCache(preferences));
+  final remoteConfig = TarteelRemoteConfig(repository, preferences)..load();
+  unawaited(remoteConfig.refresh());
   final services = AppServices(
     repository: repository,
     favorites: favorites,
@@ -73,6 +76,7 @@ Future<void> main() async {
     quranAudio: quranAudio,
     quranDownloads: quranDownloads,
     quranPlayback: quranPlayback,
+    remoteConfig: remoteConfig,
   );
 
   runApp(

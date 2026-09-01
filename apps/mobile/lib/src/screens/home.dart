@@ -5,8 +5,8 @@ import '../common.dart';
 import '../models.dart';
 import '../repository.dart';
 import '../services.dart';
+import 'legacy_reciter_detail.dart';
 import 'radio.dart';
-import 'reciters.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});

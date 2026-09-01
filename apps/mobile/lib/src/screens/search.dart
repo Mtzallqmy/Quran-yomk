@@ -6,8 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common.dart';
 import '../models.dart';
 import '../services.dart';
+import 'legacy_reciter_detail.dart';
 import 'radio.dart';
-import 'reciters.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key, this.initialQuery});

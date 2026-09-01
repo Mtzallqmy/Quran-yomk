@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common.dart';
 import '../models.dart';
 import '../services.dart';
-import 'reciters.dart';
+import 'legacy_reciter_detail.dart';
 
 class FavoritesPage extends ConsumerStatefulWidget {
   const FavoritesPage({super.key});
@@ -40,13 +40,15 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
         future: future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done &&
-              !snapshot.hasData)
+              !snapshot.hasData) {
             return const LoadingPane();
-          if (snapshot.hasError && !snapshot.hasData)
+          }
+          if (snapshot.hasError && !snapshot.hasData) {
             return ErrorPane(
               error: snapshot.error!,
               onRetry: () => setState(() => future = load()),
             );
+          }
           final data = snapshot.data;
           if (data == null) return const EmptyPane();
           final stations = data.stations
@@ -57,8 +59,9 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
               .toList(growable: false);
           if (stations.isEmpty &&
               reciters.isEmpty &&
-              services.favorites.trackIds.isEmpty)
+              services.favorites.trackIds.isEmpty) {
             return const EmptyPane(message: 'لم تضف أي عناصر إلى المفضلة بعد');
+          }
           return ListView(
             children: <Widget>[
               if (stations.isNotEmpty) ...<Widget>[

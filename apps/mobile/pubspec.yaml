@@ -36,4 +36,3 @@ flutter:
   uses-material-design: true
   assets:
     - assets/islamic_content_manifest.json
-    - assets/branding/tarteel-icon-source.png

@@ -19,7 +19,7 @@ class RecitersPage extends ConsumerStatefulWidget {
 class _RecitersPageState extends ConsumerState<RecitersPage> {
   final _search = TextEditingController();
   Timer? _debounce;
-  List<QuranAudioCatalogReciter> _all = const <QuranAudioCatalogReciter>[];
+  List<QuranAudioCatalogReciter> _all = const [];
   bool _loading = true;
   Object? _error;
 
@@ -39,32 +39,18 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
           .read(servicesProvider)
           .quranAudio
           .reciters(refresh: refresh);
-      final deduped = <String, QuranAudioCatalogReciter>{};
-      for (final reciter in rows) {
-        deduped[reciter.identityKey] = reciter;
+      final unique = <String, QuranAudioCatalogReciter>{};
+      for (final row in rows) {
+        unique[row.identityKey] = row;
       }
-      final values = deduped.values.toList(growable: false)
+      final next = unique.values.toList(growable: false)
         ..sort((a, b) => a.nameAr.compareTo(b.nameAr));
-      if (mounted) setState(() => _all = values);
+      if (mounted) setState(() => _all = next);
     } catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  List<QuranAudioCatalogReciter> get _visible {
-    final query = _normalize(_search.text);
-    if (query.isEmpty) return _all;
-    return _all
-        .where(
-          (reciter) => <String>[
-            reciter.nameAr,
-            reciter.nameEn,
-            reciter.riwayah ?? '',
-          ].map(_normalize).any((value) => value.contains(query)),
-        )
-        .toList(growable: false);
   }
 
   String _normalize(String value) => value
@@ -73,6 +59,17 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
       .replaceAll(RegExp(r'[أإآ]'), 'ا')
       .replaceAll('ى', 'ي')
       .replaceAll('ة', 'ه');
+
+  List<QuranAudioCatalogReciter> get _visible {
+    final query = _normalize(_search.text);
+    if (query.isEmpty) return _all;
+    return _all.where((reciter) {
+      final haystack = _normalize(
+        '${reciter.nameAr} ${reciter.nameEn} ${reciter.riwayah ?? ''}',
+      );
+      return haystack.contains(query);
+    }).toList(growable: false);
+  }
 
   @override
   void dispose() {
@@ -89,7 +86,7 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
     }
     final values = _visible;
     return Column(
-      children: <Widget>[
+      children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
           child: TextField(
@@ -111,20 +108,20 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
             ),
             onChanged: (_) {
               _debounce?.cancel();
-              _debounce = Timer(
-                const Duration(milliseconds: 180),
-                () {
-                  if (mounted) setState(() {});
-                },
-              );
+              _debounce = Timer(const Duration(milliseconds: 180), () {
+                if (mounted) setState(() {});
+              });
             },
           ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
-            children: <Widget>[
-              Icon(Icons.library_music_outlined, color: Theme.of(context).colorScheme.primary),
+            children: [
+              Icon(
+                Icons.library_music_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -155,10 +152,10 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
                     padding: const EdgeInsets.fromLTRB(8, 4, 8, 120),
                     itemCount: values.length,
                     separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final reciter = values[index];
-                      return _ReciterTile(reciter: reciter, english: english);
-                    },
+                    itemBuilder: (_, index) => _ReciterTile(
+                      reciter: values[index],
+                      english: english,
+                    ),
                   ),
                 ),
         ),
@@ -179,37 +176,34 @@ class _ReciterTile extends ConsumerWidget {
     return AnimatedBuilder(
       animation: services.quranDownloads,
       builder: (context, _) {
-        final completed = services.quranDownloads.tasks.where(
-          (task) =>
-              task.state == QuranDownloadState.completed &&
-              task.media.reciter.sameIdentity(reciter),
-        );
+        final offlineCount = services.quranDownloads.tasks.where((task) {
+          return task.state == QuranDownloadState.completed &&
+              task.media.reciter.sameIdentity(reciter);
+        }).length;
+        final displayName = english && reciter.nameEn.isNotEmpty
+            ? reciter.nameEn
+            : reciter.nameAr;
+        final initial = displayName.trim().isEmpty
+            ? 'ق'
+            : displayName.trim().substring(0, 1);
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          leading: CircleAvatar(
-            child: Text(
-              (english && reciter.nameEn.isNotEmpty ? reciter.nameEn : reciter.nameAr)
-                  .trim()
-                  .characters
-                  .firstOrNull ??
-                  'ق',
-            ),
-          ),
+          leading: CircleAvatar(child: Text(initial)),
           title: Text(
-            english && reciter.nameEn.isNotEmpty ? reciter.nameEn : reciter.nameAr,
+            displayName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
-            <String>[
+            [
               if (reciter.riwayah?.isNotEmpty == true) reciter.riwayah!,
               english
                   ? '${reciter.availableSurahs.length} surahs'
                   : '${reciter.availableSurahs.length} سورة',
-              if (completed.isNotEmpty)
+              if (offlineCount > 0)
                 english
-                    ? '${completed.length} offline'
-                    : '${completed.length} بدون إنترنت',
+                    ? '$offlineCount offline'
+                    : '$offlineCount بدون إنترنت',
             ].join(' • '),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -239,7 +233,7 @@ class QuranAudioReciterDetailPage extends ConsumerStatefulWidget {
 class _QuranAudioReciterDetailPageState
     extends ConsumerState<QuranAudioReciterDetailPage> {
   late Future<List<Surah>> _surahs;
-  final Set<int> _busy = <int>{};
+  final Set<int> _busy = {};
 
   @override
   void initState() {
@@ -256,16 +250,13 @@ class _QuranAudioReciterDetailPageState
     setState(() => _busy.add(surah.number));
     try {
       final media = await _resolve(surah);
-      if (!media.reciter.sameIdentity(widget.reciter)) {
-        throw StateError('QURAN_AUDIO_RECITER_MISMATCH');
-      }
+      _assertIdentity(media);
       await ref
           .read(servicesProvider)
           .playback
-          .playQuranAudio(<QuranAudioMedia>[media], 0);
+          .playQuranAudio([media], 0);
     } catch (error) {
-      if (!mounted) return;
-      _showError(error);
+      if (mounted) _showError(error);
     } finally {
       if (mounted) setState(() => _busy.remove(surah.number));
     }
@@ -275,7 +266,7 @@ class _QuranAudioReciterDetailPageState
     final services = ref.read(servicesProvider);
     if (!services.remoteConfig.offlineDownloadsEnabled) {
       _message(
-        Localizations.localeOf(context).languageCode == 'en'
+        _english
             ? 'Offline downloads are temporarily disabled.'
             : 'التنزيل بدون إنترنت متوقف مؤقتًا.',
       );
@@ -284,14 +275,12 @@ class _QuranAudioReciterDetailPageState
     setState(() => _busy.add(surah.number));
     try {
       final media = await _resolve(surah);
-      if (!media.reciter.sameIdentity(widget.reciter)) {
-        throw StateError('QURAN_AUDIO_RECITER_MISMATCH');
-      }
+      _assertIdentity(media);
       await services.quranDownloads.download(media);
       if (mounted) {
         _message(
-          Localizations.localeOf(context).languageCode == 'en'
-              ? 'Download queued for ${surah.nameEn ?? surah.nameAr}'
+          _english
+              ? 'Download queued for ${_surahTitle(surah)}'
               : 'تمت إضافة سورة ${surah.nameAr} إلى التنزيل',
         );
       }
@@ -302,23 +291,33 @@ class _QuranAudioReciterDetailPageState
     }
   }
 
+  bool get _english => Localizations.localeOf(context).languageCode == 'en';
+
+  String _surahTitle(Surah surah) =>
+      _english && surah.nameEn.isNotEmpty ? surah.nameEn : surah.nameAr;
+
+  void _assertIdentity(QuranAudioMedia media) {
+    if (!media.reciter.sameIdentity(widget.reciter)) {
+      throw StateError('QURAN_AUDIO_RECITER_MISMATCH');
+    }
+  }
+
   void _showError(Object error) {
-    final english = Localizations.localeOf(context).languageCode == 'en';
     final mismatch = error.toString().contains('RECITER_MISMATCH');
     _message(
       mismatch
-          ? english
+          ? _english
                 ? 'The audio source did not match the selected reciter.'
                 : 'تم رفض المصدر لأن القارئ لا يطابق القارئ المحدد.'
-          : english
+          : _english
           ? 'Audio is unavailable for this surah.'
           : 'التلاوة غير متاحة لهذه السورة حاليًا.',
     );
   }
 
-  void _message(String value) => ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(value)));
+  void _message(String value) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
+  }
 
   QuranDownloadTask? _taskFor(int surahNumber) {
     final tasks = ref.read(servicesProvider).quranDownloads.tasks;
@@ -333,7 +332,7 @@ class _QuranAudioReciterDetailPageState
 
   @override
   Widget build(BuildContext context) {
-    final english = Localizations.localeOf(context).languageCode == 'en';
+    final english = _english;
     final services = ref.watch(servicesProvider);
     final title = english && widget.reciter.nameEn.isNotEmpty
         ? widget.reciter.nameEn
@@ -341,10 +340,10 @@ class _QuranAudioReciterDetailPageState
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
-        actions: <Widget>[
+        actions: [
           AnimatedBuilder(
             animation: services.favorites,
-            builder: (context, _) => IconButton(
+            builder: (_, _) => IconButton(
               tooltip: english ? 'Favorite' : 'المفضلة',
               onPressed: () =>
                   services.favorites.toggleReciter(widget.reciter.id),
@@ -380,7 +379,7 @@ class _QuranAudioReciterDetailPageState
           return AnimatedBuilder(
             animation: services.quranDownloads,
             builder: (context, _) => CustomScrollView(
-              slivers: <Widget>[
+              slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -389,11 +388,15 @@ class _QuranAudioReciterDetailPageState
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(title, style: Theme.of(context).textTheme.titleLarge),
-                            const SizedBox(height: 6),
-                            if (widget.reciter.riwayah?.isNotEmpty == true)
+                          children: [
+                            Text(
+                              title,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            if (widget.reciter.riwayah?.isNotEmpty == true) ...[
+                              const SizedBox(height: 6),
                               Text(widget.reciter.riwayah!),
+                            ],
                             const SizedBox(height: 8),
                             Text(
                               english
@@ -414,17 +417,17 @@ class _QuranAudioReciterDetailPageState
                     final busy = _busy.contains(surah.number);
                     return ListTile(
                       leading: CircleAvatar(child: Text('${surah.number}')),
-                      title: Text(english ? (surah.nameEn ?? surah.nameAr) : surah.nameAr),
+                      title: Text(_surahTitle(surah)),
                       subtitle: task == null
                           ? Text(
                               english
-                                  ? '${surah.ayahCount ?? 0} verses'
-                                  : '${surah.ayahCount ?? 0} آية',
+                                  ? '${surah.ayahCount} verses'
+                                  : '${surah.ayahCount} آية',
                             )
                           : _DownloadStatus(task: task, english: english),
                       trailing: Wrap(
                         spacing: 0,
-                        children: <Widget>[
+                        children: [
                           IconButton(
                             tooltip: english ? 'Play' : 'تشغيل',
                             onPressed: busy ? null : () => _play(surah),
@@ -433,7 +436,8 @@ class _QuranAudioReciterDetailPageState
                           if (task?.state == QuranDownloadState.completed)
                             IconButton(
                               tooltip: english ? 'Delete download' : 'حذف التنزيل',
-                              onPressed: () => services.quranDownloads.delete(task!.id),
+                              onPressed: () =>
+                                  services.quranDownloads.delete(task!.id),
                               icon: const Icon(Icons.download_done),
                             )
                           else
@@ -443,7 +447,9 @@ class _QuranAudioReciterDetailPageState
                               icon: busy
                                   ? const SizedBox.square(
                                       dimension: 20,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     )
                                   : const Icon(Icons.download_outlined),
                             ),
@@ -476,17 +482,12 @@ class _DownloadStatus extends StatelessWidget {
           ? (english ? 'Downloading…' : 'جارٍ التنزيل…')
           : '${(task.progress! * 100).round()}%',
       QuranDownloadState.paused => english ? 'Paused' : 'متوقف مؤقتًا',
-      QuranDownloadState.completed => english ? 'Available offline' : 'متاحة بدون إنترنت',
+      QuranDownloadState.completed => english
+          ? 'Available offline'
+          : 'متاحة بدون إنترنت',
       QuranDownloadState.failed => english ? 'Download failed' : 'فشل التنزيل',
       QuranDownloadState.cancelled => english ? 'Cancelled' : 'تم الإلغاء',
     };
     return Text(text);
-  }
-}
-
-extension<T> on Iterable<T> {
-  T? get firstOrNull {
-    final iterator = this.iterator;
-    return iterator.moveNext() ? iterator.current : null;
   }
 }

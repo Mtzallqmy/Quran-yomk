@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tarteel/src/islamic_content.dart';
 import 'package:tarteel/src/mushaf_store.dart';
+import 'package:tarteel/src/mushaf_pages.dart';
 import 'package:tarteel/src/quran_models.dart';
 import 'package:tarteel/src/tajweed.dart';
 
@@ -84,6 +86,7 @@ void main() {
       expect(restored.fontScale, 1.4);
       expect(restored.showTajweed, isFalse);
       expect(restored.showThemes, isTrue);
+      expect(restored.presentation, MushafReaderPresentation.page);
     },
   );
 
@@ -102,5 +105,56 @@ void main() {
     expect(plain, verse.textUthmani);
     expect(rendered, verse.textUthmani);
     expect(arabicIndicNumber(604), '٦٠٤');
+  });
+
+  test('normal SVG polygons preserve disjoint ayah regions', () {
+    final regions = parseMadinahHafsRegions(
+      '[{"surahNumber":75,"ayahNumber":22,"polygon":'
+      '"M 0 0 L 78 0 L 78 40 L 0 40 Z '
+      'M 286 40 L 341 40 L 341 76 L 286 76 Z"}]',
+    );
+    expect(regions, hasLength(1));
+    expect(regions.single.verseKey, '75:22');
+    expect(regions.single.rects, hasLength(2));
+    expect(regions.single.contains(20, 20), isTrue);
+    expect(regions.single.contains(300, 60), isTrue);
+  });
+
+  test('QCF V4 word bounds group into one transparent ayah layer', () {
+    final regions = parseQcfV4TajweedRegions(
+      '[{"page":578,"surahNumber":75,"ayahNumber":20,'
+      '"x":971,"y":41,"width":69,"height":66},'
+      '{"page":578,"surahNumber":75,"ayahNumber":20,'
+      '"x":800,"y":39,"width":121,"height":81}]',
+      578,
+    );
+    expect(regions, hasLength(1));
+    expect(regions.single.verseKey, '75:20');
+    expect(regions.single.rects, hasLength(2));
+    expect(regions.single.contains(810, 60), isTrue);
+  });
+
+  test('thematic segments map ayah ranges without changing Quran text', () {
+    final values = parseIslamicThemeSegments(<String, dynamic>{
+      'surahs': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'surah_number': 1,
+          'segments': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'start': 1,
+              'end': 4,
+              'theme': 'حمد الله وتمجيده',
+              'description': 'الثناء على الله',
+              'category': 'duaa_supplication',
+              'color': '#E8F5E9',
+            },
+          ],
+        },
+      ],
+    });
+    expect(values.single.contains(1, 3), isTrue);
+    expect(values.single.contains(1, 5), isFalse);
+    expect(values.single.colorValue, 0xffe8f5e9);
+    expect(verse.textUthmani, 'بِسۡمِ ٱللَّهِ');
   });
 }

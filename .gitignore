@@ -12,5 +12,9 @@ coverage/
 **/coverage/
 .DS_Store
 *.log
+__pycache__/
+.dart_tool/
+.flutter-plugins-dependencies
+**/build/
 tmp/
 **/tmp/

@@ -1,7 +1,7 @@
 name: tarteel
 description: Tarteel listener for Quran live radio, Mushaf reading, and recitations.
 publish_to: none
-version: 0.2.0+2
+version: 0.3.0+3
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
@@ -15,6 +15,11 @@ dependencies:
   http: ^1.6.0
   shared_preferences: ^2.5.5
   path_provider: ^2.1.5
+  path: ^1.9.1
+  sqflite: ^2.4.2
+  flutter_svg: ^2.2.4
+  archive: ^4.2.0
+  share_plus: ^12.0.1
   just_audio: ^0.10.6
   audio_service: ^0.18.19
   audio_session: ^0.2.4
@@ -29,3 +34,5 @@ dev_dependencies:
 flutter:
   generate: true
   uses-material-design: true
+  assets:
+    - assets/islamic_content_manifest.json

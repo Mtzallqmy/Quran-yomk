@@ -5,13 +5,16 @@ import '../common.dart';
 import '../l10n.dart';
 import '../models.dart';
 import '../mushaf_store.dart';
+import '../mushaf_page_reader.dart';
 import '../quran_audio.dart';
 import '../quran_models.dart';
 import '../services.dart';
 import '../tajweed.dart';
 
 class MushafPage extends ConsumerStatefulWidget {
-  const MushafPage({super.key});
+  const MushafPage({super.key, this.onImmersiveChanged});
+
+  final ValueChanged<bool>? onImmersiveChanged;
 
   @override
   ConsumerState<MushafPage> createState() => _MushafPageState();
@@ -32,8 +35,14 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     final services = ref.read(servicesProvider);
     final last = services.mushaf.lastPosition;
     if (last != null) {
-      _mode = last.mode;
-      _number = _clampNumber(last.mode, last.number);
+      _mode = QuranBrowseMode.page;
+      _number = _clampNumber(
+        QuranBrowseMode.page,
+        last.pageNumber ??
+            (last.mode == QuranBrowseMode.page ? last.number : 1),
+      );
+    } else {
+      _mode = QuranBrowseMode.page;
     }
     _surahsFuture = services.repository.surahs();
     _passageFuture = services.repository.quranPassage(_mode, _number);
@@ -81,6 +90,35 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           pageNumber: verse.pageNumber,
         ),
       );
+
+  Future<QuranVerse?> _resolvePageVerse(int page, String verseKey) async {
+    final passage = await ref
+        .read(servicesProvider)
+        .repository
+        .quranPassage(QuranBrowseMode.page, page);
+    return passage.verses
+        .where((verse) => verse.verseKey == verseKey)
+        .firstOrNull;
+  }
+
+  Future<int> _surahForCurrentPage() async {
+    final passage = await ref
+        .read(servicesProvider)
+        .repository
+        .quranPassage(QuranBrowseMode.page, _number);
+    return passage.verses.isEmpty ? 1 : passage.verses.first.surahNumber;
+  }
+
+  Future<void> _pageChanged(int page) async {
+    _mode = QuranBrowseMode.page;
+    _number = page;
+    _passageFuture = ref
+        .read(servicesProvider)
+        .repository
+        .quranPassage(QuranBrowseMode.page, page);
+    final passage = await _passageFuture;
+    if (passage.verses.isNotEmpty) await _remember(passage.verses.first);
+  }
 
   Future<void> _chooseReciter(int surahNumber) async {
     final l10n = context.l10n;
@@ -260,110 +298,157 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     final mushaf = services.mushaf;
     return AnimatedBuilder(
       animation: mushaf,
-      builder: (context, _) => FutureBuilder<List<Surah>>(
-        future: _surahsFuture,
-        builder: (context, surahSnapshot) {
-          final surahs = surahSnapshot.data ?? const <Surah>[];
-          return RefreshIndicator(
-            onRefresh: () => _load(_mode, _number, refresh: true),
-            child: CustomScrollView(
-              slivers: <Widget>[
-                SliverToBoxAdapter(
-                  child: _ReaderHeader(
-                    mode: _mode,
-                    number: _number,
-                    surahs: surahs,
-                    onMode: (mode) => _load(mode, 1),
-                    onNumber: (number) => _load(_mode, number),
-                  ),
-                ),
-                if (mushaf.lastPosition != null)
+      builder: (context, _) {
+        if (mushaf.presentation == MushafReaderPresentation.page) {
+          return MushafPageReader(
+            repository: services.mushafPages,
+            contentRepository: services.islamicContent,
+            store: mushaf,
+            initialPage: _number,
+            onPageChanged: _pageChanged,
+            resolveVerse: _resolvePageVerse,
+            onPlayAyah: _playAyah,
+            onChooseReciter: () async {
+              await _chooseReciter(await _surahForCurrentPage());
+            },
+            onPlaySurah: () async {
+              await _playSurah(await _surahForCurrentPage());
+            },
+            onDownloadSurah: () async {
+              await _downloadSurah(await _surahForCurrentPage());
+            },
+            onShowText: () async {
+              widget.onImmersiveChanged?.call(false);
+              await mushaf.setPresentation(MushafReaderPresentation.text);
+            },
+            onImmersiveChanged: (value) =>
+                widget.onImmersiveChanged?.call(value),
+          );
+        }
+        return FutureBuilder<List<Surah>>(
+          future: _surahsFuture,
+          builder: (context, surahSnapshot) {
+            final surahs = surahSnapshot.data ?? const <Surah>[];
+            return RefreshIndicator(
+              onRefresh: () => _load(_mode, _number, refresh: true),
+              child: CustomScrollView(
+                slivers: <Widget>[
                   SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                      child: Card(
-                        child: ListTile(
-                          leading: const Icon(Icons.history),
-                          title: Text(l10n.lastReadingPosition),
-                          subtitle: Text(
-                            '${mushaf.lastPosition!.verseKey ?? ''} • ${l10n.page} ${mushaf.lastPosition!.pageNumber ?? ''}',
+                    child: Column(
+                      children: <Widget>[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: () => mushaf.setPresentation(
+                                MushafReaderPresentation.page,
+                              ),
+                              icon: const Icon(Icons.auto_stories),
+                              label: const Text('عرض صفحات المصحف'),
+                            ),
                           ),
-                          trailing: TextButton(
-                            onPressed: () {
-                              final last = mushaf.lastPosition!;
-                              _load(last.mode, last.number);
-                            },
-                            child: Text(l10n.continueReading),
+                        ),
+                        _ReaderHeader(
+                          mode: _mode,
+                          number: _number,
+                          surahs: surahs,
+                          onMode: (mode) => _load(mode, 1),
+                          onNumber: (number) => _load(_mode, number),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (mushaf.lastPosition != null)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                        child: Card(
+                          child: ListTile(
+                            leading: const Icon(Icons.history),
+                            title: Text(l10n.lastReadingPosition),
+                            subtitle: Text(
+                              '${mushaf.lastPosition!.verseKey ?? ''} • ${l10n.page} ${mushaf.lastPosition!.pageNumber ?? ''}',
+                            ),
+                            trailing: TextButton(
+                              onPressed: () {
+                                final last = mushaf.lastPosition!;
+                                _load(last.mode, last.number);
+                              },
+                              child: Text(l10n.continueReading),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                SliverToBoxAdapter(
-                  child: FutureBuilder<QuranPassage>(
-                    future: _passageFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState != ConnectionState.done &&
-                          !snapshot.hasData) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 80),
-                          child: Center(child: CircularProgressIndicator()),
+                  SliverToBoxAdapter(
+                    child: FutureBuilder<QuranPassage>(
+                      future: _passageFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState != ConnectionState.done &&
+                            !snapshot.hasData) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 80),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        if (snapshot.hasError || snapshot.data == null) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 56),
+                            child: ErrorPane(
+                              error: snapshot.error ?? l10n.quranLoadError,
+                              onRetry: () =>
+                                  _load(_mode, _number, refresh: true),
+                            ),
+                          );
+                        }
+                        final passage = snapshot.data!;
+                        final surahNumber = passage.verses.isEmpty
+                            ? (_mode == QuranBrowseMode.surah ? _number : 1)
+                            : passage.verses.first.surahNumber;
+                        return Column(
+                          children: <Widget>[
+                            _AudioAndReadingControls(
+                              passage: passage,
+                              selectedReciter: _selectedReciter,
+                              audioBusy: _audioBusy,
+                              bitrateKbps: _bitrateKbps,
+                              onChooseReciter: () =>
+                                  _chooseReciter(surahNumber),
+                              onPlay: () => _playSurah(surahNumber),
+                              onBitrate: (value) =>
+                                  setState(() => _bitrateKbps = value),
+                              onDownload: () => _downloadSurah(surahNumber),
+                            ),
+                            _QuranText(
+                              passage: passage,
+                              store: mushaf,
+                              onRemember: _remember,
+                              onPlayAyah: _playAyah,
+                            ),
+                            _NavigationControls(
+                              mode: _mode,
+                              number: _number,
+                              max: _maxFor(_mode),
+                              onPrevious: _number > 1
+                                  ? () => _load(_mode, _number - 1)
+                                  : null,
+                              onNext: _number < _maxFor(_mode)
+                                  ? () => _load(_mode, _number + 1)
+                                  : null,
+                            ),
+                            const SizedBox(height: 120),
+                          ],
                         );
-                      }
-                      if (snapshot.hasError || snapshot.data == null) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 56),
-                          child: ErrorPane(
-                            error: snapshot.error ?? l10n.quranLoadError,
-                            onRetry: () => _load(_mode, _number, refresh: true),
-                          ),
-                        );
-                      }
-                      final passage = snapshot.data!;
-                      final surahNumber = passage.verses.isEmpty
-                          ? (_mode == QuranBrowseMode.surah ? _number : 1)
-                          : passage.verses.first.surahNumber;
-                      return Column(
-                        children: <Widget>[
-                          _AudioAndReadingControls(
-                            passage: passage,
-                            selectedReciter: _selectedReciter,
-                            audioBusy: _audioBusy,
-                            bitrateKbps: _bitrateKbps,
-                            onChooseReciter: () => _chooseReciter(surahNumber),
-                            onPlay: () => _playSurah(surahNumber),
-                            onBitrate: (value) =>
-                                setState(() => _bitrateKbps = value),
-                            onDownload: () => _downloadSurah(surahNumber),
-                          ),
-                          _QuranText(
-                            passage: passage,
-                            store: mushaf,
-                            onRemember: _remember,
-                            onPlayAyah: _playAyah,
-                          ),
-                          _NavigationControls(
-                            mode: _mode,
-                            number: _number,
-                            max: _maxFor(_mode),
-                            onPrevious: _number > 1
-                                ? () => _load(_mode, _number - 1)
-                                : null,
-                            onNext: _number < _maxFor(_mode)
-                                ? () => _load(_mode, _number + 1)
-                                : null,
-                          ),
-                          const SizedBox(height: 120),
-                        ],
-                      );
-                    },
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 PAGE_COUNT = 604
@@ -59,17 +60,39 @@ def validate(normal_root: Path, tajweed_root: Path) -> None:
     print("MUSHAF_ASSETS_604_PAGE_MAPPING: PASS")
 
 
-def write_manifest(root: Path) -> None:
-    values: dict[str, str] = {}
+def write_manifest(
+    root: Path,
+    version: str,
+    edition: str,
+    generated_at: str | None = None,
+) -> None:
+    files: dict[str, dict[str, int | str]] = {}
     for path in sorted(root.rglob("*")):
         if path.is_file() and path.name != "manifest.json":
-            values[path.relative_to(root).as_posix()] = hashlib.sha256(
-                path.read_bytes()
-            ).hexdigest()
+            files[path.relative_to(root).as_posix()] = {
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "size": path.stat().st_size,
+            }
+    expected_pages = {f"pages/{page:03}" for page in range(1, PAGE_COUNT + 1)}
+    actual_pages = {str(Path(name).with_suffix("")) for name in files if name.startswith("pages/")}
+    if actual_pages != expected_pages:
+        missing = sorted(expected_pages - actual_pages)
+        extra = sorted(actual_pages - expected_pages)
+        raise SystemExit(f"manifest page set mismatch; missing={missing[:5]} extra={extra[:5]}")
+    expected_bounds = {f"bounds/{page:03}" for page in range(1, PAGE_COUNT + 1)}
+    actual_bounds = {str(Path(name).with_suffix("")) for name in files if name.startswith("bounds/")}
+    if actual_bounds != expected_bounds:
+        missing = sorted(expected_bounds - actual_bounds)
+        extra = sorted(actual_bounds - expected_bounds)
+        raise SystemExit(f"manifest bounds set mismatch; missing={missing[:5]} extra={extra[:5]}")
     manifest = {
-        "schema": 1,
-        "pages": PAGE_COUNT,
-        "sha256": values,
+        "schema": 2,
+        "version": version,
+        "edition": edition,
+        "pageCount": PAGE_COUNT,
+        "generatedAt": generated_at
+        or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "files": files,
     }
     (root / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -88,13 +111,16 @@ def main() -> None:
     check.add_argument("tajweed_root", type=Path)
     manifest = subparsers.add_parser("manifest")
     manifest.add_argument("root", type=Path)
+    manifest.add_argument("--version", default="v1")
+    manifest.add_argument("--edition", required=True, choices=("hafs", "tajweed"))
+    manifest.add_argument("--generated-at")
     args = parser.parse_args()
     if args.command == "split-bounds":
         split_bounds(args.source, args.destination)
     elif args.command == "validate":
         validate(args.normal_root, args.tajweed_root)
     else:
-        write_manifest(args.root)
+        write_manifest(args.root, args.version, args.edition, args.generated_at)
 
 
 if __name__ == "__main__":

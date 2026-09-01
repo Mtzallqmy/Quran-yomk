@@ -8,6 +8,7 @@ import 'screens/home.dart';
 import 'screens/islamic_library.dart';
 import 'screens/mushaf.dart';
 import 'screens/player.dart';
+import 'screens/quran_offline.dart';
 import 'screens/radio.dart';
 import 'screens/reciters.dart';
 import 'screens/search.dart';
@@ -56,6 +57,7 @@ class _RootShellState extends State<RootShell> {
   @override
   Widget build(BuildContext context) {
     final s = context.l10n;
+    final english = Localizations.localeOf(context).languageCode == 'en';
     final titles = <String>[s.home, s.radio, s.mushaf, s.reciters, s.favorites];
     final immersive = index == 2 && _mushafImmersive;
     final pages = <Widget>[
@@ -85,7 +87,16 @@ class _RootShellState extends State<RootShell> {
               ),
               actions: <Widget>[
                 IconButton(
-                  tooltip: 'المكتبة الإسلامية',
+                  tooltip: english ? 'Offline Quran' : 'الاستماع بدون إنترنت',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const QuranOfflinePage(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.download_for_offline_outlined),
+                ),
+                IconButton(
+                  tooltip: english ? 'Islamic library' : 'المكتبة الإسلامية',
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => const IslamicLibraryPage(),

@@ -6,6 +6,7 @@ on:
       - main
       - feature/quran-radio-real-integration
       - release/android-apk
+      - release/mushaf-page-reader
     paths:
       - 'apps/mobile/**'
       - 'docs/ANDROID_RELEASE_ACCEPTANCE.md'
@@ -34,7 +35,7 @@ jobs:
   android-release:
     name: Verify and build Android APKs
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 110
     defaults:
       run:
         working-directory: apps/mobile
@@ -72,6 +73,13 @@ jobs:
 
       - name: Mushaf tests
         run: flutter test test/mushaf_test.dart
+
+      - name: Mushaf page-asset contract tests
+        run: |
+          python3 -m py_compile tool/mushaf_assets.py
+          grep -q 'itemCount: mushafPageCount' lib/src/mushaf_page_reader.dart
+          grep -q 'SvgPicture.file' lib/src/mushaf_page_reader.dart
+          grep -q 'Image.file' lib/src/mushaf_page_reader.dart
 
       - name: Quran audio repository and download tests
         run: flutter test test/quran_audio_test.dart
@@ -206,6 +214,32 @@ jobs:
               exit 1
             fi
           done
+
+      - name: Wait for immutable QCF V4 page assets
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://raw.githubusercontent.com/Mtzallqmy/Quran-yomk/mushaf-assets-v1/qcf-v4/1080/pages/001.webp'
+          for attempt in $(seq 1 180); do
+            if curl --fail --silent --range 0-11 "$url" | grep -q 'WEBP'; then
+              exit 0
+            fi
+            echo "Waiting for Mushaf assets ($attempt/180)..."
+            sleep 10
+          done
+          echo 'QCF V4 Mushaf assets were not published in time.' >&2
+          exit 1
+
+      - name: Android 8 emulator Mushaf visual acceptance
+        if: github.event_name != 'pull_request'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: bash apps/mobile/tool/android_mushaf_acceptance.sh apps/mobile/release/android/tarteel-release-universal.apk apps/mobile/release/android
 
       - uses: actions/upload-artifact@v4
         with:

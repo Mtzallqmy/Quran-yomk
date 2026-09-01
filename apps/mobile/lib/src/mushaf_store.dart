@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'quran_models.dart';
 
+enum MushafReaderPresentation { page, text }
+
 class MushafPosition {
   const MushafPosition({
     required this.mode,
@@ -86,6 +88,8 @@ class MushafStore extends ChangeNotifier {
   static const _fontScaleKey = 'mushaf:font-scale';
   static const _tajweedKey = 'mushaf:show-tajweed';
   static const _themesKey = 'mushaf:show-themes';
+  static const _presentationKey = 'mushaf:presentation:v1';
+  static const _pageEditionKey = 'mushaf:page-edition:v1';
 
   final SharedPreferences _prefs;
   final Map<String, MushafBookmark> _bookmarks = <String, MushafBookmark>{};
@@ -94,6 +98,8 @@ class MushafStore extends ChangeNotifier {
   double fontScale = 1.0;
   bool showTajweed = true;
   bool showThemes = false;
+  MushafReaderPresentation presentation = MushafReaderPresentation.page;
+  String pageEdition = 'madinahHafsSvg';
 
   List<MushafBookmark> get bookmarks {
     final values = _bookmarks.values.toList(growable: false)
@@ -135,6 +141,11 @@ class MushafStore extends ChangeNotifier {
     fontScale = (_prefs.getDouble(_fontScaleKey) ?? 1.0).clamp(0.75, 1.8);
     showTajweed = _prefs.getBool(_tajweedKey) ?? true;
     showThemes = _prefs.getBool(_themesKey) ?? false;
+    presentation = MushafReaderPresentation.values.firstWhere(
+      (value) => value.name == _prefs.getString(_presentationKey),
+      orElse: () => MushafReaderPresentation.page,
+    );
+    pageEdition = _prefs.getString(_pageEditionKey) ?? 'madinahHafsSvg';
   }
 
   bool isBookmarked(String verseKey) => _bookmarks.containsKey(verseKey);
@@ -176,6 +187,18 @@ class MushafStore extends ChangeNotifier {
   Future<void> setShowThemes(bool value) async {
     showThemes = value;
     await _prefs.setBool(_themesKey, value);
+    notifyListeners();
+  }
+
+  Future<void> setPresentation(MushafReaderPresentation value) async {
+    presentation = value;
+    await _prefs.setString(_presentationKey, value.name);
+    notifyListeners();
+  }
+
+  Future<void> setPageEdition(String value) async {
+    pageEdition = value;
+    await _prefs.setString(_pageEditionKey, value);
     notifyListeners();
   }
 

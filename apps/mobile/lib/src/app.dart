@@ -46,91 +46,104 @@ class RootShell extends StatefulWidget {
 
 class _RootShellState extends State<RootShell> {
   int index = 0;
+  bool _mushafImmersive = false;
 
-  final pages = const <Widget>[
-    HomePage(),
-    RadioPage(),
-    MushafPage(),
-    RecitersPage(),
-    FavoritesPage(),
-  ];
+  void _setMushafImmersive(bool value) {
+    if (_mushafImmersive != value) setState(() => _mushafImmersive = value);
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = context.l10n;
     final titles = <String>[s.home, s.radio, s.mushaf, s.reciters, s.favorites];
+    final immersive = index == 2 && _mushafImmersive;
+    final pages = <Widget>[
+      const HomePage(),
+      const RadioPage(),
+      MushafPage(onImmersiveChanged: _setMushafImmersive),
+      const RecitersPage(),
+      const FavoritesPage(),
+    ];
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 12,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            const TarteelBrandMark(size: 34),
-            const SizedBox(width: 9),
-            Flexible(
-              child: Text(
-                '${s.appName} — ${titles[index]}',
-                overflow: TextOverflow.ellipsis,
+      appBar: immersive
+          ? null
+          : AppBar(
+              titleSpacing: 12,
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const TarteelBrandMark(size: 34),
+                  const SizedBox(width: 9),
+                  Flexible(
+                    child: Text(
+                      '${s.appName} — ${titles[index]}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
+              actions: <Widget>[
+                IconButton(
+                  tooltip: s.search,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const SearchPage()),
+                  ),
+                  icon: const Icon(Icons.search),
+                ),
+                IconButton(
+                  tooltip: s.settings,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const SettingsPage(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.settings_outlined),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: <Widget>[
-          IconButton(
-            tooltip: s.search,
-            onPressed: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute<void>(builder: (_) => const SearchPage())),
-            icon: const Icon(Icons.search),
-          ),
-          IconButton(
-            tooltip: s.settings,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
-            ),
-            icon: const Icon(Icons.settings_outlined),
-          ),
-        ],
-      ),
       body: IndexedStack(index: index, children: pages),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const MiniPlayerBar(),
-          NavigationBar(
-            selectedIndex: index,
-            labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-            onDestinationSelected: (value) => setState(() => index = value),
-            destinations: <NavigationDestination>[
-              NavigationDestination(
-                icon: const Icon(Icons.home_outlined),
-                selectedIcon: const Icon(Icons.home),
-                label: s.home,
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.radio_outlined),
-                selectedIcon: const Icon(Icons.radio),
-                label: s.radio,
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.auto_stories_outlined),
-                selectedIcon: const Icon(Icons.auto_stories),
-                label: s.mushaf,
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.record_voice_over_outlined),
-                selectedIcon: const Icon(Icons.record_voice_over),
-                label: s.reciters,
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.favorite_border),
-                selectedIcon: const Icon(Icons.favorite),
-                label: s.favorites,
-              ),
-            ],
-          ),
-        ],
-      ),
+      bottomNavigationBar: immersive
+          ? null
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const MiniPlayerBar(),
+                NavigationBar(
+                  selectedIndex: index,
+                  labelBehavior:
+                      NavigationDestinationLabelBehavior.onlyShowSelected,
+                  onDestinationSelected: (value) =>
+                      setState(() => index = value),
+                  destinations: <NavigationDestination>[
+                    NavigationDestination(
+                      icon: const Icon(Icons.home_outlined),
+                      selectedIcon: const Icon(Icons.home),
+                      label: s.home,
+                    ),
+                    NavigationDestination(
+                      icon: const Icon(Icons.radio_outlined),
+                      selectedIcon: const Icon(Icons.radio),
+                      label: s.radio,
+                    ),
+                    NavigationDestination(
+                      icon: const Icon(Icons.auto_stories_outlined),
+                      selectedIcon: const Icon(Icons.auto_stories),
+                      label: s.mushaf,
+                    ),
+                    NavigationDestination(
+                      icon: const Icon(Icons.record_voice_over_outlined),
+                      selectedIcon: const Icon(Icons.record_voice_over),
+                      label: s.reciters,
+                    ),
+                    NavigationDestination(
+                      icon: const Icon(Icons.favorite_border),
+                      selectedIcon: const Icon(Icons.favorite),
+                      label: s.favorites,
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }

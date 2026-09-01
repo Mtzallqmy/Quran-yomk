@@ -10,6 +10,7 @@ publish to Google Play and does not use Play App Signing.
 - `flutter analyze`
 - unit and widget tests
 - dedicated Mushaf model, persistence, and Tajweed integrity tests
+- 604-page normal/Tajweed asset existence, file-signature, and verse-map comparison
 - live Tarteel Quran API acceptance
 - unified Quran audio repository/provider and download-contract tests
 - live AlQuran Cloud surah/ayah and MP3Quran audio-byte probes
@@ -18,6 +19,7 @@ publish to Google Play and does not use Play App Signing.
 - APK manifest inspection with Android `aapt`
 - native library inspection from the APK ZIP contents
 - SHA-256, byte size, version, SDK, and ABI evidence
+- Android 8 (API 26) emulator install/launch plus SVG and Tajweed WebP screenshots
 
 The release job fails unless `minSdk` is exactly 26 and both APKs contain
 `lib/arm64-v8a/` native libraries. The ARM64 APK also fails if it contains a
@@ -49,3 +51,10 @@ GitHub-hosted Ubuntu runners do not provide a physical Android 8 device. The
 workflow therefore records physical-device acceptance as **NOT RUN** and never
 claims otherwise. A tester must record the device model, Android version, APK
 SHA-256, and result for every item above when a suitable device is available.
+
+The hosted workflow does run a separate Android 8/API 26 emulator gate. It
+installs the same universal release APK, opens page 1 in the default SVG reader,
+switches to the pre-generated QCF V4 Tajweed WebP reader without changing the
+page, verifies both accessibility page labels, and stores both screenshots and
+their SHA-256 values beside the APKs. This emulator result is not represented as
+a physical-device test.

@@ -103,19 +103,23 @@ class MushafPageRepository extends ChangeNotifier {
 
   static const normalPageBaseUrl = String.fromEnvironment(
     'TARTEEL_HAFS_SVG_BASE_URL',
-    defaultValue: 'https://raw.githubusercontent.com/quranpedia/quran-svg/b91d39e1065b57bdda3e94aca8ecf3575e50e1e6/mushafs/hafs/kfqc',
+    defaultValue:
+        'https://raw.githubusercontent.com/quranpedia/quran-svg/b91d39e1065b57bdda3e94aca8ecf3575e50e1e6/mushafs/hafs/kfqc',
   );
   static const tajweedPageBaseUrl = String.fromEnvironment(
     'TARTEEL_TAJWEED_PAGE_BASE_URL',
-    defaultValue: 'https://raw.githubusercontent.com/Mtzallqmy/Quran-yomk/mushaf-assets-v1/qcf-v4/1080',
+    defaultValue:
+        'https://raw.githubusercontent.com/Mtzallqmy/Quran-yomk/mushaf-assets-v1/qcf-v4/1080',
   );
   static const normalPackUrl = String.fromEnvironment(
     'TARTEEL_HAFS_OFFLINE_PACK_URL',
-    defaultValue: 'https://github.com/Mtzallqmy/Quran-yomk/releases/download/mushaf-assets-v1/madinah-hafs-svg-pack.zip',
+    defaultValue:
+        'https://github.com/Mtzallqmy/Quran-yomk/releases/download/mushaf-assets-v1/madinah-hafs-svg-pack.zip',
   );
   static const tajweedPackUrl = String.fromEnvironment(
     'TARTEEL_TAJWEED_OFFLINE_PACK_URL',
-    defaultValue: 'https://github.com/Mtzallqmy/Quran-yomk/releases/download/mushaf-assets-v1/madinah-tajweed-qcf-v4-pack.zip',
+    defaultValue:
+        'https://github.com/Mtzallqmy/Quran-yomk/releases/download/mushaf-assets-v1/madinah-tajweed-qcf-v4-pack.zip',
   );
 
   final http.Client _client;

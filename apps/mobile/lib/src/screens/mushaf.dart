@@ -218,8 +218,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
       await services.playback.playQuranAudio(<QuranAudioMedia>[media], 0);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.noAudioForSurah)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.noAudioForSurah)));
     } finally {
       if (mounted) setState(() => _audioBusy = false);
     }
@@ -253,8 +254,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
       await _remember(verse);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(context.l10n.noAudioForSurah)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.noAudioForSurah)));
     } finally {
       if (mounted) setState(() => _audioBusy = false);
     }
@@ -283,8 +285,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('تعذر بدء تنزيل السورة')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تعذر بدء تنزيل السورة')));
     }
   }
 
@@ -780,9 +783,9 @@ class _QuranText extends StatelessWidget {
                                       '  ﴿${arabicIndicNumber(verse.ayahNumber)}﴾',
                                   style: base.copyWith(
                                     fontSize: 20 * store.fontScale,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                 ),
                               ],

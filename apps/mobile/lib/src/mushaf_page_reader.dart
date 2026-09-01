@@ -162,8 +162,9 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                   margin: const EdgeInsets.all(8),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface
-                        .withValues(alpha: 0.94),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surface.withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: const <BoxShadow>[
                       BoxShadow(color: Colors.black26, blurRadius: 12),
@@ -221,8 +222,9 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                   margin: const EdgeInsets.all(8),
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface
-                        .withValues(alpha: 0.94),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surface.withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: const <BoxShadow>[
                       BoxShadow(color: Colors.black26, blurRadius: 12),

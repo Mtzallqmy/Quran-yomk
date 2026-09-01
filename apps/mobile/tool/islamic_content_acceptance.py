@@ -84,7 +84,9 @@ def main() -> None:
     if set(verse_totals.values()) != {6236}:
         raise SystemExit(f"full-Quran coverage mismatch: {verse_totals}")
 
-    expected_hadith = {"bukhari": 7277, "muslim": 7190, "malik": 1594, "ahmed": 4341}
+    # Counts are taken from the pinned JSON bytes, not the README summary,
+    # which describes older/different exports for several collections.
+    expected_hadith = {"bukhari": 7277, "muslim": 7459, "malik": 1985, "ahmed": 1374}
     for collection, count in expected_hadith.items():
         value = json.loads(fetch(manifest["cdn"] + f"hadith/{collection}.json"))
         if len(value["hadiths"]) != count:

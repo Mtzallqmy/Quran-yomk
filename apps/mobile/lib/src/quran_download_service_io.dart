@@ -45,19 +45,24 @@ class _IoQuranDownloadService extends QuranDownloadService {
         final decoded = jsonDecode(raw);
         if (decoded is List<dynamic>) {
           for (final value in decoded.whereType<Map<Object?, Object?>>()) {
-            final record = _TaskRecord.fromJson(
-              Map<String, dynamic>.from(value),
-            );
-            if (record.state == QuranDownloadState.downloading ||
-                record.state == QuranDownloadState.queued) {
-              record.state = QuranDownloadState.paused;
+            try {
+              final record = _TaskRecord.fromJson(
+                Map<String, dynamic>.from(value),
+              );
+              if (record.state == QuranDownloadState.downloading ||
+                  record.state == QuranDownloadState.queued) {
+                record.state = QuranDownloadState.paused;
+              }
+              if (record.state == QuranDownloadState.completed &&
+                  !(await File(record.localPath).exists())) {
+                record.state = QuranDownloadState.failed;
+                record.error = 'LOCAL_FILE_MISSING';
+              }
+              _records.add(record);
+            } catch (_) {
+              // Fail closed for the malformed record only. Never coerce provider
+              // identity and never discard unrelated valid downloads.
             }
-            if (record.state == QuranDownloadState.completed &&
-                !(await File(record.localPath).exists())) {
-              record.state = QuranDownloadState.failed;
-              record.error = 'LOCAL_FILE_MISSING';
-            }
-            _records.add(record);
           }
         }
       } catch (_) {
@@ -70,6 +75,11 @@ class _IoQuranDownloadService extends QuranDownloadService {
 
   @override
   Future<QuranDownloadTask> download(QuranAudioMedia media) async {
+    if (!media.hasValidIdentity ||
+        media.downloadUri.scheme != 'https' ||
+        media.provider != media.reciter.provider) {
+      throw StateError('QURAN_DOWNLOAD_IDENTITY_INVALID');
+    }
     final existing = _records
         .where((record) => record.media.storageKey == media.storageKey)
         .firstOrNull;
@@ -93,15 +103,19 @@ class _IoQuranDownloadService extends QuranDownloadService {
       RegExp(r'[^a-zA-Z0-9._-]'),
       '_',
     );
+    final identityDigest = sha256
+        .convert(utf8.encode(media.reciter.identityKey))
+        .toString()
+        .substring(0, 24);
     final directory = Directory(
-      '${root.path}/quran_audio/${media.provider.name}/$safeEdition/${media.bitrateKbps}',
+      '${root.path}/quran_audio/${media.provider.name}/$safeEdition-$identityDigest/${media.bitrateKbps}',
     );
     await directory.create(recursive: true);
     final suffix = media.ayahGlobalNumber == null
         ? 'surah-${media.surah.number.toString().padLeft(3, '0')}'
         : 'ayah-${media.ayahGlobalNumber}';
     final id =
-        '${media.provider.name}-$safeEdition-${media.bitrateKbps}-$suffix';
+        '${media.provider.name}-$identityDigest-${media.bitrateKbps}-$suffix';
     final record = _TaskRecord(
       id: id,
       media: media,
@@ -145,6 +159,12 @@ class _IoQuranDownloadService extends QuranDownloadService {
   }
 
   Future<void> _run(_TaskRecord record) async {
+    if (!record.media.hasValidIdentity) {
+      record.state = QuranDownloadState.failed;
+      record.error = 'QURAN_DOWNLOAD_IDENTITY_INVALID';
+      await _persistAndNotify();
+      return;
+    }
     _activeId = record.id;
     record.state = QuranDownloadState.downloading;
     record.error = null;
@@ -158,8 +178,9 @@ class _IoQuranDownloadService extends QuranDownloadService {
       request.followRedirects = true;
       request.maxRedirects = 5;
       request.headers.set(HttpHeaders.acceptHeader, 'audio/mpeg,*/*;q=0.1');
-      if (offset > 0)
+      if (offset > 0) {
         request.headers.set(HttpHeaders.rangeHeader, 'bytes=$offset-');
+      }
       final response = await request.close().timeout(
         const Duration(seconds: 20),
       );
@@ -278,6 +299,12 @@ class _IoQuranDownloadService extends QuranDownloadService {
   Future<void> resume(String taskId) async {
     final record = _find(taskId);
     if (record == null || record.state == QuranDownloadState.completed) return;
+    if (!record.media.hasValidIdentity) {
+      record.state = QuranDownloadState.failed;
+      record.error = 'QURAN_DOWNLOAD_IDENTITY_INVALID';
+      await _persistAndNotify();
+      return;
+    }
     record.state = QuranDownloadState.queued;
     record.error = null;
     await _persistAndNotify();
@@ -317,22 +344,26 @@ class _IoQuranDownloadService extends QuranDownloadService {
 
   @override
   Future<QuranAudioMedia?> localMedia(QuranAudioMedia remote) async {
+    if (!remote.hasValidIdentity) return null;
     final record = _records
         .where(
           (value) =>
               value.media.storageKey == remote.storageKey &&
+              value.media.sameTrackIdentity(remote) &&
               value.state == QuranDownloadState.completed,
         )
         .firstOrNull;
     if (record == null || !await _validCompleted(record)) return null;
-    return remote.asLocal(
+    final local = remote.asLocal(
       record.localPath,
       checksum: record.actualChecksumSha256,
       size: record.totalBytes,
     );
+    return local.sameTrackIdentity(remote) ? local : null;
   }
 
   Future<bool> _validCompleted(_TaskRecord record) async {
+    if (!record.media.hasValidIdentity) return false;
     final file = File(record.localPath);
     if (!await file.exists()) return false;
     final length = await file.length();
@@ -407,24 +438,33 @@ class _TaskRecord {
     'media': _mediaToJson(media),
   };
 
-  factory _TaskRecord.fromJson(Map<String, dynamic> json) => _TaskRecord(
-    id: json['id'] as String? ?? '',
-    media: _mediaFromJson(
-      Map<String, dynamic>.from(json['media'] as Map? ?? const {}),
-    ),
-    state: QuranDownloadState.values.firstWhere(
-      (value) => value.name == json['state'],
-      orElse: () => QuranDownloadState.failed,
-    ),
-    downloadedBytes: (json['downloaded_bytes'] as num?)?.toInt() ?? 0,
-    totalBytes: (json['total_bytes'] as num?)?.toInt(),
-    createdAt:
-        DateTime.tryParse(json['created_at'] as String? ?? '') ??
-        DateTime.now(),
-    localPath: json['local_path'] as String? ?? '',
-    actualChecksumSha256: json['actual_checksum_sha256'] as String?,
-    error: json['error'] as String?,
-  );
+  factory _TaskRecord.fromJson(Map<String, dynamic> json) {
+    final mediaValue = json['media'];
+    if (mediaValue is! Map) {
+      throw const FormatException('QURAN_DOWNLOAD_MEDIA_MISSING');
+    }
+    final media = _mediaFromJson(Map<String, dynamic>.from(mediaValue));
+    final id = json['id'] as String? ?? '';
+    final localPath = json['local_path'] as String? ?? '';
+    final createdAt = DateTime.tryParse(json['created_at'] as String? ?? '');
+    if (id.isEmpty || localPath.isEmpty || createdAt == null || !media.hasValidIdentity) {
+      throw const FormatException('QURAN_DOWNLOAD_RECORD_IDENTITY_INVALID');
+    }
+    return _TaskRecord(
+      id: id,
+      media: media,
+      state: QuranDownloadState.values.firstWhere(
+        (value) => value.name == json['state'],
+        orElse: () => QuranDownloadState.failed,
+      ),
+      downloadedBytes: (json['downloaded_bytes'] as num?)?.toInt() ?? 0,
+      totalBytes: (json['total_bytes'] as num?)?.toInt(),
+      createdAt: createdAt,
+      localPath: localPath,
+      actualChecksumSha256: json['actual_checksum_sha256'] as String?,
+      error: json['error'] as String?,
+    );
+  }
 }
 
 Map<String, dynamic> _mediaToJson(QuranAudioMedia media) => <String, dynamic>{
@@ -455,14 +495,23 @@ Map<String, dynamic> _mediaToJson(QuranAudioMedia media) => <String, dynamic>{
 };
 
 QuranAudioMedia _mediaFromJson(Map<String, dynamic> json) {
-  final reciterJson = Map<String, dynamic>.from(
-    json['reciter'] as Map? ?? const {},
+  final reciterValue = json['reciter'];
+  if (reciterValue is! Map) {
+    throw const FormatException('QURAN_DOWNLOAD_RECITER_MISSING');
+  }
+  final reciterJson = Map<String, dynamic>.from(reciterValue);
+  final reciterProvider = quranAudioProviderFromPersistedName(
+    reciterJson['provider'] as String?,
   );
+  final mediaProvider = quranAudioProviderFromPersistedName(
+    json['provider'] as String?,
+  );
+  if (reciterProvider == null || mediaProvider == null || reciterProvider != mediaProvider) {
+    throw const FormatException('QURAN_DOWNLOAD_PROVIDER_IDENTITY_INVALID');
+  }
   final reciter = QuranAudioCatalogReciter(
     id: reciterJson['id'] as String? ?? '',
-    provider: QuranAudioProviderKind.values.firstWhere(
-      (value) => value.name == reciterJson['provider'],
-    ),
+    provider: reciterProvider,
     edition: reciterJson['edition'] as String? ?? '',
     nameAr: reciterJson['name_ar'] as String? ?? '',
     nameEn: reciterJson['name_en'] as String? ?? '',
@@ -471,32 +520,49 @@ QuranAudioMedia _mediaFromJson(Map<String, dynamic> json) {
     availableSurahs: (reciterJson['available_surahs'] as List? ?? const [])
         .whereType<num>()
         .map((value) => value.toInt())
+        .where((value) => value >= 1 && value <= 114)
         .toSet(),
     bitrates: (reciterJson['bitrates'] as List? ?? const [])
         .whereType<num>()
         .map((value) => value.toInt())
+        .where((value) => value >= 0)
         .toSet(),
     supportsAyahAudio: reciterJson['supports_ayah_audio'] == true,
   );
-  return QuranAudioMedia(
+  if (!reciter.hasValidIdentity) {
+    throw const FormatException('QURAN_DOWNLOAD_RECITER_IDENTITY_INVALID');
+  }
+  final surahValue = json['surah'];
+  if (surahValue is! Map) {
+    throw const FormatException('QURAN_DOWNLOAD_SURAH_MISSING');
+  }
+  final playbackUri = Uri.tryParse(json['playback_uri'] as String? ?? '');
+  final downloadUri = Uri.tryParse(json['download_uri'] as String? ?? '');
+  if (playbackUri == null ||
+      downloadUri == null ||
+      downloadUri.scheme != 'https' ||
+      (playbackUri.scheme != 'https' && playbackUri.scheme != 'file')) {
+    throw const FormatException('QURAN_DOWNLOAD_URI_INVALID');
+  }
+  final media = QuranAudioMedia(
     id: json['id'] as String? ?? '',
-    provider: QuranAudioProviderKind.values.firstWhere(
-      (value) => value.name == json['provider'],
-    ),
+    provider: mediaProvider,
     reciter: reciter,
-    surah: Surah.fromJson(
-      Map<String, dynamic>.from(json['surah'] as Map? ?? const {}),
-    ),
+    surah: Surah.fromJson(Map<String, dynamic>.from(surahValue)),
     bitrateKbps: (json['bitrate_kbps'] as num?)?.toInt() ?? 0,
     ayahGlobalNumber: (json['ayah_global_number'] as num?)?.toInt(),
     ayahInSurah: (json['ayah_in_surah'] as num?)?.toInt(),
-    playbackUri: Uri.parse(json['playback_uri'] as String? ?? ''),
-    downloadUri: Uri.parse(json['download_uri'] as String? ?? ''),
+    playbackUri: playbackUri,
+    downloadUri: downloadUri,
     expectedSize: (json['expected_size'] as num?)?.toInt(),
     checksumSha256: json['checksum_sha256'] as String?,
     rehostingAllowed: json['rehosting_allowed'] == true,
     rightsStatus: json['rights_status'] as String? ?? 'UNKNOWN',
   );
+  if (!media.hasValidIdentity) {
+    throw const FormatException('QURAN_DOWNLOAD_MEDIA_IDENTITY_INVALID');
+  }
+  return media;
 }
 
 extension<T> on Iterable<T> {

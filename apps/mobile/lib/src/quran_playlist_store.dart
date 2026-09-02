@@ -38,41 +38,50 @@ class QuranPlaylistEntry {
       };
 
   factory QuranPlaylistEntry.fromJson(Map<String, dynamic> json) {
-    final raw = Map<String, dynamic>.from(
-      json['reciter'] as Map<String, dynamic>? ?? const <String, dynamic>{},
+    final rawValue = json['reciter'];
+    if (rawValue is! Map) throw const FormatException('QURAN_PLAYLIST_RECITER_MISSING');
+    final raw = Map<String, dynamic>.from(rawValue);
+    final provider = quranAudioProviderFromPersistedName(raw['provider'] as String?);
+    if (provider == null) {
+      throw const FormatException('QURAN_PLAYLIST_PROVIDER_INVALID');
+    }
+    final reciter = QuranAudioCatalogReciter(
+      id: raw['id'] as String? ?? '',
+      provider: provider,
+      edition: raw['edition'] as String? ?? '',
+      nameAr: raw['name_ar'] as String? ?? '',
+      nameEn: raw['name_en'] as String? ?? '',
+      riwayah: raw['riwayah'] as String?,
+      serverUrl: raw['server_url'] as String?,
+      availableSurahs:
+          (raw['available_surahs'] as List<dynamic>? ?? const <dynamic>[])
+              .whereType<num>()
+              .map((e) => e.toInt())
+              .where((e) => e >= 1 && e <= 114)
+              .toSet(),
+      bitrates: (raw['bitrates'] as List<dynamic>? ?? const <dynamic>[])
+          .whereType<num>()
+          .map((e) => e.toInt())
+          .where((e) => e >= 0)
+          .toSet(),
+      supportsAyahAudio: raw['supports_ayah_audio'] == true,
     );
-    final provider = QuranAudioProviderKind.values.firstWhere(
-      (value) => value.name == raw['provider'],
-      orElse: () => QuranAudioProviderKind.mp3Quran,
-    );
+    if (!reciter.hasValidIdentity) {
+      throw const FormatException('QURAN_PLAYLIST_RECITER_IDENTITY_INVALID');
+    }
+    final surahValue = json['surah'];
+    if (surahValue is! Map) throw const FormatException('QURAN_PLAYLIST_SURAH_MISSING');
+    final surah = Surah.fromJson(Map<String, dynamic>.from(surahValue));
+    if (surah.number < 1 || surah.number > 114) {
+      throw const FormatException('QURAN_PLAYLIST_SURAH_INVALID');
+    }
+    final id = json['id'] as String? ?? '';
+    if (id.isEmpty) throw const FormatException('QURAN_PLAYLIST_ENTRY_ID_INVALID');
     return QuranPlaylistEntry(
-      id: json['id'] as String? ?? '',
+      id: id,
       bitrateKbps: (json['bitrate_kbps'] as num?)?.toInt() ?? 128,
-      surah: Surah.fromJson(
-        Map<String, dynamic>.from(
-          json['surah'] as Map<String, dynamic>? ??
-              const <String, dynamic>{},
-        ),
-      ),
-      reciter: QuranAudioCatalogReciter(
-        id: raw['id'] as String? ?? '',
-        provider: provider,
-        edition: raw['edition'] as String? ?? '',
-        nameAr: raw['name_ar'] as String? ?? '',
-        nameEn: raw['name_en'] as String? ?? '',
-        riwayah: raw['riwayah'] as String?,
-        serverUrl: raw['server_url'] as String?,
-        availableSurahs:
-            (raw['available_surahs'] as List<dynamic>? ?? const <dynamic>[])
-                .whereType<num>()
-                .map((e) => e.toInt())
-                .toSet(),
-        bitrates: (raw['bitrates'] as List<dynamic>? ?? const <dynamic>[])
-            .whereType<num>()
-            .map((e) => e.toInt())
-            .toSet(),
-        supportsAyahAudio: raw['supports_ayah_audio'] == true,
-      ),
+      surah: surah,
+      reciter: reciter,
     );
   }
 }
@@ -104,14 +113,27 @@ class QuranPlaylist {
         'entries': entries.map((e) => e.toJson()).toList(),
       };
 
-  factory QuranPlaylist.fromJson(Map<String, dynamic> json) => QuranPlaylist(
-        id: json['id'] as String? ?? '',
-        name: json['name'] as String? ?? '',
-        entries: (json['entries'] as List<dynamic>? ?? const <dynamic>[])
-            .whereType<Map<String, dynamic>>()
-            .map(QuranPlaylistEntry.fromJson)
-            .toList(growable: false),
-      );
+  factory QuranPlaylist.fromJson(Map<String, dynamic> json) {
+    final id = json['id'] as String? ?? '';
+    final name = json['name'] as String? ?? '';
+    if (id.isEmpty || name.trim().isEmpty) {
+      throw const FormatException('QURAN_PLAYLIST_IDENTITY_INVALID');
+    }
+    final entries = <QuranPlaylistEntry>[];
+    final rawEntries = json['entries'];
+    if (rawEntries is List<dynamic>) {
+      for (final value in rawEntries) {
+        if (value is! Map) continue;
+        try {
+          entries.add(QuranPlaylistEntry.fromJson(Map<String, dynamic>.from(value)));
+        } catch (_) {
+          // Fail closed for the invalid entry. A malformed identity must never
+          // become a playable entry or be coerced to another provider.
+        }
+      }
+    }
+    return QuranPlaylist(id: id, name: name, entries: List.unmodifiable(entries));
+  }
 }
 
 class QuranPlaylistStore extends ChangeNotifier {
@@ -130,11 +152,16 @@ class QuranPlaylistStore extends ChangeNotifier {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is List<dynamic>) {
-        _playlists = decoded
-            .whereType<Map<String, dynamic>>()
-            .map(QuranPlaylist.fromJson)
-            .where((e) => e.id.isNotEmpty && e.name.isNotEmpty)
-            .toList(growable: false);
+        final values = <QuranPlaylist>[];
+        for (final value in decoded) {
+          if (value is! Map) continue;
+          try {
+            values.add(QuranPlaylist.fromJson(Map<String, dynamic>.from(value)));
+          } catch (_) {
+            // Preserve valid playlists while rejecting malformed persisted data.
+          }
+        }
+        _playlists = List<QuranPlaylist>.unmodifiable(values);
       }
     } catch (_) {
       _playlists = const <QuranPlaylist>[];
@@ -160,6 +187,9 @@ class QuranPlaylistStore extends ChangeNotifier {
   }
 
   Future<void> add(String playlistId, QuranAudioMedia media) async {
+    if (!media.hasValidIdentity) {
+      throw StateError('QURAN_PLAYLIST_MEDIA_IDENTITY_INVALID');
+    }
     final index = _playlists.indexWhere((e) => e.id == playlistId);
     if (index < 0) throw StateError('PLAYLIST_NOT_FOUND');
     final playlist = _playlists[index];

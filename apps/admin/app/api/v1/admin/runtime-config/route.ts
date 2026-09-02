@@ -110,7 +110,7 @@ export async function PUT(request: Request) {
     const result = await db(
       'app',
       `app_config?key=eq.${encodeURIComponent(key)}`,
-      { method: 'PATCH', body: JSON.stringify({ value: encoded, updated_at: new Date().toISOString() }) },
+      { method: 'PATCH', body: JSON.stringify({ value: encoded }) },
     );
     const row = Array.isArray(result.data) ? result.data[0] : null;
     if (!row) throw new ApiError(404, 'CONFIG_KEY_NOT_FOUND', `Runtime config key not seeded: ${key}`);

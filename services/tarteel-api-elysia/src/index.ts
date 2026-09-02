@@ -1,5 +1,9 @@
 import { Elysia, t } from 'elysia'
-import { assertSameIdentity, type ReciterIdentity } from './identity'
+import {
+  assertSameCanonicalIdentity,
+  type ReciterIdentity,
+  toCanonicalIdentityV1
+} from './identity'
 
 const upstream = (process.env.TARTEEL_UPSTREAM_API ??
   'https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api').replace(/\/$/, '')
@@ -101,6 +105,7 @@ export const app = new Elysia({ name: 'tarteel-api-elysia' })
         reciterId: query.reciterId,
         edition: query.edition
       }
+      const requestedCanonical = toCanonicalIdentityV1(requested, surah)
 
       if (query.provider === 'alquran-cloud') {
         const resolved: ReciterIdentity = {
@@ -108,11 +113,13 @@ export const app = new Elysia({ name: 'tarteel-api-elysia' })
           reciterId: `alquran:${query.edition}`,
           edition: query.edition
         }
-        assertSameIdentity(requested, resolved)
+        const resolvedCanonical = toCanonicalIdentityV1(resolved, surah)
+        assertSameCanonicalIdentity(requestedCanonical, resolvedCanonical)
         const safeBitrate = [64, 128, 192].includes(bitrate) ? bitrate : 128
         return {
           data: {
             identity: resolved,
+            canonicalIdentity: resolvedCanonical,
             surah,
             bitrate: safeBitrate,
             playbackUrl: `https://cdn.islamic.network/quran/audio-surah/${safeBitrate}/${encodeURIComponent(query.edition)}/${surah}.mp3`
@@ -133,10 +140,14 @@ export const app = new Elysia({ name: 'tarteel-api-elysia' })
         reciterId: String(match.id),
         edition: String(match.edition)
       }
-      assertSameIdentity(requested, resolved)
+      const resolvedCanonical = toCanonicalIdentityV1(resolved, surah, {
+        riwayah: String(match.riwayah ?? '')
+      })
+      assertSameCanonicalIdentity(requestedCanonical, resolvedCanonical)
       return {
         data: {
           identity: resolved,
+          canonicalIdentity: resolvedCanonical,
           nameAr: match.nameAr,
           riwayah: match.riwayah,
           surah,

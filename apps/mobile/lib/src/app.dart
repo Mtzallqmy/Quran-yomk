@@ -9,6 +9,7 @@ import 'screens/islamic_library.dart';
 import 'screens/mushaf.dart';
 import 'screens/player.dart';
 import 'screens/quran_offline.dart';
+import 'screens/quran_playlists.dart';
 import 'screens/radio.dart';
 import 'screens/reciters.dart';
 import 'screens/search.dart';
@@ -87,6 +88,15 @@ class _RootShellState extends State<RootShell> {
               ),
               actions: <Widget>[
                 IconButton(
+                  tooltip: english ? 'Quran playlists' : 'قوائم تشغيل القرآن',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const QuranPlaylistsPage(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.queue_music),
+                ),
+                IconButton(
                   tooltip: english ? 'Offline Quran' : 'الاستماع بدون إنترنت',
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -133,8 +143,7 @@ class _RootShellState extends State<RootShell> {
                   selectedIndex: index,
                   labelBehavior:
                       NavigationDestinationLabelBehavior.onlyShowSelected,
-                  onDestinationSelected: (value) =>
-                      setState(() => index = value),
+                  onDestinationSelected: (value) => setState(() => index = value),
                   destinations: <NavigationDestination>[
                     NavigationDestination(
                       icon: const Icon(Icons.home_outlined),

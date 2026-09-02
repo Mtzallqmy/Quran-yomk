@@ -7,12 +7,20 @@ on:
       - 'supabase/migrations/**'
       - 'supabase/tests/**'
       - '.github/workflows/pr-admin-security.yml'
+  push:
+    branches:
+      - hardening/phase6-admin-security
+    paths:
+      - 'apps/admin/**'
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - '.github/workflows/pr-admin-security.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: pr-admin-security-${{ github.event.pull_request.number }}
+  group: pr-admin-security-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

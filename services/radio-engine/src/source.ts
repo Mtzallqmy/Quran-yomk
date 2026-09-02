@@ -9,6 +9,8 @@ export function buildLiquidsoapScript(config:Config,playlistPath:string):string{
     `settings.server.telnet := true\nsettings.server.telnet.bind_addr := "127.0.0.1"\nsettings.server.telnet.port := ${config.liquidsoapControlPort}\n`+
     `main = playlist(mode="normal", reload=60, ${liq(playlistPath)})\n`+
     `automation = request.queue(id="automation")\n`+
+    `def tarteel_clear_automation(_) = automation.set_queue([]); "OK" end\n`+
+    `server.register(namespace="tarteel", description="Clear pending Tarteel automation requests", "clear_automation", tarteel_clear_automation)\n`+
     `def track_started(m) = print("TARTEEL_EVENT TRACK_START #{metadata.json.stringify(m)}") end\n`+
     `emergency = single(${liq(config.fallbackPath)})\n`+
     `radio = fallback(track_sensitive=false, [automation, main, emergency])\n`+
@@ -35,12 +37,14 @@ export class LiquidsoapSource {
   }
   stop(signal:NodeJS.Signals='SIGTERM'):void{this.child?.kill(signal);}
   async reloadPlaylist(interrupt=false):Promise<void>{await liquidsoapCommand(this.config.liquidsoapControlPort,'main.reload');if(interrupt)await liquidsoapCommand(this.config.liquidsoapControlPort,'main.skip');}
-  async pushTrack(path:string,mediaId:string|null,queueEntryId:string|null,interrupt=false,activeSource:'main'|'automation'='main'):Promise<void>{
+  async pushTrack(path:string,mediaId:string|null,queueEntryId:string|null,interrupt=false,activeSource:'main'|'automation'='main',trackIndex=0):Promise<void>{
     if(!path.startsWith('/')||/[\0\r\n]/.test(path))throw new Error('invalid automation path');
     const clean=(value:string|null)=>String(value??'none').replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,200);
-    await liquidsoapCommand(this.config.liquidsoapControlPort,'automation.push',`annotate:media_id="${clean(mediaId)}",queue_entry_id="${clean(queueEntryId)}":${path}`);
+    await liquidsoapCommand(this.config.liquidsoapControlPort,'automation.push',`annotate:tarteel_index="${trackIndex}",media_id="${clean(mediaId)}",queue_entry_id="${clean(queueEntryId)}":${path}`);
     if(interrupt)await liquidsoapCommand(this.config.liquidsoapControlPort,`${activeSource}.skip`);
   }
+  async skip(source:'main'|'automation'):Promise<void>{await liquidsoapCommand(this.config.liquidsoapControlPort,`${source}.skip`);}
+  async clearAutomation():Promise<void>{await liquidsoapCommand(this.config.liquidsoapControlPort,'tarteel.clear_automation');}
   get pid():number|null{return this.child?.pid??null;}
 }
 export async function liquidsoapCommand(port:number,command:string,argument?:string,timeoutMs=3000):Promise<string>{

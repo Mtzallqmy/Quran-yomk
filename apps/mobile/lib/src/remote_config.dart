@@ -44,6 +44,30 @@ class TarteelRemoteConfig extends ChangeNotifier {
   String get latestAndroidVersion =>
       stringValue('latest_android_version', fallback: '0.0.0');
 
+  Map<String, dynamic> get contentManifest {
+    final raw = jsonValue('content_manifest');
+    if (raw is! Map) return const <String, dynamic>{};
+    final value = Map<String, dynamic>.from(raw);
+    if (value['schema_version'] != 1) return const <String, dynamic>{};
+    // Runtime manifests are data only. Explicitly reject executable-looking
+    // fields even if an administrator accidentally adds them.
+    const forbidden = <String>{'script', 'javascript', 'dart', 'code', 'eval'};
+    if (value.keys.any((key) => forbidden.contains(key.toLowerCase()))) {
+      return const <String, dynamic>{};
+    }
+    return Map<String, dynamic>.unmodifiable(value);
+  }
+
+  List<String> get manifestHomeSections {
+    final raw = contentManifest['home_sections'];
+    if (raw is! List) return const <String>[];
+    return raw
+        .whereType<String>()
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+  }
+
   void load() {
     final raw = _preferences.getString(_cacheKey);
     if (raw == null || raw.isEmpty) return;

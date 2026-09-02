@@ -11,6 +11,7 @@ export interface EnqueueInput {mediaId:string;source:QueueSource;priority:Priori
 export class SupabaseAutomationStore {
   private client:SupabaseClient;
   constructor(url:string,key:string){this.client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});}
+  async recover(lease:Lease):Promise<Record<string,unknown>>{const {data,error}=await this.client.schema('radio').rpc('recover_stale_automation',{p_station_id:lease.stationId,p_owner_id:lease.ownerId,p_fencing_token:lease.fencingToken});if(error)throw error;return(data??{}) as Record<string,unknown>;}
   async materialize(stationId:string,windowStart:Date,windowEnd:Date):Promise<number>{
     const query=this.client.schema('app').from('schedules')
       .select('id,version,schedule_type,enabled,timezone,start_date,end_date,start_time,days_of_week,priority,created_at,content_type,media_id,playlist_id,interrupt_policy')

@@ -126,7 +126,7 @@ void main() {
     'repository uses an integrity-checked local file before remote streaming',
     () async {
       const reciter = QuranAudioCatalogReciter(
-        id: 'test:reciter',
+        id: 'alquran:test.edition',
         provider: QuranAudioProviderKind.alQuranCloud,
         edition: 'test.edition',
         nameAr: 'قارئ',

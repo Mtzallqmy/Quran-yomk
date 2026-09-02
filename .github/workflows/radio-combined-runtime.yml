@@ -1,0 +1,163 @@
+name: Radio Combined Runtime Acceptance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/radio-combined-runtime.yml'
+      - 'services/radio-engine/**'
+      - 'supabase/migrations/**radio**.sql'
+      - 'infrastructure/icecast/**'
+      - 'infrastructure/docker-compose.radio.yml'
+      - 'infrastructure/scripts/generate-radio-fixtures.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: radio-combined-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  combined-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TARTEEL_STATION_ID: '00000000-0000-4000-8000-000000000006'
+      TARTEEL_SUPABASE_URL: 'https://qkroecnecdxghcqvvoxn.supabase.co'
+      TARTEEL_SUPABASE_RUNTIME_KEY: ${{ secrets.TARTEEL_SUPABASE_SECRET_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      TARTEEL_SUPABASE_SECRET_KEY: ${{ secrets.TARTEEL_SUPABASE_SECRET_KEY || secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: services/radio-engine/package-lock.json
+
+      - name: Preflight protected runtime credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${TARTEEL_SUPABASE_RUNTIME_KEY:-}" ]]; then
+            echo 'MISSING_RUNTIME_DB_CREDENTIAL' >&2
+            exit 1
+          fi
+
+      - name: Install audio runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg liquidsoap
+          ffmpeg -version | head -n 1
+          liquidsoap --version | head -n 1
+
+      - name: Build and test Radio Engine
+        working-directory: services/radio-engine
+        run: npm ci && npm test
+
+      - name: Create ephemeral Icecast credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_password="$(openssl rand -hex 24)"
+          relay_password="$(openssl rand -hex 24)"
+          admin_password="$(openssl rand -hex 24)"
+          echo "::add-mask::$source_password"
+          echo "::add-mask::$relay_password"
+          echo "::add-mask::$admin_password"
+          printf '%s\n' \
+            "TARTEEL_ICECAST_SOURCE_PASSWORD=$source_password" \
+            "TARTEEL_ICECAST_RELAY_PASSWORD=$relay_password" \
+            "TARTEEL_ICECAST_ADMIN_USER=admin" \
+            "TARTEEL_ICECAST_ADMIN_PASSWORD=$admin_password" \
+            "TARTEEL_ICECAST_HOSTNAME=127.0.0.1" \
+            "TARTEEL_ICECAST_PORT=8000" \
+            "TARTEEL_ICECAST_BASEDIR=/usr/share/icecast2" \
+            "TARTEEL_ICECAST_LOGDIR=/var/log/icecast2" > infrastructure/icecast/.env
+          chmod 0600 infrastructure/icecast/.env
+          {
+            echo "TARTEEL_ICECAST_SOURCE_PASSWORD=$source_password"
+            echo "TARTEEL_ICECAST_ADMIN_USER=admin"
+            echo "TARTEEL_ICECAST_ADMIN_PASSWORD=$admin_password"
+          } >> "$GITHUB_ENV"
+
+      - name: Start real Icecast
+        run: |
+          docker compose -f infrastructure/docker-compose.radio.yml config --quiet
+          docker compose -f infrastructure/docker-compose.radio.yml up -d --build icecast
+          timeout 60 bash -c 'until curl -fsS http://127.0.0.1:8000/status-json.xsl >/dev/null; do sleep 1; done'
+
+      - name: Build deterministic development media manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixtures="$RUNNER_TEMP/tarteel-combined-fixtures"
+          bash infrastructure/scripts/generate-radio-fixtures.sh "$fixtures"
+          cat > "$RUNNER_TEMP/tarteel-combined-playlist.json" <<EOF
+          {
+            "tracks": [
+              {"media_id":"00000000-0000-4000-8100-000000000001","title":"Development Track A","path":"$fixtures/track-a.m4a"},
+              {"media_id":"00000000-0000-4000-8100-000000000002","title":"Development Track B","path":"$fixtures/track-b.m4a"}
+            ],
+            "catalog": [
+              {"media_id":"00000000-0000-4000-8100-000000000003","title":"Development Track C","path":"$fixtures/track-c.m4a"},
+              {"media_id":"00000000-0000-4000-8100-000000000004","title":"Development Track D","path":"$fixtures/track-d.m4a"}
+            ]
+          }
+          EOF
+          {
+            echo "TARTEEL_RADIO_PLAYLIST_PATH=$RUNNER_TEMP/tarteel-combined-playlist.json"
+            echo "TARTEEL_RADIO_FALLBACK_PATH=$fixtures/fallback.m4a"
+          } >> "$GITHUB_ENV"
+
+      - name: Start protected coordinator runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          export TARTEEL_RADIO_ENGINE_DATABASE_MODE=supabase
+          export TARTEEL_RADIO_ENGINE_INSTANCE_ID="combined-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          export TARTEEL_RADIO_HEALTH_PORT=8097
+          export TARTEEL_LIQUIDSOAP_CONTROL_PORT=1237
+          export TARTEEL_RADIO_WORKSPACE="$RUNNER_TEMP/tarteel-combined-runtime"
+          export TARTEEL_RADIO_ENGINE_VERSION="combined-${GITHUB_SHA}"
+          node services/radio-engine/dist/src/cli.js > "$RUNNER_TEMP/tarteel-combined-engine.log" 2>&1 &
+          echo "TARTEEL_COMBINED_ENGINE_PID=$!" >> "$GITHUB_ENV"
+          timeout 60 bash -c 'until curl -fsS http://127.0.0.1:8097/ready >/dev/null; do sleep 1; done'
+
+      - name: Prove Supabase to decoder ACK path
+        env:
+          TARTEEL_COMBINED_STREAM_URL: http://127.0.0.1:8000/tarteel.mp3
+        run: node services/radio-engine/test/combined-runtime-e2e.mjs
+
+      - name: Sanitize coordinator evidence log
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          if [[ -f "$RUNNER_TEMP/tarteel-combined-engine.log" ]]; then
+            sed -E 's#(authorization|password|secret|token)[=:][^ ,}]+#\1=[REDACTED]#Ig' \
+              "$RUNNER_TEMP/tarteel-combined-engine.log" > artifacts/combined-runtime-engine.log
+          fi
+
+      - name: Upload combined runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: radio-combined-runtime-evidence
+          path: |
+            artifacts/combined-runtime-result.json
+            artifacts/combined-runtime-engine.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${TARTEEL_COMBINED_ENGINE_PID:-}" ]]; then
+            kill "$TARTEEL_COMBINED_ENGINE_PID" 2>/dev/null || true
+          fi
+          if [[ -f infrastructure/icecast/.env ]]; then
+            docker compose -f infrastructure/docker-compose.radio.yml down --volumes --remove-orphans || true
+          fi

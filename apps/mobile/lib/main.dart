@@ -15,6 +15,7 @@ import 'src/playback.dart';
 import 'src/quran_audio.dart';
 import 'src/quran_download_service.dart';
 import 'src/quran_playback_store.dart';
+import 'src/quran_playlist_store.dart';
 import 'src/remote_config.dart';
 import 'src/repository.dart';
 import 'src/services.dart';
@@ -60,6 +61,7 @@ Future<void> main() async {
   );
   final quranPlayback = QuranPlaybackStore(preferences)..load();
   quranPlayback.bind(playback);
+  final quranPlaylists = QuranPlaylistStore(preferences)..load();
   final api = TarteelApiClient();
   final repository = TarteelRepository(api, MetadataCache(preferences));
   final remoteConfig = TarteelRemoteConfig(repository, preferences)..load();
@@ -76,6 +78,7 @@ Future<void> main() async {
     quranAudio: quranAudio,
     quranDownloads: quranDownloads,
     quranPlayback: quranPlayback,
+    quranPlaylists: quranPlaylists,
     remoteConfig: remoteConfig,
   );
 

@@ -61,4 +61,10 @@ jobs:
           retention-days: 14
       - name: Cleanup
         if: always()
-        run: docker compose -f infrastructure/docker-compose.radio.yml down --volumes --remove-orphans
+        shell: bash
+        run: |
+          if [[ -f infrastructure/icecast/.env ]]; then
+            docker compose -f infrastructure/docker-compose.radio.yml down --volumes --remove-orphans
+          else
+            echo 'Icecast environment was not created; nothing to clean up.'
+          fi

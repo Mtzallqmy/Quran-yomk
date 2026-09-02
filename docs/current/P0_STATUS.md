@@ -1,0 +1,1 @@
+P0 status: repository audit/current architecture, Quran integrity foundation and strict reciter identity are implemented; combined Radio runtime remains environment-blocked; Admin security hardening is under validation on this branch.

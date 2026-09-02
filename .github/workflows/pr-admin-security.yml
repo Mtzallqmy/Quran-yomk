@@ -1,0 +1,65 @@
+name: PR Admin Security
+
+on:
+  pull_request:
+    paths:
+      - 'apps/admin/**'
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - '.github/workflows/pr-admin-security.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-admin-security-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  admin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/admin/package-lock.json
+      - name: Install dependencies
+        working-directory: apps/admin
+        run: npm ci --ignore-scripts
+      - name: Unit and contract tests
+        working-directory: apps/admin
+        run: npm test
+      - name: TypeScript gate
+        working-directory: apps/admin
+        run: npm run typecheck
+      - name: Production build smoke
+        working-directory: apps/admin
+        env:
+          TARTEEL_ENVIRONMENT: development
+          TARTEEL_ADMIN_MFA_MODE: ready
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_placeholder
+          SUPABASE_SECRET_KEY: sb_secret_build_placeholder
+          TARTEEL_PUBLIC_STREAM_BASE_URL: https://stream.invalid
+          TARTEEL_INTERNAL_MOUNT: /tarteel.mp3
+          TARTEEL_COOKIE_SECURE: 'true'
+        run: npm run build
+      - name: Migration and privilege guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          migration=supabase/migrations/20260903010000_distributed_rate_limits.sql
+          test -f "$migration"
+          grep -q 'create table if not exists app.rate_limit_buckets' "$migration"
+          grep -q 'revoke all on function app.consume_rate_limit' "$migration"
+          grep -q 'grant execute on function app.consume_rate_limit' "$migration"
+          test -f supabase/tests/08_security_rate_limit.sql
+      - name: Secret guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -RIE --exclude='*.example' --exclude='*.md' --exclude-dir=node_modules --exclude-dir=.next 'sb_secret_[A-Za-z0-9_-]{20,}|service_role[^[:space:]]{20,}|ICECAST_(SOURCE|ADMIN)_PASSWORD=.+' apps/admin
+          ! grep -RIE --exclude='*.md' --exclude-dir=node_modules --exclude-dir=.next 'SUPABASE_SECRET_KEY|ICECAST_SOURCE_PASSWORD|ICECAST_ADMIN_PASSWORD' apps/admin/app

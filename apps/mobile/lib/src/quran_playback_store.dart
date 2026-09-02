@@ -16,6 +16,7 @@ class QuranPlaybackSnapshot {
     required this.bitrateKbps,
     required this.surahNumber,
     required this.position,
+    required this.playedAt,
     this.riwayah,
     this.ayahNumber,
   });
@@ -29,6 +30,10 @@ class QuranPlaybackSnapshot {
   final int surahNumber;
   final int? ayahNumber;
   final Duration position;
+  final DateTime playedAt;
+
+  String get identityKey =>
+      '$provider|$reciterId|$edition|$surahNumber|${ayahNumber ?? 0}';
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'provider': provider,
@@ -40,6 +45,7 @@ class QuranPlaybackSnapshot {
     'surah_number': surahNumber,
     'ayah_number': ayahNumber,
     'position_ms': position.inMilliseconds,
+    'played_at': playedAt.toIso8601String(),
   };
 
   factory QuranPlaybackSnapshot.fromJson(Map<String, dynamic> json) =>
@@ -55,13 +61,18 @@ class QuranPlaybackSnapshot {
         position: Duration(
           milliseconds: (json['position_ms'] as num?)?.toInt() ?? 0,
         ),
+        playedAt:
+            DateTime.tryParse(json['played_at'] as String? ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0),
       );
 }
 
 class QuranPlaybackStore extends ChangeNotifier {
   QuranPlaybackStore(this._preferences);
 
-  static const _key = 'quran_playback:last:v1';
+  static const _key = 'quran_playback:last:v2';
+  static const _historyKey = 'quran_playback:history:v1';
+  static const _historyLimit = 50;
   final SharedPreferences _preferences;
   StreamSubscription<MediaItem?>? _mediaSubscription;
   StreamSubscription<Duration>? _positionSubscription;
@@ -69,16 +80,42 @@ class QuranPlaybackStore extends ChangeNotifier {
   DateTime _lastPositionWrite = DateTime.fromMillisecondsSinceEpoch(0);
 
   QuranPlaybackSnapshot? last;
+  List<QuranPlaybackSnapshot> _history = const <QuranPlaybackSnapshot>[];
+  List<QuranPlaybackSnapshot> get history =>
+      List<QuranPlaybackSnapshot>.unmodifiable(_history);
 
   void load() {
-    final raw = _preferences.getString(_key);
-    if (raw == null || raw.isEmpty) return;
-    try {
-      final value = jsonDecode(raw);
-      if (value is Map) {
-        last = QuranPlaybackSnapshot.fromJson(Map<String, dynamic>.from(value));
+    final raw = _preferences.getString(_key) ??
+        _preferences.getString('quran_playback:last:v1');
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final value = jsonDecode(raw);
+        if (value is Map) {
+          last = QuranPlaybackSnapshot.fromJson(
+            Map<String, dynamic>.from(value),
+          );
+        }
+      } catch (_) {}
+    }
+    final historyRaw = _preferences.getString(_historyKey);
+    if (historyRaw != null && historyRaw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(historyRaw);
+        if (decoded is List) {
+          _history = decoded
+              .whereType<Map>()
+              .map(
+                (value) => QuranPlaybackSnapshot.fromJson(
+                  Map<String, dynamic>.from(value),
+                ),
+              )
+              .take(_historyLimit)
+              .toList(growable: false);
+        }
+      } catch (_) {
+        _history = const <QuranPlaybackSnapshot>[];
       }
-    } catch (_) {}
+    }
   }
 
   void bind(PlaybackPort playback) {
@@ -102,7 +139,7 @@ class QuranPlaybackStore extends ChangeNotifier {
   Future<void> _save(Duration position) async {
     final extras = _currentItem?.extras;
     if (extras == null) return;
-    last = QuranPlaybackSnapshot(
+    final snapshot = QuranPlaybackSnapshot(
       provider: extras['provider'] as String? ?? '',
       reciterId: extras['reciter_id'] as String? ?? '',
       edition: extras['edition'] as String? ?? '',
@@ -112,8 +149,27 @@ class QuranPlaybackStore extends ChangeNotifier {
       surahNumber: extras['surah_number'] as int? ?? 1,
       ayahNumber: extras['ayah_number'] as int?,
       position: position,
+      playedAt: DateTime.now(),
     );
-    await _preferences.setString(_key, jsonEncode(last!.toJson()));
+    last = snapshot;
+    final next = <QuranPlaybackSnapshot>[
+      snapshot,
+      ..._history.where((entry) => entry.identityKey != snapshot.identityKey),
+    ];
+    _history = next.take(_historyLimit).toList(growable: false);
+    await Future.wait<bool>([
+      _preferences.setString(_key, jsonEncode(snapshot.toJson())),
+      _preferences.setString(
+        _historyKey,
+        jsonEncode(_history.map((entry) => entry.toJson()).toList()),
+      ),
+    ]);
+    notifyListeners();
+  }
+
+  Future<void> clearHistory() async {
+    _history = const <QuranPlaybackSnapshot>[];
+    await _preferences.remove(_historyKey);
     notifyListeners();
   }
 

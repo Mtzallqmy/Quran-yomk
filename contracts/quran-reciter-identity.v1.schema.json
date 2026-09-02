@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tarteel.app/contracts/quran-reciter-identity.v1.schema.json",
+  "title": "Tarteel Quran Reciter Identity v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provider",
+    "provider_reciter_id",
+    "edition",
+    "surah_number"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "provider": {
+      "type": "string",
+      "enum": ["ALQURAN_CLOUD", "MP3QURAN"]
+    },
+    "provider_reciter_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "edition": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "moshaf_id": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "riwayah": {
+      "type": ["string", "null"],
+      "maxLength": 256
+    },
+    "surah_number": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 114
+    },
+    "ayah_number": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    }
+  }
+}

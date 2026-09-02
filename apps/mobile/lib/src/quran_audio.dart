@@ -7,6 +7,80 @@ import 'models.dart';
 
 enum QuranAudioProviderKind { alQuranCloud, mp3Quran }
 
+QuranAudioProviderKind? quranAudioProviderFromPersistedName(String? value) {
+  if (value == null || value.isEmpty) return null;
+  for (final provider in QuranAudioProviderKind.values) {
+    if (provider.name == value) return provider;
+  }
+  return null;
+}
+
+bool validQuranReciterIdentityFields({
+  required QuranAudioProviderKind provider,
+  required String reciterId,
+  required String edition,
+}) {
+  if (reciterId.isEmpty || edition.isEmpty) return false;
+  switch (provider) {
+    case QuranAudioProviderKind.alQuranCloud:
+      return reciterId == 'alquran:$edition';
+    case QuranAudioProviderKind.mp3Quran:
+      final match = RegExp(
+        r'^mp3quran:([1-9][0-9]*):([1-9][0-9]*)$',
+      ).firstMatch(reciterId);
+      return match != null && edition == '${match.group(1)}-${match.group(2)}';
+  }
+}
+
+String _identityPart(Object? value) => Uri.encodeComponent('${value ?? ''}');
+
+class QuranAudioIdentityV1 {
+  const QuranAudioIdentityV1({
+    required this.provider,
+    required this.providerReciterId,
+    required this.edition,
+    required this.surahNumber,
+    this.moshafId,
+    this.riwayah,
+    this.ayahNumber,
+  });
+
+  final QuranAudioProviderKind provider;
+  final String providerReciterId;
+  final String edition;
+  final String? moshafId;
+  final String? riwayah;
+  final int surahNumber;
+  final int? ayahNumber;
+
+  String get providerWire => switch (provider) {
+    QuranAudioProviderKind.alQuranCloud => 'ALQURAN_CLOUD',
+    QuranAudioProviderKind.mp3Quran => 'MP3QURAN',
+  };
+
+  String get key => <Object?>[
+    'v1',
+    providerWire,
+    providerReciterId,
+    edition,
+    moshafId,
+    riwayah,
+    surahNumber,
+    ayahNumber,
+  ].map(_identityPart).join('|');
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'schema_version': 1,
+    'provider': providerWire,
+    'provider_reciter_id': providerReciterId,
+    'edition': edition,
+    'moshaf_id': moshafId,
+    'riwayah': riwayah,
+    'surah_number': surahNumber,
+    'ayah_number': ayahNumber,
+  };
+}
+
 class QuranAudioCatalogReciter {
   const QuranAudioCatalogReciter({
     required this.id,
@@ -32,10 +106,55 @@ class QuranAudioCatalogReciter {
   final Set<int> bitrates;
   final bool supportsAyahAudio;
 
-  String get identityKey => '${provider.name}|$id|$edition';
+  bool get hasValidIdentity => validQuranReciterIdentityFields(
+    provider: provider,
+    reciterId: id,
+    edition: edition,
+  );
+
+  String get providerReciterId {
+    switch (provider) {
+      case QuranAudioProviderKind.alQuranCloud:
+        return edition;
+      case QuranAudioProviderKind.mp3Quran:
+        return RegExp(r'^mp3quran:([1-9][0-9]*):[1-9][0-9]*$')
+                .firstMatch(id)
+                ?.group(1) ??
+            '';
+    }
+  }
+
+  String? get moshafId {
+    if (provider != QuranAudioProviderKind.mp3Quran) return null;
+    return RegExp(r'^mp3quran:[1-9][0-9]*:([1-9][0-9]*)$')
+        .firstMatch(id)
+        ?.group(1);
+  }
+
+  String get identityKey => <Object?>[
+    'v1',
+    provider.name,
+    providerReciterId,
+    edition,
+    moshafId,
+    riwayah,
+  ].map(_identityPart).join('|');
 
   bool sameIdentity(QuranAudioCatalogReciter other) =>
-      identityKey == other.identityKey;
+      hasValidIdentity && other.hasValidIdentity && identityKey == other.identityKey;
+
+  QuranAudioIdentityV1 identityFor({
+    required int surahNumber,
+    int? ayahNumber,
+  }) => QuranAudioIdentityV1(
+    provider: provider,
+    providerReciterId: providerReciterId,
+    edition: edition,
+    moshafId: moshafId,
+    riwayah: riwayah,
+    surahNumber: surahNumber,
+    ayahNumber: ayahNumber,
+  );
 
   Reciter toReciter() => Reciter(
     id: id,
@@ -98,13 +217,31 @@ class QuranAudioMedia {
   final String rightsStatus;
 
   bool get isLocal => localPath != null;
+
+  bool get hasValidIdentity =>
+      id.isNotEmpty &&
+      provider == reciter.provider &&
+      reciter.hasValidIdentity &&
+      surah.number >= 1 &&
+      surah.number <= 114 &&
+      (ayahGlobalNumber == null ||
+          (ayahGlobalNumber! >= 1 && ayahGlobalNumber! <= 6236)) &&
+      (ayahInSurah == null ||
+          (ayahInSurah! >= 1 && ayahInSurah! <= surah.ayahCount));
+
+  QuranAudioIdentityV1 get identity => reciter.identityFor(
+    surahNumber: surah.number,
+    ayahNumber: ayahInSurah,
+  );
+
   String get storageKey => <Object?>[
-    provider.name,
-    reciter.identityKey,
+    identity.key,
     bitrateKbps,
-    surah.number,
     ayahGlobalNumber ?? 0,
-  ].join('|');
+  ].map(_identityPart).join('|');
+
+  bool sameTrackIdentity(QuranAudioMedia other) =>
+      hasValidIdentity && other.hasValidIdentity && storageKey == other.storageKey;
 
   QuranAudioMedia asLocal(String path, {String? checksum, int? size}) =>
       QuranAudioMedia(
@@ -160,13 +297,22 @@ class QuranAudioRepository {
             .catchError((_) => <QuranAudioCatalogReciter>[]),
       ),
     );
-    final values = settled.expand((rows) => rows).toList(growable: false);
+    final values = settled
+        .expand((rows) => rows)
+        .where((reciter) => reciter.hasValidIdentity)
+        .toList(growable: false);
     _catalogCache[key] = values;
     return values;
   }
 
   Future<QuranAudioMedia> resolve(QuranAudioRequest request) async {
+    if (request.surah.number < 1 || request.surah.number > 114) {
+      throw StateError('QURAN_AUDIO_SURAH_IDENTITY_INVALID');
+    }
     final explicitReciter = request.reciter;
+    if (explicitReciter != null && !explicitReciter.hasValidIdentity) {
+      throw StateError('QURAN_AUDIO_RECITER_IDENTITY_INVALID');
+    }
     final ordered = explicitReciter == null
         ? _providers
         : _providers
@@ -181,13 +327,28 @@ class QuranAudioRepository {
       try {
         final remote = await provider.resolve(request);
         if (remote == null) continue;
+        if (!remote.hasValidIdentity ||
+            remote.provider != provider.kind ||
+            remote.reciter.provider != provider.kind) {
+          throw StateError('QURAN_AUDIO_PROVIDER_IDENTITY_MISMATCH');
+        }
+        if (remote.surah.number != request.surah.number ||
+            remote.ayahGlobalNumber != request.ayahGlobalNumber ||
+            remote.ayahInSurah != request.ayahInSurah) {
+          throw StateError('QURAN_AUDIO_TRACK_IDENTITY_MISMATCH');
+        }
         if (explicitReciter != null &&
             !remote.reciter.sameIdentity(explicitReciter)) {
           throw StateError(
             'QURAN_AUDIO_RECITER_MISMATCH:${explicitReciter.identityKey}:${remote.reciter.identityKey}',
           );
         }
-        return await localLookup.localMedia(remote) ?? remote;
+        final local = await localLookup.localMedia(remote);
+        if (local == null) return remote;
+        if (!local.isLocal || !local.sameTrackIdentity(remote)) {
+          throw StateError('QURAN_AUDIO_LOCAL_IDENTITY_MISMATCH');
+        }
+        return local;
       } catch (error) {
         lastError = error;
       }
@@ -240,7 +401,7 @@ class AlQuranCloudAudioProvider implements QuranAudioProvider {
             supportsAyahAudio: row['type'] == 'versebyverse',
           );
         })
-        .where((reciter) => reciter.edition.isNotEmpty)
+        .where((reciter) => reciter.hasValidIdentity)
         .toList(growable: false);
   }
 
@@ -252,7 +413,10 @@ class AlQuranCloudAudioProvider implements QuranAudioProvider {
       (value) => value.edition == 'ar.alafasy',
       orElse: () => throw StateError('ALQURAN_DEFAULT_RECITER_MISSING'),
     );
-    if (!reciter.availableSurahs.contains(request.surah.number)) return null;
+    if (!reciter.hasValidIdentity ||
+        !reciter.availableSurahs.contains(request.surah.number)) {
+      return null;
+    }
     if (request.isAyah && !reciter.supportsAyahAudio) return null;
 
     final bitrate = _supportedBitrates.contains(request.bitrateKbps)
@@ -344,19 +508,18 @@ class Mp3QuranAudioProvider implements QuranAudioProvider {
             surahs.isEmpty) {
           continue;
         }
-        result.add(
-          QuranAudioCatalogReciter(
-            id: 'mp3quran:$reciterId:$moshafId',
-            provider: kind,
-            edition: '$reciterId-$moshafId',
-            nameAr: reciter['name'] as String? ?? '',
-            nameEn: reciter['name'] as String? ?? '',
-            riwayah: moshaf['name'] as String?,
-            serverUrl: server,
-            availableSurahs: surahs,
-            bitrates: const <int>{},
-          ),
+        final value = QuranAudioCatalogReciter(
+          id: 'mp3quran:$reciterId:$moshafId',
+          provider: kind,
+          edition: '$reciterId-$moshafId',
+          nameAr: reciter['name'] as String? ?? '',
+          nameEn: reciter['name'] as String? ?? '',
+          riwayah: moshaf['name'] as String?,
+          serverUrl: server,
+          availableSurahs: surahs,
+          bitrates: const <int>{},
         );
+        if (value.hasValidIdentity) result.add(value);
       }
     }
     return result;
@@ -369,6 +532,7 @@ class Mp3QuranAudioProvider implements QuranAudioProvider {
     if (reciter != null && reciter.provider != kind) return null;
     reciter ??= (await reciters(surahNumber: request.surah.number)).firstOrNull;
     if (reciter == null ||
+        !reciter.hasValidIdentity ||
         !reciter.availableSurahs.contains(request.surah.number)) {
       return null;
     }

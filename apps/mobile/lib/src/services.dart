@@ -8,6 +8,7 @@ import 'playback.dart';
 import 'quran_audio.dart';
 import 'quran_download_service.dart';
 import 'quran_playback_store.dart';
+import 'quran_playlist_store.dart';
 import 'remote_config.dart';
 import 'repository.dart';
 import 'storage.dart';
@@ -32,6 +33,7 @@ class AppServices {
     required this.quranAudio,
     required this.quranDownloads,
     required this.quranPlayback,
+    required this.quranPlaylists,
     required this.remoteConfig,
   });
 
@@ -46,6 +48,7 @@ class AppServices {
   final QuranAudioRepository quranAudio;
   final QuranDownloadService quranDownloads;
   final QuranPlaybackStore quranPlayback;
+  final QuranPlaylistStore quranPlaylists;
   final TarteelRemoteConfig remoteConfig;
 }
 

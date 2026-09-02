@@ -1,4 +1,9 @@
-const QURAN_API = "https://api.alquran.cloud/v1";
+import {
+  CANONICAL_QURAN_V1,
+  canonicalQuranSnapshots,
+  selectCanonicalPassage,
+} from "./quran_integrity_runtime.js";
+
 const MP3QURAN_API = "https://www.mp3quran.net/api/v3";
 
 export type QuranApiResult = {
@@ -63,9 +68,9 @@ function normalizePassage(
 
   const normalized: Json[] = verses.map((value) => {
     const row = asMap(value);
-    // AlQuran Cloud embeds `surah` on juz/page ayahs, but for /surah/{n}
-    // the surah identity lives on the response root. Normalize both shapes
-    // into the same Tarteel contract so verse keys are stable everywhere.
+    // The canonical full-Quran snapshot stores surah identity at the surah
+    // level. `selectCanonicalPassage` embeds it only for juz/page slices so
+    // this normalization remains compatible with the existing public DTO.
     const embeddedSurah = asMap(row.surah);
     const surah = mode === "surah" ? root : embeddedSurah;
     const globalNumber = numberValue(row.number);
@@ -119,6 +124,11 @@ function normalizePassage(
     number,
     source: "ALQURAN_CLOUD",
     source_url: "https://alquran.cloud/api",
+    canonical_dataset: CANONICAL_QURAN_V1.dataset,
+    canonical_version: CANONICAL_QURAN_V1.version,
+    canonical_sha256: CANONICAL_QURAN_V1.datasetSha256,
+    canonical_status: CANONICAL_QURAN_V1.status,
+    integrity_policy: "FAIL_CLOSED_EXACT_SOURCE_REVISION",
     total_pages: 604,
     tajweed_available: tajweedByGlobal.size > 0,
     verses: normalized,
@@ -131,11 +141,9 @@ async function passage(mode: "surah" | "juz" | "page", number: number): Promise<
   if (!Number.isInteger(number) || number < 1 || number > limits[mode]) {
     throw Object.assign(new Error("QURAN_RANGE_INVALID"), { status: 422 });
   }
-  const path = `${mode}/${number}`;
-  const [uthmani, tajweed] = await Promise.all([
-    fetchJson(`${QURAN_API}/${path}/quran-uthmani`),
-    fetchJson(`${QURAN_API}/${path}/quran-tajweed`).catch(() => null),
-  ]);
+  const snapshots = await canonicalQuranSnapshots();
+  const uthmani = selectCanonicalPassage(snapshots.uthmani, mode, number) as Json;
+  const tajweed = selectCanonicalPassage(snapshots.tajweed, mode, number) as Json;
   return {
     data: normalizePassage(mode, number, uthmani, tajweed),
     cacheControl: "public, max-age=300, s-maxage=21600",

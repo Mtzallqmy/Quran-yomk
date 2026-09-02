@@ -1,6 +1,6 @@
 # Tarteel Quran Integrity System
 
-Status: P0 hardening foundation.
+Status: P0 hardening — canonical v1 approved; runtime cutover candidate under validation.
 
 ## Purpose
 
@@ -50,9 +50,23 @@ Capture is deliberately not a recurring job. The initial v1 capture is triggered
 
 Normal CI is check-only and never refreshes Quran text.
 
-## Production cutover rule
+## Runtime cutover
 
-Adding the canonical dataset does **not** by itself authorize a public API cutover. Before replacing live upstream text reads, the cutover PR must prove DTO parity for `/quran/surah`, `/quran/juz`, and `/quran/page`, preserve public contracts, and fail closed if the approved dataset cannot be loaded. External fallback may be used only for non-sensitive metadata; it must not silently replace approved Quran text.
+The public Quran passage route must not trust a mutable provider response on each request. The Phase 4 runtime candidate therefore uses `quran_integrity_runtime.js` as the only text-loading gate for `/quran/surah/*`, `/quran/juz/*`, and `/quran/page/*`.
+
+The runtime behavior is intentionally strict:
+
+1. an Edge isolate requests the exact full Uthmani and Tajweed editions recorded by canonical v1;
+2. redirects, non-HTTPS sources, non-JSON responses, oversized responses, byte-length changes, and SHA-256 changes are rejected;
+3. only a response whose raw bytes match the approved v1 source revision is parsed;
+4. the verified snapshots are cached for the lifetime of the Edge isolate, so passage requests are served from the verified snapshot rather than refetching mutable Quran text per request;
+5. integrity failures are latched for that isolate and **fail closed**; the runtime never substitutes another Quran source or edition;
+6. temporary availability failures may retry on a later request, but they cannot bypass the revision gate;
+7. passage slicing preserves the existing public DTO and adds canonical dataset/version/checksum metadata.
+
+This is a conservative transition path that avoids introducing a second stored Quran-text copy inside the Edge Function package. A future optimization may bundle the already-approved canonical dataset directly with the function, but only after the deployment/bundle path is proven and the same checksum/integrity gates remain in force.
+
+A production cutover is not considered complete merely because this code exists. The PR must pass canonical dataset tests, runtime revision-gate tests, DTO compatibility tests, and a deployed smoke test against a non-production Supabase runtime before being promoted.
 
 ## Rights and provenance
 

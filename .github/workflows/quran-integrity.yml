@@ -3,10 +3,13 @@ name: Quran Canonical Integrity
 on:
   push:
     branches:
+      - main
       - hardening/phase3-quran-integrity
     paths:
       - "scripts/quran-integrity/**"
       - "data/quran/canonical/**"
+      - "supabase/functions/tarteel-api/quran.ts"
+      - "supabase/functions/tarteel-api/quran_integrity_runtime.js"
       - ".github/workflows/quran-integrity.yml"
       - "supabase/seed/03_surahs.sql"
       - "THIRD_PARTY_NOTICES.md"
@@ -14,6 +17,8 @@ on:
     paths:
       - "scripts/quran-integrity/**"
       - "data/quran/canonical/**"
+      - "supabase/functions/tarteel-api/quran.ts"
+      - "supabase/functions/tarteel-api/quran_integrity_runtime.js"
       - ".github/workflows/quran-integrity.yml"
       - "supabase/seed/03_surahs.sql"
       - "THIRD_PARTY_NOTICES.md"
@@ -25,7 +30,7 @@ concurrency:
 
 jobs:
   capture-v1:
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[quran-capture-request-v1]')
+    if: github.ref == 'refs/heads/hardening/phase3-quran-integrity' && github.event_name == 'push' && contains(github.event.head_commit.message, '[quran-capture-request-v1]')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -43,7 +48,7 @@ jobs:
       - name: Validate captured dataset before commit
         run: |
           node scripts/quran-integrity/validate.mjs --version 1
-          node --test scripts/quran-integrity/validate.test.mjs
+          node --test scripts/quran-integrity/*.test.mjs
       - name: Commit immutable capture result to hardening branch
         run: |
           set -euo pipefail
@@ -58,7 +63,7 @@ jobs:
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
   validate:
-    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[quran-capture-request-v1]')) }}
+    if: ${{ !(github.ref == 'refs/heads/hardening/phase3-quran-integrity' && github.event_name == 'push' && contains(github.event.head_commit.message, '[quran-capture-request-v1]')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -71,9 +76,9 @@ jobs:
         run: |
           test -f data/quran/canonical/v1/dataset.json
           test -f data/quran/canonical/v1/manifest.json
-      - name: Validate approved dataset and negative tests
+      - name: Validate approved dataset and runtime fail-closed tests
         env:
           QURAN_INTEGRITY_BASE_REF: origin/${{ github.base_ref || 'main' }}
         run: |
           node scripts/quran-integrity/validate.mjs --version 1 --base-ref "$QURAN_INTEGRITY_BASE_REF"
-          node --test scripts/quran-integrity/validate.test.mjs
+          node --test scripts/quran-integrity/*.test.mjs

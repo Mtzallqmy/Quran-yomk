@@ -1,1 +1,0 @@
-A selected Quran reciter identity may not be silently substituted by another provider, reciter, edition/moshaf or riwayah. Provider failure is surfaced explicitly or handled by a user-visible compatible policy.

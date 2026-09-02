@@ -1,1 +1,0 @@
-The hardening program consolidates and repairs the existing architecture. Flutter, Supabase, Radio Engine, Liquidsoap and Icecast remain in place unless a separately reviewed evidence-based migration is approved.

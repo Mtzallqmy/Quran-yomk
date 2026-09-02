@@ -1,1 +1,0 @@
-External content remains deny-by-default for redistribution/production until provider identity, terms, attribution, commercial status, redistribution policy, verification date and production approval are documented.

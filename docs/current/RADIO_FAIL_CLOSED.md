@@ -1,0 +1,1 @@
+Radio production acceptance is not green until the combined protected coordinator runtime succeeds with real control-plane persistence, real audio runtime and ACK/history/Now Playing evidence. Missing runtime configuration remains a blocker.

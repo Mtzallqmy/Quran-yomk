@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { loadConfig } from './config.js';
 import { DevelopmentLeaseStore, SupabaseLeaseStore } from './database.js';
+import { SupabaseAutomationStore } from './automation-store.js';
+import { RadioCoordinator } from './coordinator.js';
 import { RadioEngine } from './engine.js';
 
 if(process.argv[2]==='check-dependencies'){
@@ -18,7 +20,12 @@ if(process.argv[2]==='check-dependencies'){
   }
   process.exit(0);
 }
-const config=loadConfig();const store=config.databaseMode==='supabase'?new SupabaseLeaseStore(config.supabaseUrl!,config.supabaseSecretKey!):new DevelopmentLeaseStore();
-const engine=new RadioEngine(config,store);for(const signal of ['SIGINT','SIGTERM'] as const)process.on(signal,()=>void engine.stop().finally(()=>process.exit(0)));
+const config=loadConfig();
+const leaseStore=config.databaseMode==='supabase'?new SupabaseLeaseStore(config.supabaseUrl!,config.supabaseSecretKey!):new DevelopmentLeaseStore();
+const engine=new RadioEngine(config,leaseStore);
+const coordinator=config.databaseMode==='supabase'?new RadioCoordinator(config,engine,new SupabaseAutomationStore(config.supabaseUrl!,config.supabaseSecretKey!)):null;
+let stopping=false;
+async function shutdown():Promise<void>{if(stopping)return;stopping=true;await coordinator?.stop().catch(()=>{});await engine.stop().catch(()=>{});process.exit(0);}
+for(const signal of ['SIGINT','SIGTERM'] as const)process.on(signal,()=>void shutdown());
 process.on('SIGUSR2',()=>{try{engine.crashSourceForTest();}catch(error){process.stderr.write(`${JSON.stringify({timestamp:new Date().toISOString(),service:'radio-engine',level:'WARN',event:'FAULT_INJECTION_REJECTED',error:error instanceof Error?error.message:String(error)})}\n`);}});
-engine.start().catch(error=>{process.stderr.write(`${JSON.stringify({timestamp:new Date().toISOString(),service:'radio-engine',level:'ERROR',event:'ENGINE_FATAL',error:error instanceof Error?error.message:String(error)})}\n`);process.exitCode=1;});
+engine.start().then(()=>coordinator?.start()).catch(error=>{process.stderr.write(`${JSON.stringify({timestamp:new Date().toISOString(),service:'radio-engine',level:'ERROR',event:'ENGINE_FATAL',error:error instanceof Error?error.message:String(error)})}\n`);process.exitCode=1;});

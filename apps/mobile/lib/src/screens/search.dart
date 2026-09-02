@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
 import '../models.dart';
+import '../quran_audio.dart';
 import '../services.dart';
 import 'legacy_reciter_detail.dart';
 import 'radio.dart';
@@ -27,6 +28,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     surahs: <Surah>[],
   );
   List<Category> categoryResults = const <Category>[];
+  List<QuranAudioCatalogReciter> audioReciters = const <QuranAudioCatalogReciter>[];
+  List<Surah> localSurahs = const <Surah>[];
   bool loading = false;
   Object? error;
   String? pendingStationId;
@@ -59,6 +62,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           surahs: <Surah>[],
         );
         categoryResults = const <Category>[];
+        audioReciters = const <QuranAudioCatalogReciter>[];
+        localSurahs = const <Surah>[];
         error = null;
         loading = false;
       });
@@ -70,26 +75,44 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       error = null;
     });
     try {
-      final repo = ref.read(servicesProvider).repository;
+      final services = ref.read(servicesProvider);
+      final repo = services.repository;
       final values = await Future.wait<dynamic>([
         repo.search(trimmed),
         repo.categories(),
+        repo.surahs(),
+        services.quranAudio.reciters(),
       ]);
       final next = values[0] as SearchBundle;
       final categories = values[1] as List<Category>;
+      final surahs = values[2] as List<Surah>;
+      final catalog = values[3] as List<QuranAudioCatalogReciter>;
       final normalized = _normalize(trimmed);
-      final matchedCategories = categories
-          .where((category) {
-            final haystack = _normalize(
-              '${category.nameAr} ${category.nameEn ?? ''} ${category.slug}',
-            );
-            return haystack.contains(normalized);
-          })
-          .toList(growable: false);
+      final matchedCategories = categories.where((category) {
+        final haystack = _normalize(
+          '${category.nameAr} ${category.nameEn ?? ''} ${category.slug}',
+        );
+        return haystack.contains(normalized);
+      }).toList(growable: false);
+      final matchedSurahs = surahs.where((surah) {
+        return _normalize('${surah.nameAr} ${surah.nameEn} ${surah.number}')
+            .contains(normalized);
+      }).toList(growable: false);
+      final byIdentity = <String, QuranAudioCatalogReciter>{};
+      for (final reciter in catalog) {
+        final haystack = _normalize(
+          '${reciter.nameAr} ${reciter.nameEn} ${reciter.riwayah ?? ''}',
+        );
+        if (haystack.contains(normalized)) {
+          byIdentity.putIfAbsent(reciter.identityKey, () => reciter);
+        }
+      }
       if (mounted) {
         setState(() {
           result = next;
           categoryResults = matchedCategories;
+          audioReciters = byIdentity.values.take(30).toList(growable: false);
+          localSurahs = matchedSurahs;
         });
       }
     } catch (e) {
@@ -133,11 +156,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   Widget build(BuildContext context) {
     final services = ref.watch(servicesProvider);
-    final total =
-        result.stations.length +
+    final total = result.stations.length +
         result.reciters.length +
         result.surahs.length +
-        categoryResults.length;
+        categoryResults.length +
+        audioReciters.length +
+        localSurahs.length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('البحث في ترتيل')),
@@ -161,16 +185,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       )
                     : controller.text.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'مسح',
-                        onPressed: () {
-                          controller.clear();
-                          runSearch('');
-                          setState(() {});
-                        },
-                        icon: const Icon(Icons.close),
-                      ),
+                        ? null
+                        : IconButton(
+                            tooltip: 'مسح',
+                            onPressed: () {
+                              controller.clear();
+                              runSearch('');
+                              setState(() {});
+                            },
+                            icon: const Icon(Icons.close),
+                          ),
                 hintText: 'محطة، قارئ، سورة، تفسير، أذكار…',
               ),
               onChanged: (value) {
@@ -200,8 +224,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           else
             Expanded(
               child: ListView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 children: <Widget>[
                   if (categoryResults.isNotEmpty) ...<Widget>[
                     const SectionHeader('الأقسام'),
@@ -213,16 +236,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         children: categoryResults
                             .map(
                               (category) => ActionChip(
-                                avatar: const Icon(
-                                  Icons.grid_view_outlined,
-                                  size: 18,
-                                ),
+                                avatar: const Icon(Icons.grid_view_outlined, size: 18),
                                 label: Text(category.nameAr),
                                 onPressed: () => Navigator.of(context).push(
                                   MaterialPageRoute<void>(
-                                    builder: (_) => RadioPage(
-                                      initialCategory: category.slug,
-                                    ),
+                                    builder: (_) => RadioPage(initialCategory: category.slug),
                                   ),
                                 ),
                               ),
@@ -243,16 +261,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          onTap: _canPlay(station)
-                              ? () => _playStation(station)
-                              : null,
+                          onTap: _canPlay(station) ? () => _playStation(station) : null,
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
                               IconButton(
                                 tooltip: 'المفضلة',
-                                onPressed: () => services.favorites
-                                    .toggleStation(station.id),
+                                onPressed: () => services.favorites.toggleStation(station.id),
                                 icon: Icon(
                                   services.favorites.isStation(station.id)
                                       ? Icons.favorite
@@ -265,17 +280,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                                   child: SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
+                                    child: CircularProgressIndicator(strokeWidth: 2),
                                   ),
                                 )
                               else
                                 IconButton.filledTonal(
                                   tooltip: 'تشغيل',
-                                  onPressed: _canPlay(station)
-                                      ? () => _playStation(station)
-                                      : null,
+                                  onPressed: _canPlay(station) ? () => _playStation(station) : null,
                                   icon: const Icon(Icons.play_arrow),
                                 ),
                             ],
@@ -283,8 +294,25 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       ),
                   ],
+                  if (audioReciters.isNotEmpty) ...<Widget>[
+                    const SectionHeader('قراء التلاوات'),
+                    for (final reciter in audioReciters)
+                      ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.record_voice_over_outlined),
+                        ),
+                        title: Text(reciter.nameAr),
+                        subtitle: Text(
+                          <String>[
+                            if (reciter.nameEn.isNotEmpty) reciter.nameEn,
+                            if (reciter.riwayah?.isNotEmpty == true) reciter.riwayah!,
+                          ].join(' • '),
+                        ),
+                        trailing: Text('${reciter.availableSurahs.length} سورة'),
+                      ),
+                  ],
                   if (result.reciters.isNotEmpty) ...<Widget>[
-                    const SectionHeader('القراء'),
+                    const SectionHeader('القراء المفهرسون'),
                     for (final reciter in result.reciters)
                       ListTile(
                         leading: Artwork(
@@ -292,9 +320,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           icon: Icons.person_outline,
                         ),
                         title: Text(reciter.nameAr),
-                        subtitle: reciter.rewaya == null
-                            ? null
-                            : Text(reciter.rewaya!),
+                        subtitle: reciter.rewaya == null ? null : Text(reciter.rewaya!),
                         trailing: const Icon(Icons.chevron_left),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -303,23 +329,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       ),
                   ],
-                  if (result.surahs.isNotEmpty) ...<Widget>[
+                  if ({...result.surahs, ...localSurahs}.isNotEmpty) ...<Widget>[
                     const SectionHeader('السور'),
-                    for (final surah in result.surahs)
+                    for (final surah in <int, Surah>{
+                      for (final value in [...result.surahs, ...localSurahs])
+                        value.number: value,
+                    }.values)
                       ListTile(
                         leading: CircleAvatar(child: Text('${surah.number}')),
                         title: Text(surah.nameAr),
-                        subtitle: Text(
-                          '${surah.nameEn} • ${surah.ayahCount} آية',
-                        ),
-                        trailing: const Icon(Icons.search),
-                        onTap: () {
-                          controller.text = surah.nameAr;
-                          controller.selection = TextSelection.collapsed(
-                            offset: controller.text.length,
-                          );
-                          runSearch(surah.nameAr);
-                        },
+                        subtitle: Text('${surah.nameEn} • ${surah.ayahCount} آية'),
+                        trailing: const Icon(Icons.menu_book_outlined),
                       ),
                   ],
                   const SizedBox(height: 24),
@@ -347,5 +367,6 @@ String _normalize(String value) => value
     .replaceAll('ى', 'ي')
     .replaceAll('ؤ', 'و')
     .replaceAll('ئ', 'ي')
+    .replaceAll('ة', 'ه')
     .replaceAll(RegExp(r'\s+'), ' ')
     .trim();

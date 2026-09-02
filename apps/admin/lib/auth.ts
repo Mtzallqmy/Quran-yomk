@@ -1,4 +1,5 @@
 import { ApiError, assertString, type RoleCode } from './contracts';
+import { clientIp, distributedRateLimit } from './distributed-rate-limit';
 import { authPassword, authSignOut, authUser, db, env, refreshSession } from './supabase';
 
 const ACCESS='tarteel_admin_access'; const REFRESH='tarteel_admin_refresh';
@@ -12,6 +13,20 @@ function validatedClaims(token:string):{aal:'aal1'|'aal2'|null;sessionId:string|
     const sessionId=typeof payload.session_id==='string'?payload.session_id:null;
     return{aal,sessionId};
   }catch{return{aal:null,sessionId:null};}
+}
+function mutationPolicy(request:Request):{action:string;limit:number;sensitive:boolean}|null{
+  if(['GET','HEAD','OPTIONS'].includes(request.method))return null;
+  const pathname=new URL(request.url).pathname;
+  if(!pathname.includes('/api/v1/admin/'))return null;
+  if(pathname.includes('/auth/login')||pathname.includes('/auth/logout'))return null;
+  if(pathname.includes('/commands'))return{action:'radio-command',limit:30,sensitive:true};
+  if(pathname.includes('/managed-radio'))return{action:'managed-radio',limit:8,sensitive:true};
+  if(pathname.includes('/runtime-config'))return{action:'runtime-config',limit:20,sensitive:true};
+  if(pathname.includes('/external-stations'))return{action:'external-station',limit:40,sensitive:true};
+  if(pathname.includes('/settings'))return{action:'settings',limit:30,sensitive:true};
+  if(pathname.includes('/roles')||pathname.includes('/permissions'))return{action:'rbac',limit:20,sensitive:true};
+  if(pathname.includes('/upload-intents'))return{action:'upload-intent',limit:30,sensitive:false};
+  return{action:'admin-mutation',limit:120,sensitive:false};
 }
 export function clearCookies(){return[cookie(ACCESS,'',0),cookie(REFRESH,'',0)];}
 export function sessionCookies(session:any){return[cookie(ACCESS,String(session.access_token),Math.max(60,Number(session.expires_in??3600))),cookie(REFRESH,String(session.refresh_token),60*60*24*30)];}
@@ -30,7 +45,16 @@ export async function adminContext(request:Request):Promise<AdminContext>{
   if(!token){const rt=c.get(REFRESH);if(!rt)throw new ApiError(401,'AUTH_REQUIRED','Authentication required');const s=await refreshSession(rt);token=s.access_token;refreshed={access:s.access_token,refresh:s.refresh_token,expires:s.expires_in??3600};}
   if(!token)throw new ApiError(401,'AUTH_REQUIRED','Authentication required');
   let user;try{user=await authUser(token);}catch(error){const rt=c.get(REFRESH);if(!rt)throw error;const s=await refreshSession(rt);const refreshedAccess=String(s.access_token);token=refreshedAccess;refreshed={access:refreshedAccess,refresh:String(s.refresh_token),expires:s.expires_in??3600};user=await authUser(refreshedAccess);}
-  return{...(await loadAuthorization(user,validatedClaims(token))),refreshed};
+  const ctx={...(await loadAuthorization(user,validatedClaims(token))),refreshed};
+  const policy=mutationPolicy(request);
+  if(policy){
+    await Promise.all([
+      distributedRateLimit(`admin:${policy.action}:user`,ctx.userId,policy.limit,60_000),
+      distributedRateLimit(`admin:${policy.action}:ip`,clientIp(request),policy.limit*2,60_000),
+    ]);
+    if(policy.sensitive)requireSensitiveAdmin(ctx);
+  }
+  return ctx;
 }
 export function requirePermission(ctx:AdminContext,permission:string){if(!ctx.permissions.has(permission))throw new ApiError(403,'FORBIDDEN','You do not have permission for this action');}
 export function mfaMode():'off'|'ready'|'required'{const raw=(process.env.TARTEEL_ADMIN_MFA_MODE??'ready').toLowerCase();return raw==='required'?'required':raw==='off'?'off':'ready';}

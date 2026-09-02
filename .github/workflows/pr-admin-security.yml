@@ -32,11 +32,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: apps/admin/package-lock.json
       - name: Install dependencies
         working-directory: apps/admin
-        run: npm ci --ignore-scripts
+        run: npm install --ignore-scripts
       - name: Unit and contract tests
         working-directory: apps/admin
         run: npm test
@@ -71,3 +69,11 @@ jobs:
           set -euo pipefail
           ! grep -RIE --exclude='*.example' --exclude='*.md' --exclude-dir=node_modules --exclude-dir=.next 'sb_secret_[A-Za-z0-9_-]{20,}|service_role[^[:space:]]{20,}|ICECAST_(SOURCE|ADMIN)_PASSWORD=.+' apps/admin
           ! grep -RIE --exclude='*.md' --exclude-dir=node_modules --exclude-dir=.next 'SUPABASE_SECRET_KEY|ICECAST_SOURCE_PASSWORD|ICECAST_ADMIN_PASSWORD' apps/admin/app
+      - name: Preserve generated lockfile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-package-lock
+          path: apps/admin/package-lock.json
+          if-no-files-found: warn
+          retention-days: 7

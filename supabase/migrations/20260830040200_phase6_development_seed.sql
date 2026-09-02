@@ -11,8 +11,21 @@ select '00000000-0000-4000-8000-000000000006',p.id,c.id,
  'APPROVED','ALLOWED','{"environment":"development","stream_mount":"/tarteel.mp3","seed":"phase6"}'
 from app.content_providers p join app.categories c on c.slug='QURAN_GENERAL'
 where p.slug='internal'
-on conflict(slug) do update set stream_url=excluded.stream_url,timezone=excluded.timezone,
- production_enabled=false,is_active=true,metadata=app.stations.metadata||excluded.metadata,updated_at=now();
+on conflict(slug) do update set
+ provider_id=excluded.provider_id,
+ category_id=excluded.category_id,
+ station_source=excluded.station_source,
+ stream_type=excluded.stream_type,
+ stream_url=excluded.stream_url,
+ timezone=excluded.timezone,
+ status=excluded.status,
+ health_status=excluded.health_status,
+ rights_status=excluded.rights_status,
+ commercial_use_status=excluded.commercial_use_status,
+ production_enabled=false,
+ is_active=true,
+ metadata=app.stations.metadata||excluded.metadata,
+ updated_at=now();
 
 insert into app.media(id,station_id,title,description,original_path,processed_path,duration_ms,
  format,bitrate_kbps,sample_rate_hz,channels,file_size_bytes,sha256,status,

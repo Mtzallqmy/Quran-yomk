@@ -31,7 +31,12 @@ class FakeStore implements AutomationStore{
   async recordPlayoutStart(_lease:Lease,queueId:string):Promise<number>{this.starts.push(queueId);return this.starts.length;}
   async recordPlayoutEnd(_lease:Lease,playoutId:string):Promise<boolean>{this.ends.push(playoutId);return true;}
 }
-async function privateTick(coordinator:RadioCoordinator,name:'tickSchedule'|'tickCommand'|'tickAck',arg?:Date):Promise<void>{await (coordinator as unknown as Record<string,(arg?:Date)=>Promise<void>>)[name](arg);}
+async function privateTick(coordinator:RadioCoordinator,name:'tickSchedule'|'tickCommand'|'tickAck',arg?:Date):Promise<void>{
+  const target=coordinator as unknown as Record<string,((arg?:Date)=>Promise<void>)|undefined>;
+  const tick=target[name];
+  assert.ok(tick,`missing coordinator tick: ${name}`);
+  await tick.call(coordinator,arg);
+}
 
 test('schedule claim materializes queue and ACK closes history and occurrence',async()=>{
   const engine=new FakeEngine(),store=new FakeStore();store.occurrence={id:'occ-1',schedule_id:'schedule-1',station_id:lease.stationId,content_type:'MEDIA',media_id:'m1',playlist_id:null,priority:'NORMAL',interrupt_policy:'FINISH_CURRENT',scheduled_for:'2026-09-02T10:00:00Z'};

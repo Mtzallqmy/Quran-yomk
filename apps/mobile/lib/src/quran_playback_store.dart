@@ -36,17 +36,17 @@ class QuranPlaybackSnapshot {
       '$provider|$reciterId|$edition|$surahNumber|${ayahNumber ?? 0}';
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-    'provider': provider,
-    'reciter_id': reciterId,
-    'edition': edition,
-    'reciter_name': reciterName,
-    'riwayah': riwayah,
-    'bitrate_kbps': bitrateKbps,
-    'surah_number': surahNumber,
-    'ayah_number': ayahNumber,
-    'position_ms': position.inMilliseconds,
-    'played_at': playedAt.toIso8601String(),
-  };
+        'provider': provider,
+        'reciter_id': reciterId,
+        'edition': edition,
+        'reciter_name': reciterName,
+        'riwayah': riwayah,
+        'bitrate_kbps': bitrateKbps,
+        'surah_number': surahNumber,
+        'ayah_number': ayahNumber,
+        'position_ms': position.inMilliseconds,
+        'played_at': playedAt.toIso8601String(),
+      };
 
   factory QuranPlaybackSnapshot.fromJson(Map<String, dynamic> json) =>
       QuranPlaybackSnapshot(
@@ -63,7 +63,7 @@ class QuranPlaybackSnapshot {
         ),
         playedAt:
             DateTime.tryParse(json['played_at'] as String? ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0),
+                DateTime.fromMillisecondsSinceEpoch(0),
       );
 }
 
@@ -90,10 +90,8 @@ class QuranPlaybackStore extends ChangeNotifier {
     if (raw != null && raw.isNotEmpty) {
       try {
         final value = jsonDecode(raw);
-        if (value is Map) {
-          last = QuranPlaybackSnapshot.fromJson(
-            Map<String, dynamic>.from(value),
-          );
+        if (value is Map<String, dynamic>) {
+          last = QuranPlaybackSnapshot.fromJson(value);
         }
       } catch (_) {}
     }
@@ -101,14 +99,10 @@ class QuranPlaybackStore extends ChangeNotifier {
     if (historyRaw != null && historyRaw.isNotEmpty) {
       try {
         final decoded = jsonDecode(historyRaw);
-        if (decoded is List) {
+        if (decoded is List<dynamic>) {
           _history = decoded
-              .whereType<Map>()
-              .map(
-                (value) => QuranPlaybackSnapshot.fromJson(
-                  Map<String, dynamic>.from(value),
-                ),
-              )
+              .whereType<Map<String, dynamic>>()
+              .map(QuranPlaybackSnapshot.fromJson)
               .take(_historyLimit)
               .toList(growable: false);
         }

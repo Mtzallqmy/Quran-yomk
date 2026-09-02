@@ -1,1 +1,0 @@
-Security gate pointer finalized.

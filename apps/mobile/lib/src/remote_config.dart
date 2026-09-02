@@ -21,6 +21,14 @@ class TarteelRemoteConfig extends ChangeNotifier {
   Map<String, dynamic> get values => Map<String, dynamic>.unmodifiable(_values);
 
   bool get radioEnabled => boolValue('radio_enabled', fallback: true);
+  bool get virtualRadioEnabled =>
+      boolValue('virtual_radio_enabled', fallback: true);
+  bool get virtualRadioShowNextProgram =>
+      boolValue('virtual_radio_show_next_program', fallback: true);
+  bool get virtualRadioAllowDegradedFallback =>
+      boolValue('virtual_radio_allow_degraded_fallback', fallback: true);
+  int get virtualRadioMaxFailedSources =>
+      intValue('virtual_radio_max_failed_sources', fallback: 8).clamp(1, 12);
   bool get offlineDownloadsEnabled =>
       boolValue('offline_downloads_enabled', fallback: true);
   bool get mushafTajweedEnabled =>
@@ -35,6 +43,30 @@ class TarteelRemoteConfig extends ChangeNotifier {
       stringValue('minimum_android_version', fallback: '0.0.0');
   String get latestAndroidVersion =>
       stringValue('latest_android_version', fallback: '0.0.0');
+
+  Map<String, dynamic> get contentManifest {
+    final raw = jsonValue('content_manifest');
+    if (raw is! Map) return const <String, dynamic>{};
+    final value = Map<String, dynamic>.from(raw);
+    if (value['schema_version'] != 1) return const <String, dynamic>{};
+    // Runtime manifests are data only. Explicitly reject executable-looking
+    // fields even if an administrator accidentally adds them.
+    const forbidden = <String>{'script', 'javascript', 'dart', 'code', 'eval'};
+    if (value.keys.any((key) => forbidden.contains(key.toLowerCase()))) {
+      return const <String, dynamic>{};
+    }
+    return Map<String, dynamic>.unmodifiable(value);
+  }
+
+  List<String> get manifestHomeSections {
+    final raw = contentManifest['home_sections'];
+    if (raw is! List) return const <String>[];
+    return raw
+        .whereType<String>()
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+  }
 
   void load() {
     final raw = _preferences.getString(_cacheKey);
@@ -89,6 +121,23 @@ class TarteelRemoteConfig extends ChangeNotifier {
     return value == null ? fallback : '$value';
   }
 
+  List<String> stringListValue(
+    String key, {
+    List<String> fallback = const <String>[],
+  }) {
+    final value = _unwrap(_values[key]);
+    if (value is List) {
+      return value
+          .whereType<String>()
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false);
+    }
+    return fallback;
+  }
+
+  dynamic jsonValue(String key) => _unwrap(_values[key]);
+
   dynamic _unwrap(dynamic value) {
     if (value is Map) {
       if (value.containsKey('value')) return _unwrap(value['value']);
@@ -97,6 +146,8 @@ class TarteelRemoteConfig extends ChangeNotifier {
     if (value is String) {
       final trimmed = value.trim();
       if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+          trimmed.startsWith('[') ||
+          trimmed.startsWith('{') ||
           trimmed == 'true' ||
           trimmed == 'false' ||
           trimmed == 'null' ||

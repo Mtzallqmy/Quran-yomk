@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "dataset": "tarteel-quran-canonical",
+  "version": "1",
+  "status": "APPROVED",
+  "approval_policy": "VERBATIM_SNAPSHOT_NO_TEXT_MUTATION",
+  "approval_basis": "Exact snapshot of the Quran editions already used by the production API, accepted only after deterministic identity/order/page/juz/checksum validation. This does not claim independent scholarly certification.",
+  "source": {
+    "provider": "ALQURAN_CLOUD",
+    "api": "https://api.alquran.cloud/v1",
+    "uthmani_edition": "quran-uthmani",
+    "tajweed_edition": "quran-tajweed",
+    "terms": "https://alquran.cloud/terms-and-conditions",
+    "upstream_attribution": [
+      "AlQuran Cloud / Islamic Network",
+      "Tanzil Project and other edition curators as identified by AlQuran Cloud"
+    ]
+  },
+  "source_revision": {
+    "strategy": "RAW_API_RESPONSE_SHA256",
+    "uthmani_response_sha256": "0df03e1d6da4fc8138208fec1688f2b416f0dd4ebbd514179f3e5e0fbaf4195f",
+    "tajweed_response_sha256": "a80dca6b11351b1d79bea1523c3ff8af3289c6df5e3e48a2e1e11074c80ccb31",
+    "uthmani_response_bytes": 2109200,
+    "tajweed_response_bytes": 2488551
+  },
+  "generated_at": "2026-09-02T03:43:29.876Z",
+  "verified_at": "2026-09-02T03:43:29.876Z",
+  "sha256": "cc9db6390358e1a98091f868b0e09c9b8ede3bee559e38fd67c4a839646f2946",
+  "surahs": 114,
+  "verses": 6236,
+  "pages": 604,
+  "rights": {
+    "storage_policy": "VERBATIM_ONLY_WITH_ATTRIBUTION",
+    "no_text_mutation": true,
+    "no_ai_correction": true
+  }
+}

@@ -126,7 +126,11 @@ class IslamicContentRepository extends ChangeNotifier {
 
   Iterable<IslamicContentAsset> get manifestAssets => _manifest.values;
 
-  Future<void> initialize() async {
+  Future<void> initialize() => _initialization ??= _initialize();
+
+  Future<void>? _initialization;
+
+  Future<void> _initialize() async {
     if (_database != null) return;
     final manifestText = await rootBundle.loadString(
       'assets/islamic_content_manifest.json',
@@ -313,7 +317,7 @@ class IslamicContentRepository extends ChangeNotifier {
         readJson('data/catalog.json'),
       ]);
     } catch (error) {
-      debugPrint('Islamic content background sync deferred: $error');
+      debugPrint('ISLAMIC_CONTENT_SYNC_DEFERRED');
     }
   }
 
@@ -363,6 +367,7 @@ class IslamicContentRepository extends ChangeNotifier {
   }
 
   Future<void> deleteOfflineGroup(String group) async {
+    await initialize();
     for (final path in await _pathsForGroup(group)) {
       final file = _file(path);
       if (await file.exists()) await file.delete();

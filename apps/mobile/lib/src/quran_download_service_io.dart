@@ -38,7 +38,11 @@ class _IoQuranDownloadService extends QuranDownloadService {
   );
 
   @override
-  Future<void> initialize() async {
+  Future<void> initialize() => _initialization ??= _initialize();
+
+  Future<void>? _initialization;
+
+  Future<void> _initialize() async {
     final raw = _preferences.getString(_metadataKey);
     if (raw != null && raw.isNotEmpty) {
       try {
@@ -75,6 +79,7 @@ class _IoQuranDownloadService extends QuranDownloadService {
 
   @override
   Future<QuranDownloadTask> download(QuranAudioMedia media) async {
+    await initialize();
     if (!media.hasValidIdentity ||
         media.downloadUri.scheme != 'https' ||
         media.provider != media.reciter.provider) {
@@ -281,6 +286,7 @@ class _IoQuranDownloadService extends QuranDownloadService {
 
   @override
   Future<void> pause(String taskId) async {
+    await initialize();
     final record = _find(taskId);
     if (record == null) return;
     if (record.state == QuranDownloadState.queued) {
@@ -297,6 +303,7 @@ class _IoQuranDownloadService extends QuranDownloadService {
 
   @override
   Future<void> resume(String taskId) async {
+    await initialize();
     final record = _find(taskId);
     if (record == null || record.state == QuranDownloadState.completed) return;
     if (!record.media.hasValidIdentity) {
@@ -316,6 +323,7 @@ class _IoQuranDownloadService extends QuranDownloadService {
 
   @override
   Future<void> cancel(String taskId) async {
+    await initialize();
     final record = _find(taskId);
     if (record == null) return;
     record.state = QuranDownloadState.cancelled;
@@ -331,6 +339,7 @@ class _IoQuranDownloadService extends QuranDownloadService {
 
   @override
   Future<void> delete(String taskId) async {
+    await initialize();
     final record = _find(taskId);
     if (record == null) return;
     if (_activeId == taskId) await cancel(taskId);
@@ -344,6 +353,7 @@ class _IoQuranDownloadService extends QuranDownloadService {
 
   @override
   Future<QuranAudioMedia?> localMedia(QuranAudioMedia remote) async {
+    await initialize();
     if (!remote.hasValidIdentity) return null;
     final record = _records
         .where(

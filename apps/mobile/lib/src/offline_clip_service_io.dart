@@ -55,7 +55,11 @@ class _IoOfflineClipService extends OfflineClipService {
   String? get lastError => _lastError;
 
   @override
-  Future<void> initialize() async {
+  Future<void> initialize() => _initialization ??= _initialize();
+
+  Future<void>? _initialization;
+
+  Future<void> _initialize() async {
     final raw = _preferences.getString(_metadataKey);
     if (raw == null || raw.isEmpty) return;
     try {
@@ -80,6 +84,7 @@ class _IoOfflineClipService extends OfflineClipService {
     required OfflineClipPolicy policy,
     Duration? maxDuration,
   }) async {
+    await initialize();
     if (_station != null) throw StateError('OFFLINE_CLIP_ALREADY_RECORDING');
     if (!policy.allowed || !policy.supportedStream) {
       throw StateError('OFFLINE_CLIP_NOT_ALLOWED');
@@ -271,6 +276,7 @@ class _IoOfflineClipService extends OfflineClipService {
 
   @override
   Future<void> delete(String clipId) async {
+    await initialize();
     final index = _clips.indexWhere((clip) => clip.id == clipId);
     if (index < 0) return;
     final clip = _clips.removeAt(index);

@@ -1,3 +1,4 @@
+import { fetchBoundedResponse } from './http.js';
 import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
@@ -80,14 +81,14 @@ export class RadioEngine {
   }
   private async refreshDistributionHealth():Promise<void>{
     try{
-      const response=await fetch(`http://${this.config.icecastHost}:${this.config.icecastPort}/status-json.xsl`,{signal:AbortSignal.timeout(2000)});
+      const response=await fetchBoundedResponse(`http://${this.config.icecastHost}:${this.config.icecastPort}/status-json.xsl`,{}, {timeoutMs:2000,maxBytes:256*1024});
       this.snapshot.icecastReachable=response.ok;if(!response.ok)throw new Error(`icecast HTTP ${response.status}`);
       const body=await response.json() as {icestats?:{source?:unknown}};const sources=Array.isArray(body.icestats?.source)?body.icestats?.source:[body.icestats?.source];
       this.snapshot.mountAvailable=sources.some(value=>typeof value==='object'&&value!==null&&String((value as Record<string,unknown>).listenurl??'').endsWith(this.config.mount));
     }catch{this.snapshot.icecastReachable=false;this.snapshot.mountAvailable=false;}
     this.snapshot.broadcasting=this.snapshot.sourceConnected&&this.snapshot.mountAvailable;
   }
-  private async updateIcecastMetadata(track:Track):Promise<void>{if(!this.config.adminUser||!this.config.adminPassword)return;try{const url=new URL(`http://${this.config.icecastHost}:${this.config.icecastPort}/admin/metadata`);url.searchParams.set('mount',this.config.mount);url.searchParams.set('mode','updinfo');url.searchParams.set('song',track.title);const response=await fetch(url,{headers:{authorization:`Basic ${Buffer.from(`${this.config.adminUser}:${this.config.adminPassword}`).toString('base64')}`},signal:AbortSignal.timeout(3000)});if(!response.ok)throw new Error(`metadata HTTP ${response.status}`);this.logger.info('METADATA_UPDATED',{title:track.title});}catch(error){this.logger.error('METADATA_UPDATE_FAILED',error);}}
+  private async updateIcecastMetadata(track:Track):Promise<void>{if(!this.config.adminUser||!this.config.adminPassword)return;try{const url=new URL(`http://${this.config.icecastHost}:${this.config.icecastPort}/admin/metadata`);url.searchParams.set('mount',this.config.mount);url.searchParams.set('mode','updinfo');url.searchParams.set('song',track.title);const response=await fetchBoundedResponse(url,{headers:{authorization:`Basic ${Buffer.from(`${this.config.adminUser}:${this.config.adminPassword}`).toString('base64')}`},signal:AbortSignal.timeout(3000)},{format:'xml',maxBytes:16*1024,timeoutMs:3000});if(!response.ok)throw new Error(`metadata HTTP ${response.status}`);this.logger.info('METADATA_UPDATED',{title:track.title});}catch(error){this.logger.error('METADATA_UPDATE_FAILED',error);}}
   private async onSourceExit(code:number|null,signal:NodeJS.Signals|null):Promise<void>{if(this.stopping)return;if(this.intentionalSourceStop){this.intentionalSourceStop=false;this.snapshot.sourceConnected=false;this.snapshot.liquidsoapAlive=false;this.snapshot.mountAvailable=false;this.snapshot.broadcasting=false;await this.checkpoint().catch(()=>{});return;}this.snapshot.sourceConnected=false;this.snapshot.liquidsoapAlive=false;this.snapshot.mountAvailable=false;this.snapshot.broadcasting=false;this.snapshot.lastError=`source exited code=${code} signal=${signal}`;this.logger.warn('SOURCE_DISCONNECTED',{code,signal});
     if(this.snapshot.mode!=='RECOVERING')this.transition('RECOVERING');this.snapshot.lastRecoveryAt=new Date().toISOString();this.logger.warn('RECOVERY_START',{attempt:this.restartCount+1});await this.checkpoint().catch(()=>{});
     if(++this.restartCount>this.config.restartMax){this.transition('ERROR');this.logger.error('RECOVERY_FAILED',new Error('restart budget exhausted'));await this.checkpoint().catch(()=>{});return;}

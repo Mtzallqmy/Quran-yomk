@@ -1,9 +1,10 @@
+import { fetchBackend } from './http.js';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { EngineSnapshot, Lease, LeaseStore } from './types.js';
 
 export class SupabaseLeaseStore implements LeaseStore {
   private readonly client:SupabaseClient;
-  constructor(url:string,key:string) { this.client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}}); }
+  constructor(url:string,key:string) { this.client=createClient(url,key,{global:{fetch:fetchBackend},auth:{persistSession:false,autoRefreshToken:false}}); }
   async acquire(stationId:string,ownerId:string,ttlSeconds:number):Promise<Lease|null> {
     const {data,error}=await this.client.schema('radio').rpc('acquire_station_lease',{p_station_id:stationId,p_owner_id:ownerId,p_ttl_seconds:ttlSeconds});
     if(error) throw error; const row=(data as Record<string,unknown>[]|null)?.[0]; if(!row)return null;

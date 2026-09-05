@@ -1,6 +1,6 @@
 begin;
 
-select plan(29);
+select plan(32);
 
 select ok(to_regnamespace('app') is not null, 'app schema exists');
 select ok(to_regnamespace('radio') is not null, 'radio schema exists');
@@ -43,5 +43,8 @@ select throws_ok($q$select app.sync_islamic_app_radio_stations_payload('{"data":
 select throws_ok($q$select app.sync_islamic_radio_api_stations()$q$, '55000', 'Provider sync requires protected server ingestion', 'legacy network path fails closed');
 select is(app.authorize_provider_sync(repeat('0',64)), false, 'invalid dispatch token is rejected');
 select ok(not has_function_privilege('anon','app.authorize_provider_sync(text)','EXECUTE') and not has_function_privilege('authenticated','app.authorize_provider_sync(text)','EXECUTE'), 'dispatch authorization cannot be called by clients');
+select lives_ok($q$select app.sync_mp3quran_radios_payload('{"radios":[{"id":"ci-mp3","name":"CI station","url":"https://qurango.net/radio/ci-mp3"}]}'::jsonb)$q$, 'valid MP3Quran fixture is ingested');
+select lives_ok($q$select app.sync_islamic_radio_api_stations_payload('{"stations":[{"id":"ci-radio","name":"CI radio","streamUrl":"https://qurango.net/radio/ci-radio","streamFormat":"mp3","status":"active"}]}'::jsonb)$q$, 'valid Islamic Radio fixture is ingested');
+select lives_ok($q$select app.sync_islamic_app_radio_stations_payload('{"data":{"stations":[{"slug":"ci-app","name":"CI app","streamUrl":"https://qurango.net/radio/ci-app","online":true}]}}'::jsonb)$q$, 'valid Islamic app fixture is ingested');
 select * from finish();
 rollback;

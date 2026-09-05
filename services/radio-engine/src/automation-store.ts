@@ -1,3 +1,4 @@
+import { fetchBackend } from './http.js';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
@@ -15,7 +16,7 @@ export interface ResolvedTrack extends Track {playlistId?:string;playlistItemId?
 export class SupabaseAutomationStore {
   private client:SupabaseClient;
   constructor(url:string,key:string,private readonly mediaCacheRoot='/tmp/tarteel/radio-media'){
-    this.client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+    this.client=createClient(url,key,{global:{fetch:fetchBackend},auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
   }
   async materialize(stationId:string,windowStart:Date,windowEnd:Date):Promise<number>{
     const query=this.client.schema('app').from('schedules')

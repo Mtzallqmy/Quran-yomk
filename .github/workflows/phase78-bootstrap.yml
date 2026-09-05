@@ -11,6 +11,7 @@ on:
     paths:
       - 'apps/admin/**'
       - 'services/audio-worker/**'
+      - 'services/radio-engine/**'
       - 'supabase/functions/_shared/http.ts'
       - '.github/workflows/phase78-bootstrap.yml'
   workflow_dispatch:

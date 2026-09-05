@@ -1,61 +1,54 @@
-# Tarteel — Architecture Gap Analysis
+# Tarteel — Architecture Gaps
 
-Source of truth: repository audit at `ea2be74220b59900104d92a3199eed9deb1570c2`, Phase 1 current-architecture documentation, existing runtime evidence, and the connected DEVELOPMENT Supabase state inspected on 2026-09-02.
+Updated 2026-09-05 after PRs #29–#42. This is the current repository status;
+merged code is not proof that a running environment has been upgraded.
+Historical phase reports retain their original scope and evidence.
 
-This document records gaps and migration strategy. It does not itself switch an API, rewrite a domain, or alter production data.
+## Closed implementation gaps
 
-| ID | Severity | Current behavior | Risk | Recommended target | Migration strategy | Compatibility impact | Required tests |
-|---|---|---|---|---|---|---|---|
-| GAP-QURAN-001 | P0 Critical | Quran Uthmani/Tajweed text is fetched live from AlQuran Cloud per passage request and normalized directly. | Silent upstream text change can become user-visible without Tarteel approval/version bump. | Pinned, versioned canonical Quran dataset with SHA-256, source revision, schema version, approval status and deterministic verse/page mapping checks. | Add canonical dataset and validator alongside current API; switch reads only after parity approval. External text becomes explicit upgrade/fallback for non-sensitive metadata only. | API DTO can remain compatible while text source changes behind it. | 114 surahs; verse key uniqueness/order; source/checksum/version invariant; page mapping; approved checksum; mismatch fail-closed. |
-| GAP-RECITER-001 | P0 High | Flutter has strict explicit-reciter resolution, but Flutter, Edge and Elysia use overlapping/different identifier formats and normalization logic. | Cache/restore/API migration may pair the wrong audio with a logical reciter despite local resolver checks. | Versioned canonical reciter identity contract: provider + provider_reciter_id + edition/moshaf + riwayah + requested surah. | Introduce parser/serializer compatibility adapters; preserve current persisted IDs during migration; no silent remap. | Existing saved/downloaded items must continue resolving or produce an explicit migration/error state. | Cross-layer golden vectors; wrong-provider/wrong-moshaf rejection; offline restore; recent restore; favorites/search/playlist identity. |
-| GAP-RADIO-001 | P0 High | Phase 6 database protection and real Liquidsoap/Icecast runtime passed separately. | Production coordinator path is not yet proven as one trusted secret-backed runtime. | One combined Phase 6B runtime acceptance from occurrence claim through ACK/history/now-playing. | Add narrow trusted acceptance harness/workflow; do not redesign engine. | None to listener/API contracts. | scheduled transition, PLAY_NOW/NEXT, SKIP, STOP_AFTER_CURRENT, RESUME_AUTO, duplicate command, restart, stale fencing, media/provider failure, empty queue/fallback, listeners/no listeners. |
-| GAP-SEC-001 | P0 verification | Current DEVELOPMENT virtual-radio tables now have RLS and permission-aware policies. Historical state had RLS disabled. | Future migration could regress exposure. | Permanent RLS/grant/security-definer regression tests. | Tests/docs first; change policies only if a concrete failing case is found. | None if current policies remain. | anon/auth direct read/write denial where expected; authorized admin paths; service-role paths; SECURITY DEFINER grant/search_path review. |
-| GAP-API-001 | P1 High | Mobile production calls Supabase Edge. Elysia is optional and proxies some paths while independently resolving Quran audio. Admin uses Next.js APIs and RPCs. | No single official backend contract; drift and duplicated rules. | Explicit Canonical Public API and Canonical Admin API, with domain rules owned once and compatibility adapters for legacy callers. | ADR first. Inventory callers, then move one bounded domain at a time. No endpoint deletion in the first consolidation phase. | Must be backward compatible until telemetry/tests show legacy paths unused. | contract snapshots; old/new response parity; error-code parity; client compatibility. |
-| GAP-API-002 | P1 High | Quran provider normalization exists in Flutter, Supabase Edge and Elysia. | Identity, fallback, timeout and rights behavior can diverge. | Provider adapters behind a single server-domain contract where server resolution is required; Flutter retains local/offline behavior only. | Extract shared contract/golden tests before deleting duplicate logic. | No user-visible change expected. | provider schema fixtures; timeout/failure; explicit identity; URL HTTPS; rights metadata. |
-| GAP-API-003 | P1 Medium | PostgreSQL SECURITY DEFINER public/managed-radio RPCs contain significant access/business behavior. | Privileged DB logic may become a second application service layer and can carry grant/search_path risk. | Keep data-atomic operations in DB; move orchestration/business rules to canonical application services where justified. | Function-by-function caller/privilege audit; compatibility wrappers; never mass-delete RPCs. | Potential internal-only changes; public RPC contracts must remain until callers migrate. | grant matrix, search_path, anon/auth/service-role behavior, result parity. |
-| GAP-RATE-001 | P1 High | Admin rate limiter uses process-local `Map`. | Limits reset on restart and are not shared across instances. | Distributed or upstream rate enforcement using the least-complex existing infrastructure. | Document sensitive endpoints/keys first; introduce shared limiter with compatibility response and Retry-After. | 429 behavior becomes more reliable; client should already handle errors. | multi-instance semantics; user/IP/action dimensions; reset/retry-after; bypass prevention. |
-| GAP-ADMIN-001 | P1 High | Admin has HttpOnly/SameSite cookies, refresh and server RBAC; inspected mutations call same-origin checks. | Not yet proven for every mutation; critical changes need complete audit trail and MFA policy/readiness. | Uniform mutation guard: auth + permission + origin/CSRF + distributed rate limit + audit log + request ID; MFA requirement/readiness for sensitive roles. | Build route inventory; add reusable guard only where it reduces real duplication without changing responses. | Authentication/session behavior should remain compatible. | every mutation unauthorized/forbidden/CSRF; cookie production attributes; refresh/logout; audit event contents/redaction. |
-| GAP-UPSTREAM-001 | P1 Medium/High | Upstream policies vary. Supabase Quran fetch has timeout; Elysia provider fetches do not share a complete redirect/size/timeout/circuit policy. | Provider hangs/oversized responses/failure storms can degrade public API. | Standard outbound HTTP policy: HTTPS, timeout, redirect limit, response-size limit, schema validation, cache, request ID, structured provider errors, bounded retries/circuit behavior. | Shared helper in existing canonical service after ADR; no new service. | Error codes may be normalized; preserve legacy mapping during transition. | timeout, redirect loop, oversized payload, invalid JSON/schema, 4xx/5xx, cache/circuit recovery. |
-| GAP-CI-001 | P1 High | Android workflow runs `dart format` mutably and combines deterministic tests, live provider checks, build/release actions. | PR nondeterminism; workspace mutation; external outage blocks code validation. | Separate PR CI, Integration CI, External Provider CI, Release CI and deployment gates. | Split without removing tests; move live tests to scheduled/pre-release/manual while retaining deterministic fixtures in PR. | Developer workflow changes only. | workflow syntax; deterministic PR gate; external-provider classification; artifact verification. |
-| GAP-CI-002 | P1 Medium | Android workflow grants `contents: write` at workflow level and actions are mostly version tags. | More permission/supply-chain exposure than necessary. | Default read-only permissions; write only release job; pin sensitive actions to reviewed SHAs where practical; generate SBOM and run secret/dependency scans. | Incremental workflow hardening. | None to application. | permission/release dry run; SBOM artifact; secret guard; dependency scan. |
-| GAP-DB-001 | P1 High | Large historical migration chain exists; current live schema works, but one explicit empty-DB replay baseline is not the documented release gate. | Fresh environment can drift/fail; duplicate functions/grants can accumulate historically. | `empty DB -> all migrations -> seed -> validation` CI plus baseline report. | Never delete/squash deployed migrations; add forward-only fixes. | None to current DB unless an audit finds a real defect. | full migration replay, seed, constraints/FKs, grants/RLS, SECURITY DEFINER, duplicate function signatures, indexes. |
-| GAP-OBS-001 | P1 Medium | Components have some structured logs/request IDs/health evidence, but no unified observability contract or SLO document. | Hard to correlate mobile/API/radio/worker incidents or prove reliability targets. | Shared log field conventions, redaction rules, key metrics and SLOs. | Instrument critical paths incrementally; do not log Quran text or unnecessary personal data. | None. | log schema/redaction; metric emission; request/playout correlation; SLO calculations. |
-| GAP-STARTUP-001 | P2 Medium | Flutter awaits audio, preferences, Mushaf repository, content repository, offline clips and downloads before `runApp`. | Slow first frame and startup fragility. | Minimal critical initialization before UI; deferred/lazy readiness with cached state. | Measure first, then defer one service group per PR. | UI may need explicit readiness/skeleton states. | startup timing; cold start; feature opens during deferred init; offline startup. |
-| GAP-MOBILE-001 | P2 Medium | Several Flutter screens/services are large and mix presentation/orchestration concerns. | Higher change risk and review cost. | Incremental feature boundaries (`quran`, `mushaf`, `reciters`, `radio`, `downloads`, etc.) with UI separated from networking/persistence. | Extract tested units without changing routes/models all at once. | No intended UX change. | existing widget/unit regression + extracted domain tests. |
-| GAP-ADMIN-002 | P2 Medium | `apps/admin/lib/api.ts` and phase-specific modules span multiple domains. | Security/business rules harder to review. | Domain modules after Canonical Admin API/security decisions. | Mechanical extraction with response parity. | None intended. | Admin API contract tests. |
-| GAP-DOCS-001 | P2 Medium | Root README and phase docs describe older scope/status. | Operators/developers make decisions from stale documentation. | README reflects current monorepo; current/ADR/runbook/history taxonomy with evidence retained. | Move/index historical docs without deleting evidence; preserve links where possible. | Documentation only. | link check / command smoke where practical. |
-| GAP-DX-001 | P2 Low/Medium | Setup/test/release commands are scattered; governance/CODEOWNERS structure is not established. | Onboarding and sensitive-change review are inconsistent. | Minimal root command surface and CODEOWNERS proposal for sensitive domains. | Add Makefile/scripts that call existing commands; no build-system replacement. | Developer experience only. | commands execute in CI; ownership paths validate. |
-| GAP-PERF-001 | P3 Low | Additional UI/API/cache optimizations are possible but not tied to a current P0/P1 failure. | Premature optimization can destabilize higher-risk work. | Measure and optimize only after correctness/security closure. | Deferred. | TBD. | benchmarks/profile evidence. |
+| Gap | Resolution | Evidence |
+|---|---|---|
+| GAP-DB-001 | Empty database applies all migrations and seed; RBAC, catalogs, RPC grants and atomic mutations validated; two rebuilds have identical schema. | #29, #36–#38; DB CI run 33998661750 passed, including 40 baseline assertions and concurrency tests on each rebuild. |
+| GAP-UPSTREAM-001 | Bounded deadlines/body sizes, disabled redirects, status/JSON validation and private failures across Edge, Elysia, Admin and worker backends; stream probes use fixed HTTPS host allowlists. SQL provider ingestion accepts validated server payloads instead of unbounded HTTP calls. | #30–#36; Edge CI 33998661749 and service/Admin CI 33998661759 passed. |
+| GAP-ADMIN-001 | Common mutation authentication, endpoint permissions, exact Origin, durable start/result audit, production Secure cookies, bounded request bodies; runtime config updates are atomic and permission checked. | #37; auth outage/privacy regressions in #40. MFA rollout remains an operational policy decision. |
+| GAP-SEC-001 | Forward migration removes legacy client writes and authenticated access to privileged permission lookup; default function grants tightened. | #37; anonymous/authenticated denial and server paths covered by the DB baseline. Needed public read-only catalog RPCs remain callable. |
+| GAP-RATE-001 | Every Admin limiter uses persistent PostgreSQL state; hashed identities, account/IP dimensions, fail-closed outages and lock-safe expiry cleanup. | #38; 32 independent connections admit exactly 5 requests, fresh connections remain limited, expiry resets, concurrent renewal survives cleanup. |
+| GAP-CI-001 | Android formatting is check-only; deterministic tests and actual release builds are separate from live provider acceptance. | Existing Android hardening retained; #41 CI 33998990465 passed tests, Universal/ARM64 release builds and APK checks. |
+| GAP-CI-002 (permissions) | Android defaults to read-only; release publication has job-scoped write permission. | Current Android workflow. Full action SHA pinning/SBOM coverage remains deferred maintenance. |
+| GAP-OBS-001 (critical paths) | Request IDs, bounded dependency readiness, structured private errors; radio readiness requires distribution readiness and a live lease. Basic failure counters exist in Elysia/radio. | #39–#40; false-health, silent-200 and private-error regressions passed. |
+| GAP-STARTUP-001 | Only audio setup and saved preferences precede runApp. Content/download/config work starts after first frame; offline operations share initialization. Mushaf page storage is lazy. | #41; startup, widget, playback/offline regressions and Android builds passed. |
+| GAP-ADMIN-002 (review boundary) | Public reads extracted unchanged from api.ts; mutation guard/auth/HTTP/rate limits are separate modules. | #42; Admin CI 33999382817 passed. |
+| GAP-DOCS-001 / GAP-DX-001 | Current status, evidence and root commands are documented. | This update; README and ENGINEERING_REVIEW.md. |
 
-## Dependency order
+## Existing foundations retained
 
-The architecture hardening order is intentionally constrained:
+- GAP-QURAN-001: canonical v1 checksum/approval and runtime revision checks are
+  implemented. See [Quran integrity](QURAN_INTEGRITY.md); canonical CI
+  33994240490 passed. No Quran text was changed during this hardening.
+- GAP-RECITER-001: the explicit-reciter contract and offline identity checks are
+  implemented. See [identity contract](RECITER_IDENTITY.md); current Android
+  and Elysia tests cover the retained behavior.
+- GAP-RADIO-001: deterministic command/scheduler/ACK tests pass. Fresh real
+  broadcast/soak acceptance is **waived by the owner**, not reported as passed.
 
-```text
-Quran Integrity foundation
-  -> Reciter identity contract closure
-  -> Radio 6B runtime proof
-  -> Auth/RLS/secret critical closure
-  -> Canonical API ADR
-  -> rate limit / API hardening / CI / DB / observability
-  -> Flutter startup and modularization
-  -> documentation/DX/performance refinements
-```
+## Open release verification
 
-The Canonical API ADR may be written while P0 implementation work is prepared, but no risky API cutover should precede P0 correctness/security closure.
+| ID | Priority | Remaining requirement |
+|---|---|---|
+| RELEASE-DEPLOY-001 | P1 security/operations | Reconcile the connected Supabase migration history and deploy the merged forward security/ingestion/rate changes with their callers. Live inspection on 2026-09-05 found older grants and function versions. Repository CI alone does not close this. |
+| RELEASE-PROVIDER-001 | P1 availability | Deploy provider-sync and configure its Vault endpoint as documented in [the deployment runbook](PROVIDER_SYNC_DEPLOYMENT.md); verify the dispatch result. No token may enter a client or log. |
+| RELEASE-HEALTH-001 | P1 operations | Deploy the new readiness handlers; the inspected deployed Edge health v5 still returned 200 on dependency failure. |
+| RELEASE-RUNTIME-001 | Verification waived | Broadcast/soak acceptance is excluded from this release by explicit owner instruction. Deterministic radio tests remain required. |
+| RELEASE-OPS-001 | Operational readiness | Verify deployed secret placement, backup restoration, environment classification and service configuration. No full production-readiness claim is made without this evidence. |
 
-## Compatibility rules
+## Deferred work (not current P0/P1 defects)
 
-1. No existing mobile endpoint is removed in the first consolidation pass.
-2. No persisted reciter identity is silently remapped.
-3. No Quran text source changes without an explicit dataset version/checksum/approval transition.
-4. No deployed migration is deleted or rewritten as cleanup.
-5. Radio Engine/Liquidsoap/Icecast are preserved; Phase 6B is an integration closure gate, not a redesign.
-6. Admin permissions/RLS are tightened only through forward migrations/tests with verified operational paths.
-7. Every removal of duplicate logic requires caller evidence and a compatibility window.
+GAP-API-001/002/003: further API/provider orchestration consolidation requires
+caller evidence; preserve existing endpoints, reciter IDs and data-atomic RPCs.
+GAP-MOBILE-001/ADMIN-002: broader screen/domain extraction is deferred without a
+concrete maintenance or testing blocker. GAP-OBS-001: fleet-wide metrics/SLOs,
+HA and retention need operational targets. GAP-PERF-001: optimize only against
+measured problems. CODEOWNERS is not introduced without an established owner map.
 
-## Phase 2 outcome
-
-**ARCHITECTURE GAP ANALYSIS: PASS**
-
-The first code-changing hardening PR should implement the **Quran Integrity foundation** without changing user-visible Quran text: capture/pin the currently approved source into a versioned artifact, validate it deterministically, and add a fail-closed gate. Only after parity evidence should the production text-read path switch from live upstream to the canonical dataset.
+No deployed migration is deleted or squashed as cleanup. Live databases must
+never be reset to reproduce the isolated CI gate.

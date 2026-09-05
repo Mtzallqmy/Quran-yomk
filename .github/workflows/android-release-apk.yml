@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: android-release-${{ github.ref }}
@@ -62,8 +62,8 @@ jobs:
       - name: Flutter dependencies
         run: flutter pub get
 
-      - name: Format mobile sources
-        run: dart format lib test
+      - name: Verify mobile source formatting
+        run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Flutter analyze
         run: flutter analyze --no-fatal-infos
@@ -255,8 +255,21 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  publish-beta:
+    name: Publish beta release
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: android-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: tarteel-android-release-${{ github.run_number }}
+          path: release/android
+
       - name: Publish Tarteel first beta release
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

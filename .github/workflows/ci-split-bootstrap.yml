@@ -23,42 +23,34 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
+          import textwrap
 
           workflow = Path('.github/workflows/android-release-apk.yml')
           text = workflow.read_text()
-          old = '''      - name: Islamic Library Data repository and live integrity tests
-                run: |
-                  python3 -m py_compile tool/islamic_content_acceptance.py
-                  python3 tool/islamic_content_acceptance.py \\
-                    assets/islamic_content_manifest.json --live
-          '''
-          new = '''      - name: Islamic Library Data manifest contract
-                run: |
-                  python3 -m py_compile tool/islamic_content_acceptance.py
-                  python3 tool/islamic_content_acceptance.py assets/islamic_content_manifest.json
-          '''
-          if old not in text:
-              raise SystemExit('islamic live block not found')
-          text = text.replace(old, new, 1)
-          for block in (
-              '''      - name: Live Mushaf API acceptance
-                run: python3 tool/quran_ci.py
 
-          ''',
-              '''      - name: Live Quran audio provider acceptance
-                run: python3 tool/quran_audio_ci.py
+          text, count = re.subn(
+              r"      - name: Islamic Library Data repository and live integrity tests\n        run: \|\n(?:          .*\n)+?\n(?=      - name: Mushaf page-asset contract tests)",
+              "      - name: Islamic Library Data manifest contract\n        run: |\n          python3 -m py_compile tool/islamic_content_acceptance.py\n          python3 tool/islamic_content_acceptance.py assets/islamic_content_manifest.json\n\n",
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit('failed to replace Islamic Library live block')
 
-          ''',
-          ):
-              if block not in text:
-                  raise SystemExit('live block not found')
-              text = text.replace(block, '', 1)
+          for name in ('Live Mushaf API acceptance', 'Live Quran audio provider acceptance'):
+              pattern = rf"      - name: {re.escape(name)}\n        run: .*\n\n"
+              text, count = re.subn(pattern, '', text, count=1)
+              if count != 1:
+                  raise SystemExit(f'failed to remove {name}')
+
           text = text.replace('          cp release/quran/quran-live-smoke.json "$RELEASE_DIR/"\n', '')
           text = text.replace('          cp release/quran-audio/quran-audio-live-smoke.json "$RELEASE_DIR/"\n', '')
           workflow.write_text(text)
 
           live = Path('.github/workflows/live-provider-acceptance.yml')
-          live.write_text('''name: Tarteel Live Provider Acceptance
+          live.write_text(textwrap.dedent('''\
+          name: Tarteel Live Provider Acceptance
 
           on:
             workflow_dispatch:
@@ -79,7 +71,7 @@ jobs:
             contents: read
 
           concurrency:
-            group: live-provider-acceptance-${{ github.ref }}
+            group: live-provider-acceptance-main
             cancel-in-progress: true
 
           jobs:
@@ -107,13 +99,13 @@ jobs:
                 - uses: actions/upload-artifact@v4
                   if: always()
                   with:
-                    name: tarteel-live-provider-evidence-${{ github.run_number }}
+                    name: tarteel-live-provider-evidence
                     path: |
                       apps/mobile/release/quran
                       apps/mobile/release/quran-audio
                     if-no-files-found: warn
                     retention-days: 14
-          ''')
+          '''))
           PY
           git diff --check
           git config user.name 'github-actions[bot]'

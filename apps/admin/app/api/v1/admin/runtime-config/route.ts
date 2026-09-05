@@ -98,7 +98,7 @@ export async function GET(request: Request) {
 }
 
 async function mutate(request: Request, ctx: AdminContext, id: string) {
-  rateLimit(`runtime-config:${ctx.userId}`, 20, 60_000);
+  await rateLimit(`runtime-config:${ctx.userId}`, 20, 60_000);
   const payload = await body(request) as { updates?: Record<string, unknown> };
   if (!payload.updates || typeof payload.updates !== 'object' || Array.isArray(payload.updates)) {
     throw new ApiError(422, 'VALIDATION_ERROR', 'updates object is required');

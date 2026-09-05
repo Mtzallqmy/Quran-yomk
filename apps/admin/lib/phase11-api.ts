@@ -35,7 +35,7 @@ async function providerOverview(ctx:any){
   return json({data:{provider,last_sync:(runs.data as any[])[0]??null,sync_runs:runs.data,normalized_records:rs.length,http_only:rs.filter(r=>String(r.discovered_stream_url??'').startsWith('http://')).length,missing:rs.filter(r=>r.missing_since).length,owned_station_count:os.length,owned_health:{healthy:os.filter(r=>r.health_status==='HEALTHY').length,degraded:os.filter(r=>r.health_status==='DEGRADED').length,unavailable:os.filter(r=>['UNREACHABLE','INVALID'].includes(r.health_status)).length,unknown:os.filter(r=>r.health_status==='UNKNOWN').length},owned_unsupported:os.filter(r=>r.stream_type==='UNKNOWN_STREAM').length}});
 }
 async function providerSync(ctx:any,request:Request,requestId:string){
-  requirePermission(ctx,'external_stations.write');sameOrigin(request);rateLimit(`phase11-sync:${ctx.userId}`,3,60_000);
+  requirePermission(ctx,'external_stations.write');sameOrigin(request);await rateLimit(`phase11-sync:${ctx.userId}`,3,60_000);
   const result=await rpc('app','sync_islamic_radio_api_stations',{});
   await audit(ctx,requestId,'provider.sync','content_provider',null,null,{provider:'islamic-radio-api',result});
   return json({data:result});

@@ -12,12 +12,12 @@ function commandHash(command:ClaimedCommand):string{return createHash('sha256').
 
 export class AutomationRuntime {
   private schedulerTimer?:NodeJS.Timeout;private commandTimer?:NodeJS.Timeout;private schedulerRunning=false;private commandRunning=false;
-  private recoveredToken:number|null=null;private activePlayout:{id:string;queueEntryId:string}|null=null;private unsubscribeTrack?:()=>void;
+  private recoveredToken:number|null=null;private activePlayout:{id:string;queueEntryId:string}|null=null;private pendingInterruptionReason:string|null=null;private unsubscribeTrack?:()=>void;
   constructor(private readonly config:Config,private readonly store:SupabaseAutomationStore,private readonly engine:RadioEngine,private readonly logger=new Logger('radio-automation')){}
 
   start():void{
     if(this.schedulerTimer||this.commandTimer)return;
-    this.unsubscribeTrack=this.engine.onTrackStart(event=>void this.onTrackStart(event.track,event.startedAt));
+    this.unsubscribeTrack=this.engine.onTrackStart(event=>void this.onTrackStart(event.track,event.previous,event.startedAt));
     this.schedulerTimer=setInterval(()=>void this.schedulerTick(),this.config.schedulerPollSeconds*1000);this.schedulerTimer.unref();
     this.commandTimer=setInterval(()=>void this.commandTick(),this.config.commandPollSeconds*1000);this.commandTimer.unref();
     void this.schedulerTick();void this.commandTick();
@@ -53,10 +53,11 @@ export class AutomationRuntime {
         ? [await this.store.resolveMedia(lease.stationId,occurrence.media_id!)]
         : await this.store.resolvePlaylist(lease.stationId,occurrence.playlist_id!);
       const tracks=await this.persistTracks(lease,resolved,{source:'SCHEDULED',priority:occurrence.priority,interruptPolicy:occurrence.interrupt_policy,intendedAt:occurrence.scheduled_for,occurrenceId:occurrence.id,playlistId:occurrence.playlist_id??undefined,idempotencyPrefix:`occurrence:${occurrence.id}`});
-      await this.engine.applyAutomationTracks(tracks,occurrence.interrupt_policy==='INTERRUPT');
+      const interrupt=occurrence.interrupt_policy==='INTERRUPT';if(interrupt)this.pendingInterruptionReason='SCHEDULE_INTERRUPT';
+      await this.engine.applyAutomationTracks(tracks,interrupt);
       await this.engine.setAutomationMode('SCHEDULED');
       await this.store.completeOccurrence(lease,occurrence.id,true,{queue_entries:tracks.map(x=>x.queueEntryId),dispatched_at:new Date().toISOString()});
-    }catch(error){await this.store.completeOccurrence(lease,occurrence.id,false,{},'DISPATCH_FAILED',errorMessage(error)).catch(()=>false);throw error;}
+    }catch(error){this.pendingInterruptionReason=null;await this.store.completeOccurrence(lease,occurrence.id,false,{},'DISPATCH_FAILED',errorMessage(error)).catch(()=>false);throw error;}
   }
 
   private async dispatchCommand(lease:Lease,claimed:ClaimedCommand):Promise<void>{
@@ -69,15 +70,15 @@ export class AutomationRuntime {
       if(effect.kind==='ENQUEUE'){
         const resolved=effect.items.map(item=>({mediaId:item.mediaId,title:item.title,path:item.path,durationSeconds:item.durationSeconds}));
         const tracks=await this.persistTracks(lease,resolved,{source:effect.items[0]!.source,priority:effect.items[0]!.priority,interruptPolicy:effect.items[0]!.interruptPolicy,intendedAt:claimed.created_at,commandId:claimed.id,playlistId:this.payloadString(claimed.payload,'playlist_id')??undefined,idempotencyPrefix:`command:${claimed.id}`});
-        const interrupt=effect.items.some(item=>item.interruptPolicy==='INTERRUPT');
+        const interrupt=effect.items.some(item=>item.interruptPolicy==='INTERRUPT');if(interrupt)this.pendingInterruptionReason='COMMAND_INTERRUPT';
         await this.engine.applyAutomationTracks(tracks,interrupt);await this.engine.setAutomationMode('MANUAL');
-      }else if(effect.kind==='SKIP'){await this.engine.skipAutomationCurrent();}
+      }else if(effect.kind==='SKIP'){this.pendingInterruptionReason='SKIP';await this.engine.skipAutomationCurrent();}
       else if(effect.kind==='STOP_AFTER_CURRENT'){await this.engine.requestStopAfterCurrent();}
       else if(effect.kind==='RESUME_AUTO'){await this.engine.resumeAuto();}
       await this.store.recordCommandEffect(lease,claimed.id,effect.kind,hash,'ACKED',{dispatched_at:new Date().toISOString()});
       await this.store.completeCommand(lease,claimed.id,true,{effect:effect.kind});
       this.logger.info('COMMAND_EXECUTED',{command_id:claimed.id,effect:effect.kind});
-    }catch(error){if(effectKind)await this.store.recordCommandEffect(lease,claimed.id,effectKind,hash,'FAILED',{error:errorMessage(error)}).catch(()=>null);await this.store.completeCommand(lease,claimed.id,false,{},'COMMAND_DISPATCH_FAILED',errorMessage(error)).catch(()=>false);throw error;}
+    }catch(error){this.pendingInterruptionReason=null;if(effectKind)await this.store.recordCommandEffect(lease,claimed.id,effectKind,hash,'FAILED',{error:errorMessage(error)}).catch(()=>null);await this.store.completeCommand(lease,claimed.id,false,{},'COMMAND_DISPATCH_FAILED',errorMessage(error)).catch(()=>false);throw error;}
   }
 
   private async persistTracks(lease:Lease,resolved:ResolvedTrack[]|Track[],options:{source:QueueSource;priority:ClaimedOccurrence['priority'];interruptPolicy:ClaimedOccurrence['interrupt_policy'];intendedAt:string;idempotencyPrefix:string;commandId?:string;occurrenceId?:string;playlistId?:string}):Promise<Track[]>{
@@ -94,12 +95,13 @@ export class AutomationRuntime {
   private stripResolved(track:ResolvedTrack){return{mediaId:track.mediaId!,title:track.title,path:track.path,durationSeconds:track.durationSeconds};}
   private payloadString(payload:unknown,key:string):string|null{if(!payload||typeof payload!=='object'||Array.isArray(payload))return null;const value=(payload as Record<string,unknown>)[key];return typeof value==='string'?value:null;}
 
-  private async onTrackStart(track:Track,startedAt:string):Promise<void>{
-    const lease=this.engine.currentLease();if(!lease||!track.queueEntryId)return;
+  private async onTrackStart(track:Track,_previous:Track|null,startedAt:string):Promise<void>{
+    const lease=this.engine.currentLease();if(!lease)return;
     try{
-      if(this.activePlayout&&this.activePlayout.queueEntryId!==track.queueEntryId){await this.store.recordPlayoutEnd(lease,this.activePlayout.id,startedAt,true);}
+      if(this.activePlayout&&this.activePlayout.queueEntryId!==track.queueEntryId){const reason=this.pendingInterruptionReason;await this.store.recordPlayoutEnd(lease,this.activePlayout.id,startedAt,reason===null,reason??undefined);this.activePlayout=null;this.pendingInterruptionReason=null;}
+      if(!track.queueEntryId||this.activePlayout?.queueEntryId===track.queueEntryId)return;
       const playoutId=randomUUID();await this.store.recordPlayoutStart(lease,track.queueEntryId,playoutId,startedAt);this.activePlayout={id:playoutId,queueEntryId:track.queueEntryId};
       this.logger.info('PLAYOUT_ACK_PERSISTED',{queue_entry_id:track.queueEntryId,playout_id:playoutId});
-    }catch(error){this.logger.error('PLAYOUT_ACK_FAILED',error,{queue_entry_id:track.queueEntryId});}
+    }catch(error){this.logger.error('PLAYOUT_ACK_FAILED',error,{queue_entry_id:track.queueEntryId??null});}
   }
 }

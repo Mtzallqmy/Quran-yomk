@@ -86,12 +86,15 @@ function decode(value: unknown) {
 }
 
 export async function GET(request: Request) {
+  const id=requestId(request);try{
   const ctx = await adminContext(request);
   requirePermission(ctx, 'schedules.read');
   const keys = [...allowedKeys].map(encodeURIComponent).join(',');
   const result = await db('app', `app_config?key=in.(${keys})&select=key,value,value_type,is_public,description&order=key.asc`);
   const rows = (result.data as Array<Record<string, unknown>>).map((row) => ({ ...row, value: decode(row.value) }));
-  return json({ data: rows });
+  return attachContext(json({ data: rows }),id,ctx);
+
+  }catch(error){return fail(error,id);}
 }
 
 async function mutate(request: Request, ctx: AdminContext, id: string) {

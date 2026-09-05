@@ -20,6 +20,7 @@ function adenDay(){
 }
 
 export async function GET(request:Request){
+  const id=requestId(request);try{
   const ctx=await adminContext(request);requirePermission(ctx,'schedules.read');
   const overview=await rpc('app','managed_radio_overview',{p_slug:'tarteel'});
   const channel=(overview as any)?.channel;
@@ -32,7 +33,9 @@ export async function GET(request:Request){
   ]);
   const day=adenDay();
   const today=(schedules.data as any[]).filter((row)=>Array.isArray(row.days_of_week)&&row.days_of_week.includes(day));
-  return json({data:{overview,current,today_schedule:today,sync_runs:runs.data}});
+  return attachContext(json({data:{overview,current,today_schedule:today,sync_runs:runs.data}}),id,ctx);
+
+  }catch(error){return fail(error,id);}
 }
 
 async function mutate(request:Request,ctx:AdminContext,id:string){

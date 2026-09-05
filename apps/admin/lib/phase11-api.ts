@@ -1,5 +1,6 @@
 import { ApiError, assertString, assertUuid, int } from './contracts';
 import { adminContext, requirePermission } from './auth';
+import type { AdminContext } from './auth';
 import { body, json, sameOrigin } from './http';
 import { db, rpc } from './supabase';
 import { rateLimit } from './rate-limit';
@@ -94,16 +95,16 @@ async function candidateMutation(ctx:any,request:Request,parts:string[],requestI
 async function resolveNow(ctx:any,request:Request){requirePermission(ctx,'schedules.read');const u=new URL(request.url);const failed=(u.searchParams.get('failed_station_ids')??'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,8).map((x,i)=>assertUuid(x,`failed_station_ids[${i}]`));const data=await rpc('app','resolve_virtual_radio',{p_slug:'tarteel',p_environment:'development',p_exclude_station_ids:failed});return json({data});}
 async function preview(ctx:any,request:Request){requirePermission(ctx,'schedules.read');const u=new URL(request.url);const hours=int(u.searchParams.get('hours')??24,'hours',1,168);return json({data:await rpc('app','virtual_radio_preview',{p_slug:'tarteel',p_hours:hours,p_environment:'development'})});}
 
-export async function dispatchPhase11(request:Request,segments:string[],requestId:string):Promise<DispatchResult|null>{
+export async function dispatchPhase11(request:Request,segments:string[],requestId:string,authorized?:AdminContext):Promise<DispatchResult|null>{
   const parts=segments.filter(Boolean);if(parts[0]!=='admin')return null;
   if(parts[1]==='providers'&&parts[2]==='islamic-radio-api'){
-    const ctx=await adminContext(request);
+    const ctx=authorized??await adminContext(request);
     if(parts.length===3&&request.method==='GET')return{ctx,response:await providerOverview(ctx)};
     if(parts[3]==='sync'&&request.method==='POST')return{ctx,response:await providerSync(ctx,request,requestId)};
     throw new ApiError(405,'METHOD_NOT_ALLOWED','Method not allowed');
   }
   if(parts[1]==='virtual-radio'){
-    const ctx=await adminContext(request);
+    const ctx=authorized??await adminContext(request);
     if(parts.length===2&&request.method==='GET')return{ctx,response:await virtualOverview(ctx)};
     if(parts[2]==='channel'&&request.method==='PATCH')return{ctx,response:await channelUpdate(ctx,request,requestId)};
     if(parts[2]==='schedules'&&parts[4]==='candidates')return{ctx,response:await candidateMutation(ctx,request,parts,requestId)};

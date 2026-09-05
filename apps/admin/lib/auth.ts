@@ -1,5 +1,5 @@
-import { ApiError, assertString, type RoleCode } from './contracts';
-import { authPassword, authSignOut, authUser, db, env, refreshSession } from './supabase';
+import { ApiError, assertString, type RoleCode } from './contracts.ts';
+import { authPassword, authSignOut, authUser, db, env, refreshSession } from './supabase.ts';
 
 const ACCESS='tarteel_admin_access'; const REFRESH='tarteel_admin_refresh';
 export type AdminContext={userId:string;email:string|null;displayName:string;roles:RoleCode[];permissions:Set<string>;refreshed?:{access:string;refresh:string;expires:number}};

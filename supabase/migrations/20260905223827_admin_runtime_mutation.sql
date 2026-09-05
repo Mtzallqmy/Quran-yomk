@@ -1,3 +1,10 @@
+-- Administrative virtual-radio writes must pass through the audited server API.
+revoke all on app.virtual_radio_channels,app.virtual_radio_schedule,app.virtual_radio_candidates from public,anon,authenticated;
+grant select,insert,update,delete on app.virtual_radio_channels,app.virtual_radio_schedule,app.virtual_radio_candidates to service_role;
+revoke execute on function app.managed_radio_authorized(uuid,text) from public,anon,authenticated;
+grant execute on function app.managed_radio_authorized(uuid,text) to service_role;
+alter default privileges for role postgres in schema app,radio revoke execute on functions from public;
+
 -- Keep runtime configuration and its audit record in one transaction.
 create or replace function app.update_runtime_config(p_updates jsonb,p_actor uuid,p_request_id uuid)
 returns setof app.app_config language plpgsql security invoker set search_path='' as $$

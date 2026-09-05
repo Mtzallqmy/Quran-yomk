@@ -1,6 +1,6 @@
 begin;
 
-select plan(39);
+select plan(40);
 
 select ok(to_regnamespace('app') is not null, 'app schema exists');
 select ok(to_regnamespace('radio') is not null, 'radio schema exists');
@@ -56,5 +56,6 @@ select lives_ok($q$select app.update_runtime_config('{"radio_enabled":false,"con
 select throws_ok($q$select app.update_runtime_config('{"radio_enabled":true,"reciters_page_size":"bad"}','00000000-0000-4000-8000-000000000037','00000000-0000-4000-8000-000000000037')$q$,'23514',null,'invalid field rolls back the whole batch');
 select is((select value from app.app_config where key='radio_enabled'),'false'::jsonb,'earlier setting remains unchanged after failed batch');
 select is((select count(*) from app.audit_logs where action='runtime_config.update' and request_id='00000000-0000-4000-8000-000000000037'),1::bigint,'only committed runtime mutation has a completion audit');
+select ok(not exists(select 1 from unnest(array['app.virtual_radio_channels','app.virtual_radio_schedule','app.virtual_radio_candidates']) t where has_table_privilege('authenticated',t,'INSERT,UPDATE,DELETE') or has_table_privilege('anon',t,'INSERT,UPDATE,DELETE')), 'direct clients cannot bypass mutation auditing');
 select * from finish();
 rollback;

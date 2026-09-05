@@ -1,64 +1,89 @@
-# ترتيل (Tarteel) — Quran Radio & Audio Platform
+# ترتيل (Tarteel)
 
-**المعرّف التقني:** `tarteel`  
-**الحالة:** Phase 5 continuous radio foundation implemented; real Icecast E2E pending a non-root runtime  
-**النطاق المنفذ:** التصميم + Database + Storage + ffprobe/FFmpeg worker + Radio Engine/Liquidsoap foundation + Icecast development configuration. لا يتضمن Scheduler/Flutter/Admin.  
-**المرجع:** Master Prompt المعتمد للمشروع.
+Quran radio and audio monorepo: Flutter mobile, Next.js Admin, Supabase
+PostgreSQL/Edge Functions, optional Elysia API, audio worker and Liquidsoap radio
+engine. Scheduler, offline downloads and Admin are implemented.
 
-**Supabase target:** طُبقت Database Phase على المشروع managed المحدد للمرحلة. لا يحتوي المستودع أي credentials.
+Status: critical repository hardening merged through PR #42. Deterministic
+Android, database, Admin, Edge and service gates passed on the relevant changes.
+Production deployment reconciliation remains open; broadcast/soak tests are
+waived by the owner for this release, not reported as passed.
 
-## محتويات الحزمة
+## Components
 
-| الملف | الغرض |
+| Path | Responsibility |
 |---|---|
-| `docs/ARCHITECTURE.md` | المتطلبات الوظيفية وغير الوظيفية، المعمارية والمسؤوليات |
-| `docs/DATABASE.md` | ERD، نمذجة البيانات، القيود والفهارس وسياسة الوقت |
-| `supabase/migrations/` | migrations التنفيذية المرتبة والمطبقة |
-| `supabase/seed/` | seeds قابلة لإعادة التشغيل |
-| `supabase/tests/database_validation.sql` | اختبارات integrity وbad-data |
-| `docs/RADIO_ENGINE.md` | State Machine، Queue، Commands، Never Silence |
-| `docs/SCHEDULER.md` | Timezone/DST، occurrences، conflicts، restart/idempotency |
-| `docs/API.md` | Public/Admin API والعقود والأخطاء والتصفح والإديمبوتنسي |
-| `docs/AUDIO_PIPELINE.md` | Storage، FFmpeg، Icecast، فصل Live عن On-Demand |
-| `services/audio-worker/` | Worker مستقلة: claim/lease، ffprobe، normalization، FFmpeg، Storage، READY |
-| `services/radio-engine/` | lease/fencing، continuous Liquidsoap source، checkpoints، health/recovery |
-| `docs/ICECAST.md` | Mount/config/security/startup وقيود الاختبار الحالية |
-| `docs/STREAMING.md` | قرار المصدر/codec وإثبات المستمعين والتعافي |
-| `docs/STORAGE.md` | Buckets، object keys، Upload Intent، security، cleanup، Worker handoff |
-| `docs/EXTERNAL_STATIONS.md` | Providers، adapters، sync، health، rights، Flutter catalog |
-| `docs/SECURITY.md` | Auth/RBAC، الأمن، المراقبة، Watchdog والاستعادة |
-| `docs/DEPLOYMENT.md` | البيئات، topology، CI/CD، Monorepo، DR |
-| `docs/MVP_PLAN.md` | Tasks صغيرة، معايير القبول، Gate المرحلة الثانية |
-| `docs/ENGINEERING_REVIEW.md` | Race/SPOF/timezone/gaps/duplication/security review |
+| `apps/mobile` | Flutter playback, Quran, Mushaf, preferences and offline storage |
+| `apps/admin` | Next.js Admin, server authentication/permissions/audit and public compatibility routes |
+| `supabase` | Forward migrations, seeds, database tests and Edge APIs |
+| `services/tarteel-api-elysia` | Optional bounded proxy to canonical public APIs |
+| `services/audio-worker` | Leased audio processing jobs and private storage access |
+| `services/radio-engine` | Scheduler/command coordination, fencing and Liquidsoap/Icecast playback |
+| `data/quran/canonical` | Approved immutable Quran dataset and manifest |
 
-## القرارات الهندسية النهائية المقترحة
+## Commands from repository root
 
-1. **Control Plane منفصل عن Playout Plane.** Supabase/PostgreSQL هو مصدر الحقيقة، بينما يواصل مشغل المحطة العمل من Queue Snapshot محلية آمنة عند انقطاع قاعدة البيانات مؤقتًا.
-2. **مصدر Icecast واحد مستمر لكل محطة.** المستمعون لا يشغّلون الملفات؛ يتصلون Mount ثابتًا ويسمعون اللحظة نفسها.
-3. **Leader واحد لكل محطة.** lease في PostgreSQL مع fencing token، إضافة إلى قفل محلي على المضيف، يمنع تنفيذ الأمر أو البث مرتين.
-4. **الوقت محفوظ UTC، والتكرار معرّف بزمن IANA للمحطة.** كل occurrence له مفتاح فريد يمنع التكرار بعد restart أو DST.
-5. **الأوامر append-only نسبيًا.** لوحة الإدارة تنشئ Command ولا تعدّل Queue أو FFmpeg مباشرة. التنفيذ claim/ack/idempotent وله Audit Trail.
-6. **مخططات قاعدة البيانات منفصلة.** `api` سطح قراءة عام محدود، `app` بيانات الإدارة، و`radio` حالة التشغيل. لا تُكشف جداول التشغيل الداخلية عبر Data API.
-7. **المعالجة مرة واحدة.** الأصل خاص، النسخة الموحدة جاهزة للبث/الطلب عند `READY` فقط، مع checksum وإصدار processing profile.
-8. **Never Silence متعدد الطبقات.** scheduled/manual → default playlist → emergency cache → short bounded silence only أثناء تبديل decoder، مع encoder/source connection مستمر.
-9. **On-Demand منفصل.** روابط ملفات/CDN قابلة للـseek ولا تمر عبر Icecast أو Queue المحطة.
-10. **MVP محطة واحدة لكن كل البيانات والleases والmetrics مرتبطة بـ`station_id`.**
-11. **Unified station catalog مع execution boundaries.** INTERNAL فقط يدخل Scheduler/Queue/Commands؛ EXTERNAL يشغّل direct من المصدر ولا يؤثر عطله في البث المملوك.
-12. **External rights deny-by-default.** جميع seed الخارجية `REVIEW_REQUIRED`, `UNKNOWN`, و`production_enabled=false` حتى مراجعة الحقوق.
+Use Node 24, Python 3, Flutter 3.47.2 and Java 17; Bun for Elysia. Database tests
+require Docker and Supabase CLI 2.116.0. Worker tests also require FFmpeg/ffprobe.
+Copy component environment examples and configure server credentials outside
+version control. Never put service-role or provider secrets in clients.
 
-## نقاط تحتاج اعتماد المالك
+```sh
+# Admin
+npm --prefix apps/admin ci
+npm --prefix apps/admin run dev
+npm --prefix apps/admin test
+npm --prefix apps/admin run typecheck
+npm --prefix apps/admin run build
 
-| القرار | التوصية | أثر التأجيل |
-|---|---|---|
-| محرك playout | **Liquidsoap كـrender adapter** تحت Radio Engine، وFFmpeg للمعالجة/probe؛ البديل custom persistent FFmpeg pipeline | قرار مبكر لأنه يغيّر تنفيذ Phase F–H واختبارات audio gaps |
-| تخزين الإنتاج | Supabase Storage للأصل/processed في MVP، مع StoragePort يسمح S3 لاحقًا | يؤثر على signed URLs وegress/backup |
-| جودة النسخة الموحدة | AAC-LC 96 kbps, 44.1 kHz, stereo افتراضيًا؛ MP3 128 kbps إن تطلبت أجهزة قديمة | يؤثر على bandwidth والتوافق |
-| سياسة قطع المجدول | `FINISH_CURRENT` افتراضي، `INTERRUPT` صريح فقط | يؤثر على تجربة الاستماع ودقة المواعيد |
-| زمن الاحتفاظ | commands/events سنة، play history 13 شهرًا، logs الساخنة 30 يومًا | يؤثر على التكلفة والامتثال |
-| Region/Timezone أول محطة | يحددها المالك؛ timezone يجب أن يكون IANA مثل `Asia/Riyadh` | مطلوب قبل Seed المحطة واختبارات DST |
-| تصنيف مشروع Supabase الحالي | اجعله `development` أو `staging`، وليس production قبل اختبارات الاستعادة والأمن | يمنع خلط بيانات/أسرار البيئات |
-| سياسة نشر المصادر الخارجية | اعتماد workflow الحقوق والـattribution قبل تحويل أي source إلى production | الروابط العامة ليست ترخيصًا |
+# Deterministic Edge HTTP failure cases (no live providers)
+node --test supabase/functions/_shared/*.test.mjs
 
-## حالة المراحل المنفذة
+# Audio worker and radio engine unit tests
+npm --prefix services/audio-worker ci
+npm --prefix services/audio-worker test
+npm --prefix services/radio-engine ci
+npm --prefix services/radio-engine test
+# Start configured services:
+npm --prefix services/audio-worker start
+npm --prefix services/radio-engine start
 
-اكتملت Database Phase في `docs/DATABASE_PHASE_REPORT.md`، وStorage Phase في `docs/STORAGE_PHASE_REPORT.md`، وAudio Processing Phase في `docs/AUDIO_PROCESSING_PHASE_REPORT.md`. Phase 5 موثقة في `docs/RADIO_STREAM_FOUNDATION_REPORT.md` بحالة `PASS WITH WARNINGS`؛ يلزم إغلاق اختبار Icecast الحقيقي قبل Scheduler.
+# Optional Elysia API
+(cd services/tarteel-api-elysia && bun install --frozen-lockfile && bun test)
+(cd services/tarteel-api-elysia && bun run dev)
+
+# Flutter
+(cd apps/mobile && flutter pub get && flutter analyze --no-fatal-infos && flutter test)
+(cd apps/mobile && flutter run)
+(cd apps/mobile && flutter build apk --release)
+
+# Canonical Quran checks: never refresh the approved dataset implicitly
+node scripts/quran-integrity/validate.mjs --version 1
+node --test scripts/quran-integrity/*.test.mjs
+
+# Isolated LOCAL database only; reset destroys local test data
+supabase start
+supabase db reset --local
+supabase test db supabase/tests/baseline.sql
+python3 supabase/tests/rate_limit_concurrency.py
+supabase stop --no-backup
+```
+
+The full two-rebuild gate (including legacy SQL assertions and schema drift)
+is defined in `.github/workflows/supabase-empty-db.yml`. Android CI checks
+formatting without mutation, runs deterministic tests and builds Universal and
+ARM64 release APKs. Live provider checks use their separate workflow.
+
+## Current references
+
+- [Architecture gaps and closure evidence](docs/ARCHITECTURE_GAPS.md)
+- [Engineering review and deployment limits](docs/ENGINEERING_REVIEW.md)
+- [Current architecture](docs/CURRENT_ARCHITECTURE.md)
+- [Provider sync deployment](docs/PROVIDER_SYNC_DEPLOYMENT.md)
+- [Quran integrity](docs/QURAN_INTEGRITY.md)
+- [Reciter identity](docs/RECITER_IDENTITY.md)
+- [Android release acceptance](docs/ANDROID_RELEASE_ACCEPTANCE.md)
+
+Phase reports under `docs/` retain historical evidence and their original scope;
+they do not certify the currently deployed environment. Existing endpoints,
+persisted identities and approved Quran text remain compatibility boundaries.

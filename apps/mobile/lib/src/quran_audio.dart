@@ -117,18 +117,18 @@ class QuranAudioCatalogReciter {
       case QuranAudioProviderKind.alQuranCloud:
         return edition;
       case QuranAudioProviderKind.mp3Quran:
-        return RegExp(r'^mp3quran:([1-9][0-9]*):[1-9][0-9]*$')
-                .firstMatch(id)
-                ?.group(1) ??
+        return RegExp(
+              r'^mp3quran:([1-9][0-9]*):[1-9][0-9]*$',
+            ).firstMatch(id)?.group(1) ??
             '';
     }
   }
 
   String? get moshafId {
     if (provider != QuranAudioProviderKind.mp3Quran) return null;
-    return RegExp(r'^mp3quran:[1-9][0-9]*:([1-9][0-9]*)$')
-        .firstMatch(id)
-        ?.group(1);
+    return RegExp(
+      r'^mp3quran:[1-9][0-9]*:([1-9][0-9]*)$',
+    ).firstMatch(id)?.group(1);
   }
 
   String get identityKey => <Object?>[
@@ -141,7 +141,9 @@ class QuranAudioCatalogReciter {
   ].map(_identityPart).join('|');
 
   bool sameIdentity(QuranAudioCatalogReciter other) =>
-      hasValidIdentity && other.hasValidIdentity && identityKey == other.identityKey;
+      hasValidIdentity &&
+      other.hasValidIdentity &&
+      identityKey == other.identityKey;
 
   QuranAudioIdentityV1 identityFor({
     required int surahNumber,
@@ -229,10 +231,8 @@ class QuranAudioMedia {
       (ayahInSurah == null ||
           (ayahInSurah! >= 1 && ayahInSurah! <= surah.ayahCount));
 
-  QuranAudioIdentityV1 get identity => reciter.identityFor(
-    surahNumber: surah.number,
-    ayahNumber: ayahInSurah,
-  );
+  QuranAudioIdentityV1 get identity =>
+      reciter.identityFor(surahNumber: surah.number, ayahNumber: ayahInSurah);
 
   String get storageKey => <Object?>[
     identity.key,
@@ -241,7 +241,9 @@ class QuranAudioMedia {
   ].map(_identityPart).join('|');
 
   bool sameTrackIdentity(QuranAudioMedia other) =>
-      hasValidIdentity && other.hasValidIdentity && storageKey == other.storageKey;
+      hasValidIdentity &&
+      other.hasValidIdentity &&
+      storageKey == other.storageKey;
 
   QuranAudioMedia asLocal(String path, {String? checksum, int? size}) =>
       QuranAudioMedia(

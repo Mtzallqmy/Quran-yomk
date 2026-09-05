@@ -43,7 +43,8 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
         builder: (context, _) => FutureBuilder<_FavoritesData>(
           future: future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
+            if (snapshot.connectionState != ConnectionState.done &&
+                !snapshot.hasData) {
               return const LoadingPane();
             }
             if (snapshot.hasError && !snapshot.hasData) {
@@ -60,7 +61,9 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
             final reciters = data.reciters
                 .where((reciter) => services.favorites.isReciter(reciter.id))
                 .toList(growable: false);
-            final history = services.quranPlayback.history.take(12).toList(growable: false);
+            final history = services.quranPlayback.history
+                .take(12)
+                .toList(growable: false);
             if (stations.isEmpty &&
                 reciters.isEmpty &&
                 services.favorites.trackIds.isEmpty &&
@@ -74,10 +77,14 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
             return ListView(
               children: <Widget>[
                 if (history.isNotEmpty) ...<Widget>[
-                  SectionHeader(english ? 'Recently listened' : 'استمعت مؤخرًا'),
+                  SectionHeader(
+                    english ? 'Recently listened' : 'استمعت مؤخرًا',
+                  ),
                   for (final entry in history)
                     ListTile(
-                      leading: CircleAvatar(child: Text('${entry.surahNumber}')),
+                      leading: CircleAvatar(
+                        child: Text('${entry.surahNumber}'),
+                      ),
                       title: Text(
                         english
                             ? 'Surah ${entry.surahNumber}'
@@ -87,7 +94,8 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
                         <String>[
                           entry.reciterName,
                           if (entry.riwayah?.isNotEmpty == true) entry.riwayah!,
-                          if (entry.position > Duration.zero) _duration(entry.position),
+                          if (entry.position > Duration.zero)
+                            _duration(entry.position),
                         ].where((value) => value.isNotEmpty).join(' • '),
                       ),
                       trailing: const Icon(Icons.history),
@@ -105,7 +113,9 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
                   ),
                 ],
                 if (stations.isNotEmpty) ...<Widget>[
-                  SectionHeader(english ? 'Favorite stations' : 'الإذاعات المفضلة'),
+                  SectionHeader(
+                    english ? 'Favorite stations' : 'الإذاعات المفضلة',
+                  ),
                   for (final station in stations)
                     ListTile(
                       leading: Artwork(url: station.logoUrl),
@@ -119,7 +129,9 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
                     ),
                 ],
                 if (reciters.isNotEmpty) ...<Widget>[
-                  SectionHeader(english ? 'Favorite reciters' : 'القراء المفضلون'),
+                  SectionHeader(
+                    english ? 'Favorite reciters' : 'القراء المفضلون',
+                  ),
                   for (final reciter in reciters)
                     ListTile(
                       leading: Artwork(
@@ -135,7 +147,9 @@ class _FavoritesPageState extends ConsumerState<FavoritesPage> {
                     ),
                 ],
                 if (services.favorites.trackIds.isNotEmpty) ...<Widget>[
-                  SectionHeader(english ? 'Favorite recitations' : 'التلاوات المفضلة'),
+                  SectionHeader(
+                    english ? 'Favorite recitations' : 'التلاوات المفضلة',
+                  ),
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(

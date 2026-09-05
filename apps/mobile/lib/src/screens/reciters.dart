@@ -63,12 +63,14 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
   List<QuranAudioCatalogReciter> get _visible {
     final query = _normalize(_search.text);
     if (query.isEmpty) return _all;
-    return _all.where((reciter) {
-      final haystack = _normalize(
-        '${reciter.nameAr} ${reciter.nameEn} ${reciter.riwayah ?? ''}',
-      );
-      return haystack.contains(query);
-    }).toList(growable: false);
+    return _all
+        .where((reciter) {
+          final haystack = _normalize(
+            '${reciter.nameAr} ${reciter.nameEn} ${reciter.riwayah ?? ''}',
+          );
+          return haystack.contains(query);
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -144,7 +146,9 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
               ? const LoadingPane()
               : values.isEmpty
               ? EmptyPane(
-                  message: english ? 'No matching reciters' : 'لا يوجد قارئ مطابق',
+                  message: english
+                      ? 'No matching reciters'
+                      : 'لا يوجد قارئ مطابق',
                 )
               : RefreshIndicator(
                   onRefresh: () => _load(refresh: true),
@@ -152,10 +156,8 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
                     padding: const EdgeInsets.fromLTRB(8, 4, 8, 120),
                     itemCount: values.length,
                     separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (_, index) => _ReciterTile(
-                      reciter: values[index],
-                      english: english,
-                    ),
+                    itemBuilder: (_, index) =>
+                        _ReciterTile(reciter: values[index], english: english),
                   ),
                 ),
         ),
@@ -187,7 +189,10 @@ class _ReciterTile extends ConsumerWidget {
             ? 'ق'
             : displayName.trim().substring(0, 1);
         return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 4,
+          ),
           leading: CircleAvatar(child: Text(initial)),
           title: Text(
             displayName,
@@ -201,9 +206,7 @@ class _ReciterTile extends ConsumerWidget {
                   ? '${reciter.availableSurahs.length} surahs'
                   : '${reciter.availableSurahs.length} سورة',
               if (offlineCount > 0)
-                english
-                    ? '$offlineCount offline'
-                    : '$offlineCount بدون إنترنت',
+                english ? '$offlineCount offline' : '$offlineCount بدون إنترنت',
             ].join(' • '),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -251,10 +254,7 @@ class _QuranAudioReciterDetailPageState
     try {
       final media = await _resolve(surah);
       _assertIdentity(media);
-      await ref
-          .read(servicesProvider)
-          .playback
-          .playQuranAudio([media], 0);
+      await ref.read(servicesProvider).playback.playQuranAudio([media], 0);
     } catch (error) {
       if (mounted) _showError(error);
     } finally {
@@ -373,7 +373,8 @@ class _QuranAudioReciterDetailPageState
           }
           final surahs = (snapshot.data ?? const <Surah>[])
               .where(
-                (surah) => widget.reciter.availableSurahs.contains(surah.number),
+                (surah) =>
+                    widget.reciter.availableSurahs.contains(surah.number),
               )
               .toList(growable: false);
           return AnimatedBuilder(
@@ -435,7 +436,9 @@ class _QuranAudioReciterDetailPageState
                           ),
                           if (task?.state == QuranDownloadState.completed)
                             IconButton(
-                              tooltip: english ? 'Delete download' : 'حذف التنزيل',
+                              tooltip: english
+                                  ? 'Delete download'
+                                  : 'حذف التنزيل',
                               onPressed: () =>
                                   services.quranDownloads.delete(task!.id),
                               icon: const Icon(Icons.download_done),
@@ -478,13 +481,13 @@ class _DownloadStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = switch (task.state) {
       QuranDownloadState.queued => english ? 'Queued' : 'في قائمة التنزيل',
-      QuranDownloadState.downloading => task.progress == null
-          ? (english ? 'Downloading…' : 'جارٍ التنزيل…')
-          : '${(task.progress! * 100).round()}%',
+      QuranDownloadState.downloading =>
+        task.progress == null
+            ? (english ? 'Downloading…' : 'جارٍ التنزيل…')
+            : '${(task.progress! * 100).round()}%',
       QuranDownloadState.paused => english ? 'Paused' : 'متوقف مؤقتًا',
-      QuranDownloadState.completed => english
-          ? 'Available offline'
-          : 'متاحة بدون إنترنت',
+      QuranDownloadState.completed =>
+        english ? 'Available offline' : 'متاحة بدون إنترنت',
       QuranDownloadState.failed => english ? 'Download failed' : 'فشل التنزيل',
       QuranDownloadState.cancelled => english ? 'Cancelled' : 'تم الإلغاء',
     };

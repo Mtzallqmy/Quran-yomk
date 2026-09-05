@@ -204,12 +204,18 @@ class MushafPageRepository extends ChangeNotifier {
     return await _isValid(
           _imageFile(page, edition),
           metadata: false,
-          expectedSha: _expectedSha(manifest, _assetRelative(page, edition, false)),
+          expectedSha: _expectedSha(
+            manifest,
+            _assetRelative(page, edition, false),
+          ),
         ) &&
         await _isValid(
           _metadataFile(page, edition),
           metadata: true,
-          expectedSha: _expectedSha(manifest, _assetRelative(page, edition, true)),
+          expectedSha: _expectedSha(
+            manifest,
+            _assetRelative(page, edition, true),
+          ),
         );
   }
 
@@ -355,11 +361,7 @@ class MushafPageRepository extends ChangeNotifier {
     throw MushafAssetUnavailableOfflineException(page, edition);
   }
 
-  String _assetRelative(
-    int page,
-    MushafPageEdition edition,
-    bool metadata,
-  ) {
+  String _assetRelative(int page, MushafPageEdition edition, bool metadata) {
     final number = page.toString().padLeft(3, '0');
     return '${metadata ? 'bounds' : 'pages'}/$number.${metadata ? 'json' : edition.fileExtension}';
   }
@@ -394,7 +396,8 @@ class MushafPageRepository extends ChangeNotifier {
       final response = await _client.get(Uri.parse(url));
       if (response.statusCode != 200 || response.bodyBytes.isEmpty) return null;
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-      if (decoded is! Map<String, dynamic> || !_manifestLooksValid(decoded, edition)) {
+      if (decoded is! Map<String, dynamic> ||
+          !_manifestLooksValid(decoded, edition)) {
         return null;
       }
       final target = _manifestFile(edition);
@@ -416,7 +419,8 @@ class MushafPageRepository extends ChangeNotifier {
     if (!await file.exists()) return null;
     try {
       final decoded = jsonDecode(await file.readAsString());
-      if (decoded is Map<String, dynamic> && _manifestLooksValid(decoded, edition)) {
+      if (decoded is Map<String, dynamic> &&
+          _manifestLooksValid(decoded, edition)) {
         return decoded;
       }
     } catch (_) {}
@@ -598,7 +602,8 @@ class MushafPageRepository extends ChangeNotifier {
       throw const FormatException('Missing Mushaf manifest');
     }
     final decoded = jsonDecode(await manifestFile.readAsString());
-    if (decoded is! Map<String, dynamic> || !_manifestLooksValid(decoded, edition)) {
+    if (decoded is! Map<String, dynamic> ||
+        !_manifestLooksValid(decoded, edition)) {
       throw const FormatException('Invalid Mushaf manifest');
     }
 
@@ -634,7 +639,8 @@ class MushafPageRepository extends ChangeNotifier {
             : rawEntry.value.toString();
         if (expected == null) continue;
         final file = File('${directory.path}/$relative');
-        if (!await file.exists() || sha256Hex(await file.readAsBytes()) != expected) {
+        if (!await file.exists() ||
+            sha256Hex(await file.readAsBytes()) != expected) {
           throw StateError('Mushaf checksum failed: $relative');
         }
       }

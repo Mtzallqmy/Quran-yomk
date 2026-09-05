@@ -22,10 +22,19 @@ class QuranOfflinePage extends ConsumerWidget {
           final allTasks = services.quranDownloads.tasks;
           final groups = <String, List<QuranDownloadTask>>{};
           for (final task in allTasks) {
-            groups.putIfAbsent(task.media.reciter.identityKey, () => <QuranDownloadTask>[]).add(task);
+            groups
+                .putIfAbsent(
+                  task.media.reciter.identityKey,
+                  () => <QuranDownloadTask>[],
+                )
+                .add(task);
           }
           final values = groups.values.toList(growable: false)
-            ..sort((a, b) => a.first.media.reciter.nameAr.compareTo(b.first.media.reciter.nameAr));
+            ..sort(
+              (a, b) => a.first.media.reciter.nameAr.compareTo(
+                b.first.media.reciter.nameAr,
+              ),
+            );
           if (values.isEmpty) {
             return Center(
               child: Padding(
@@ -46,9 +55,21 @@ class QuranOfflinePage extends ConsumerWidget {
               ),
             );
           }
-          final completed = allTasks.where((task) => task.state == QuranDownloadState.completed).toList(growable: false);
-          final totalBytes = completed.fold<int>(0, (sum, task) => sum + (task.totalBytes ?? task.downloadedBytes));
-          final active = allTasks.where((task) => task.state == QuranDownloadState.queued || task.state == QuranDownloadState.downloading || task.state == QuranDownloadState.paused).length;
+          final completed = allTasks
+              .where((task) => task.state == QuranDownloadState.completed)
+              .toList(growable: false);
+          final totalBytes = completed.fold<int>(
+            0,
+            (sum, task) => sum + (task.totalBytes ?? task.downloadedBytes),
+          );
+          final active = allTasks
+              .where(
+                (task) =>
+                    task.state == QuranDownloadState.queued ||
+                    task.state == QuranDownloadState.downloading ||
+                    task.state == QuranDownloadState.paused,
+              )
+              .length;
           return CustomScrollView(
             slivers: <Widget>[
               SliverToBoxAdapter(
@@ -66,12 +87,16 @@ class QuranOfflinePage extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 Text(
-                                  english ? '${completed.length} surahs available offline' : '${completed.length} سورة متاحة بدون إنترنت',
+                                  english
+                                      ? '${completed.length} surahs available offline'
+                                      : '${completed.length} سورة متاحة بدون إنترنت',
                                   style: Theme.of(context).textTheme.titleSmall,
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  english ? '${_formatBytes(totalBytes)} used • $active active/paused' : '${_formatBytes(totalBytes)} مستخدمة • $active تنزيل نشط/متوقف',
+                                  english
+                                      ? '${_formatBytes(totalBytes)} used • $active active/paused'
+                                      : '${_formatBytes(totalBytes)} مستخدمة • $active تنزيل نشط/متوقف',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ],
@@ -87,7 +112,10 @@ class QuranOfflinePage extends ConsumerWidget {
                 itemCount: values.length,
                 itemBuilder: (context, index) => Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: _ReciterDownloadGroup(tasks: values[index], english: english),
+                  child: _ReciterDownloadGroup(
+                    tasks: values[index],
+                    english: english,
+                  ),
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -106,15 +134,29 @@ class _ReciterDownloadGroup extends ConsumerWidget {
 
   Future<void> _deleteReciter(BuildContext context, WidgetRef ref) async {
     final reciter = tasks.first.media.reciter;
-    final title = english && reciter.nameEn.isNotEmpty ? reciter.nameEn : reciter.nameAr;
+    final title = english && reciter.nameEn.isNotEmpty
+        ? reciter.nameEn
+        : reciter.nameAr;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(english ? 'Delete reciter downloads?' : 'حذف تنزيلات القارئ؟'),
-        content: Text(english ? 'All downloaded and partial files for $title will be removed from this device.' : 'سيتم حذف جميع السور والملفات الجزئية الخاصة بـ $title من هذا الجهاز.'),
+        title: Text(
+          english ? 'Delete reciter downloads?' : 'حذف تنزيلات القارئ؟',
+        ),
+        content: Text(
+          english
+              ? 'All downloaded and partial files for $title will be removed from this device.'
+              : 'سيتم حذف جميع السور والملفات الجزئية الخاصة بـ $title من هذا الجهاز.',
+        ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(english ? 'Cancel' : 'إلغاء')),
-          FilledButton.tonal(onPressed: () => Navigator.pop(context, true), child: Text(english ? 'Delete' : 'حذف')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(english ? 'Cancel' : 'إلغاء'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(english ? 'Delete' : 'حذف'),
+          ),
         ],
       ),
     );
@@ -128,19 +170,31 @@ class _ReciterDownloadGroup extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reciter = tasks.first.media.reciter;
-    final sorted = [...tasks]..sort((a, b) => a.media.surah.number.compareTo(b.media.surah.number));
-    final completed = sorted.where((task) => task.state == QuranDownloadState.completed).length;
-    final totalBytes = sorted.where((task) => task.state == QuranDownloadState.completed).fold<int>(0, (sum, task) => sum + (task.totalBytes ?? task.downloadedBytes));
-    final title = english && reciter.nameEn.isNotEmpty ? reciter.nameEn : reciter.nameAr;
+    final sorted = [...tasks]
+      ..sort((a, b) => a.media.surah.number.compareTo(b.media.surah.number));
+    final completed = sorted
+        .where((task) => task.state == QuranDownloadState.completed)
+        .length;
+    final totalBytes = sorted
+        .where((task) => task.state == QuranDownloadState.completed)
+        .fold<int>(
+          0,
+          (sum, task) => sum + (task.totalBytes ?? task.downloadedBytes),
+        );
+    final title = english && reciter.nameEn.isNotEmpty
+        ? reciter.nameEn
+        : reciter.nameAr;
     return Card(
       child: ExpansionTile(
         leading: const CircleAvatar(child: Icon(Icons.record_voice_over)),
         title: Text(title),
-        subtitle: Text(<String>[
-          if (reciter.riwayah?.isNotEmpty == true) reciter.riwayah!,
-          english ? '$completed offline' : '$completed سورة بدون إنترنت',
-          _formatBytes(totalBytes),
-        ].join(' • ')),
+        subtitle: Text(
+          <String>[
+            if (reciter.riwayah?.isNotEmpty == true) reciter.riwayah!,
+            english ? '$completed offline' : '$completed سورة بدون إنترنت',
+            _formatBytes(totalBytes),
+          ].join(' • '),
+        ),
         trailing: PopupMenuButton<String>(
           tooltip: english ? 'Reciter downloads' : 'تنزيلات القارئ',
           onSelected: (value) {
@@ -149,11 +203,19 @@ class _ReciterDownloadGroup extends ConsumerWidget {
           itemBuilder: (_) => <PopupMenuEntry<String>>[
             PopupMenuItem<String>(
               value: 'delete',
-              child: ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.delete_sweep_outlined), title: Text(english ? 'Delete all for reciter' : 'حذف تنزيلات القارئ')),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.delete_sweep_outlined),
+                title: Text(
+                  english ? 'Delete all for reciter' : 'حذف تنزيلات القارئ',
+                ),
+              ),
             ),
           ],
         ),
-        children: sorted.map((task) => _OfflineSurahTile(task: task, english: english)).toList(growable: false),
+        children: sorted
+            .map((task) => _OfflineSurahTile(task: task, english: english))
+            .toList(growable: false),
       ),
     );
   }
@@ -169,7 +231,15 @@ class _OfflineSurahTile extends ConsumerWidget {
     final local = await services.quranDownloads.localMedia(task.media);
     if (!context.mounted) return;
     if (local == null || !local.reciter.sameIdentity(task.media.reciter)) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(english ? 'The local file is unavailable or failed integrity verification.' : 'الملف المحلي غير متاح أو لم يجتز فحص السلامة.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            english
+                ? 'The local file is unavailable or failed integrity verification.'
+                : 'الملف المحلي غير متاح أو لم يجتز فحص السلامة.',
+          ),
+        ),
+      );
       return;
     }
     await services.playback.playQuranAudio(<QuranAudioMedia>[local], 0);
@@ -181,15 +251,22 @@ class _OfflineSurahTile extends ConsumerWidget {
     final progress = task.progress;
     final status = switch (task.state) {
       QuranDownloadState.queued => english ? 'Queued' : 'في قائمة التنزيل',
-      QuranDownloadState.downloading => progress == null ? (english ? 'Downloading' : 'جارٍ التنزيل') : '${(progress * 100).round()}%',
+      QuranDownloadState.downloading =>
+        progress == null
+            ? (english ? 'Downloading' : 'جارٍ التنزيل')
+            : '${(progress * 100).round()}%',
       QuranDownloadState.paused => english ? 'Paused' : 'متوقف مؤقتًا',
       QuranDownloadState.completed => english ? 'Offline' : 'محملة',
       QuranDownloadState.failed => english ? 'Failed' : 'فشل التنزيل',
       QuranDownloadState.cancelled => english ? 'Cancelled' : 'ملغاة',
     };
     final surah = task.media.surah;
-    final title = english && surah.nameEn.isNotEmpty ? surah.nameEn : surah.nameAr;
-    final size = task.totalBytes == null ? null : _formatBytes(task.totalBytes!);
+    final title = english && surah.nameEn.isNotEmpty
+        ? surah.nameEn
+        : surah.nameAr;
+    final size = task.totalBytes == null
+        ? null
+        : _formatBytes(task.totalBytes!);
     return ListTile(
       leading: CircleAvatar(child: Text('${surah.number}')),
       title: Text(title),
@@ -198,19 +275,40 @@ class _OfflineSurahTile extends ConsumerWidget {
         children: <Widget>[
           Text(size == null ? status : '$status • $size'),
           if (task.state == QuranDownloadState.downloading && progress != null)
-            Padding(padding: const EdgeInsets.only(top: 5), child: LinearProgressIndicator(value: progress)),
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: LinearProgressIndicator(value: progress),
+            ),
         ],
       ),
       trailing: Wrap(
         spacing: 0,
         children: <Widget>[
           if (task.state == QuranDownloadState.completed)
-            IconButton(tooltip: english ? 'Play offline' : 'تشغيل بدون إنترنت', onPressed: () => _play(context, ref), icon: const Icon(Icons.play_circle_fill))
-          else if (task.state == QuranDownloadState.paused || task.state == QuranDownloadState.failed)
-            IconButton(tooltip: english ? 'Resume' : 'استكمال', onPressed: () => services.quranDownloads.resume(task.id), icon: const Icon(Icons.play_arrow))
-          else if (task.state == QuranDownloadState.downloading || task.state == QuranDownloadState.queued)
-            IconButton(tooltip: english ? 'Pause' : 'إيقاف مؤقت', onPressed: () => services.quranDownloads.pause(task.id), icon: const Icon(Icons.pause)),
-          IconButton(tooltip: english ? 'Delete' : 'حذف', onPressed: () => services.quranDownloads.delete(task.id), icon: const Icon(Icons.delete_outline)),
+            IconButton(
+              tooltip: english ? 'Play offline' : 'تشغيل بدون إنترنت',
+              onPressed: () => _play(context, ref),
+              icon: const Icon(Icons.play_circle_fill),
+            )
+          else if (task.state == QuranDownloadState.paused ||
+              task.state == QuranDownloadState.failed)
+            IconButton(
+              tooltip: english ? 'Resume' : 'استكمال',
+              onPressed: () => services.quranDownloads.resume(task.id),
+              icon: const Icon(Icons.play_arrow),
+            )
+          else if (task.state == QuranDownloadState.downloading ||
+              task.state == QuranDownloadState.queued)
+            IconButton(
+              tooltip: english ? 'Pause' : 'إيقاف مؤقت',
+              onPressed: () => services.quranDownloads.pause(task.id),
+              icon: const Icon(Icons.pause),
+            ),
+          IconButton(
+            tooltip: english ? 'Delete' : 'حذف',
+            onPressed: () => services.quranDownloads.delete(task.id),
+            icon: const Icon(Icons.delete_outline),
+          ),
         ],
       ),
     );

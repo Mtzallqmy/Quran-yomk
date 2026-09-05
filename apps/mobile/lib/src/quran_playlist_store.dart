@@ -20,28 +20,31 @@ class QuranPlaylistEntry {
   final int bitrateKbps;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'bitrate_kbps': bitrateKbps,
-        'surah': surah.toJson(),
-        'reciter': <String, dynamic>{
-          'id': reciter.id,
-          'provider': reciter.provider.name,
-          'edition': reciter.edition,
-          'name_ar': reciter.nameAr,
-          'name_en': reciter.nameEn,
-          'riwayah': reciter.riwayah,
-          'server_url': reciter.serverUrl,
-          'available_surahs': reciter.availableSurahs.toList(),
-          'bitrates': reciter.bitrates.toList(),
-          'supports_ayah_audio': reciter.supportsAyahAudio,
-        },
-      };
+    'id': id,
+    'bitrate_kbps': bitrateKbps,
+    'surah': surah.toJson(),
+    'reciter': <String, dynamic>{
+      'id': reciter.id,
+      'provider': reciter.provider.name,
+      'edition': reciter.edition,
+      'name_ar': reciter.nameAr,
+      'name_en': reciter.nameEn,
+      'riwayah': reciter.riwayah,
+      'server_url': reciter.serverUrl,
+      'available_surahs': reciter.availableSurahs.toList(),
+      'bitrates': reciter.bitrates.toList(),
+      'supports_ayah_audio': reciter.supportsAyahAudio,
+    },
+  };
 
   factory QuranPlaylistEntry.fromJson(Map<String, dynamic> json) {
     final rawValue = json['reciter'];
-    if (rawValue is! Map) throw const FormatException('QURAN_PLAYLIST_RECITER_MISSING');
+    if (rawValue is! Map)
+      throw const FormatException('QURAN_PLAYLIST_RECITER_MISSING');
     final raw = Map<String, dynamic>.from(rawValue);
-    final provider = quranAudioProviderFromPersistedName(raw['provider'] as String?);
+    final provider = quranAudioProviderFromPersistedName(
+      raw['provider'] as String?,
+    );
     if (provider == null) {
       throw const FormatException('QURAN_PLAYLIST_PROVIDER_INVALID');
     }
@@ -70,13 +73,15 @@ class QuranPlaylistEntry {
       throw const FormatException('QURAN_PLAYLIST_RECITER_IDENTITY_INVALID');
     }
     final surahValue = json['surah'];
-    if (surahValue is! Map) throw const FormatException('QURAN_PLAYLIST_SURAH_MISSING');
+    if (surahValue is! Map)
+      throw const FormatException('QURAN_PLAYLIST_SURAH_MISSING');
     final surah = Surah.fromJson(Map<String, dynamic>.from(surahValue));
     if (surah.number < 1 || surah.number > 114) {
       throw const FormatException('QURAN_PLAYLIST_SURAH_INVALID');
     }
     final id = json['id'] as String? ?? '';
-    if (id.isEmpty) throw const FormatException('QURAN_PLAYLIST_ENTRY_ID_INVALID');
+    if (id.isEmpty)
+      throw const FormatException('QURAN_PLAYLIST_ENTRY_ID_INVALID');
     return QuranPlaylistEntry(
       id: id,
       bitrateKbps: (json['bitrate_kbps'] as num?)?.toInt() ?? 128,
@@ -97,10 +102,7 @@ class QuranPlaylist {
   final String name;
   final List<QuranPlaylistEntry> entries;
 
-  QuranPlaylist copyWith({
-    String? name,
-    List<QuranPlaylistEntry>? entries,
-  }) =>
+  QuranPlaylist copyWith({String? name, List<QuranPlaylistEntry>? entries}) =>
       QuranPlaylist(
         id: id,
         name: name ?? this.name,
@@ -108,10 +110,10 @@ class QuranPlaylist {
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'name': name,
-        'entries': entries.map((e) => e.toJson()).toList(),
-      };
+    'id': id,
+    'name': name,
+    'entries': entries.map((e) => e.toJson()).toList(),
+  };
 
   factory QuranPlaylist.fromJson(Map<String, dynamic> json) {
     final id = json['id'] as String? ?? '';
@@ -125,14 +127,20 @@ class QuranPlaylist {
       for (final value in rawEntries) {
         if (value is! Map) continue;
         try {
-          entries.add(QuranPlaylistEntry.fromJson(Map<String, dynamic>.from(value)));
+          entries.add(
+            QuranPlaylistEntry.fromJson(Map<String, dynamic>.from(value)),
+          );
         } catch (_) {
           // Fail closed for the invalid entry. A malformed identity must never
           // become a playable entry or be coerced to another provider.
         }
       }
     }
-    return QuranPlaylist(id: id, name: name, entries: List.unmodifiable(entries));
+    return QuranPlaylist(
+      id: id,
+      name: name,
+      entries: List.unmodifiable(entries),
+    );
   }
 }
 
@@ -156,7 +164,9 @@ class QuranPlaylistStore extends ChangeNotifier {
         for (final value in decoded) {
           if (value is! Map) continue;
           try {
-            values.add(QuranPlaylist.fromJson(Map<String, dynamic>.from(value)));
+            values.add(
+              QuranPlaylist.fromJson(Map<String, dynamic>.from(value)),
+            );
           } catch (_) {
             // Preserve valid playlists while rejecting malformed persisted data.
           }
@@ -204,7 +214,9 @@ class QuranPlaylistStore extends ChangeNotifier {
     );
     _replace(
       index,
-      playlist.copyWith(entries: <QuranPlaylistEntry>[...playlist.entries, entry]),
+      playlist.copyWith(
+        entries: <QuranPlaylistEntry>[...playlist.entries, entry],
+      ),
     );
     await _persist();
   }

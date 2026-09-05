@@ -91,7 +91,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         .stringListValue('home_sections', fallback: _defaultSections);
     final safe = <String>[];
     for (final value in configured) {
-      if (_allowedSections.contains(value) && !safe.contains(value)) safe.add(value);
+      if (_allowedSections.contains(value) && !safe.contains(value))
+        safe.add(value);
     }
     for (final fallback in _defaultSections) {
       if (!safe.contains(fallback)) safe.add(fallback);
@@ -103,7 +104,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) => FutureBuilder<HomeData>(
     future: future,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done && !snapshot.hasData) {
+      if (snapshot.connectionState != ConnectionState.done &&
+          !snapshot.hasData) {
         return const LoadingPane();
       }
       if (snapshot.hasError && !snapshot.hasData) {
@@ -118,7 +120,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           onRefresh: refresh,
           child: ListView(
             children: <Widget>[
-              for (final section in _sectionOrder()) ..._section(section, data, services),
+              for (final section in _sectionOrder())
+                ..._section(section, data, services),
               const SizedBox(height: 24),
             ],
           ),
@@ -150,7 +153,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                       onTap: item.slug == null
                           ? null
                           : () async {
-                              final station = await services.repository.api.station(item.slug!);
+                              final station = await services.repository.api
+                                  .station(item.slug!);
                               await _playStation(station);
                             },
                       child: Padding(
@@ -227,9 +231,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                                       builder: (context, _) => IconButton(
                                         tooltip: 'المفضلة',
                                         visualDensity: VisualDensity.compact,
-                                        onPressed: () => services.favorites.toggleStation(station.id),
+                                        onPressed: () => services.favorites
+                                            .toggleStation(station.id),
                                         icon: Icon(
-                                          services.favorites.isStation(station.id)
+                                          services.favorites.isStation(
+                                                station.id,
+                                              )
                                               ? Icons.favorite
                                               : Icons.favorite_border,
                                         ),
@@ -239,12 +246,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                                         ? const SizedBox(
                                             width: 22,
                                             height: 22,
-                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
                                           )
                                         : IconButton.filled(
                                             tooltip: 'تشغيل',
-                                            visualDensity: VisualDensity.compact,
-                                            onPressed: () => _playStation(station),
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            onPressed: () =>
+                                                _playStation(station),
                                             icon: const Icon(Icons.play_arrow),
                                           ),
                                   ],
@@ -290,7 +301,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        subtitle: reciter.rewaya == null ? null : Text(reciter.rewaya!),
+                        subtitle: reciter.rewaya == null
+                            ? null
+                            : Text(reciter.rewaya!),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) => ReciterDetailPage(reciter: reciter),
@@ -304,21 +317,28 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
         ];
       case 'offline':
-        if (!services.remoteConfig.offlineDownloadsEnabled) return const <Widget>[];
+        if (!services.remoteConfig.offlineDownloadsEnabled)
+          return const <Widget>[];
         final tasks = services.quranDownloads.tasks;
-        final completed = tasks.where((task) => task.state.name == 'completed').length;
+        final completed = tasks
+            .where((task) => task.state.name == 'completed')
+            .length;
         return <Widget>[
           const SectionHeader('الاستماع بدون إنترنت'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Card(
               child: ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.download_for_offline_outlined)),
+                leading: const CircleAvatar(
+                  child: Icon(Icons.download_for_offline_outlined),
+                ),
                 title: const Text('التنزيلات'),
                 subtitle: Text('$completed سورة جاهزة بدون إنترنت'),
                 trailing: const Icon(Icons.chevron_left),
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const QuranOfflinePage()),
+                  MaterialPageRoute<void>(
+                    builder: (_) => const QuranOfflinePage(),
+                  ),
                 ),
               ),
             ),
@@ -340,7 +360,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                       label: Text(category.nameAr),
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => RadioPage(initialCategory: category.slug),
+                          builder: (_) =>
+                              RadioPage(initialCategory: category.slug),
                         ),
                       ),
                     ),

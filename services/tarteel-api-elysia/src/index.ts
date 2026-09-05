@@ -1,171 +1,86 @@
-import { Elysia, t } from 'elysia'
-import {
-  assertSameCanonicalIdentity,
-  type ReciterIdentity,
-  toCanonicalIdentityV1
-} from './identity'
+import { Elysia } from 'elysia'
 
 const upstream = (process.env.TARTEEL_UPSTREAM_API ??
   'https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api').replace(/\/$/, '')
 const upstreamKey = process.env.TARTEEL_API_KEY ?? ''
+const MAX_RESPONSE_BYTES = 5 * 1024 * 1024
+const UPSTREAM_TIMEOUT_MS = 12_000
 
-const json = async (url: string) => {
-  const response = await fetch(url, {
-    headers: upstreamKey ? { apikey: upstreamKey, accept: 'application/json' } : { accept: 'application/json' }
-  })
-  if (!response.ok) throw new Error(`UPSTREAM_HTTP_${response.status}`)
-  return response.json() as Promise<Record<string, unknown>>
-}
-
-const mp3Reciters = async (surah?: number) => {
-  const query = new URLSearchParams({ language: 'ar' })
-  if (surah) query.set('sura', String(surah))
-  const response = await fetch(`https://www.mp3quran.net/api/v3/reciters?${query}`)
-  if (!response.ok) throw new Error(`MP3QURAN_HTTP_${response.status}`)
-  const root = (await response.json()) as { reciters?: Array<Record<string, unknown>> }
-  const rows: Array<Record<string, unknown>> = []
-  for (const reciter of root.reciters ?? []) {
-    const reciterId = Number(reciter.id ?? 0)
-    const name = String(reciter.name ?? '')
-    for (const raw of (reciter.moshaf as Array<Record<string, unknown>> | undefined) ?? []) {
-      const moshafId = Number(raw.id ?? 0)
-      const edition = `${reciterId}-${moshafId}`
-      const server = String(raw.server ?? '').replace(/\/+$/, '')
-      const surahs = String(raw.surah_list ?? '')
-        .split(',')
-        .map(Number)
-        .filter((value) => Number.isInteger(value) && value >= 1 && value <= 114)
-      if (!reciterId || !moshafId || !server.startsWith('https://') || !surahs.length) continue
-      rows.push({
-        id: `mp3quran:${reciterId}:${moshafId}`,
-        provider: 'mp3quran',
-        providerReciterId: String(reciterId),
-        edition,
-        nameAr: name,
-        nameEn: name,
-        riwayah: String(raw.name ?? ''),
-        availableSurahs: surahs,
-        server
-      })
-    }
+function safeResponseHeaders(headers: Headers): Headers {
+  const result = new Headers({ 'content-type': 'application/json; charset=utf-8' })
+  for (const name of ['content-type', 'cache-control', 'x-request-id']) {
+    const value = headers.get(name)
+    if (value) result.set(name, value)
   }
-  return rows
+  result.set('x-tarteel-api-adapter', 'elysia-proxy')
+  return result
 }
 
-const alQuranReciters = async () => {
-  const response = await fetch('https://api.alquran.cloud/v1/edition/format/audio')
-  if (!response.ok) throw new Error(`ALQURAN_HTTP_${response.status}`)
-  const root = (await response.json()) as { data?: Array<Record<string, unknown>> }
-  return (root.data ?? [])
-    .filter((row) => row.language === 'ar')
-    .map((row) => {
-      const edition = String(row.identifier ?? '')
-      return {
-        id: `alquran:${edition}`,
-        provider: 'alquran-cloud',
-        providerReciterId: `alquran:${edition}`,
-        edition,
-        nameAr: String(row.name ?? edition),
-        nameEn: String(row.englishName ?? edition),
-        riwayah: String(row.type ?? ''),
-        availableSurahs: Array.from({ length: 114 }, (_, index) => index + 1),
-        bitrates: [64, 128, 192]
-      }
+export function canonicalUpstreamUrl(request: Request): URL {
+  const incoming = new URL(request.url)
+  const marker = '/v1/'
+  const index = incoming.pathname.indexOf(marker)
+  const path = index >= 0 ? incoming.pathname.slice(index + marker.length) : ''
+  if (!path || path.includes('..') || path.includes('\\')) throw new Error('INVALID_PROXY_PATH')
+  const target = new URL(`${upstream}/${path}`)
+  target.search = incoming.search
+  return target
+}
+
+export async function proxyPublicRequest(request: Request): Promise<Response> {
+  if (!upstreamKey) {
+    return Response.json(
+      { error: { code: 'SERVER_NOT_CONFIGURED', message: 'Canonical public API key is not configured' } },
+      { status: 503, headers: { 'cache-control': 'no-store' } }
+    )
+  }
+
+  let target: URL
+  try {
+    target = canonicalUpstreamUrl(request)
+  } catch {
+    return Response.json(
+      { error: { code: 'VALIDATION_ERROR', message: 'Invalid public API path' } },
+      { status: 422, headers: { 'cache-control': 'no-store' } }
+    )
+  }
+
+  const requestId = request.headers.get('x-request-id')
+  const headers: Record<string, string> = { apikey: upstreamKey, accept: 'application/json' }
+  if (requestId) headers['x-request-id'] = requestId
+
+  try {
+    const response = await fetch(target, {
+      method: 'GET',
+      headers,
+      redirect: 'error',
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
     })
-    .filter((row) => row.edition.length > 0)
+    const declared = Number(response.headers.get('content-length') ?? 0)
+    if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) throw new Error('UPSTREAM_RESPONSE_TOO_LARGE')
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    if (bytes.byteLength > MAX_RESPONSE_BYTES) throw new Error('UPSTREAM_RESPONSE_TOO_LARGE')
+    return new Response(bytes, { status: response.status, headers: safeResponseHeaders(response.headers) })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    const code = message.includes('TOO_LARGE') ? 'UPSTREAM_RESPONSE_TOO_LARGE' : 'UPSTREAM_UNAVAILABLE'
+    const status = code === 'UPSTREAM_RESPONSE_TOO_LARGE' ? 502 : 503
+    return Response.json(
+      { error: { code, message: 'Canonical public API is unavailable' } },
+      { status, headers: { 'cache-control': 'no-store', 'x-tarteel-api-adapter': 'elysia-proxy' } }
+    )
+  }
 }
 
 export const app = new Elysia({ name: 'tarteel-api-elysia' })
-  .get('/health', () => ({ ok: true, service: 'tarteel-api-elysia' }))
-  .get('/v1/app-config', async () => json(`${upstream}/app-config`))
-  .get(
-    '/v1/quran/reciters',
-    async ({ query }) => {
-      const surah = query.surah ? Number(query.surah) : undefined
-      const [mp3, alquran] = await Promise.allSettled([
-        mp3Reciters(surah),
-        alQuranReciters()
-      ])
-      return {
-        data: [
-          ...(mp3.status === 'fulfilled' ? mp3.value : []),
-          ...(alquran.status === 'fulfilled' ? alquran.value : [])
-        ]
-      }
-    },
-    { query: t.Object({ surah: t.Optional(t.String({ pattern: '^[0-9]{1,3}$' })) }) }
-  )
-  .get(
-    '/v1/quran/audio/resolve',
-    async ({ query, set }) => {
-      const surah = Number(query.surah)
-      const bitrate = Number(query.bitrate ?? 128)
-      const requested: ReciterIdentity = {
-        provider: query.provider,
-        reciterId: query.reciterId,
-        edition: query.edition
-      }
-      const requestedCanonical = toCanonicalIdentityV1(requested, surah)
-
-      if (query.provider === 'alquran-cloud') {
-        const resolved: ReciterIdentity = {
-          provider: 'alquran-cloud',
-          reciterId: `alquran:${query.edition}`,
-          edition: query.edition
-        }
-        const resolvedCanonical = toCanonicalIdentityV1(resolved, surah)
-        assertSameCanonicalIdentity(requestedCanonical, resolvedCanonical)
-        const safeBitrate = [64, 128, 192].includes(bitrate) ? bitrate : 128
-        return {
-          data: {
-            identity: resolved,
-            canonicalIdentity: resolvedCanonical,
-            surah,
-            bitrate: safeBitrate,
-            playbackUrl: `https://cdn.islamic.network/quran/audio-surah/${safeBitrate}/${encodeURIComponent(query.edition)}/${surah}.mp3`
-          }
-        }
-      }
-
-      const rows = await mp3Reciters(surah)
-      const match = rows.find(
-        (row) => row.id === query.reciterId && row.edition === query.edition
-      )
-      if (!match) {
-        set.status = 404
-        return { error: { code: 'RECITER_OR_SURAH_NOT_FOUND' } }
-      }
-      const resolved: ReciterIdentity = {
-        provider: 'mp3quran',
-        reciterId: String(match.id),
-        edition: String(match.edition)
-      }
-      const resolvedCanonical = toCanonicalIdentityV1(resolved, surah, {
-        riwayah: String(match.riwayah ?? '')
-      })
-      assertSameCanonicalIdentity(requestedCanonical, resolvedCanonical)
-      return {
-        data: {
-          identity: resolved,
-          canonicalIdentity: resolvedCanonical,
-          nameAr: match.nameAr,
-          riwayah: match.riwayah,
-          surah,
-          bitrate: 0,
-          playbackUrl: `${match.server}/${String(surah).padStart(3, '0')}.mp3`
-        }
-      }
-    },
-    {
-      query: t.Object({
-        provider: t.Union([t.Literal('alquran-cloud'), t.Literal('mp3quran')]),
-        reciterId: t.String({ minLength: 1 }),
-        edition: t.String({ minLength: 1 }),
-        surah: t.String({ pattern: '^(?:[1-9]|[1-9][0-9]|1[01][0-4])$' }),
-        bitrate: t.Optional(t.String({ pattern: '^[0-9]{2,3}$' }))
-      })
-    }
-  )
+  .get('/health', () => ({
+    ok: true,
+    service: 'tarteel-api-elysia',
+    mode: 'canonical-upstream-proxy',
+    upstream: new URL(upstream).hostname,
+    configured: Boolean(upstreamKey)
+  }))
+  .get('/v1/*', ({ request }) => proxyPublicRequest(request))
 
 if (import.meta.main) {
   app.listen(Number(process.env.PORT ?? 3000))

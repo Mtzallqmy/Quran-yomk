@@ -7,10 +7,11 @@ on:
       - '.github/workflows/mobile-format-diagnostic.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  format-diff:
+  format-branch:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
@@ -18,16 +19,22 @@ jobs:
         working-directory: apps/mobile
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.2'
           channel: stable
           cache: true
       - run: flutter pub get
-      - name: Produce canonical Dart formatting diff
+      - name: Apply canonical Dart formatting
         shell: bash
         run: |
           set -euo pipefail
           dart format lib test
-          git diff -- lib test
-          exit 1
+          git diff --exit-code -- lib test && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib test
+          git commit -m 'Format mobile Dart sources'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

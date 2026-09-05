@@ -7,11 +7,13 @@ function liq(value:string):string{return JSON.stringify(value);}
 export function buildLiquidsoapScript(config:Config,playlistPath:string):string{
   return `${config.liquidsoapAllowRoot?'settings.init.allow_root := true\n':''}settings.log.stdout := true\nsettings.log.file := false\n`+
     `settings.server.telnet := true\nsettings.server.telnet.bind_addr := "127.0.0.1"\nsettings.server.telnet.port := ${config.liquidsoapControlPort}\n`+
-    `main = playlist(mode="normal", reload=60, ${liq(playlistPath)})\n`+
+    `main = playlist(id="main", mode="normal", reload=60, ${liq(playlistPath)})\n`+
     `automation = request.queue(id="automation")\n`+
-    `def track_started(m) = print("TARTEEL_EVENT TRACK_START #{metadata.json.stringify(m)}") end\n`+
+    `def track_started(m)\n`+
+    `  payload = {tarteel_index=m["tarteel_index"], media_id=m["media_id"], queue_entry_id=m["queue_entry_id"]}\n`+
+    `  print("TARTEEL_EVENT TRACK_START #{json.stringify(compact=true, payload)}")\nend\n`+
     `emergency = single(${liq(config.fallbackPath)})\n`+
-    `radio = fallback(track_sensitive=false, [automation, main, emergency])\n`+
+    `radio = fallback(track_sensitive=true, [automation, main, emergency])\n`+
     `radio.on_track(track_started)\n`+
     `def source_connected() = print("TARTEEL_EVENT SOURCE_CONNECTED") end\n`+
     `def source_disconnected() = print("TARTEEL_EVENT SOURCE_DISCONNECTED") end\n`+

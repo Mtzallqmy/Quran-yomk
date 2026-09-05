@@ -1,3 +1,4 @@
+import { fetchJsonResponse as fetch } from "../_shared/http.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 import { handleQuranApi } from "./quran.ts";

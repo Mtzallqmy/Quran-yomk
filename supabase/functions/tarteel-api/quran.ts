@@ -1,3 +1,4 @@
+import { fetchJsonResponse as fetch } from "../_shared/http.ts";
 import {
   CANONICAL_QURAN_V1,
   canonicalQuranSnapshots,
@@ -37,7 +38,7 @@ async function fetchJson(url: string, timeoutMs = 12000): Promise<Json> {
     });
     if (!response.ok) throw new Error(`UPSTREAM_${response.status}`);
     const payload = await response.json();
-    if (!payload || typeof payload !== "object") throw new Error("UPSTREAM_INVALID_JSON");
+    if (!payload || typeof payload !== "object" || !Array.isArray(payload.reciters)) throw new Error("UPSTREAM_INVALID_JSON");
     return payload as Json;
   } finally {
     clearTimeout(timeout);

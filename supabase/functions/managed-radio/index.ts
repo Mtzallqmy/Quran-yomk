@@ -1,3 +1,4 @@
+import { fetchJsonResponse as fetch } from "../_shared/http.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { probeTrustedStream as probeStream } from "../_shared/stream-probe.ts";
 
@@ -40,7 +41,7 @@ function fail(requestId: string, error: unknown) {
     : new HttpError(
         500,
         'INTERNAL_ERROR',
-        error instanceof Error ? error.message : String(error),
+        'Unexpected managed radio error',
       );
   console.error(JSON.stringify({
     event: 'MANAGED_RADIO_ERROR',
@@ -230,7 +231,9 @@ class RadioCoService {
         `Radio.co Public API returned ${response.status}`,
       );
     }
-    return body?.data ?? body;
+    const value = body?.data ?? body;
+    if (!value || typeof value !== 'object') throw new HttpError(502, 'RADIOCO_INVALID_RESPONSE', 'Radio.co response was invalid');
+    return value;
   }
 
   private async token() {
@@ -260,7 +263,7 @@ class RadioCoService {
       cache: 'no-store',
     });
     const body = await parse(response);
-    if (!response.ok || !body?.access_token) {
+    if (!response.ok || typeof body?.access_token !== 'string' || !body.access_token) {
       throw new HttpError(
         502,
         'RADIOCO_OAUTH_FAILED',
@@ -294,7 +297,7 @@ class RadioCoService {
         response.status === 409 ? 409 : 502,
         code,
         `Radio.co Studio API returned ${response.status}`,
-        typeof body === 'object' ? body : null,
+        null,
       );
     }
     return body;
@@ -891,7 +894,7 @@ class TarteelManagedRadioService implements ManagedRadioService {
         : new HttpError(
             500,
             'SYNC_FAILED',
-            error instanceof Error ? error.message : String(error),
+            'Unexpected managed radio error',
           );
       await this.updateConfig(manifest.channel.id, {
         last_sync_at: new Date().toISOString(),

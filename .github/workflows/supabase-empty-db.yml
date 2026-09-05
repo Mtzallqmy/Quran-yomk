@@ -39,13 +39,7 @@ jobs:
           version: 2.116.0
 
       - name: Supabase CLI identity
-        run: |
-          supabase --version
-          supabase migration new --help
-          supabase migration new rate_limit_cleanup_locking
-          migration_file=$(ls supabase/migrations/*_rate_limit_cleanup_locking.sql)
-          cp supabase/rate-limit-cleanup.sql "$migration_file"
-          echo "$migration_file"
+        run: supabase --version
 
       - name: Start isolated local Supabase stack
         run: supabase start

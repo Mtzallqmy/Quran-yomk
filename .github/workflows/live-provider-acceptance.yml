@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - fix/separate-live-provider-ci
     paths:
       - 'apps/mobile/tool/islamic_content_acceptance.py'
       - 'apps/mobile/tool/quran_ci.py'

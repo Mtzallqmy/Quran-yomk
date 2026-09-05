@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { fetchJsonResponse } from './http.js';
 import { ProcessingError, safeErrorMessage } from './errors.js';
 import type { ProcessingClaim, ProbeResult, ProcessedOutput } from './types.js';
 
@@ -10,7 +11,7 @@ export class ProcessingDatabase {
   constructor(url: string, secretKey: string) {
     this.client = createClient<any>(url, secretKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      global: { headers: { 'X-Client-Info': '@tarteel/audio-worker/0.1.0' } },
+      global: { fetch: fetchJsonResponse, headers: { 'X-Client-Info': '@tarteel/audio-worker/0.1.0' } },
     });
   }
 

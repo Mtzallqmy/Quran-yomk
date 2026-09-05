@@ -58,7 +58,7 @@ export class AudioWorker {
       await withWorkspace(this.config.tempRoot, claim.job_id, async (directory) => {
         const input = join(directory, `input.${claim.source_extension}`);
         const output = join(directory, `output.${claim.profile.extension}`);
-        await this.storage.download(claim.original_bucket, claim.original_path, input, this.config.processingTimeoutMs);
+        await this.storage.download(claim.original_bucket, claim.original_path, input, this.config.processingTimeoutMs, claim.expected_size_bytes);
         const inputStat = await stat(input);
         const checksum = await sha256File(input);
         const source = await probeFile(this.config.ffprobePath, input, this.config.probeTimeoutMs);

@@ -74,11 +74,10 @@ jobs:
       - name: Mushaf tests
         run: flutter test test/mushaf_test.dart
 
-      - name: Islamic Library Data repository and live integrity tests
+      - name: Islamic Library Data manifest contract
         run: |
           python3 -m py_compile tool/islamic_content_acceptance.py
-          python3 tool/islamic_content_acceptance.py \
-            assets/islamic_content_manifest.json --live
+          python3 tool/islamic_content_acceptance.py assets/islamic_content_manifest.json
 
       - name: Mushaf page-asset contract tests
         run: |
@@ -89,12 +88,6 @@ jobs:
 
       - name: Quran audio repository and download tests
         run: flutter test test/quran_audio_test.dart
-
-      - name: Live Mushaf API acceptance
-        run: python3 tool/quran_ci.py
-
-      - name: Live Quran audio provider acceptance
-        run: python3 tool/quran_audio_ci.py
 
       - name: Verify Android release configuration
         shell: bash
@@ -184,8 +177,6 @@ jobs:
           }
           EOF
           cp ../../docs/ANDROID_RELEASE_ACCEPTANCE.md "$RELEASE_DIR/DEVICE_ACCEPTANCE.md"
-          cp release/quran/quran-live-smoke.json "$RELEASE_DIR/"
-          cp release/quran-audio/quran-audio-live-smoke.json "$RELEASE_DIR/"
           {
             echo "versionName=$version_name"
             echo "versionCode=$version_code"

@@ -16,7 +16,7 @@ function safeResponseHeaders(headers: Headers): Headers {
   return result
 }
 
-export async function readCanonicalResponse(response: Response, maxBytes = MAX_RESPONSE_BYTES): Promise<Uint8Array> {
+export async function readCanonicalResponse(response: Response, maxBytes = MAX_RESPONSE_BYTES): Promise<Uint8Array<ArrayBuffer>> {
   const reject = async (code: string): Promise<never> => {
     await response.body?.cancel().catch(() => {})
     throw new Error(code)

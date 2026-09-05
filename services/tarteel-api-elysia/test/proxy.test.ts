@@ -20,7 +20,7 @@ describe('upstream failure boundaries', () => {
   ]) {
     test(`rejects invalid success payload ${body}`, async () => {
       process.env.TARTEEL_API_KEY = 'test'
-      globalThis.fetch = (async () => new Response(body, { headers: { 'content-type': type! } })) as typeof fetch
+      globalThis.fetch = (async () => new Response(body, { headers: { 'content-type': type! } })) as unknown as typeof fetch
       const response = await app.handle(new Request('https://adapter.invalid/v1/app-config'))
       expect(response.status).toBe(502)
       expect(await response.text()).not.toContain('internal token')
@@ -52,7 +52,7 @@ describe('upstream failure boundaries', () => {
     process.env.TARTEEL_API_KEY = 'test'
     globalThis.fetch = (async () => new Response('password=internal-secret', {
       status: 500, headers: { 'set-cookie': 'token=internal-secret' },
-    })) as typeof fetch
+    })) as unknown as typeof fetch
     const response = await app.handle(new Request('https://adapter.invalid/v1/app-config'))
     expect(response.status).toBe(502)
     expect(response.headers.get('set-cookie')).toBeNull()
@@ -65,7 +65,7 @@ describe('upstream failure boundaries', () => {
       expect(init?.redirect).toBe('error')
       expect(init?.signal).toBeInstanceOf(AbortSignal)
       throw new Error('provider token=internal-secret')
-    }) as typeof fetch
+    }) as unknown as typeof fetch
     const response = await app.handle(new Request('https://adapter.invalid/v1/app-config'))
     expect(response.status).toBe(503)
     expect(await response.text()).not.toContain('internal-secret')
@@ -93,7 +93,7 @@ describe('canonical public API proxy', () => {
           'x-request-id': 'upstream-id'
         }
       })
-    }) as typeof fetch
+    }) as unknown as typeof fetch
 
     const response = await app.handle(new Request('https://adapter.invalid/v1/app-config', {
       headers: { 'x-request-id': 'client-id' }

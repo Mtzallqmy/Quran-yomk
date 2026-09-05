@@ -10,9 +10,7 @@ import '../lib/src/quran_download_service.dart';
 import '../lib/src/startup.dart';
 
 void main() {
-  testWidgets('slow and failed optional tasks cannot hold the first frame', (
-    tester,
-  ) async {
+  testWidgets('optional work cannot hold the first frame', (tester) async {
     final blocked = Completer<void>();
     var started = false;
     var independent = false;
@@ -36,7 +34,7 @@ void main() {
     await tester.pump();
   });
 
-  test('offline stores share initialization with early user operations', () async {
+  test('early offline operations share initialization', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final preferences = await SharedPreferences.getInstance();
     final clips = createOfflineClipService(preferences);
@@ -55,7 +53,7 @@ void main() {
     expect(downloads.tasks, isEmpty);
   });
 
-  test('main waits only for critical audio and preferences before runApp', () {
+  test('main waits only for audio and preferences', () {
     final source = File('lib/main.dart').readAsStringSync();
     final criticalPath = source.split('  runApp(').first;
     expect(criticalPath, contains('await AudioService.init('));

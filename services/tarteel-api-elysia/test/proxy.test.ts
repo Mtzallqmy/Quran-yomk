@@ -20,9 +20,9 @@ describe('canonical public API proxy', () => {
 
   test('forwards API key and request id and preserves upstream response semantics', async () => {
     process.env.TARTEEL_API_KEY = 'sb_publishable_test'
-    let called: { url: string; init?: RequestInit } | null = null
+    const calls: Array<{ url: string; init?: RequestInit }> = []
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      called = { url: String(input), init }
+      calls.push({ url: String(input), init })
       return new Response(JSON.stringify({ data: { ok: true } }), {
         status: 206,
         headers: {
@@ -39,6 +39,7 @@ describe('canonical public API proxy', () => {
     expect(response.status).toBe(206)
     expect(await response.json()).toEqual({ data: { ok: true } })
     expect(response.headers.get('x-tarteel-api-adapter')).toBe('elysia-proxy')
+    const called = calls[0]
     expect(called?.url).toBe('https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api/app-config')
     const headers = new Headers(called?.init?.headers)
     expect(headers.get('apikey')).toBe('sb_publishable_test')

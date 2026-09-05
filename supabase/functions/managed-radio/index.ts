@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { probeTrustedStream as probeStream } from "../_shared/stream-probe.ts";
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 type Obj = Record<string, any>;
@@ -496,54 +497,6 @@ function asNumberId(value: unknown, field: string) {
     );
   }
   return n;
-}
-
-async function probeStream(value: unknown) {
-  const url = safeUrl(value);
-  if (!url) {
-    return {
-      ok: false,
-      status: null,
-      latency_ms: null,
-      error: 'INVALID_HTTPS_STREAM',
-    };
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 7000);
-  const started = Date.now();
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        range: 'bytes=0-4095',
-        'icy-metadata': '1',
-        'user-agent': 'Tarteel-Managed-Radio/1.0',
-      },
-      redirect: 'follow',
-      signal: controller.signal,
-      cache: 'no-store',
-    });
-    try {
-      await response.body?.cancel();
-    } catch {
-      // best effort only
-    }
-    return {
-      ok: response.status >= 200 && response.status < 400,
-      status: response.status,
-      latency_ms: Date.now() - started,
-      content_type: response.headers.get('content-type'),
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      status: null,
-      latency_ms: Date.now() - started,
-      error: error instanceof Error ? error.name : 'STREAM_PROBE_FAILED',
-    };
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 class TarteelManagedRadioService implements ManagedRadioService {

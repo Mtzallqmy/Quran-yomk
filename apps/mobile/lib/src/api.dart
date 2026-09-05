@@ -101,8 +101,7 @@ class TarteelApiClient {
             requestId: response.headers['x-request-id'],
           );
         }
-        if (response.statusCode >= 200 &&
-            response.statusCode < 300) {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
           return Map<String, dynamic>.from(decoded);
         }
         final error = jsonMap(decoded['error']);

@@ -1,6 +1,6 @@
 begin;
 
-select plan(32);
+select plan(39);
 
 select ok(to_regnamespace('app') is not null, 'app schema exists');
 select ok(to_regnamespace('radio') is not null, 'radio schema exists');
@@ -46,5 +46,15 @@ select ok(not has_function_privilege('anon','app.authorize_provider_sync(text)',
 select lives_ok($q$select app.sync_mp3quran_radios_payload('{"radios":[{"id":"ci-mp3","name":"CI station","url":"https://qurango.net/radio/ci-mp3"}]}'::jsonb)$q$, 'valid MP3Quran fixture is ingested');
 select lives_ok($q$select app.sync_islamic_radio_api_stations_payload('{"stations":[{"id":"ci-radio","name":"CI radio","streamUrl":"https://qurango.net/radio/ci-radio","streamFormat":"mp3","status":"active"}]}'::jsonb)$q$, 'valid Islamic Radio fixture is ingested');
 select lives_ok($q$select app.sync_islamic_app_radio_stations_payload('{"data":{"stations":[{"slug":"ci-app","name":"CI app","streamUrl":"https://qurango.net/radio/ci-app","online":true}]}}'::jsonb)$q$, 'valid Islamic app fixture is ingested');
+select ok(not has_function_privilege('authenticated','app.managed_radio_authorized(uuid,text)','EXECUTE'), 'admin authorization lookup is server only');
+select ok(not has_function_privilege('anon','app.update_runtime_config(jsonb,uuid,uuid)','EXECUTE') and not has_function_privilege('authenticated','app.update_runtime_config(jsonb,uuid,uuid)','EXECUTE'), 'runtime writes reject direct clients');
+select throws_ok($q$select app.update_runtime_config('{"radio_enabled":false}','00000000-0000-4000-8000-000000000037','00000000-0000-4000-8000-000000000037')$q$,'42501','Settings permission required','runtime RPC requires administrator permission');
+insert into auth.users(id,aud,role,email) values('00000000-0000-4000-8000-000000000037','authenticated','authenticated','ci-admin@example.invalid');
+insert into app.administrators(id,display_name) values('00000000-0000-4000-8000-000000000037','CI admin');
+insert into app.administrator_roles(administrator_id,role_id) select '00000000-0000-4000-8000-000000000037',id from app.roles where code='SUPER_ADMIN';
+select lives_ok($q$select app.update_runtime_config('{"radio_enabled":false,"content_manifest_version":"ci-test"}','00000000-0000-4000-8000-000000000037','00000000-0000-4000-8000-000000000037')$q$,'valid runtime values update atomically');
+select throws_ok($q$select app.update_runtime_config('{"radio_enabled":true,"reciters_page_size":"bad"}','00000000-0000-4000-8000-000000000037','00000000-0000-4000-8000-000000000037')$q$,'23514',null,'invalid field rolls back the whole batch');
+select is((select value from app.app_config where key='radio_enabled'),'false'::jsonb,'earlier setting remains unchanged after failed batch');
+select is((select count(*) from app.audit_logs where action='runtime_config.update' and request_id='00000000-0000-4000-8000-000000000037'),1::bigint,'only committed runtime mutation has a completion audit');
 select * from finish();
 rollback;

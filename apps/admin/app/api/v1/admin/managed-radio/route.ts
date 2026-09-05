@@ -1,8 +1,11 @@
+import { adminMutation } from '@/lib/admin-mutation';
+import type { AdminContext } from '@/lib/auth';
+import { attachContext, fail, requestId } from '@/lib/http';
 import { adminContext, requirePermission } from '@/lib/auth';
 import { ApiError } from '@/lib/contracts';
 import { body, json, sameOrigin } from '@/lib/http';
 import { rateLimit } from '@/lib/rate-limit';
-import { db, publicEnv, rpc } from '@/lib/supabase';
+import { backendResponse, db, publicEnv, rpc } from '@/lib/supabase';
 
 function accessToken(request:Request){
   for(const pair of (request.headers.get('cookie')??'').split(';')){
@@ -32,21 +35,22 @@ export async function GET(request:Request){
   return json({data:{overview,current,today_schedule:today,sync_runs:runs.data}});
 }
 
-export async function POST(request:Request){
-  const ctx=await adminContext(request);requirePermission(ctx,'schedules.write');sameOrigin(request);
+async function mutate(request:Request,ctx:AdminContext,id:string){
   rateLimit(`managed-radio:${ctx.userId}`,8,60_000);
   const payload=await body(request) as any;
   const operation=String(payload?.operation??'');
   if(!['REFRESH_STATUS','REFRESH_NOW_PLAYING','SYNC_SCHEDULE','TEST_RELAY'].includes(operation))throw new ApiError(422,'VALIDATION_ERROR','Unsupported managed radio operation');
   const e=publicEnv();
-  const response=await fetch(`${e.url}/functions/v1/tarteel-managed-radio`,{
+  const response=await backendResponse(`${e.url}/functions/v1/tarteel-managed-radio`,{
     method:'POST',
-    headers:{apikey:e.publishable,authorization:`Bearer ${accessToken(request)}`,'content-type':'application/json','x-request-id':crypto.randomUUID()},
+    headers:{apikey:e.publishable,authorization:`Bearer ${ctx.refreshed?.access??accessToken(request)}`,'content-type':'application/json','x-request-id':id},
     body:JSON.stringify({operation}),
     cache:'no-store',
   });
-  const text=await response.text();
-  let result:any=null;try{result=text?JSON.parse(text):null}catch{result={error:{code:'MANAGED_RADIO_BAD_RESPONSE',message:text}}}
-  if(!response.ok){const err=result?.error;throw new ApiError(response.status,err?.code??'MANAGED_RADIO_ERROR',err?.message??'Managed radio provider operation failed');}
+  if(!response.ok)throw new ApiError(response.status,'MANAGED_RADIO_ERROR','Managed radio operation failed');
+  const result=await response.json();
+  if(!result||typeof result!=='object'||!('data' in result))throw new ApiError(502,'MANAGED_RADIO_BAD_RESPONSE','Managed radio response was invalid');
   return json(result);
 }
+
+export async function POST(request:Request){const id=requestId(request);try{return await adminMutation(request,id,async ctx=>attachContext(await mutate(request,ctx,id),id,ctx),'schedules.write');}catch(error){return fail(error,id);}}

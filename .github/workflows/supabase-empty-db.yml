@@ -39,7 +39,13 @@ jobs:
           version: 2.116.0
 
       - name: Supabase CLI identity
-        run: supabase --version
+        run: |
+          supabase --version
+          supabase migration new --help
+          supabase migration new admin_runtime_mutation
+          migration_file=$(ls supabase/migrations/*_admin_runtime_mutation.sql)
+          cp supabase/admin-mutations.sql "$migration_file"
+          echo "$migration_file"
 
       - name: Start isolated local Supabase stack
         run: supabase start

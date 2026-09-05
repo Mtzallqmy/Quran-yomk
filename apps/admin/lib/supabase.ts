@@ -2,12 +2,13 @@ import { ApiError, type Json } from './contracts.ts';
 import { prepareCatalogRpc } from '../../../supabase/functions/_shared/provider-catalog.ts';
 import { fetchJsonResponse, UpstreamHttpError } from '../../../supabase/functions/_shared/http.ts';
 
-async function fetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+export async function backendResponse(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   try { return await fetchJsonResponse(input, init); }
   catch (error) { if (error instanceof UpstreamHttpError) throw new ApiError(error.status, error.code, 'Backend request failed'); throw error; }
 }
+const fetch = backendResponse;
 function session(body: any) {
-  if (!body || typeof body.access_token !== 'string' || !body.access_token || typeof body.refresh_token !== 'string' || !body.refresh_token || !Number.isFinite(body.expires_in) || body.expires_in <= 0) throw new ApiError(502, 'INVALID_AUTH_RESPONSE', 'Authentication response was invalid');
+  if (!body || typeof body.access_token !== 'string' || !body.access_token || typeof body.refresh_token !== 'string' || !body.refresh_token || !Number.isFinite(body.expires_in) || body.expires_in <= 0 || typeof body.user?.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(body.user.id)) throw new ApiError(502, 'INVALID_AUTH_RESPONSE', 'Authentication response was invalid');
   return body;
 }
 
@@ -17,7 +18,7 @@ export function publicEnv():PublicEnv{
   const url=process.env.SUPABASE_URL?.replace(/\/$/,'');
   const publishable=process.env.SUPABASE_PUBLISHABLE_KEY;
   if(!url||!publishable)throw new ApiError(503,'SERVER_NOT_CONFIGURED','Public backend configuration is not available');
-  return {url,publishable,environment:process.env.TARTEEL_ENVIRONMENT??'development',streamBase:(process.env.TARTEEL_PUBLIC_STREAM_BASE_URL??'').replace(/\/$/,''),mount:process.env.TARTEEL_INTERNAL_MOUNT??'/tarteel.mp3',secureCookies:process.env.TARTEEL_COOKIE_SECURE==='true'};
+  return {url,publishable,environment:process.env.TARTEEL_ENVIRONMENT??'development',streamBase:(process.env.TARTEEL_PUBLIC_STREAM_BASE_URL??'').replace(/\/$/,''),mount:process.env.TARTEEL_INTERNAL_MOUNT??'/tarteel.mp3',secureCookies:process.env.NODE_ENV==='production'||process.env.TARTEEL_COOKIE_SECURE==='true'};
 }
 export function env():Env{
   const base=publicEnv();

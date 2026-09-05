@@ -1,8 +1,11 @@
+import { adminMutation } from '@/lib/admin-mutation';
+import type { AdminContext } from '@/lib/auth';
+import { attachContext, fail, requestId } from '@/lib/http';
 import { adminContext, requirePermission } from '@/lib/auth';
 import { ApiError } from '@/lib/contracts';
 import { body, json, sameOrigin } from '@/lib/http';
 import { rateLimit } from '@/lib/rate-limit';
-import { db } from '@/lib/supabase';
+import { db, rpc } from '@/lib/supabase';
 
 const allowedKeys = new Set([
   'radio_enabled',
@@ -91,10 +94,7 @@ export async function GET(request: Request) {
   return json({ data: rows });
 }
 
-export async function PUT(request: Request) {
-  const ctx = await adminContext(request);
-  requirePermission(ctx, 'schedules.write');
-  sameOrigin(request);
+async function mutate(request: Request, ctx: AdminContext, id: string) {
   rateLimit(`runtime-config:${ctx.userId}`, 20, 60_000);
   const payload = await body(request) as { updates?: Record<string, unknown> };
   if (!payload.updates || typeof payload.updates !== 'object' || Array.isArray(payload.updates)) {
@@ -104,17 +104,10 @@ export async function PUT(request: Request) {
   if (!entries.length || entries.length > allowedKeys.size) {
     throw new ApiError(422, 'VALIDATION_ERROR', 'No valid updates supplied');
   }
-  const changed: Array<Record<string, unknown>> = [];
-  for (const [key, value] of entries) {
-    const encoded = serialize(key, value);
-    const result = await db(
-      'app',
-      `app_config?key=eq.${encodeURIComponent(key)}`,
-      { method: 'PATCH', body: JSON.stringify({ value: encoded }) },
-    );
-    const row = Array.isArray(result.data) ? result.data[0] : null;
-    if (!row) throw new ApiError(404, 'CONFIG_KEY_NOT_FOUND', `Runtime config key not seeded: ${key}`);
-    changed.push({ ...row, value: decode((row as Record<string, unknown>).value) });
-  }
+  const validated=Object.fromEntries(entries.map(([key,value])=>[key,JSON.parse(serialize(key,value))]));
+  const rows=await rpc('app','update_runtime_config',{p_updates:validated,p_actor:ctx.userId,p_request_id:id});
+  const changed=(rows as Array<Record<string,unknown>>).map(row=>({...row,value:decode(row.value)}));
   return json({ data: changed });
 }
+
+export async function PUT(request:Request){const id=requestId(request);try{return await adminMutation(request,id,async ctx=>attachContext(await mutate(request,ctx,id),id,ctx),'settings.write');}catch(error){return fail(error,id);}}

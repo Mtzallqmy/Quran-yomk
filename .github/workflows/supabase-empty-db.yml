@@ -1,0 +1,72 @@
+name: Supabase Empty DB Baseline
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/config.toml'
+      - 'supabase/migrations/**'
+      - 'supabase/seed/**'
+      - 'supabase/tests/**'
+      - '.github/workflows/supabase-empty-db.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/config.toml'
+      - 'supabase/migrations/**'
+      - 'supabase/seed/**'
+      - 'supabase/tests/**'
+      - '.github/workflows/supabase-empty-db.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-empty-db-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  empty-db-baseline:
+    name: Empty DB -> migrations -> seed -> validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+
+      - name: Supabase CLI identity
+        run: supabase --version
+
+      - name: Start isolated local Supabase stack
+        run: supabase start
+
+      - name: Rebuild and validate twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          for rebuild in 1 2; do
+            supabase db reset --local
+            docker exec supabase_db_tarteel pg_dump -U postgres -d postgres --schema-only --schema=app --schema=radio --schema=public |
+              sed '/^\\restrict /d; /^\\unrestrict /d' > "$RUNNER_TEMP/schema-$rebuild.sql"
+            supabase test db supabase/tests/baseline.sql
+            # Legacy integration files are SQL assertions, not pgTAP suites.
+            # Preserve temporary result tables and reject false/NULL results.
+            for suite in database audio_processing storage; do
+              {
+                cat "supabase/tests/${suite}_validation.sql"
+                printf '\nDO $$ BEGIN IF EXISTS (SELECT 1 FROM %s_test_results WHERE passed IS DISTINCT FROM true) THEN RAISE EXCEPTION $error$database validation failed$error$; END IF; END $$;\n' "$suite"
+              } | docker exec -i supabase_db_tarteel psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction
+            done
+            for suite in api_phase7 radio_automation radio_stream_foundation; do
+              docker exec -i supabase_db_tarteel psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < "supabase/tests/${suite}_validation.sql"
+            done
+          done
+          diff -u "$RUNNER_TEMP/schema-1.sql" "$RUNNER_TEMP/schema-2.sql"
+
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop --no-backup

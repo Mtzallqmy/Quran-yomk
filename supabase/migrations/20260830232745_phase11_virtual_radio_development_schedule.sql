@@ -1,5 +1,13 @@
 -- Development editorial schedule for the logical Tarteel Radio channel.
 -- Uses station/category slugs rather than generated UUIDs.
+-- db.seed runs after migrations; populate the categories required by this join.
+insert into app.categories(slug,name_ar,name_en,icon_key,sort_order,is_active) values
+ ('QURAN_GENERAL','القرآن العام','General Quran','quran',10,true),
+ ('RECITER','القراء','Reciters','mic',20,true),
+ ('TAFSEER','التفسير','Tafseer','book-open',30,true),
+ ('HADITH','الحديث','Hadith','books',40,true),
+ ('ADHKAR','الأذكار','Adhkar','beads',70,true)
+on conflict(slug) do nothing;
 
 do $$
 declare

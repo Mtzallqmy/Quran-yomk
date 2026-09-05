@@ -1,6 +1,6 @@
 begin;
 
-select plan(20);
+select plan(21);
 
 select ok(to_regnamespace('app') is not null, 'app schema exists');
 select ok(to_regnamespace('radio') is not null, 'radio schema exists');
@@ -11,6 +11,7 @@ select ok(to_regclass('radio.play_history') is not null, 'radio.play_history exi
 
 select is((select count(*)::bigint from app.surahs), 114::bigint, 'seed contains all 114 surahs');
 select ok((select count(*) > 0 from app.categories), 'category seed is non-empty');
+select is((select count(*) from app.categories where is_system), 13::bigint, 'all seeded category identifiers remain protected');
 select ok((select count(*) > 0 from app.roles), 'RBAC role seed is non-empty');
 select ok((select count(*) > 0 from app.content_providers), 'provider seed is non-empty');
 select ok((select count(*) > 0 from app.stations), 'station seed is non-empty');

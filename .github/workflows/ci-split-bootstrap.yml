@@ -1,0 +1,126 @@
+name: CI split bootstrap
+
+on:
+  push:
+    branches:
+      - fix/separate-live-provider-ci
+    paths:
+      - '.github/workflows/ci-split-bootstrap.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/separate-live-provider-ci
+      - name: Split deterministic and live acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/android-release-apk.yml')
+          text = workflow.read_text()
+          old = '''      - name: Islamic Library Data repository and live integrity tests
+                run: |
+                  python3 -m py_compile tool/islamic_content_acceptance.py
+                  python3 tool/islamic_content_acceptance.py \\
+                    assets/islamic_content_manifest.json --live
+          '''
+          new = '''      - name: Islamic Library Data manifest contract
+                run: |
+                  python3 -m py_compile tool/islamic_content_acceptance.py
+                  python3 tool/islamic_content_acceptance.py assets/islamic_content_manifest.json
+          '''
+          if old not in text:
+              raise SystemExit('islamic live block not found')
+          text = text.replace(old, new, 1)
+          for block in (
+              '''      - name: Live Mushaf API acceptance
+                run: python3 tool/quran_ci.py
+
+          ''',
+              '''      - name: Live Quran audio provider acceptance
+                run: python3 tool/quran_audio_ci.py
+
+          ''',
+          ):
+              if block not in text:
+                  raise SystemExit('live block not found')
+              text = text.replace(block, '', 1)
+          text = text.replace('          cp release/quran/quran-live-smoke.json "$RELEASE_DIR/"\n', '')
+          text = text.replace('          cp release/quran-audio/quran-audio-live-smoke.json "$RELEASE_DIR/"\n', '')
+          workflow.write_text(text)
+
+          live = Path('.github/workflows/live-provider-acceptance.yml')
+          live.write_text('''name: Tarteel Live Provider Acceptance
+
+          on:
+            workflow_dispatch:
+            schedule:
+              - cron: '17 3 * * *'
+            push:
+              branches:
+                - main
+              paths:
+                - 'apps/mobile/tool/islamic_content_acceptance.py'
+                - 'apps/mobile/tool/quran_ci.py'
+                - 'apps/mobile/tool/quran_audio_ci.py'
+                - 'apps/mobile/assets/islamic_content_manifest.json'
+                - 'apps/mobile/lib/src/api.dart'
+                - '.github/workflows/live-provider-acceptance.yml'
+
+          permissions:
+            contents: read
+
+          concurrency:
+            group: live-provider-acceptance-${{ github.ref }}
+            cancel-in-progress: true
+
+          jobs:
+            live-provider-acceptance:
+              name: Verify deployed APIs and pinned provider bytes
+              runs-on: ubuntu-24.04
+              timeout-minutes: 30
+              defaults:
+                run:
+                  working-directory: apps/mobile
+              steps:
+                - uses: actions/checkout@v4
+
+                - name: Validate live Islamic Library Data bytes
+                  run: |
+                    python3 -m py_compile tool/islamic_content_acceptance.py
+                    python3 tool/islamic_content_acceptance.py assets/islamic_content_manifest.json --live
+
+                - name: Validate deployed Mushaf API
+                  run: python3 tool/quran_ci.py
+
+                - name: Validate live Quran audio providers
+                  run: python3 tool/quran_audio_ci.py
+
+                - uses: actions/upload-artifact@v4
+                  if: always()
+                  with:
+                    name: tarteel-live-provider-evidence-${{ github.run_number }}
+                    path: |
+                      apps/mobile/release/quran
+                      apps/mobile/release/quran-audio
+                    if-no-files-found: warn
+                    retention-days: 14
+          ''')
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/android-release-apk.yml .github/workflows/live-provider-acceptance.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Separate live provider acceptance from Android CI'
+          git push origin HEAD:fix/separate-live-provider-ci

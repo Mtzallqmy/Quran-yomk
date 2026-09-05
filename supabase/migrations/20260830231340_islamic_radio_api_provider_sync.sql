@@ -2,6 +2,10 @@
 -- Catalog metadata is CC0-1.0 as documented upstream. This statement does not
 -- assert that the underlying third-party broadcasts/audio are CC0 or owned by Tarteel.
 
+insert into app.content_provider_types(code,description)
+values ('ISLAMIC_RADIO_API','Islamic Radio API public catalog')
+on conflict(code) do nothing;
+
 insert into app.content_providers(
   name,slug,provider_type,website_url,api_base_url,source_url,is_active,
   production_enabled,rights_status,commercial_use_status,attribution_required,

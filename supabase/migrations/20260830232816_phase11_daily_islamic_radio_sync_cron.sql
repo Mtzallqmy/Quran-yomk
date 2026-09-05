@@ -1,5 +1,7 @@
 -- Synchronize the normalized catalog once daily in the trusted Supabase runtime.
 -- Listener devices never call the upstream catalog directly.
+create extension if not exists pg_cron;
+
 do $$
 begin
   if exists(select 1 from cron.job where jobname='tarteel-islamic-radio-api-daily-sync') then

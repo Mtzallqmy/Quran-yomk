@@ -13,3 +13,7 @@ verify_jwt = false
 
 [functions.managed-radio]
 verify_jwt = true
+
+# Dedicated random cron token is verified server-side against Vault.
+[functions.provider-sync]
+verify_jwt = false

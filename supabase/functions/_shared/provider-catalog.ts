@@ -10,7 +10,7 @@ export async function prepareCatalogRpc(name: string, args: Record<string, unkno
   const source = Object.hasOwn(catalogSources, name) ? catalogSources[name] : undefined;
   if (!source) return { name, args };
   const response = await fetchJsonResponse(source.url);
-  if (!response.ok) throw new UpstreamHttpError('PROVIDER_UNAVAILABLE', 503);
+  if (response.status !== 200) throw new UpstreamHttpError('PROVIDER_UNAVAILABLE', 503);
   const payload = await response.json();
   let rows = payload;
   for (const key of source.array) rows = rows?.[key];

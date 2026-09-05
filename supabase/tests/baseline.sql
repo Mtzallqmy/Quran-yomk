@@ -1,6 +1,6 @@
 begin;
 
-select plan(27);
+select plan(29);
 
 select ok(to_regnamespace('app') is not null, 'app schema exists');
 select ok(to_regnamespace('radio') is not null, 'radio schema exists');
@@ -41,5 +41,7 @@ select throws_ok($q$select app.sync_mp3quran_radios_payload('{}'::jsonb)$q$, 'P0
 select throws_ok($q$select app.sync_islamic_radio_api_stations_payload('{"stations":[]}'::jsonb)$q$, 'P0001', 'Invalid provider catalog size', 'empty radio catalog is rejected');
 select throws_ok($q$select app.sync_islamic_app_radio_stations_payload('{"data":{"stations":[]}}'::jsonb)$q$, 'P0001', 'Invalid provider catalog size', 'empty Islamic app catalog is rejected');
 select throws_ok($q$select app.sync_islamic_radio_api_stations()$q$, '55000', 'Provider sync requires protected server ingestion', 'legacy network path fails closed');
+select is(app.authorize_provider_sync(repeat('0',64)), false, 'invalid dispatch token is rejected');
+select ok(not has_function_privilege('anon','app.authorize_provider_sync(text)','EXECUTE') and not has_function_privilege('authenticated','app.authorize_provider_sync(text)','EXECUTE'), 'dispatch authorization cannot be called by clients');
 select * from finish();
 rollback;

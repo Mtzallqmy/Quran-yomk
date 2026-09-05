@@ -540,9 +540,24 @@ grant execute on function app.sync_islamic_app_radio_stations_payload(jsonb) to 
 create or replace function app.sync_islamic_app_radio_stations() returns jsonb language plpgsql security invoker set search_path='' as $$ begin raise exception 'Provider sync requires protected server ingestion' using errcode='55000'; end; $$;
 revoke all on function app.sync_islamic_app_radio_stations() from public,anon,authenticated;
 grant execute on function app.sync_islamic_app_radio_stations() to service_role;
+do $$ begin
+  if not exists(select 1 from vault.secrets where name='tarteel_provider_sync_key') then
+    perform vault.create_secret(encode(extensions.gen_random_bytes(32),'hex'),'tarteel_provider_sync_key');
+  end if;
+end $$;
+create or replace function app.authorize_provider_sync(p_token text) returns boolean
+language sql stable security definer set search_path='' as $$
+  select coalesce(length(p_token)=64 and exists(select 1 from vault.decrypted_secrets where name='tarteel_provider_sync_key' and extensions.digest(decrypted_secret,'sha256')=extensions.digest(p_token,'sha256')),false);
+$$;
+revoke all on function app.authorize_provider_sync(text) from public,anon,authenticated;
+grant execute on function app.authorize_provider_sync(text) to service_role;
+
 -- Cron dispatches only to this project's authenticated Edge endpoint.
 -- Vault values are deployment configuration, never committed credentials.
 create extension if not exists pg_net with schema extensions;
+revoke all on schema net from public,anon,authenticated;
+revoke all on all tables in schema net from public,anon,authenticated;
+revoke all on all functions in schema net from public,anon,authenticated;
 create or replace function app.dispatch_provider_sync() returns bigint
 language plpgsql security definer set search_path='' as $$
 declare endpoint text; credential text;

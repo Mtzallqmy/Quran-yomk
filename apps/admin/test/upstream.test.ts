@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { adminContext } from '../lib/auth.ts';
 import { db, authPassword, authUser, authSignOut, createSignedDownload } from '../lib/supabase.ts';
 
 test('Admin upstream fails closed and never returns backend details', async t => {
@@ -26,4 +27,11 @@ test('Admin upstream fails closed and never returns backend details', async t =>
   await assert.rejects(createSignedDownload('bucket', 'object'), { code: 'STORAGE_ERROR' });
   reply = response({ message: 'private failure' }, 503);
   await assert.rejects(authSignOut('token'), { code: 'LOGOUT_FAILED' });
+});
+
+test('Auth outages never rotate refresh tokens or masquerade as expired sessions', async t => {
+  process.env.SUPABASE_URL='https://example.supabase.co';process.env.SUPABASE_PUBLISHABLE_KEY='test-public';process.env.SUPABASE_SECRET_KEY='test-private';
+  let status=503;let calls=0;
+  t.mock.method(globalThis,'fetch',async (url:unknown)=>{calls++;assert.ok(String(url).endsWith('/auth/v1/user'));return new Response('private',{status});});
+  for(const failure of [503,429]){status=failure;calls=0;await assert.rejects(adminContext(new Request('https://admin.test',{headers:{cookie:'tarteel_admin_access=access; tarteel_admin_refresh=refresh'}})),{code:'AUTH_UNAVAILABLE'});assert.equal(calls,1);}
 });

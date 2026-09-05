@@ -9,6 +9,26 @@ const CORS = {
   "content-type": "application/json; charset=utf-8",
 };
 const SUPABASE_URL = (Deno.env.get("SUPABASE_URL") ?? "").replace(/\/$/, "");
+function firstSecretKey(raw: string | undefined) {
+  if (!raw) return "";
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    for (const value of Object.values(parsed)) {
+      if (typeof value === "string" && value) return value;
+      if (value && typeof value === "object") {
+        const candidate = (value as Record<string, unknown>).secret ??
+          (value as Record<string, unknown>).key ??
+          (value as Record<string, unknown>).value;
+        if (typeof candidate === "string" && candidate) return candidate;
+      }
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+const INTERNAL_API_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
+  firstSecretKey(Deno.env.get("SUPABASE_SECRET_KEYS"));
 const publishableMap = JSON.parse(
   Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") ?? "{}",
 );
@@ -40,12 +60,12 @@ async function read(r: Response) {
 async function rpc(
   name: string,
   args: Record<string, unknown>,
-  apiKey: string,
+  _apiKey: string,
 ) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
     method: "POST",
     headers: {
-      apikey: apiKey,
+      apikey: INTERNAL_API_KEY,
       "content-type": "application/json",
       accept: "application/json",
     },
@@ -138,7 +158,7 @@ Deno.serve(async (req: Request) => {
       requestId,
     );
   }
-  if (!SUPABASE_URL) {
+  if (!SUPABASE_URL || !INTERNAL_API_KEY) {
     return fail(
       503,
       "SERVER_NOT_CONFIGURED",

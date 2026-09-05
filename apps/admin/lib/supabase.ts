@@ -1,4 +1,5 @@
 import { ApiError, type Json } from './contracts.ts';
+import { prepareCatalogRpc } from '../../../supabase/functions/_shared/provider-catalog.ts';
 import { fetchJsonResponse, UpstreamHttpError } from '../../../supabase/functions/_shared/http.ts';
 
 async function fetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
@@ -33,7 +34,7 @@ export async function db(schema:'app'|'radio',resource:string,init:RequestInit={
   if(!response.ok){const message='Database request failed';throw new ApiError(mapStatus(response.status),'DATABASE_ERROR',message);}
   const range=response.headers.get('content-range');const total=range&&range.includes('/')?Number(range.split('/')[1]):null;return{data,count:Number.isFinite(total as number)?total:null,headers:response.headers};
 }
-export async function rpc(schema:'app'|'radio',fn:string,args:Record<string,Json>):Promise<any>{return (await db(schema,`rpc/${fn}`,{method:'POST',body:JSON.stringify(args),headers:{prefer:'return=representation'}})).data;}
+export async function rpc(schema:'app'|'radio',fn:string,args:Record<string,Json>):Promise<any>{if(schema==='app'){try{const prepared=await prepareCatalogRpc(fn,args);fn=prepared.name;args=prepared.args as Record<string,Json>;}catch(error){if(error instanceof UpstreamHttpError)throw new ApiError(error.status,error.code,'Provider sync failed');throw error;}}return (await db(schema,`rpc/${fn}`,{method:'POST',body:JSON.stringify(args),headers:{prefer:'return=representation'}})).data;}
 export async function publicRpc(fn:string,args:Record<string,Json>):Promise<any>{
   const e=publicEnv();
   const response=await fetch(`${e.url}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:e.publishable,'accept-profile':'app','content-profile':'app','content-type':'application/json'},body:JSON.stringify(args),cache:'no-store'});

@@ -39,7 +39,13 @@ jobs:
           version: 2.116.0
 
       - name: Supabase CLI identity
-        run: supabase --version
+        run: |
+          supabase --version
+          supabase migration new --help
+          supabase migration new provider_catalog_ingestion
+          migration_file=$(ls supabase/migrations/*_provider_catalog_ingestion.sql)
+          cp supabase/provider-ingestion.sql "$migration_file"
+          echo "$migration_file"
 
       - name: Start isolated local Supabase stack
         run: supabase start

@@ -1,0 +1,33 @@
+name: Mobile format diagnostic
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/mobile-format-diagnostic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  format-diff:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Produce canonical Dart formatting diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format lib test
+          git diff -- lib test
+          exit 1

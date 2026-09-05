@@ -10,6 +10,7 @@ on:
   pull_request:
     paths:
       - 'apps/admin/**'
+      - 'services/audio-worker/**'
       - 'supabase/functions/_shared/http.ts'
       - '.github/workflows/phase78-bootstrap.yml'
   workflow_dispatch:

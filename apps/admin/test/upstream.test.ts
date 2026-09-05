@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { db, authPassword, authUser, authSignOut } from '../lib/supabase.ts';
+import { db, authPassword, authUser, authSignOut, createSignedDownload } from '../lib/supabase.ts';
 
 test('Admin upstream fails closed and never returns backend details', async t => {
   process.env.SUPABASE_URL = 'https://example.supabase.co';
@@ -22,6 +22,8 @@ test('Admin upstream fails closed and never returns backend details', async t =>
   await assert.rejects(authPassword('a@example.com', 'password'), { code: 'INVALID_AUTH_RESPONSE' });
   reply = response({ id: null });
   await assert.rejects(authUser('token'), { code: 'INVALID_AUTH_RESPONSE' });
+  reply = response({ signedURL: 123 });
+  await assert.rejects(createSignedDownload('bucket', 'object'), { code: 'STORAGE_ERROR' });
   reply = response({ message: 'private failure' }, 503);
   await assert.rejects(authSignOut('token'), { code: 'LOGOUT_FAILED' });
 });

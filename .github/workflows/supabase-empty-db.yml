@@ -44,17 +44,25 @@ jobs:
       - name: Start isolated local Supabase stack
         run: supabase start
 
-      - name: Rebuild database from empty state
-        run: supabase db reset --local
-
-      - name: Run baseline database assertions
-        run: supabase test db
-
-      - name: Verify a second clean rebuild
-        run: supabase db reset --local
-
-      - name: Re-run baseline assertions after second rebuild
-        run: supabase test db
+      - name: Rebuild and validate twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          for rebuild in 1 2; do
+            supabase db reset --local
+            supabase test db supabase/tests/baseline.sql
+            # Legacy integration files are SQL assertions, not pgTAP suites.
+            # Preserve temporary result tables and reject false/NULL results.
+            for suite in database audio_processing storage; do
+              {
+                cat "supabase/tests/${suite}_validation.sql"
+                printf '\nDO $$ BEGIN IF EXISTS (SELECT 1 FROM %s_test_results WHERE passed IS DISTINCT FROM true) THEN RAISE EXCEPTION $error$database validation failed$error$; END IF; END $$;\n' "$suite"
+              } | docker exec -i supabase_db_tarteel psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 --single-transaction
+            done
+            for suite in api_phase7 radio_automation radio_stream_foundation; do
+              docker exec -i supabase_db_tarteel psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < "supabase/tests/${suite}_validation.sql"
+            done
+          done
 
       - name: Stop local Supabase stack
         if: always()

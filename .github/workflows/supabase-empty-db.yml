@@ -39,7 +39,13 @@ jobs:
           version: 2.116.0
 
       - name: Supabase CLI identity
-        run: supabase --version
+        run: |
+          supabase --version
+          supabase migration new --help
+          supabase migration new rate_limit_cleanup_locking
+          migration_file=$(ls supabase/migrations/*_rate_limit_cleanup_locking.sql)
+          cp supabase/rate-limit-cleanup.sql "$migration_file"
+          echo "$migration_file"
 
       - name: Start isolated local Supabase stack
         run: supabase start
@@ -53,6 +59,7 @@ jobs:
             docker exec supabase_db_tarteel pg_dump -U postgres -d postgres --schema-only --schema=app --schema=radio --schema=public |
               sed '/^\\restrict /d; /^\\unrestrict /d' > "$RUNNER_TEMP/schema-$rebuild.sql"
             supabase test db supabase/tests/baseline.sql
+            python3 supabase/tests/rate_limit_concurrency.py
             # Legacy integration files are SQL assertions, not pgTAP suites.
             # Preserve temporary result tables and reject false/NULL results.
             for suite in database audio_processing storage; do

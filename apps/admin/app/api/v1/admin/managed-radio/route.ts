@@ -39,7 +39,7 @@ export async function GET(request:Request){
 }
 
 async function mutate(request:Request,ctx:AdminContext,id:string){
-  rateLimit(`managed-radio:${ctx.userId}`,8,60_000);
+  await rateLimit(`managed-radio:${ctx.userId}`,8,60_000);
   const payload=await body(request) as any;
   const operation=String(payload?.operation??'');
   if(!['REFRESH_STATUS','REFRESH_NOW_PLAYING','SYNC_SCHEDULE','TEST_RELAY'].includes(operation))throw new ApiError(422,'VALIDATION_ERROR','Unsupported managed radio operation');

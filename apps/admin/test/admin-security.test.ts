@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sameOrigin, body } from '../lib/http.ts';
+import { sameOrigin, body, fail } from '../lib/http.ts';
 import { adminMutation } from '../lib/admin-mutation.ts';
 import { sessionCookies } from '../lib/auth.ts';
 
@@ -60,4 +60,10 @@ test('chunked mutation payloads cannot bypass the size limit', async () => {
   const request=new Request('https://admin.test',{method:'POST',body:'{"value":"too large"}'});
   await assert.rejects(body(request,4),{code:'PAYLOAD_TOO_LARGE'});
   assert.deepEqual(await body(new Request('https://admin.test',{method:'DELETE'})),{});
+});
+
+test('unexpected API failures log identifiers, never raw exception messages', t => {
+  const logs:string[]=[];t.mock.method(console,'error',(message:string)=>{logs.push(message);});
+  const response=fail(new Error('password=private'),'00000000-0000-4000-8000-000000000001');
+  assert.equal(response.status,500);assert.ok(!logs.join('').includes('private'));assert.ok(logs[0]?.includes('INTERNAL_ERROR'));
 });

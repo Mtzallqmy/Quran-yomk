@@ -21,7 +21,7 @@ export async function adminContext(request:Request):Promise<AdminContext>{
   const c=cookies(request.headers.get('cookie'));let token=c.get(ACCESS);let refreshed:AdminContext['refreshed'];
   if(!token){const rt=c.get(REFRESH);if(!rt)throw new ApiError(401,'AUTH_REQUIRED','Authentication required');const s=await refreshSession(rt);token=s.access_token;refreshed={access:s.access_token,refresh:s.refresh_token,expires:s.expires_in??3600};}
   if(!token)throw new ApiError(401,'AUTH_REQUIRED','Authentication required');
-  let user;try{user=await authUser(token);}catch(error){const rt=c.get(REFRESH);if(!rt)throw error;const s=await refreshSession(rt);const refreshedAccess=String(s.access_token);token=refreshedAccess;refreshed={access:refreshedAccess,refresh:String(s.refresh_token),expires:s.expires_in??3600};user=await authUser(refreshedAccess);}
+  let user;try{user=await authUser(token);}catch(error){if(!(error instanceof ApiError)||error.status!==401)throw error;const rt=c.get(REFRESH);if(!rt)throw error;const s=await refreshSession(rt);const refreshedAccess=String(s.access_token);token=refreshedAccess;refreshed={access:refreshedAccess,refresh:String(s.refresh_token),expires:s.expires_in??3600};user=await authUser(refreshedAccess);}
   return{...(await loadAuthorization(user)),refreshed};
 }
 export function requirePermission(ctx:AdminContext,permission:string){if(!ctx.permissions.has(permission))throw new ApiError(403,'FORBIDDEN','You do not have permission for this action');}

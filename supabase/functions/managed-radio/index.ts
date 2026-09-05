@@ -48,7 +48,6 @@ function fail(requestId: string, error: unknown) {
     request_id: requestId,
     status: e.status,
     code: e.code,
-    message: e.message,
   }));
   return reply(
     {

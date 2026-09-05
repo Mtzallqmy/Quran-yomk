@@ -1,0 +1,61 @@
+name: Supabase Empty DB Baseline
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/config.toml'
+      - 'supabase/migrations/**'
+      - 'supabase/seed/**'
+      - 'supabase/tests/**'
+      - '.github/workflows/supabase-empty-db.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/config.toml'
+      - 'supabase/migrations/**'
+      - 'supabase/seed/**'
+      - 'supabase/tests/**'
+      - '.github/workflows/supabase-empty-db.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-empty-db-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  empty-db-baseline:
+    name: Empty DB -> migrations -> seed -> validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+
+      - name: Supabase CLI identity
+        run: supabase --version
+
+      - name: Start isolated local Supabase stack
+        run: supabase start
+
+      - name: Rebuild database from empty state
+        run: supabase db reset --local
+
+      - name: Run baseline database assertions
+        run: supabase test db
+
+      - name: Verify a second clean rebuild
+        run: supabase db reset --local
+
+      - name: Re-run baseline assertions after second rebuild
+        run: supabase test db
+
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop --no-backup

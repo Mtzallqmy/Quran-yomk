@@ -1,6 +1,6 @@
 begin;
 
-select plan(19);
+select plan(20);
 
 select ok(to_regnamespace('app') is not null, 'app schema exists');
 select ok(to_regnamespace('radio') is not null, 'radio schema exists');
@@ -32,6 +32,7 @@ select ok(exists (
     and station_source='INTERNAL' and not production_enabled and default_playlist_id is not null
 ), 'development automation fixture is complete and not production enabled');
 select is((select count(*) from app.surahs where id=number and number between 1 and 114 and ayah_count>0), 114::bigint, 'surah identities and ayah counts are valid');
+select is((select count(*) from app.virtual_radio_schedule s join app.virtual_radio_channels c on c.id=s.channel_id where c.slug='tarteel'), 6::bigint, 'editorial schedule is not silently skipped before category seed');
 
 select * from finish();
 rollback;

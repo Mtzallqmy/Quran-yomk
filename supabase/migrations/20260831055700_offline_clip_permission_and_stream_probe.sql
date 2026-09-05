@@ -1,6 +1,11 @@
 -- Offline clip saving remains fail-closed and is only enabled for providers
 -- whose published terms explicitly allow copying material/using links.
 -- MP3Quran's policy also states that it applies to qurango.net.
+alter table app.stations
+  add column if not exists offline_clip_allowed boolean not null default false,
+  add column if not exists offline_clip_evidence text,
+  add column if not exists offline_clip_verified_at timestamptz;
+
 update app.stations s
 set offline_clip_allowed = true,
     offline_clip_evidence = 'https://www.mp3quran.net/ar/privacy',

@@ -50,6 +50,8 @@ jobs:
           set -euo pipefail
           for rebuild in 1 2; do
             supabase db reset --local
+            docker exec supabase_db_tarteel pg_dump -U postgres -d postgres --schema-only --schema=app --schema=radio --schema=public |
+              sed '/^\\restrict /d; /^\\unrestrict /d' > "$RUNNER_TEMP/schema-$rebuild.sql"
             supabase test db supabase/tests/baseline.sql
             # Legacy integration files are SQL assertions, not pgTAP suites.
             # Preserve temporary result tables and reject false/NULL results.
@@ -63,6 +65,7 @@ jobs:
               docker exec -i supabase_db_tarteel psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < "supabase/tests/${suite}_validation.sql"
             done
           done
+          diff -u "$RUNNER_TEMP/schema-1.sql" "$RUNNER_TEMP/schema-2.sql"
 
       - name: Stop local Supabase stack
         if: always()

@@ -447,7 +447,10 @@ class _TaskRecord {
     final id = json['id'] as String? ?? '';
     final localPath = json['local_path'] as String? ?? '';
     final createdAt = DateTime.tryParse(json['created_at'] as String? ?? '');
-    if (id.isEmpty || localPath.isEmpty || createdAt == null || !media.hasValidIdentity) {
+    if (id.isEmpty ||
+        localPath.isEmpty ||
+        createdAt == null ||
+        !media.hasValidIdentity) {
       throw const FormatException('QURAN_DOWNLOAD_RECORD_IDENTITY_INVALID');
     }
     return _TaskRecord(
@@ -506,7 +509,9 @@ QuranAudioMedia _mediaFromJson(Map<String, dynamic> json) {
   final mediaProvider = quranAudioProviderFromPersistedName(
     json['provider'] as String?,
   );
-  if (reciterProvider == null || mediaProvider == null || reciterProvider != mediaProvider) {
+  if (reciterProvider == null ||
+      mediaProvider == null ||
+      reciterProvider != mediaProvider) {
     throw const FormatException('QURAN_DOWNLOAD_PROVIDER_IDENTITY_INVALID');
   }
   final reciter = QuranAudioCatalogReciter(

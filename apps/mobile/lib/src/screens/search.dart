@@ -28,7 +28,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     surahs: <Surah>[],
   );
   List<Category> categoryResults = const <Category>[];
-  List<QuranAudioCatalogReciter> audioReciters = const <QuranAudioCatalogReciter>[];
+  List<QuranAudioCatalogReciter> audioReciters =
+      const <QuranAudioCatalogReciter>[];
   List<Surah> localSurahs = const <Surah>[];
   bool loading = false;
   Object? error;
@@ -88,16 +89,21 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       final surahs = values[2] as List<Surah>;
       final catalog = values[3] as List<QuranAudioCatalogReciter>;
       final normalized = _normalize(trimmed);
-      final matchedCategories = categories.where((category) {
-        final haystack = _normalize(
-          '${category.nameAr} ${category.nameEn ?? ''} ${category.slug}',
-        );
-        return haystack.contains(normalized);
-      }).toList(growable: false);
-      final matchedSurahs = surahs.where((surah) {
-        return _normalize('${surah.nameAr} ${surah.nameEn} ${surah.number}')
-            .contains(normalized);
-      }).toList(growable: false);
+      final matchedCategories = categories
+          .where((category) {
+            final haystack = _normalize(
+              '${category.nameAr} ${category.nameEn ?? ''} ${category.slug}',
+            );
+            return haystack.contains(normalized);
+          })
+          .toList(growable: false);
+      final matchedSurahs = surahs
+          .where((surah) {
+            return _normalize(
+              '${surah.nameAr} ${surah.nameEn} ${surah.number}',
+            ).contains(normalized);
+          })
+          .toList(growable: false);
       final byIdentity = <String, QuranAudioCatalogReciter>{};
       for (final reciter in catalog) {
         final haystack = _normalize(
@@ -156,7 +162,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   Widget build(BuildContext context) {
     final services = ref.watch(servicesProvider);
-    final total = result.stations.length +
+    final total =
+        result.stations.length +
         result.reciters.length +
         result.surahs.length +
         categoryResults.length +
@@ -185,16 +192,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       )
                     : controller.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'مسح',
-                            onPressed: () {
-                              controller.clear();
-                              runSearch('');
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.close),
-                          ),
+                    ? null
+                    : IconButton(
+                        tooltip: 'مسح',
+                        onPressed: () {
+                          controller.clear();
+                          runSearch('');
+                          setState(() {});
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
                 hintText: 'محطة، قارئ، سورة، تفسير، أذكار…',
               ),
               onChanged: (value) {
@@ -224,7 +231,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           else
             Expanded(
               child: ListView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 children: <Widget>[
                   if (categoryResults.isNotEmpty) ...<Widget>[
                     const SectionHeader('الأقسام'),
@@ -236,11 +244,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         children: categoryResults
                             .map(
                               (category) => ActionChip(
-                                avatar: const Icon(Icons.grid_view_outlined, size: 18),
+                                avatar: const Icon(
+                                  Icons.grid_view_outlined,
+                                  size: 18,
+                                ),
                                 label: Text(category.nameAr),
                                 onPressed: () => Navigator.of(context).push(
                                   MaterialPageRoute<void>(
-                                    builder: (_) => RadioPage(initialCategory: category.slug),
+                                    builder: (_) => RadioPage(
+                                      initialCategory: category.slug,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -261,13 +274,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          onTap: _canPlay(station) ? () => _playStation(station) : null,
+                          onTap: _canPlay(station)
+                              ? () => _playStation(station)
+                              : null,
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
                               IconButton(
                                 tooltip: 'المفضلة',
-                                onPressed: () => services.favorites.toggleStation(station.id),
+                                onPressed: () => services.favorites
+                                    .toggleStation(station.id),
                                 icon: Icon(
                                   services.favorites.isStation(station.id)
                                       ? Icons.favorite
@@ -280,13 +296,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                                   child: SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   ),
                                 )
                               else
                                 IconButton.filledTonal(
                                   tooltip: 'تشغيل',
-                                  onPressed: _canPlay(station) ? () => _playStation(station) : null,
+                                  onPressed: _canPlay(station)
+                                      ? () => _playStation(station)
+                                      : null,
                                   icon: const Icon(Icons.play_arrow),
                                 ),
                             ],
@@ -305,10 +325,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         subtitle: Text(
                           <String>[
                             if (reciter.nameEn.isNotEmpty) reciter.nameEn,
-                            if (reciter.riwayah?.isNotEmpty == true) reciter.riwayah!,
+                            if (reciter.riwayah?.isNotEmpty == true)
+                              reciter.riwayah!,
                           ].join(' • '),
                         ),
-                        trailing: Text('${reciter.availableSurahs.length} سورة'),
+                        trailing: Text(
+                          '${reciter.availableSurahs.length} سورة',
+                        ),
                       ),
                   ],
                   if (result.reciters.isNotEmpty) ...<Widget>[
@@ -320,7 +343,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           icon: Icons.person_outline,
                         ),
                         title: Text(reciter.nameAr),
-                        subtitle: reciter.rewaya == null ? null : Text(reciter.rewaya!),
+                        subtitle: reciter.rewaya == null
+                            ? null
+                            : Text(reciter.rewaya!),
                         trailing: const Icon(Icons.chevron_left),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -329,7 +354,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       ),
                   ],
-                  if ({...result.surahs, ...localSurahs}.isNotEmpty) ...<Widget>[
+                  if ({
+                    ...result.surahs,
+                    ...localSurahs,
+                  }.isNotEmpty) ...<Widget>[
                     const SectionHeader('السور'),
                     for (final surah in <int, Surah>{
                       for (final value in [...result.surahs, ...localSurahs])
@@ -338,7 +366,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       ListTile(
                         leading: CircleAvatar(child: Text('${surah.number}')),
                         title: Text(surah.nameAr),
-                        subtitle: Text('${surah.nameEn} • ${surah.ayahCount} آية'),
+                        subtitle: Text(
+                          '${surah.nameEn} • ${surah.ayahCount} آية',
+                        ),
                         trailing: const Icon(Icons.menu_book_outlined),
                       ),
                   ],

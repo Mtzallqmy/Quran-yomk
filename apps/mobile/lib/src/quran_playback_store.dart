@@ -48,27 +48,27 @@ class QuranPlaybackSnapshot {
   }
 
   String get identityKey => <Object?>[
-        'v1',
-        provider,
-        reciterId,
-        edition,
-        riwayah ?? '',
-        surahNumber,
-        ayahNumber ?? 0,
-      ].map((value) => Uri.encodeComponent('$value')).join('|');
+    'v1',
+    provider,
+    reciterId,
+    edition,
+    riwayah ?? '',
+    surahNumber,
+    ayahNumber ?? 0,
+  ].map((value) => Uri.encodeComponent('$value')).join('|');
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'provider': provider,
-        'reciter_id': reciterId,
-        'edition': edition,
-        'reciter_name': reciterName,
-        'riwayah': riwayah,
-        'bitrate_kbps': bitrateKbps,
-        'surah_number': surahNumber,
-        'ayah_number': ayahNumber,
-        'position_ms': position.inMilliseconds,
-        'played_at': playedAt.toIso8601String(),
-      };
+    'provider': provider,
+    'reciter_id': reciterId,
+    'edition': edition,
+    'reciter_name': reciterName,
+    'riwayah': riwayah,
+    'bitrate_kbps': bitrateKbps,
+    'surah_number': surahNumber,
+    'ayah_number': ayahNumber,
+    'position_ms': position.inMilliseconds,
+    'played_at': playedAt.toIso8601String(),
+  };
 
   factory QuranPlaybackSnapshot.fromJson(Map<String, dynamic> json) {
     final playedAt = DateTime.tryParse(json['played_at'] as String? ?? '');
@@ -114,13 +114,16 @@ class QuranPlaybackStore extends ChangeNotifier {
       List<QuranPlaybackSnapshot>.unmodifiable(_history);
 
   void load() {
-    final raw = _preferences.getString(_key) ??
+    final raw =
+        _preferences.getString(_key) ??
         _preferences.getString('quran_playback:last:v1');
     if (raw != null && raw.isNotEmpty) {
       try {
         final value = jsonDecode(raw);
         if (value is Map) {
-          last = QuranPlaybackSnapshot.fromJson(Map<String, dynamic>.from(value));
+          last = QuranPlaybackSnapshot.fromJson(
+            Map<String, dynamic>.from(value),
+          );
         }
       } catch (_) {
         last = null;
@@ -136,7 +139,9 @@ class QuranPlaybackStore extends ChangeNotifier {
             if (value is! Map) continue;
             try {
               values.add(
-                QuranPlaybackSnapshot.fromJson(Map<String, dynamic>.from(value)),
+                QuranPlaybackSnapshot.fromJson(
+                  Map<String, dynamic>.from(value),
+                ),
               );
             } catch (_) {
               // Reject only the malformed history row; never coerce its identity.

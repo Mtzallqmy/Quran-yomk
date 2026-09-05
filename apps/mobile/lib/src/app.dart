@@ -143,7 +143,8 @@ class _RootShellState extends State<RootShell> {
                   selectedIndex: index,
                   labelBehavior:
                       NavigationDestinationLabelBehavior.onlyShowSelected,
-                  onDestinationSelected: (value) => setState(() => index = value),
+                  onDestinationSelected: (value) =>
+                      setState(() => index = value),
                   destinations: <NavigationDestination>[
                     NavigationDestination(
                       icon: const Icon(Icons.home_outlined),

@@ -52,7 +52,9 @@ class _StaticProvider implements QuranAudioProvider {
 
   @override
   Future<List<QuranAudioCatalogReciter>> reciters({int? surahNumber}) async =>
-      media == null ? const <QuranAudioCatalogReciter>[] : <QuranAudioCatalogReciter>[media!.reciter];
+      media == null
+      ? const <QuranAudioCatalogReciter>[]
+      : <QuranAudioCatalogReciter>[media!.reciter];
 
   @override
   Future<QuranAudioMedia?> resolve(QuranAudioRequest request) async => media;
@@ -68,18 +70,21 @@ class _StaticLocal implements QuranAudioLocalLookup {
 
 void main() {
   group('canonical reciter identity', () {
-    test('MP3Quran identity exposes provider reciter and moshaf without changing stable id', () {
-      final reciter = _mp3(reciter: '10', moshaf: '20');
-      expect(reciter.hasValidIdentity, isTrue);
-      expect(reciter.id, 'mp3quran:10:20');
-      expect(reciter.providerReciterId, '10');
-      expect(reciter.moshafId, '20');
-      final identity = reciter.identityFor(surahNumber: 1);
-      expect(identity.toJson(), containsPair('provider', 'MP3QURAN'));
-      expect(identity.toJson(), containsPair('provider_reciter_id', '10'));
-      expect(identity.toJson(), containsPair('moshaf_id', '20'));
-      expect(identity.toJson(), containsPair('surah_number', 1));
-    });
+    test(
+      'MP3Quran identity exposes provider reciter and moshaf without changing stable id',
+      () {
+        final reciter = _mp3(reciter: '10', moshaf: '20');
+        expect(reciter.hasValidIdentity, isTrue);
+        expect(reciter.id, 'mp3quran:10:20');
+        expect(reciter.providerReciterId, '10');
+        expect(reciter.moshafId, '20');
+        final identity = reciter.identityFor(surahNumber: 1);
+        expect(identity.toJson(), containsPair('provider', 'MP3QURAN'));
+        expect(identity.toJson(), containsPair('provider_reciter_id', '10'));
+        expect(identity.toJson(), containsPair('moshaf_id', '20'));
+        expect(identity.toJson(), containsPair('surah_number', 1));
+      },
+    );
 
     test('malformed composite identity fails closed', () {
       const reciter = QuranAudioCatalogReciter(
@@ -111,7 +116,10 @@ void main() {
         nameEn: 'Al-Baqarah',
         ayahCount: 286,
       );
-      final otherSurah = _media(_mp3(reciter: '10', moshaf: '20'), surah: secondSurah);
+      final otherSurah = _media(
+        _mp3(reciter: '10', moshaf: '20'),
+        surah: secondSurah,
+      );
       expect(first.storageKey, isNot(otherReciter.storageKey));
       expect(first.storageKey, isNot(otherSurah.storageKey));
     });
@@ -129,31 +137,50 @@ void main() {
       );
       final repository = QuranAudioRepository(
         providers: <QuranAudioProvider>[
-          _StaticProvider(QuranAudioProviderKind.mp3Quran, _media(reciter, surah: wrongSurah)),
+          _StaticProvider(
+            QuranAudioProviderKind.mp3Quran,
+            _media(reciter, surah: wrongSurah),
+          ),
         ],
         localLookup: const _StaticLocal(null),
       );
       await expectLater(
         repository.resolve(QuranAudioRequest(surah: _surah, reciter: reciter)),
-        throwsA(predicate((error) => '$error'.contains('QURAN_AUDIO_TRACK_IDENTITY_MISMATCH'))),
+        throwsA(
+          predicate(
+            (error) => '$error'.contains('QURAN_AUDIO_TRACK_IDENTITY_MISMATCH'),
+          ),
+        ),
       );
     });
 
-    test('wrong local cached reciter is rejected instead of replacing remote', () async {
-      final requested = _mp3(reciter: '10', moshaf: '20');
-      final remote = _media(requested);
-      final wrongLocal = _media(_mp3(reciter: '11', moshaf: '21')).asLocal('/tmp/wrong.mp3');
-      final repository = QuranAudioRepository(
-        providers: <QuranAudioProvider>[
-          _StaticProvider(QuranAudioProviderKind.mp3Quran, remote),
-        ],
-        localLookup: _StaticLocal(wrongLocal),
-      );
-      await expectLater(
-        repository.resolve(QuranAudioRequest(surah: _surah, reciter: requested)),
-        throwsA(predicate((error) => '$error'.contains('QURAN_AUDIO_LOCAL_IDENTITY_MISMATCH'))),
-      );
-    });
+    test(
+      'wrong local cached reciter is rejected instead of replacing remote',
+      () async {
+        final requested = _mp3(reciter: '10', moshaf: '20');
+        final remote = _media(requested);
+        final wrongLocal = _media(
+          _mp3(reciter: '11', moshaf: '21'),
+        ).asLocal('/tmp/wrong.mp3');
+        final repository = QuranAudioRepository(
+          providers: <QuranAudioProvider>[
+            _StaticProvider(QuranAudioProviderKind.mp3Quran, remote),
+          ],
+          localLookup: _StaticLocal(wrongLocal),
+        );
+        await expectLater(
+          repository.resolve(
+            QuranAudioRequest(surah: _surah, reciter: requested),
+          ),
+          throwsA(
+            predicate(
+              (error) =>
+                  '$error'.contains('QURAN_AUDIO_LOCAL_IDENTITY_MISMATCH'),
+            ),
+          ),
+        );
+      },
+    );
   });
 
   group('persisted identity fail closed', () {

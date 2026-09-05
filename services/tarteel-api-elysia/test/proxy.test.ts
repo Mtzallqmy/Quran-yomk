@@ -96,7 +96,7 @@ describe('canonical public API proxy', () => {
     }) as unknown as typeof fetch
 
     const response = await app.handle(new Request('https://adapter.invalid/v1/app-config', {
-      headers: { 'x-request-id': 'client-id' }
+      headers: { 'x-request-id': '00000000-0000-4000-8000-000000000001' }
     }))
     expect(response.status).toBe(206)
     expect(await response.json()).toEqual({ data: { ok: true } })
@@ -105,7 +105,7 @@ describe('canonical public API proxy', () => {
     expect(called?.url).toBe('https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api/app-config')
     const headers = new Headers(called?.init?.headers)
     expect(headers.get('apikey')).toBe('sb_publishable_test')
-    expect(headers.get('x-request-id')).toBe('client-id')
+    expect(headers.get('x-request-id')).toBe('00000000-0000-4000-8000-000000000001')
   })
 
   test('fails closed when the canonical upstream key is missing', async () => {
@@ -114,5 +114,32 @@ describe('canonical public API proxy', () => {
     expect(response.status).toBe(503)
     const body = await response.json() as { error: { code: string } }
     expect(body.error.code).toBe('SERVER_NOT_CONFIGURED')
+  })
+})
+
+describe('readiness and failure visibility', () => {
+  test('missing configuration and a silent empty catalog are unhealthy', async () => {
+    delete process.env.TARTEEL_API_KEY
+    expect((await app.handle(new Request('https://adapter.invalid/health'))).status).toBe(503)
+    process.env.TARTEEL_API_KEY = 'test'
+    globalThis.fetch = (async () => Response.json({ data: [] })) as unknown as typeof fetch
+    const response = await app.handle(new Request('https://adapter.invalid/health'))
+    expect(response.status).toBe(503)
+    const body = await response.json()
+    expect(body.error.code).toBe('UPSTREAM_NOT_READY')
+    expect(body.error.request_id).toBe(response.headers.get('x-request-id'))
+  })
+  test('readiness verifies the actual catalog and preserves one operation ID', async () => {
+    process.env.TARTEEL_API_KEY = 'test'
+    globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+      expect(init?.redirect).toBe('error')
+      expect(init?.signal).toBeInstanceOf(AbortSignal)
+      return Response.json({ data: Array.from({ length: 114 }, (_, i) => ({ number: i + 1, name_ar: 'سورة', ayah_count: 1 })) })
+    }) as unknown as typeof fetch
+    const response = await app.handle(new Request('https://adapter.invalid/health', { headers: { 'x-request-id': 'token=private' } }))
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.request_id).toBe(response.headers.get('x-request-id'))
+    expect(body.request_id).not.toContain('private')
   })
 })

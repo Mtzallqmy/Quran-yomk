@@ -7,7 +7,7 @@ import type { EngineMode, EngineSnapshot, Lease, LeaseStore, Track } from './typ
 import { Logger } from './logger.js';
 import { loadAndValidatePlaylist, writeSourcePlaylist } from './playlist.js';
 import { LiquidsoapSource, liquidsoapCommand } from './source.js';
-import { startHealthServer } from './health.js';
+import { engineReady, startHealthServer } from './health.js';
 
 const allowed:Record<EngineMode,EngineMode[]>= {
   STARTING:['AUTO','SCHEDULED','MANUAL','RECOVERING','ERROR','STOPPED'],
@@ -39,7 +39,7 @@ export class RadioEngine {
     this.snapshot.trackFailures=result.failed.length;for(const failure of result.failed)this.logger.warn('TRACK_FAILED',{reason:failure});
     if(result.fallbackUsed)this.logger.warn('FALLBACK_SELECTED',{reason:'no valid development tracks'});
     this.mainTracks=result.tracks;this.mainTrackIndex=0;const playlistPath=join(this.workspace,'playlist.m3u');const scriptPath=join(this.workspace,'radio.liq');await rm(playlistPath,{force:true});await rm(scriptPath,{force:true});await writeSourcePlaylist(playlistPath,this.mainTracks);
-    this.source=new LiquidsoapSource(this.config,playlistPath,scriptPath);await this.source.prepare();this.server=await startHealthServer(this.config.healthPort,()=>this.snapshot,()=>this.snapshot.mode==='AUTO'&&this.snapshot.broadcasting);
+    this.source=new LiquidsoapSource(this.config,playlistPath,scriptPath);await this.source.prepare();this.server=await startHealthServer(this.config.healthPort,()=>this.snapshot,()=>engineReady(this.snapshot,this.lease));
     this.heartbeat=setInterval(()=>void this.heartbeatTick(),this.config.heartbeatSeconds*1000);this.heartbeat.unref();
     this.startSource();
   }

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +18,7 @@ import 'src/remote_config.dart';
 import 'src/repository.dart';
 import 'src/services.dart';
 import 'src/storage.dart';
+import 'src/startup.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,14 +43,9 @@ Future<void> main() async {
   final settings = SettingsStore(preferences)..load();
   final mushaf = MushafStore(preferences)..load();
   final mushafPages = MushafPageRepository();
-  await mushafPages.initialize();
   final islamicContent = IslamicContentRepository();
-  await islamicContent.initialize();
-  unawaited(islamicContent.synchronizeInBackground());
   final offlineClips = createOfflineClipService(preferences);
-  await offlineClips.initialize();
   final quranDownloads = createQuranDownloadService(preferences);
-  await quranDownloads.initialize();
   final quranAudio = QuranAudioRepository(
     providers: <QuranAudioProvider>[
       AlQuranCloudAudioProvider(),
@@ -65,7 +59,6 @@ Future<void> main() async {
   final api = TarteelApiClient();
   final repository = TarteelRepository(api, MetadataCache(preferences));
   final remoteConfig = TarteelRemoteConfig(repository, preferences)..load();
-  unawaited(remoteConfig.refresh());
   final services = AppServices(
     repository: repository,
     favorites: favorites,
@@ -88,4 +81,10 @@ Future<void> main() async {
       child: const TarteelApp(),
     ),
   );
+  initializeAfterFirstFrame(<String, Future<void> Function()>{
+    'offline_clips': offlineClips.initialize,
+    'quran_downloads': quranDownloads.initialize,
+    'islamic_content': islamicContent.synchronizeInBackground,
+    'remote_config': remoteConfig.refresh,
+  });
 }

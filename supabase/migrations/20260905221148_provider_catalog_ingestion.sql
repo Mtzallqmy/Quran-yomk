@@ -357,7 +357,7 @@ begin
   returning id into v_run_id;
 
   begin
-    v_health_response.status := 200;
+    v_health_response.status := case when p_payload->>'_tarteel_api_healthy'='true' then 200 else 503 end;
     v_api_healthy := v_health_response.status between 200 and 299;
     v_response.status := 200; v_response.content := p_payload::text;
     if v_response.status < 200 or v_response.status >= 300 then

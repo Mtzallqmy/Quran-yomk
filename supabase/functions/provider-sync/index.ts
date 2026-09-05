@@ -1,4 +1,4 @@
-import { catalogSources, prepareCatalogRpc } from '../_shared/provider-catalog.ts';
+import { prepareCatalogRpc } from '../_shared/provider-catalog.ts';
 import { fetchJsonResponse } from '../_shared/http.ts';
 
 export async function handleProviderSync(request: Request, env: (name: string) => string | undefined) {
@@ -13,7 +13,7 @@ export async function handleProviderSync(request: Request, env: (name: string) =
       body: JSON.stringify({ p_token: request.headers.get('authorization')!.slice(7) }),
     });
     if (!authorized.ok || await authorized.json() !== true) return Response.json({ error: { code: 'FORBIDDEN', request_id: requestId } }, { status: 403 });
-    for (const name of Object.keys(catalogSources)) {
+    for (const name of ['sync_islamic_radio_api_stations']) {
       const rpc = await prepareCatalogRpc(name, {});
       const response = await fetchJsonResponse(`${env('SUPABASE_URL')}/rest/v1/rpc/${rpc.name}`, {
         method: 'POST', headers: { apikey: key, authorization: `Bearer ${key}`, 'content-profile': 'app', 'content-type': 'application/json' },

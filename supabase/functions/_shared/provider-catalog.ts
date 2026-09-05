@@ -16,5 +16,9 @@ export async function prepareCatalogRpc(name: string, args: Record<string, unkno
   for (const key of source.array) rows = rows?.[key];
   if (name === 'sync_mp3quran_radios') rows ??= payload?.Radios;
   if (!Array.isArray(rows) || rows.length === 0) throw new UpstreamHttpError('PROVIDER_INVALID_CATALOG');
+  if (name === 'sync_islamic_app_radio_stations') {
+    try { payload._tarteel_api_healthy = (await fetchJsonResponse('https://api.islamic.app/health')).status === 200; }
+    catch { payload._tarteel_api_healthy = false; }
+  }
   return { name: `${name}_payload`, args: { p_payload: payload } };
 }

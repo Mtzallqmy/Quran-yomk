@@ -25,7 +25,7 @@ function harness(options:{occurrence?:ClaimedOccurrence|null;command?:ClaimedCom
     async completeCommand(_lease:Lease,id:string,succeeded:boolean,result:unknown){calls.push({name:'completeCommand',args:[id,succeeded,result]});return true;},
     async recordCommandEffect(_lease:Lease,id:string,kind:string,_hash:string,status:string){calls.push({name:'effect',args:[id,kind,status]});return'effect';},
     async recordPlayoutStart(_lease:Lease,queueEntryId:string){calls.push({name:'playoutStart',args:[queueEntryId]});return 1;},
-    async recordPlayoutEnd(){return true;}
+    async recordPlayoutEnd(_lease:Lease,playoutId:string,endedAt:string,completedNaturally:boolean,reason?:string){calls.push({name:'playoutEnd',args:[playoutId,endedAt,completedNaturally,reason]});return true;}
   } as unknown as SupabaseAutomationStore;
   const engine={
     currentLease:()=>lease,
@@ -66,4 +66,14 @@ test('Liquidsoap track-start callback persists playout ACK for queue-backed trac
   emit({track:{mediaId:'media-3',queueEntryId:'queue-media-3',title:'three',path:'/three.m4a',durationSeconds:20},previous:null,startedAt:'2026-09-05T10:00:01Z'});
   await new Promise(resolve=>setImmediate(resolve));runtime.stop();
   assert.ok(calls.some(call=>call.name==='playoutStart'&&call.args[0]==='queue-media-3'));
+});
+
+test('returning from automation to the main playlist closes the active playout history row',async()=>{
+  const {runtime,calls,emit}=harness({});runtime.start();
+  const queued:Track={mediaId:'media-4',queueEntryId:'queue-media-4',title:'four',path:'/four.m4a',durationSeconds:20};
+  emit({track:queued,previous:null,startedAt:'2026-09-05T10:00:01Z'});
+  await new Promise(resolve=>setImmediate(resolve));
+  emit({track:{mediaId:'main-1',title:'main',path:'/main.m4a',durationSeconds:20},previous:queued,startedAt:'2026-09-05T10:00:21Z'});
+  await new Promise(resolve=>setImmediate(resolve));runtime.stop();
+  const ended=calls.find(call=>call.name==='playoutEnd');assert.ok(ended);assert.equal(ended.args[2],true);assert.equal(ended.args[3],undefined);
 });

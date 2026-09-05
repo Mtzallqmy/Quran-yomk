@@ -76,24 +76,36 @@ class TarteelApiClient {
     Map<String, String?> query = const <String, String?>{},
     bool allowRetry = true,
   }) async {
-    Object? lastError;
     final attempts = allowRetry ? 2 : 1;
     for (var attempt = 0; attempt < attempts; attempt++) {
       try {
         final response = await _client
             .get(_uri(path, query), headers: _headers)
             .timeout(timeout);
-        final decoded = response.body.isEmpty
-            ? <String, dynamic>{}
-            : jsonDecode(response.body);
+        dynamic decoded;
+        try {
+          decoded = jsonDecode(response.body);
+        } on FormatException {
+          throw ApiException(
+            'INVALID_RESPONSE',
+            'Service returned invalid JSON',
+            statusCode: response.statusCode,
+            requestId: response.headers['x-request-id'],
+          );
+        }
+        if (decoded is! Map) {
+          throw ApiException(
+            'INVALID_RESPONSE',
+            'Service returned an invalid response',
+            statusCode: response.statusCode,
+            requestId: response.headers['x-request-id'],
+          );
+        }
         if (response.statusCode >= 200 &&
-            response.statusCode < 300 &&
-            decoded is Map) {
+            response.statusCode < 300) {
           return Map<String, dynamic>.from(decoded);
         }
-        final error = decoded is Map
-            ? jsonMap(decoded['error'])
-            : const <String, dynamic>{};
+        final error = jsonMap(decoded['error']);
         final exception = ApiException(
           error['code'] is String
               ? error['code'] as String
@@ -108,28 +120,24 @@ class TarteelApiClient {
         );
         if (attempt + 1 < attempts && response.statusCode >= 500) {
           await Future<void>.delayed(const Duration(milliseconds: 450));
-          lastError = exception;
           continue;
         }
         throw exception;
-      } on TimeoutException catch (error) {
-        lastError = error;
+      } on TimeoutException {
         if (attempt + 1 < attempts) {
           await Future<void>.delayed(const Duration(milliseconds: 450));
           continue;
         }
-      } on http.ClientException catch (error) {
-        lastError = error;
+      } on http.ClientException {
         if (attempt + 1 < attempts) {
           await Future<void>.delayed(const Duration(milliseconds: 450));
           continue;
         }
       }
     }
-    throw ApiException(
+    throw const ApiException(
       'NETWORK_UNAVAILABLE',
       'Unable to reach Tarteel service',
-      requestId: lastError?.runtimeType.toString(),
     );
   }
 

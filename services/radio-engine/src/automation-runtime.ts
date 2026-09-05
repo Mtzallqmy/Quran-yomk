@@ -4,6 +4,7 @@ import { commandEffect,type ContentResolver,type RadioCommand } from './commands
 import type { ClaimedCommand,ClaimedOccurrence,ResolvedTrack,SupabaseAutomationStore } from './automation-store.js';
 import type { RadioEngine } from './engine.js';
 import { Logger } from './logger.js';
+import type { QueueSource } from './queue-manager.js';
 import type { Lease,Track } from './types.js';
 
 function errorMessage(error:unknown):string{return error instanceof Error?error.message:String(error);}
@@ -61,9 +62,9 @@ export class AutomationRuntime {
   private async dispatchCommand(lease:Lease,claimed:ClaimedCommand):Promise<void>{
     const command:RadioCommand={id:claimed.id,stationId:claimed.station_id,type:claimed.command_type as RadioCommand['type'],priority:claimed.priority,payload:claimed.payload,createdAt:claimed.created_at};
     const resolver:ContentResolver={resolveMedia:async id=>this.stripResolved(await this.store.resolveMedia(lease.stationId,id)),resolvePlaylist:async id=>(await this.store.resolvePlaylist(lease.stationId,id)).map(track=>this.stripResolved(track))};
-    const hash=commandHash(claimed);
+    const hash=commandHash(claimed);let effectKind:string|null=null;
     try{
-      const effect=await commandEffect(command,resolver);
+      const effect=await commandEffect(command,resolver);effectKind=effect.kind;
       await this.store.recordCommandEffect(lease,claimed.id,effect.kind,hash,'PREPARED');
       if(effect.kind==='ENQUEUE'){
         const resolved=effect.items.map(item=>({mediaId:item.mediaId,title:item.title,path:item.path,durationSeconds:item.durationSeconds}));
@@ -76,10 +77,10 @@ export class AutomationRuntime {
       await this.store.recordCommandEffect(lease,claimed.id,effect.kind,hash,'ACKED',{dispatched_at:new Date().toISOString()});
       await this.store.completeCommand(lease,claimed.id,true,{effect:effect.kind});
       this.logger.info('COMMAND_EXECUTED',{command_id:claimed.id,effect:effect.kind});
-    }catch(error){await this.store.recordCommandEffect(lease,claimed.id,'ENQUEUE',hash,'FAILED',{error:errorMessage(error)}).catch(()=>null);await this.store.completeCommand(lease,claimed.id,false,{},'COMMAND_DISPATCH_FAILED',errorMessage(error)).catch(()=>false);throw error;}
+    }catch(error){if(effectKind)await this.store.recordCommandEffect(lease,claimed.id,effectKind,hash,'FAILED',{error:errorMessage(error)}).catch(()=>null);await this.store.completeCommand(lease,claimed.id,false,{},'COMMAND_DISPATCH_FAILED',errorMessage(error)).catch(()=>false);throw error;}
   }
 
-  private async persistTracks(lease:Lease,resolved:ResolvedTrack[]|Track[],options:{source:'SCHEDULED'|'MANUAL'|'EMERGENCY';priority:ClaimedOccurrence['priority'];interruptPolicy:ClaimedOccurrence['interrupt_policy'];intendedAt:string;idempotencyPrefix:string;commandId?:string;occurrenceId?:string;playlistId?:string}):Promise<Track[]>{
+  private async persistTracks(lease:Lease,resolved:ResolvedTrack[]|Track[],options:{source:QueueSource;priority:ClaimedOccurrence['priority'];interruptPolicy:ClaimedOccurrence['interrupt_policy'];intendedAt:string;idempotencyPrefix:string;commandId?:string;occurrenceId?:string;playlistId?:string}):Promise<Track[]>{
     const tracks:Track[]=[];
     for(const [index,track] of resolved.entries()){
       if(!track.mediaId)throw new Error('automation media id is required');

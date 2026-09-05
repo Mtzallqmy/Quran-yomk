@@ -7,6 +7,11 @@ on:
       - phase7-8-backend-admin-brand
       - phase9-10-flutter-release
       - feature/quran-radio-real-integration
+  pull_request:
+    paths:
+      - 'apps/admin/**'
+      - 'supabase/functions/_shared/http.ts'
+      - '.github/workflows/phase78-bootstrap.yml'
   workflow_dispatch:
 
 permissions:

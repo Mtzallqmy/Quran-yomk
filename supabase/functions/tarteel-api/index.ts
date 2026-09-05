@@ -512,8 +512,11 @@ Deno.serve(async (req: Request) => {
       event: "TARTEEL_PUBLIC_API_ERROR",
       request_id: requestId,
       status,
-      message: error instanceof Error ? error.message : String(error),
+      code: (error as { status?: number })?.status ? "UPSTREAM_FAILURE" : "INTERNAL_ERROR",
     }));
+    if ((error as { status?: number })?.status && status >= 500) {
+      return fail(502, "UPSTREAM_UNAVAILABLE", "Public data dependency unavailable", requestId);
+    }
     if (status === 401 || status === 403) {
       return fail(
         status,

@@ -50,9 +50,22 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> {
   int index = 0;
   bool _mushafImmersive = false;
+  bool _openingRoute = false;
 
   void _setMushafImmersive(bool value) {
     if (_mushafImmersive != value) setState(() => _mushafImmersive = value);
+  }
+
+  Future<void> _open(Widget page) async {
+    if (_openingRoute) return;
+    _openingRoute = true;
+    try {
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => page));
+    } finally {
+      _openingRoute = false;
+    }
   }
 
   @override
@@ -80,7 +93,7 @@ class _RootShellState extends State<RootShell> {
                   const SizedBox(width: 9),
                   Flexible(
                     child: Text(
-                      '${s.appName} — ${titles[index]}',
+                      titles[index],
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -88,47 +101,59 @@ class _RootShellState extends State<RootShell> {
               ),
               actions: <Widget>[
                 IconButton(
-                  tooltip: english ? 'Quran playlists' : 'قوائم تشغيل القرآن',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const QuranPlaylistsPage(),
-                    ),
-                  ),
-                  icon: const Icon(Icons.queue_music),
-                ),
-                IconButton(
-                  tooltip: english ? 'Offline Quran' : 'الاستماع بدون إنترنت',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const QuranOfflinePage(),
-                    ),
-                  ),
-                  icon: const Icon(Icons.download_for_offline_outlined),
-                ),
-                IconButton(
-                  tooltip: english ? 'Islamic library' : 'المكتبة الإسلامية',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const IslamicLibraryPage(),
-                    ),
-                  ),
-                  icon: const Icon(Icons.local_library_outlined),
-                ),
-                IconButton(
                   tooltip: s.search,
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const SearchPage()),
-                  ),
+                  onPressed: () => _open(const SearchPage()),
                   icon: const Icon(Icons.search),
                 ),
-                IconButton(
-                  tooltip: s.settings,
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SettingsPage(),
+                PopupMenuButton<_RootAction>(
+                  tooltip: english ? 'More' : 'المزيد',
+                  onSelected: (action) => switch (action) {
+                    _RootAction.playlists => _open(
+                      const QuranPlaylistsPage(),
                     ),
-                  ),
-                  icon: const Icon(Icons.settings_outlined),
+                    _RootAction.offline => _open(const QuranOfflinePage()),
+                    _RootAction.library => _open(const IslamicLibraryPage()),
+                    _RootAction.settings => _open(const SettingsPage()),
+                  },
+                  itemBuilder: (_) => <PopupMenuEntry<_RootAction>>[
+                    PopupMenuItem<_RootAction>(
+                      value: _RootAction.playlists,
+                      child: ListTile(
+                        leading: const Icon(Icons.queue_music_outlined),
+                        title: Text(
+                          english ? 'Quran playlists' : 'قوائم تشغيل القرآن',
+                        ),
+                      ),
+                    ),
+                    PopupMenuItem<_RootAction>(
+                      value: _RootAction.offline,
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.download_for_offline_outlined,
+                        ),
+                        title: Text(
+                          english ? 'Offline Quran' : 'الاستماع بدون إنترنت',
+                        ),
+                      ),
+                    ),
+                    PopupMenuItem<_RootAction>(
+                      value: _RootAction.library,
+                      child: ListTile(
+                        leading: const Icon(Icons.local_library_outlined),
+                        title: Text(
+                          english ? 'Islamic library' : 'المكتبة الإسلامية',
+                        ),
+                      ),
+                    ),
+                    PopupMenuItem<_RootAction>(
+                      value: _RootAction.settings,
+                      child: ListTile(
+                        leading: const Icon(Icons.settings_outlined),
+                        title: Text(s.settings),
+                      ),
+                    ),
+                  ],
+                  icon: const Icon(Icons.more_vert),
                 ),
               ],
             ),
@@ -178,3 +203,5 @@ class _RootShellState extends State<RootShell> {
     );
   }
 }
+
+enum _RootAction { playlists, offline, library, settings }

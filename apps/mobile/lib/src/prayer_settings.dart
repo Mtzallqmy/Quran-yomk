@@ -141,10 +141,12 @@ class PrayerSettings {
 
   PrayerReminderMode reminderModeFor(PrayerKind prayer) {
     if (!prayer.isRequiredPrayer) return PrayerReminderMode.disabled;
-    return reminderModes[prayer] ??
-        (remindersEnabled
-            ? PrayerReminderMode.notificationOnly
-            : PrayerReminderMode.disabled);
+    if (reminderModes.isNotEmpty) {
+      return reminderModes[prayer] ?? PrayerReminderMode.disabled;
+    }
+    return remindersEnabled
+        ? PrayerReminderMode.notificationOnly
+        : PrayerReminderMode.disabled;
   }
 
   PrayerSettings copyWith({

@@ -157,8 +157,9 @@ class PrayerTimesView extends StatelessWidget {
               const SizedBox(height: 20),
               Text(
                 'الصلاة القادمة',
-                style: Theme.of(context).textTheme.labelLarge
-                    ?.copyWith(color: scheme.primary),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: scheme.primary),
               ),
               const SizedBox(height: 4),
               Row(

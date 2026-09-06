@@ -188,8 +188,9 @@ void main() {
   );
 
   test('Android manifest schedules without exact alarm permission', () {
-    final manifest = File('android/app/src/main/AndroidManifest.xml')
-        .readAsStringSync();
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
     expect(manifest, contains('android.permission.POST_NOTIFICATIONS'));
     expect(manifest, contains('android.permission.RECEIVE_BOOT_COMPLETED'));
     expect(manifest, contains('ScheduledNotificationReceiver'));

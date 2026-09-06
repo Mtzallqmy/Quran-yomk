@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'islamic_content.dart';
+import 'local_notifications.dart';
 import 'mushaf_pages.dart';
 import 'mushaf_store.dart';
 import 'offline_clip_service.dart';
@@ -9,6 +10,9 @@ import 'quran_audio.dart';
 import 'quran_download_service.dart';
 import 'quran_playback_store.dart';
 import 'quran_playlist_store.dart';
+import 'prayer_reminders.dart';
+import 'prayer_settings.dart';
+import 'prayer_times.dart';
 import 'remote_config.dart';
 import 'repository.dart';
 import 'storage.dart';
@@ -35,6 +39,10 @@ class AppServices {
     required this.quranPlayback,
     required this.quranPlaylists,
     required this.remoteConfig,
+    required this.localNotifications,
+    required this.prayerSettings,
+    required this.prayerTimes,
+    required this.prayerReminders,
   });
 
   final TarteelRepository repository;
@@ -50,6 +58,10 @@ class AppServices {
   final QuranPlaybackStore quranPlayback;
   final QuranPlaylistStore quranPlaylists;
   final TarteelRemoteConfig remoteConfig;
+  final LocalNotificationService localNotifications;
+  final PrayerSettingsStore prayerSettings;
+  final PrayerTimesService prayerTimes;
+  final PrayerReminderController prayerReminders;
 }
 
 final servicesProvider = Provider<AppServices>(

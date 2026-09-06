@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'src/api.dart';
 import 'src/app.dart';
 import 'src/islamic_content.dart';
+import 'src/local_notifications.dart';
 import 'src/mushaf_pages.dart';
 import 'src/mushaf_store.dart';
 import 'src/offline_clip_service.dart';
@@ -14,6 +15,9 @@ import 'src/quran_audio.dart';
 import 'src/quran_download_service.dart';
 import 'src/quran_playback_store.dart';
 import 'src/quran_playlist_store.dart';
+import 'src/prayer_reminders.dart';
+import 'src/prayer_settings.dart';
+import 'src/prayer_times.dart';
 import 'src/remote_config.dart';
 import 'src/repository.dart';
 import 'src/services.dart';
@@ -59,6 +63,14 @@ Future<void> main() async {
   final api = TarteelApiClient();
   final repository = TarteelRepository(api, MetadataCache(preferences));
   final remoteConfig = TarteelRemoteConfig(repository, preferences)..load();
+  final localNotifications = LocalNotificationService();
+  final prayerSettings = PrayerSettingsStore(preferences)..load();
+  final prayerTimes = PrayerTimesService();
+  final prayerReminders = PrayerReminderController(
+    notifications: localNotifications,
+    prayerTimes: prayerTimes,
+    settings: prayerSettings,
+  );
   final services = AppServices(
     repository: repository,
     favorites: favorites,
@@ -73,6 +85,10 @@ Future<void> main() async {
     quranPlayback: quranPlayback,
     quranPlaylists: quranPlaylists,
     remoteConfig: remoteConfig,
+    localNotifications: localNotifications,
+    prayerSettings: prayerSettings,
+    prayerTimes: prayerTimes,
+    prayerReminders: prayerReminders,
   );
 
   runApp(
@@ -86,5 +102,6 @@ Future<void> main() async {
     'quran_downloads': quranDownloads.initialize,
     'islamic_content': islamicContent.synchronizeInBackground,
     'remote_config': remoteConfig.refresh,
+    'prayer_reminders': prayerReminders.start,
   });
 }

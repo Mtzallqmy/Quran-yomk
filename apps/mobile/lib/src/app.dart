@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +10,7 @@ import 'screens/home.dart';
 import 'screens/islamic_library.dart';
 import 'screens/mushaf.dart';
 import 'screens/player.dart';
+import 'screens/prayer_times.dart';
 import 'screens/quran_offline.dart';
 import 'screens/quran_playlists.dart';
 import 'screens/radio.dart';
@@ -40,17 +43,43 @@ class TarteelApp extends ConsumerWidget {
   }
 }
 
-class RootShell extends StatefulWidget {
+class RootShell extends ConsumerStatefulWidget {
   const RootShell({super.key});
 
   @override
-  State<RootShell> createState() => _RootShellState();
+  ConsumerState<RootShell> createState() => _RootShellState();
 }
 
-class _RootShellState extends State<RootShell> {
+class _RootShellState extends ConsumerState<RootShell> {
   int index = 0;
   bool _mushafImmersive = false;
   bool _openingRoute = false;
+  StreamSubscription<String>? _notificationSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationSubscription = ref
+        .read(servicesProvider)
+        .localNotifications
+        .payloads
+        .listen(_handleNotificationPayload);
+  }
+
+  void _handleNotificationPayload(String payload) {
+    if (!mounted || !payload.startsWith('/prayer-times')) return;
+    unawaited(
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const PrayerTimesPage())),
+    );
+  }
+
+  @override
+  void dispose() {
+    unawaited(_notificationSubscription?.cancel());
+    super.dispose();
+  }
 
   void _setMushafImmersive(bool value) {
     if (_mushafImmersive != value) setState(() => _mushafImmersive = value);

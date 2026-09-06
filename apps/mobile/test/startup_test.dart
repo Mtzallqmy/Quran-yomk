@@ -64,8 +64,10 @@ void main() {
       'offlineClips',
       'quranDownloads',
       'remoteConfig',
+      'prayerReminders',
     ]) {
       expect(criticalPath, isNot(contains('await $optional.')));
     }
+    expect(source.split('  runApp(').last, contains("'prayer_reminders'"));
   });
 }

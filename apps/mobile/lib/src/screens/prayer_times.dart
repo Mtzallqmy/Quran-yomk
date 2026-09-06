@@ -157,9 +157,8 @@ class PrayerTimesView extends StatelessWidget {
               const SizedBox(height: 20),
               Text(
                 'الصلاة القادمة',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(color: scheme.primary),
+                style: Theme.of(context).textTheme.labelLarge
+                    ?.copyWith(color: scheme.primary),
               ),
               const SizedBox(height: 4),
               Row(
@@ -193,9 +192,9 @@ class PrayerTimesView extends StatelessWidget {
               )
                 _PrayerTimeRow(
                   occurrence: snapshot.today.ordered[index],
-                  reminderEnabled:
-                      settings.remindersEnabled &&
-                      snapshot.today.ordered[index].prayer.isRequiredPrayer,
+                  reminderMode: settings.reminderModeFor(
+                    snapshot.today.ordered[index].prayer,
+                  ),
                   divider: index < snapshot.today.ordered.length - 1,
                 ),
             ],
@@ -209,12 +208,12 @@ class PrayerTimesView extends StatelessWidget {
 class _PrayerTimeRow extends StatelessWidget {
   const _PrayerTimeRow({
     required this.occurrence,
-    required this.reminderEnabled,
+    required this.reminderMode,
     required this.divider,
   });
 
   final PrayerOccurrence occurrence;
-  final bool reminderEnabled;
+  final PrayerReminderMode reminderMode;
   final bool divider;
 
   @override
@@ -234,11 +233,16 @@ class _PrayerTimeRow extends StatelessWidget {
               _time(occurrence.time),
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            if (reminderEnabled) ...<Widget>[
+            if (reminderMode != PrayerReminderMode.disabled) ...<Widget>[
               const SizedBox(width: 10),
-              const Tooltip(
-                message: 'التذكير مفعل',
-                child: Icon(Icons.notifications_active_outlined, size: 20),
+              Tooltip(
+                message: reminderMode.nameAr,
+                child: Icon(
+                  reminderMode == PrayerReminderMode.adhan
+                      ? Icons.volume_up_outlined
+                      : Icons.notifications_active_outlined,
+                  size: 20,
+                ),
               ),
             ],
           ],
@@ -272,18 +276,18 @@ class PrayerSettingsPage extends ConsumerStatefulWidget {
 }
 
 class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
-  bool _changingPermission = false;
+  PrayerKind? _changingPrayer;
 
-  Future<void> _setReminders(bool enabled) async {
-    if (_changingPermission) return;
-    setState(() => _changingPermission = true);
+  Future<void> _setMode(PrayerKind prayer, PrayerReminderMode mode) async {
+    if (_changingPrayer != null) return;
+    setState(() => _changingPrayer = prayer);
     final accepted = await ref
         .read(servicesProvider)
         .prayerReminders
-        .setEnabled(enabled);
+        .setPrayerMode(prayer, mode);
     if (!mounted) return;
-    setState(() => _changingPermission = false);
-    if (enabled && !accepted) {
+    setState(() => _changingPrayer = null);
+    if (mode != PrayerReminderMode.disabled && !accepted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('لم تُمنح صلاحية الإشعارات. لم يتم تفعيل التذكيرات.'),
@@ -320,33 +324,69 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                 ),
               ),
               const SectionHeader('التذكيرات المحلية'),
-              SwitchListTile(
-                secondary: _changingPermission
-                    ? const SizedBox.square(
-                        dimension: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.notifications_active_outlined),
-                title: const Text('تذكير عند دخول وقت الصلاة'),
-                subtitle: const Text(
-                  'إشعار نصي محلي دون إنترنت، من دون تشغيل صوت الأذان.',
+              const Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(16, 0, 16, 8),
+                child: Text(
+                  'اختر لكل صلاة إشعارًا نصيًا أو أذانًا محليًا. يعمل إشعار الأذان كبديل آمن عندما يكون التطبيق في الخلفية.',
                 ),
-                value: settings.remindersEnabled,
-                onChanged: _changingPermission ? null : _setReminders,
               ),
-              ExpansionTile(
-                leading: const Icon(Icons.tune),
-                title: const Text('ضبط الدقائق'),
-                subtitle: const Text('تقديم أو تأخير وقت كل صلاة عند الحاجة'),
-                children: <Widget>[
-                  for (final prayer in PrayerKind.values)
-                    ListTile(
-                      title: Text(prayer.nameAr),
-                      trailing: DropdownButton<int>(
-                        value: settings.offsetFor(prayer),
-                        onChanged: (value) {
-                          if (value != null) store.setOffset(prayer, value);
-                        },
+              for (final prayer in PrayerKind.values.where(
+                (value) => value.isRequiredPrayer,
+              ))
+                Card(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 5,
+                  ),
+                  child: ExpansionTile(
+                    leading: _changingPrayer == prayer
+                        ? const SizedBox.square(
+                            dimension: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            settings.reminderModeFor(prayer) ==
+                                    PrayerReminderMode.adhan
+                                ? Icons.volume_up_outlined
+                                : Icons.notifications_outlined,
+                          ),
+                    title: Text('صلاة ${prayer.nameAr}'),
+                    subtitle: Text(
+                      '${settings.reminderModeFor(prayer).nameAr} • ${_offsetLabel(settings.offsetFor(prayer))}',
+                    ),
+                    childrenPadding: const EdgeInsetsDirectional.fromSTEB(
+                      16,
+                      0,
+                      16,
+                      16,
+                    ),
+                    children: <Widget>[
+                      DropdownButtonFormField<PrayerReminderMode>(
+                        key: ValueKey<String>('prayer-mode-${prayer.name}'),
+                        initialValue: settings.reminderModeFor(prayer),
+                        decoration: const InputDecoration(
+                          labelText: 'نوع التذكير',
+                        ),
+                        items: <DropdownMenuItem<PrayerReminderMode>>[
+                          for (final mode in PrayerReminderMode.values)
+                            DropdownMenuItem<PrayerReminderMode>(
+                              value: mode,
+                              child: Text(mode.nameAr),
+                            ),
+                        ],
+                        onChanged: _changingPrayer == null
+                            ? (mode) {
+                                if (mode != null) _setMode(prayer, mode);
+                              }
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        key: ValueKey<String>('prayer-offset-${prayer.name}'),
+                        initialValue: settings.offsetFor(prayer),
+                        decoration: const InputDecoration(
+                          labelText: 'تعديل الوقت',
+                        ),
                         items: <DropdownMenuItem<int>>[
                           for (final value in _offsetValues(
                             settings.offsetFor(prayer),
@@ -356,10 +396,13 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                               child: Text(_offsetLabel(value)),
                             ),
                         ],
+                        onChanged: (value) {
+                          if (value != null) store.setOffset(prayer, value);
+                        },
                       ),
-                    ),
-                ],
-              ),
+                    ],
+                  ),
+                ),
             ],
           ),
         );

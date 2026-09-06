@@ -5,6 +5,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+enum LocalNotificationChannel { prayerReminder, adhan }
+
 @immutable
 class LocalNotificationRequest {
   const LocalNotificationRequest({
@@ -14,6 +16,9 @@ class LocalNotificationRequest {
     required this.scheduledAt,
     required this.timezone,
     required this.payload,
+    this.channel = LocalNotificationChannel.prayerReminder,
+    this.playSound = true,
+    this.preferExact = true,
   });
 
   final int id;
@@ -22,6 +27,9 @@ class LocalNotificationRequest {
   final DateTime scheduledAt;
   final String timezone;
   final String payload;
+  final LocalNotificationChannel channel;
+  final bool playSound;
+  final bool preferExact;
 }
 
 abstract class LocalNotificationGateway {
@@ -29,7 +37,11 @@ abstract class LocalNotificationGateway {
   Future<bool> permissionGranted();
   Future<bool> requestPermission();
   Future<void> show(LocalNotificationRequest request);
-  Future<void> schedule(LocalNotificationRequest request);
+  Future<bool> exactSchedulingAvailable();
+  Future<void> schedule(
+    LocalNotificationRequest request, {
+    required bool exact,
+  });
   Future<void> cancel(int id);
 }
 
@@ -37,7 +49,7 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
   FlutterLocalNotificationGateway({FlutterLocalNotificationsPlugin? plugin})
     : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
-  static const _details = NotificationDetails(
+  static const _prayerDetails = NotificationDetails(
     android: AndroidNotificationDetails(
       'tarteel_prayer_reminders',
       'تذكيرات الصلاة',
@@ -54,7 +66,50 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
     ),
   );
 
+  static const _silentPrayerDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'tarteel_prayer_reminders',
+      'تذكيرات الصلاة',
+      channelDescription: 'تنبيهات مواقيت الصلاة في ترتيل',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: false,
+      category: AndroidNotificationCategory.reminder,
+    ),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: false,
+      threadIdentifier: 'tarteel_prayer_reminders',
+    ),
+  );
+
+  static const _adhanDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'tarteel_adhan_v1',
+      'الأذان',
+      channelDescription: 'تنبيهات الصلاة بصوت أذان محلي',
+      importance: Importance.max,
+      priority: Priority.max,
+      sound: RawResourceAndroidNotificationSound('adhan'),
+      category: AndroidNotificationCategory.alarm,
+    ),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      threadIdentifier: 'tarteel_adhan',
+    ),
+  );
+
   final FlutterLocalNotificationsPlugin _plugin;
+
+  NotificationDetails _detailsFor(LocalNotificationRequest request) {
+    if (!request.playSound) return _silentPrayerDetails;
+    return request.channel == LocalNotificationChannel.adhan
+        ? _adhanDetails
+        : _prayerDetails;
+  }
 
   @override
   Future<String?> initialize(void Function(String payload) onTap) async {
@@ -118,24 +173,31 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
     id: request.id,
     title: request.title,
     body: request.body,
-    notificationDetails: _details,
+    notificationDetails: _detailsFor(request),
     payload: request.payload,
   );
 
   @override
-  Future<void> schedule(LocalNotificationRequest request) =>
-      _plugin.zonedSchedule(
-        id: request.id,
-        title: request.title,
-        body: request.body,
-        scheduledDate: tz.TZDateTime.from(
-          request.scheduledAt,
-          tz.getLocation(request.timezone),
-        ),
-        notificationDetails: _details,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        payload: request.payload,
-      );
+  Future<bool> exactSchedulingAvailable() async => false;
+
+  @override
+  Future<void> schedule(
+    LocalNotificationRequest request, {
+    required bool exact,
+  }) => _plugin.zonedSchedule(
+    id: request.id,
+    title: request.title,
+    body: request.body,
+    scheduledDate: tz.TZDateTime.from(
+      request.scheduledAt,
+      tz.getLocation(request.timezone),
+    ),
+    notificationDetails: _detailsFor(request),
+    androidScheduleMode: exact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle,
+    payload: request.payload,
+  );
 
   @override
   Future<void> cancel(int id) => _plugin.cancel(id: id);
@@ -179,7 +241,9 @@ class LocalNotificationService {
   Future<void> schedule(LocalNotificationRequest request) async {
     await initialize();
     await _gateway.cancel(request.id);
-    await _gateway.schedule(request);
+    final exact =
+        request.preferExact && await _gateway.exactSchedulingAvailable();
+    await _gateway.schedule(request, exact: exact);
   }
 
   Future<void> reschedule(LocalNotificationRequest request) =>

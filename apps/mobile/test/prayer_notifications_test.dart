@@ -74,6 +74,48 @@ void main() {
     controller.dispose();
   });
 
+  test('each prayer mode schedules independently without duplicates', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final preferences = await SharedPreferences.getInstance();
+    final settings = PrayerSettingsStore(preferences)..load();
+    final gateway = _FakeGateway();
+    final controller = PrayerReminderController(
+      notifications: LocalNotificationService(gateway: gateway),
+      prayerTimes: PrayerTimesService(),
+      settings: settings,
+      clock: () => DateTime.utc(2026, 1, 15),
+    );
+
+    expect(
+      await controller.setPrayerMode(
+        PrayerKind.maghrib,
+        PrayerReminderMode.adhan,
+      ),
+      isTrue,
+    );
+    expect(gateway.pending.keys, <int>[PrayerReminderIds.maghrib]);
+    expect(gateway.pending, hasLength(1));
+    expect(
+      gateway.pending[PrayerReminderIds.maghrib]!.channel,
+      LocalNotificationChannel.adhan,
+    );
+    expect(
+      gateway.pending[PrayerReminderIds.maghrib]!.body,
+      'حان موعد أذان صلاة المغرب',
+    );
+
+    await controller.reconcile();
+    expect(gateway.pending, hasLength(1));
+    expect(gateway.scheduledExact, everyElement(isFalse));
+
+    await controller.setPrayerMode(
+      PrayerKind.maghrib,
+      PrayerReminderMode.disabled,
+    );
+    expect(gateway.pending, isEmpty);
+    controller.dispose();
+  });
+
   test('passed prayers are scheduled for the following Taiz day', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final preferences = await SharedPreferences.getInstance();
@@ -131,6 +173,13 @@ void main() {
       expect(reloaded.value.offsetFor(PrayerKind.fajr), -5);
       expect(reloaded.value.remindersEnabled, isTrue);
 
+      await settings.setReminderMode(PrayerKind.fajr, PrayerReminderMode.adhan);
+      final modesReloaded = PrayerSettingsStore(preferences)..load();
+      expect(
+        modesReloaded.value.reminderModeFor(PrayerKind.fajr),
+        PrayerReminderMode.adhan,
+      );
+
       await preferences.setString('settings:prayer:v1', '{broken');
       final recovered = PrayerSettingsStore(preferences)..load();
       expect(recovered.value.locationName, 'تعز');
@@ -139,9 +188,8 @@ void main() {
   );
 
   test('Android manifest schedules without exact alarm permission', () {
-    final manifest = File(
-      'android/app/src/main/AndroidManifest.xml',
-    ).readAsStringSync();
+    final manifest = File('android/app/src/main/AndroidManifest.xml')
+        .readAsStringSync();
     expect(manifest, contains('android.permission.POST_NOTIFICATIONS'));
     expect(manifest, contains('android.permission.RECEIVE_BOOT_COMPLETED'));
     expect(manifest, contains('ScheduledNotificationReceiver'));
@@ -158,6 +206,7 @@ class _FakeGateway implements LocalNotificationGateway {
   final Map<int, LocalNotificationRequest> pending =
       <int, LocalNotificationRequest>{};
   final List<int> cancelled = <int>[];
+  final List<bool> scheduledExact = <bool>[];
 
   @override
   Future<String?> initialize(void Function(String payload) onTap) async => null;
@@ -169,10 +218,17 @@ class _FakeGateway implements LocalNotificationGateway {
   Future<bool> requestPermission() async => permission;
 
   @override
+  Future<bool> exactSchedulingAvailable() async => false;
+
+  @override
   Future<void> show(LocalNotificationRequest request) async {}
 
   @override
-  Future<void> schedule(LocalNotificationRequest request) async {
+  Future<void> schedule(
+    LocalNotificationRequest request, {
+    required bool exact,
+  }) async {
+    scheduledExact.add(exact);
     pending[request.id] = request;
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'adhan_audio.dart';
 import 'islamic_content.dart';
 import 'local_notifications.dart';
 import 'mushaf_pages.dart';
@@ -43,6 +44,7 @@ class AppServices {
     required this.prayerSettings,
     required this.prayerTimes,
     required this.prayerReminders,
+    required this.adhanAudio,
   });
 
   final TarteelRepository repository;
@@ -62,6 +64,7 @@ class AppServices {
   final PrayerSettingsStore prayerSettings;
   final PrayerTimesService prayerTimes;
   final PrayerReminderController prayerReminders;
+  final AdhanAudioService adhanAudio;
 }
 
 final servicesProvider = Provider<AppServices>(

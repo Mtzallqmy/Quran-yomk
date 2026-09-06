@@ -8,6 +8,7 @@ import '../repository.dart';
 import '../services.dart';
 import '../theme.dart';
 import 'legacy_reciter_detail.dart';
+import 'prayer_times.dart';
 import 'quran_offline.dart';
 import 'radio.dart';
 
@@ -37,6 +38,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   late Future<HomeData> future;
   String? pendingStationId;
   bool openingFeatured = false;
+  bool openingPrayerTimes = false;
 
   @override
   void initState() {
@@ -109,6 +111,18 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  Future<void> _openPrayerTimes() async {
+    if (openingPrayerTimes) return;
+    openingPrayerTimes = true;
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const PrayerTimesPage()),
+      );
+    } finally {
+      openingPrayerTimes = false;
+    }
+  }
+
   List<String> _sectionOrder() {
     final configured = ref
         .read(servicesProvider)
@@ -152,6 +166,20 @@ class _HomePageState extends ConsumerState<HomePage> {
                   loading: openingFeatured,
                   onPlay: () => _playFeatured(data.featured.first),
                 ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.access_time),
+                    ),
+                    title: const Text('مواقيت الصلاة'),
+                    subtitle: const Text('تعز • تعمل دون إنترنت'),
+                    trailing: const Icon(Icons.chevron_left),
+                    onTap: openingPrayerTimes ? null : _openPrayerTimes,
+                  ),
+                ),
+              ),
               for (final section in _sectionOrder())
                 ..._section(section, data, services),
               const SizedBox(height: 24),
@@ -461,9 +489,9 @@ class _HomeHero extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         'مختار لك',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.labelLarge?.copyWith(color: scheme.primary),
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: scheme.primary,
+                        ),
                       ),
                     ],
                   ),

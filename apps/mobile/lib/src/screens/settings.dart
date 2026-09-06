@@ -5,6 +5,7 @@ import '../common.dart';
 import '../l10n.dart';
 import '../services.dart';
 import 'about.dart';
+import 'prayer_times.dart';
 import 'saved_clips.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -79,6 +80,28 @@ class SettingsPage extends ConsumerWidget {
               leading: const Icon(Icons.bedtime_outlined),
               title: Text(l10n.cancelSleepTimer),
               onTap: services.playback.cancelSleepTimer,
+            ),
+            const SectionHeader('الصلاة والتنبيهات'),
+            ListTile(
+              leading: const Icon(Icons.access_time),
+              title: const Text('مواقيت الصلاة'),
+              subtitle: const Text('تعز • حساب محلي وتنبيهات دون إنترنت'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PrayerTimesPage(),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.notifications_outlined),
+              title: const Text('إعدادات تنبيهات الصلاة'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PrayerSettingsPage(),
+                ),
+              ),
             ),
             ListTile(
               leading: const Icon(Icons.offline_pin_outlined),

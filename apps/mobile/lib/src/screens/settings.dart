@@ -5,6 +5,8 @@ import '../common.dart';
 import '../l10n.dart';
 import '../services.dart';
 import 'about.dart';
+import 'admin.dart';
+import 'notification_settings.dart';
 import 'prayer_times.dart';
 import 'saved_clips.dart';
 
@@ -101,6 +103,27 @@ class SettingsPage extends ConsumerWidget {
                 MaterialPageRoute<void>(
                   builder: (_) => const PrayerSettingsPage(),
                 ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.mark_email_unread_outlined),
+              title: const Text('إشعارات ترتيل'),
+              subtitle: const Text('تفضيلات الإشعارات عن بُعد'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PushNotificationSettingsPage(),
+                ),
+              ),
+            ),
+            const SectionHeader('الإدارة'),
+            ListTile(
+              leading: const Icon(Icons.admin_panel_settings_outlined),
+              title: const Text('لوحة الإدارة'),
+              subtitle: const Text('دخول منفصل؛ الصلاحيات تتحقق من الخادم'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const AdminEntryPage()),
               ),
             ),
             ListTile(

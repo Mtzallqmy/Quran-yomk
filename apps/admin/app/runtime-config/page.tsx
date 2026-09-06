@@ -14,6 +14,9 @@ const booleanKeys = [
   ['offline_downloads_enabled', 'التنزيل والاستماع بدون إنترنت'],
   ['mushaf_tajweed_enabled', 'مصحف التجويد'],
   ['elysia_api_enabled', 'Elysia API'],
+  ['prayer_features_enabled', 'مواقيت الصلاة'],
+  ['adhkar_enabled', 'الأذكار'],
+  ['maintenance_mode', 'وضع الصيانة'],
 ] as const;
 
 const sectionOptions = [
@@ -76,6 +79,11 @@ export default function RuntimeConfigPage() {
         home_sections: homeSections,
         content_manifest_version: String(values.content_manifest_version ?? '2026.09.02.1'),
         content_manifest: { ...manifest, schema_version: 1, home_sections: homeSections },
+        maintenance_message: String(values.maintenance_message ?? ''),
+        announcement_banner: String(values.announcement_banner ?? ''),
+        minimum_android_version: String(values.minimum_android_version ?? '0.0.0'),
+        recommended_android_version: String(values.recommended_android_version ?? '0.0.0'),
+        latest_android_version: String(values.latest_android_version ?? '0.0.0'),
       };
       const response = await fetch('/api/v1/admin/runtime-config', {
         method: 'PUT',
@@ -131,6 +139,18 @@ export default function RuntimeConfigPage() {
             </label>
             <label>إصدار Content Manifest
               <input style={input} value={String(values.content_manifest_version ?? '')} onChange={(e)=>setValues((v)=>({...v,content_manifest_version:e.target.value}))}/>
+            </label>
+            <label>رسالة الصيانة
+              <input style={input} value={String(values.maintenance_message ?? '')} onChange={(e)=>setValues((v)=>({...v,maintenance_message:e.target.value}))}/>
+            </label>
+            <label>شريط الإعلان
+              <input style={input} value={String(values.announcement_banner ?? '')} onChange={(e)=>setValues((v)=>({...v,announcement_banner:e.target.value}))}/>
+            </label>
+            <label>أدنى إصدار Android
+              <input style={input} dir="ltr" value={String(values.minimum_android_version ?? '0.0.0')} onChange={(e)=>setValues((v)=>({...v,minimum_android_version:e.target.value}))}/>
+            </label>
+            <label>الإصدار الموصى به
+              <input style={input} dir="ltr" value={String(values.recommended_android_version ?? '0.0.0')} onChange={(e)=>setValues((v)=>({...v,recommended_android_version:e.target.value}))}/>
             </label>
           </div>
         </section>

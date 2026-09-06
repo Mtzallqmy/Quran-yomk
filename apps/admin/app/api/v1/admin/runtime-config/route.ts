@@ -22,6 +22,12 @@ const allowedKeys = new Set([
   'content_manifest',
   'minimum_android_version',
   'latest_android_version',
+  'recommended_android_version',
+  'prayer_features_enabled',
+  'adhkar_enabled',
+  'maintenance_mode',
+  'maintenance_message',
+  'announcement_banner',
 ]);
 
 const booleanKeys = new Set([
@@ -32,6 +38,9 @@ const booleanKeys = new Set([
   'offline_downloads_enabled',
   'mushaf_tajweed_enabled',
   'elysia_api_enabled',
+  'prayer_features_enabled',
+  'adhkar_enabled',
+  'maintenance_mode',
 ]);
 const numberKeys = new Set(['virtual_radio_max_failed_sources', 'reciters_page_size']);
 const homeSections = new Set(['featured', 'stations', 'reciters', 'offline', 'categories']);

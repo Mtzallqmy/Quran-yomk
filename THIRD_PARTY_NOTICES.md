@@ -2,6 +2,8 @@
 
 This notice covers externally streamed Quran/Islamic audio content surfaced by Tarteel and Quran text/assets used by Tarteel. It is separate from software dependency license notices.
 
+- **Bundled adhan audio** — `apps/mobile/assets/audio/adhan.ogg` is adapted from “Adhan.ogg” by Aishatu98, dedicated to the public domain under CC0 1.0. Source: https://commons.wikimedia.org/wiki/File:Adhan.ogg.
+
 - **Islamic Radio API** — Tarteel periodically synchronizes the station catalog published by `uthumany/islamic-radio-api` from `client/public/api/stations.json`. The upstream README states that the API/catalog is provided under CC0-1.0. Tarteel records this as a **catalog metadata** license only; it does not infer that every indexed third-party broadcast/audio stream is CC0, owned by Tarteel, or endorsed by its broadcaster. Listener audio connects directly to the normalized station's external provider URL.
 - **Qurango** — External Quran, reciter, tafseer, hadith, seerah, adhkar, ruqyah, fatwa, translation, and selected-surah streams. Attribution: Qurango. Integration basis recorded as `PERMISSION_DOCUMENTED`. Reference: https://www.mp3quran.net/privacy-en.html. Tarteel does not claim ownership of the content or Qurango marks.
 - **MP3Quran** — Dynamic radio catalog obtained from the public developer API at `https://www.mp3quran.net/api/v3/radios?language=ar`. Attribution: MP3Quran. Integration basis recorded as `PUBLIC_API`. Reference: https://www.mp3quran.net/privacy-en.html. Stable Tarteel station IDs are used independently of provider URLs.

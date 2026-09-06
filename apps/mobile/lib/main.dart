@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'src/api.dart';
+import 'src/adhan_audio.dart';
 import 'src/app.dart';
 import 'src/islamic_content.dart';
 import 'src/local_notifications.dart';
@@ -66,10 +67,12 @@ Future<void> main() async {
   final localNotifications = LocalNotificationService();
   final prayerSettings = PrayerSettingsStore(preferences)..load();
   final prayerTimes = PrayerTimesService();
+  final adhanAudio = AdhanAudioService(playback: playback);
   final prayerReminders = PrayerReminderController(
     notifications: localNotifications,
     prayerTimes: prayerTimes,
     settings: prayerSettings,
+    adhanAudio: adhanAudio,
   );
   final services = AppServices(
     repository: repository,
@@ -89,6 +92,7 @@ Future<void> main() async {
     prayerSettings: prayerSettings,
     prayerTimes: prayerTimes,
     prayerReminders: prayerReminders,
+    adhanAudio: adhanAudio,
   );
 
   runApp(

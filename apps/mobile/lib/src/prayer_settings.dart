@@ -9,6 +9,16 @@ enum PrayerCalculationMethod { muslimWorldLeague, egyptian, ummAlQura }
 
 enum PrayerAsrMethod { shafi, hanafi }
 
+enum PrayerReminderMode { disabled, notificationOnly, adhan }
+
+extension PrayerReminderModeLabel on PrayerReminderMode {
+  String get nameAr => switch (this) {
+    PrayerReminderMode.disabled => 'متوقف',
+    PrayerReminderMode.notificationOnly => 'إشعار فقط',
+    PrayerReminderMode.adhan => 'إشعار وأذان',
+  };
+}
+
 extension PrayerKindLabel on PrayerKind {
   String get nameAr => switch (this) {
     PrayerKind.fajr => 'الفجر',
@@ -33,6 +43,7 @@ class PrayerSettings {
     required this.asrMethod,
     required this.offsets,
     required this.remindersEnabled,
+    this.reminderModes = const <PrayerKind, PrayerReminderMode>{},
   });
 
   factory PrayerSettings.taiz() => PrayerSettings(
@@ -44,6 +55,7 @@ class PrayerSettings {
     asrMethod: PrayerAsrMethod.shafi,
     offsets: const <PrayerKind, int>{},
     remindersEnabled: false,
+    reminderModes: const <PrayerKind, PrayerReminderMode>{},
   );
 
   factory PrayerSettings.fromJson(Map<String, dynamic> json) {
@@ -73,6 +85,27 @@ class PrayerSettings {
         }
       }
     }
+    final rawModes = json['reminder_modes'];
+    final modes = <PrayerKind, PrayerReminderMode>{};
+    if (rawModes is Map<String, dynamic>) {
+      for (final prayer in PrayerKind.values.where(
+        (value) => value.isRequiredPrayer,
+      )) {
+        final rawMode = rawModes[prayer.name];
+        modes[prayer] = PrayerReminderMode.values.firstWhere(
+          (value) => value.name == rawMode,
+          orElse: () => PrayerReminderMode.disabled,
+        );
+      }
+    }
+    final legacyEnabled = json['reminders_enabled'] == true;
+    if (modes.isEmpty && legacyEnabled) {
+      for (final prayer in PrayerKind.values.where(
+        (value) => value.isRequiredPrayer,
+      )) {
+        modes[prayer] = PrayerReminderMode.notificationOnly;
+      }
+    }
     return PrayerSettings(
       locationName: locationName.trim(),
       latitude: latitude.toDouble(),
@@ -87,7 +120,10 @@ class PrayerSettings {
         orElse: () => PrayerAsrMethod.shafi,
       ),
       offsets: Map<PrayerKind, int>.unmodifiable(offsets),
-      remindersEnabled: json['reminders_enabled'] == true,
+      remindersEnabled: modes.values.any(
+        (value) => value != PrayerReminderMode.disabled,
+      ),
+      reminderModes: Map<PrayerKind, PrayerReminderMode>.unmodifiable(modes),
     );
   }
 
@@ -99,8 +135,19 @@ class PrayerSettings {
   final PrayerAsrMethod asrMethod;
   final Map<PrayerKind, int> offsets;
   final bool remindersEnabled;
+  final Map<PrayerKind, PrayerReminderMode> reminderModes;
 
   int offsetFor(PrayerKind prayer) => offsets[prayer] ?? 0;
+
+  PrayerReminderMode reminderModeFor(PrayerKind prayer) {
+    if (!prayer.isRequiredPrayer) return PrayerReminderMode.disabled;
+    if (reminderModes.isNotEmpty) {
+      return reminderModes[prayer] ?? PrayerReminderMode.disabled;
+    }
+    return remindersEnabled
+        ? PrayerReminderMode.notificationOnly
+        : PrayerReminderMode.disabled;
+  }
 
   PrayerSettings copyWith({
     String? locationName,
@@ -111,6 +158,7 @@ class PrayerSettings {
     PrayerAsrMethod? asrMethod,
     Map<PrayerKind, int>? offsets,
     bool? remindersEnabled,
+    Map<PrayerKind, PrayerReminderMode>? reminderModes,
   }) => PrayerSettings(
     locationName: locationName ?? this.locationName,
     latitude: latitude ?? this.latitude,
@@ -120,6 +168,9 @@ class PrayerSettings {
     asrMethod: asrMethod ?? this.asrMethod,
     offsets: Map<PrayerKind, int>.unmodifiable(offsets ?? this.offsets),
     remindersEnabled: remindersEnabled ?? this.remindersEnabled,
+    reminderModes: Map<PrayerKind, PrayerReminderMode>.unmodifiable(
+      reminderModes ?? this.reminderModes,
+    ),
   );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -133,6 +184,12 @@ class PrayerSettings {
       for (final prayer in PrayerKind.values) prayer.name: offsetFor(prayer),
     },
     'reminders_enabled': remindersEnabled,
+    'reminder_modes': <String, String>{
+      for (final prayer in PrayerKind.values.where(
+        (value) => value.isRequiredPrayer,
+      ))
+        prayer.name: reminderModeFor(prayer).name,
+    },
   };
 }
 
@@ -156,8 +213,36 @@ class PrayerSettingsStore extends ChangeNotifier {
     }
   }
 
-  Future<void> setRemindersEnabled(bool enabled) =>
-      _save(value.copyWith(remindersEnabled: enabled));
+  Future<void> setRemindersEnabled(bool enabled) {
+    final modes = <PrayerKind, PrayerReminderMode>{
+      for (final prayer in PrayerKind.values.where(
+        (value) => value.isRequiredPrayer,
+      ))
+        prayer: enabled
+            ? PrayerReminderMode.notificationOnly
+            : PrayerReminderMode.disabled,
+    };
+    return _save(
+      value.copyWith(remindersEnabled: enabled, reminderModes: modes),
+    );
+  }
+
+  Future<void> setReminderMode(
+    PrayerKind prayer,
+    PrayerReminderMode mode,
+  ) async {
+    if (!prayer.isRequiredPrayer) return;
+    final modes = Map<PrayerKind, PrayerReminderMode>.from(value.reminderModes);
+    modes[prayer] = mode;
+    await _save(
+      value.copyWith(
+        remindersEnabled: modes.values.any(
+          (value) => value != PrayerReminderMode.disabled,
+        ),
+        reminderModes: modes,
+      ),
+    );
+  }
 
   Future<void> setOffset(PrayerKind prayer, int minutes) async {
     final offsets = Map<PrayerKind, int>.from(value.offsets);

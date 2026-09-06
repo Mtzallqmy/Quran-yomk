@@ -9,7 +9,16 @@ void main() {
   testWidgets('prayer view is RTL-safe and shows next prayer and reminders', (
     tester,
   ) async {
-    final settings = PrayerSettings.taiz().copyWith(remindersEnabled: true);
+    final settings = PrayerSettings.taiz().copyWith(
+      remindersEnabled: true,
+      reminderModes: const <PrayerKind, PrayerReminderMode>{
+        PrayerKind.fajr: PrayerReminderMode.notificationOnly,
+        PrayerKind.dhuhr: PrayerReminderMode.notificationOnly,
+        PrayerKind.asr: PrayerReminderMode.notificationOnly,
+        PrayerKind.maghrib: PrayerReminderMode.adhan,
+        PrayerKind.isha: PrayerReminderMode.notificationOnly,
+      },
+    );
     final times = <PrayerKind, DateTime>{
       PrayerKind.fajr: DateTime.utc(2026, 1, 15, 2),
       PrayerKind.sunrise: DateTime.utc(2026, 1, 15, 3, 30),
@@ -51,7 +60,8 @@ void main() {
     expect(find.text('تعز'), findsOneWidget);
     expect(find.text('المغرب'), findsNWidgets(2));
     expect(find.text('التذكير مفعل'), findsOneWidget);
-    expect(find.byIcon(Icons.notifications_active_outlined), findsNWidgets(5));
+    expect(find.byIcon(Icons.notifications_active_outlined), findsNWidgets(4));
+    expect(find.byIcon(Icons.volume_up_outlined), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 
+import 'adhan_audio.dart';
 import 'local_notifications.dart';
 import 'prayer_settings.dart';
 import 'prayer_times.dart';
@@ -34,14 +36,24 @@ class PrayerReminderController {
     required this.notifications,
     required this.prayerTimes,
     required this.settings,
+    this.adhanAudio,
     DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+    bool Function()? isForeground,
+  }) : _clock = clock ?? DateTime.now,
+       _isForeground =
+           isForeground ??
+           (() =>
+               SchedulerBinding.instance.lifecycleState ==
+               AppLifecycleState.resumed);
 
   final LocalNotificationService notifications;
   final PrayerTimesService prayerTimes;
   final PrayerSettingsStore settings;
+  final AdhanAudioService? adhanAudio;
   final DateTime Function() _clock;
+  final bool Function() _isForeground;
   Timer? _dateTimer;
+  Timer? _adhanTimer;
   Future<void>? _running;
   bool _rerun = false;
   bool _started = false;
@@ -79,6 +91,26 @@ class PrayerReminderController {
     }
   }
 
+  Future<bool> setPrayerMode(PrayerKind prayer, PrayerReminderMode mode) async {
+    if (!prayer.isRequiredPrayer) return false;
+    try {
+      await notifications.initialize();
+      if (mode != PrayerReminderMode.disabled &&
+          !await notifications.requestPermission()) {
+        await settings.setReminderMode(prayer, PrayerReminderMode.disabled);
+        await reconcile();
+        return false;
+      }
+      await settings.setReminderMode(prayer, mode);
+      await reconcile();
+      return true;
+    } catch (_) {
+      debugPrint('PRAYER_REMINDER_PERMISSION_FAILED');
+      await settings.setReminderMode(prayer, PrayerReminderMode.disabled);
+      return false;
+    }
+  }
+
   Future<void> reconcile() {
     _rerun = true;
     return _running ??= _drainReconciliations();
@@ -99,6 +131,7 @@ class PrayerReminderController {
     final current = settings.value;
     if (!current.remindersEnabled || !await notifications.permissionGranted()) {
       await _cancelAll();
+      _adhanTimer?.cancel();
       return;
     }
     final now = _clock();
@@ -107,9 +140,15 @@ class PrayerReminderController {
       date: snapshot.today.date.add(const Duration(days: 1)),
       settings: current,
     );
+    final adhanSchedules = <({PrayerKind prayer, DateTime time})>[];
     for (final prayer in PrayerKind.values.where(
       (value) => value.isRequiredPrayer,
     )) {
+      final mode = current.reminderModeFor(prayer);
+      if (mode == PrayerReminderMode.disabled) {
+        await notifications.cancel(PrayerReminderIds.forPrayer(prayer));
+        continue;
+      }
       final todayTime = snapshot.today.timeFor(prayer);
       final scheduledAt = todayTime.isAfter(now)
           ? todayTime
@@ -118,13 +157,58 @@ class PrayerReminderController {
         LocalNotificationRequest(
           id: PrayerReminderIds.forPrayer(prayer),
           title: 'ترتيل',
-          body: 'حان موعد صلاة ${prayer.nameAr}',
+          body: mode == PrayerReminderMode.adhan
+              ? 'حان موعد أذان صلاة ${prayer.nameAr}'
+              : 'حان موعد صلاة ${prayer.nameAr}',
           scheduledAt: scheduledAt,
           timezone: current.timezone,
           payload: '/prayer-times?prayer=${prayer.name}',
+          channel: mode == PrayerReminderMode.adhan
+              ? LocalNotificationChannel.adhan
+              : LocalNotificationChannel.prayerReminder,
         ),
       );
+      if (mode == PrayerReminderMode.adhan) {
+        adhanSchedules.add((prayer: prayer, time: scheduledAt));
+      }
     }
+    _scheduleForegroundAdhan(adhanSchedules, current);
+  }
+
+  void _scheduleForegroundAdhan(
+    List<({PrayerKind prayer, DateTime time})> schedules,
+    PrayerSettings current,
+  ) {
+    _adhanTimer?.cancel();
+    if (adhanAudio == null || schedules.isEmpty) return;
+    schedules.sort((left, right) => left.time.compareTo(right.time));
+    final next = schedules.first;
+    final delay = next.time.difference(_clock());
+    if (delay <= Duration.zero) return;
+    _adhanTimer = Timer(delay, () async {
+      if (!_isForeground()) return;
+      final id = PrayerReminderIds.forPrayer(next.prayer);
+      try {
+        await notifications.cancel(id);
+        await notifications.show(
+          LocalNotificationRequest(
+            id: id,
+            title: 'ترتيل',
+            body: 'حان موعد أذان صلاة ${next.prayer.nameAr}',
+            scheduledAt: next.time,
+            timezone: current.timezone,
+            payload: '/prayer-times?prayer=${next.prayer.name}',
+            playSound: false,
+            preferExact: false,
+          ),
+        );
+        await adhanAudio!.play();
+      } catch (_) {
+        debugPrint('FOREGROUND_ADHAN_FAILED');
+      } finally {
+        _scheduleSafely();
+      }
+    });
   }
 
   Future<void> _cancelAll() async {
@@ -146,5 +230,6 @@ class PrayerReminderController {
   void dispose() {
     if (_started) settings.removeListener(_settingsChanged);
     _dateTimer?.cancel();
+    _adhanTimer?.cancel();
   }
 }

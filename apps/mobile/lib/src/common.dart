@@ -7,10 +7,10 @@ class LoadingPane extends StatelessWidget {
   const LoadingPane({super.key});
 
   @override
-  Widget build(BuildContext context) => const Center(
+  Widget build(BuildContext context) => Center(
     child: Semantics(
       label: 'جارٍ التحميل',
-      child: SizedBox.square(
+      child: const SizedBox.square(
         dimension: 34,
         child: CircularProgressIndicator(strokeWidth: 3),
       ),

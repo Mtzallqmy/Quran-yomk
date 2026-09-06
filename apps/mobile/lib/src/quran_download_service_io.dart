@@ -11,11 +11,20 @@ import 'quran_audio.dart';
 import 'quran_download_contract.dart';
 
 QuranDownloadService createQuranDownloadService(
-  SharedPreferences preferences,
-) => _IoQuranDownloadService(preferences);
+  SharedPreferences preferences, {
+  Duration inactivityTimeout = const Duration(seconds: 20),
+  Duration downloadDeadline = const Duration(minutes: 30),
+}) => _IoQuranDownloadService(preferences, inactivityTimeout, downloadDeadline);
 
 class _IoQuranDownloadService extends QuranDownloadService {
-  _IoQuranDownloadService(this._preferences);
+  _IoQuranDownloadService(
+    this._preferences,
+    this._inactivityTimeout,
+    this._downloadDeadline,
+  );
+
+  final Duration _inactivityTimeout;
+  final Duration _downloadDeadline;
 
   static const _metadataKey = 'quran_audio_downloads:v1';
   static const _minimumAudioBytes = 4096;
@@ -176,19 +185,31 @@ class _IoQuranDownloadService extends QuranDownloadService {
     await _persistAndNotify();
     final partial = File('${record.localPath}.part');
     var offset = await partial.exists() ? await partial.length() : 0;
+    final elapsed = Stopwatch()..start();
+    Duration remainingTime() {
+      final remaining = _downloadDeadline - elapsed.elapsed;
+      if (remaining <= Duration.zero) {
+        throw TimeoutException('QURAN_DOWNLOAD_TIMEOUT');
+      }
+      return remaining;
+    }
+
     try {
       _activeClient = HttpClient()
         ..connectionTimeout = const Duration(seconds: 15);
-      final request = await _activeClient!.getUrl(record.media.downloadUri);
-      request.followRedirects = true;
-      request.maxRedirects = 5;
+      final request = await _activeClient!
+          .getUrl(record.media.downloadUri)
+          .timeout(remainingTime());
+      request.followRedirects = false;
       request.headers.set(HttpHeaders.acceptHeader, 'audio/mpeg,*/*;q=0.1');
       if (offset > 0) {
         request.headers.set(HttpHeaders.rangeHeader, 'bytes=$offset-');
       }
-      final response = await request.close().timeout(
-        const Duration(seconds: 20),
-      );
+      final budget = remainingTime();
+      final headerTimeout = budget < const Duration(seconds: 20)
+          ? budget
+          : const Duration(seconds: 20);
+      final response = await request.close().timeout(headerTimeout);
       if (response.statusCode != HttpStatus.ok &&
           response.statusCode != HttpStatus.partialContent) {
         throw HttpException(
@@ -217,7 +238,8 @@ class _IoQuranDownloadService extends QuranDownloadService {
       );
       final done = Completer<void>();
       _activeDone = done;
-      _activeSubscription = response.listen(
+      final stream = response.timeout(_inactivityTimeout);
+      _activeSubscription = stream.listen(
         (chunk) {
           record.downloadedBytes += chunk.length;
           _activeSink?.add(chunk);
@@ -231,7 +253,7 @@ class _IoQuranDownloadService extends QuranDownloadService {
         },
         cancelOnError: true,
       );
-      await done.future;
+      await done.future.timeout(remainingTime());
       await _closeActive();
       if (record.state != QuranDownloadState.downloading) return;
 
@@ -260,15 +282,22 @@ class _IoQuranDownloadService extends QuranDownloadService {
       await _closeActive();
       if (record.state == QuranDownloadState.downloading) {
         record.state = QuranDownloadState.failed;
-        record.error = error.toString();
+        record.error = error is TimeoutException
+            ? 'QURAN_DOWNLOAD_TIMEOUT'
+            : error.toString();
+        if (await partial.exists()) await partial.delete();
+        record.downloadedBytes = 0;
       }
     } finally {
+      elapsed.stop();
       _activeId = null;
       await _persistAndNotify();
     }
   }
 
   Future<void> _closeActive() async {
+    _activeClient?.close(force: true);
+    _activeClient = null;
     await _activeSubscription?.cancel();
     _activeSubscription = null;
     if (_activeDone case final done? when !done.isCompleted) {
@@ -280,8 +309,6 @@ class _IoQuranDownloadService extends QuranDownloadService {
       await _activeSink?.close();
     } catch (_) {}
     _activeSink = null;
-    _activeClient?.close(force: true);
-    _activeClient = null;
   }
 
   @override

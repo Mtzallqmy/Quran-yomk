@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +7,60 @@ import 'package:http/testing.dart';
 import 'package:tarteel/src/api.dart';
 
 void main() {
+  test('malformed JSON becomes a bounded API error', () async {
+    for (final status in <int>[200, 503]) {
+      for (final body in <String>['{broken', '', '[1,2]']) {
+        final api = TarteelApiClient(
+          client: MockClient(
+            (_) async => http.Response(
+              body,
+              status,
+              headers: <String, String>{'x-request-id': 'server-request'},
+            ),
+          ),
+          baseUrl: 'https://example.test',
+        );
+        await expectLater(
+          api.appConfig(),
+          throwsA(
+            isA<ApiException>()
+                .having((e) => e.code, 'code', 'INVALID_RESPONSE')
+                .having((e) => e.statusCode, 'status', status)
+                .having((e) => e.requestId, 'request ID', 'server-request'),
+          ),
+        );
+        api.close();
+      }
+    }
+  });
+
+  test('network failures never fabricate request IDs', () async {
+    for (final error in <Exception>[
+      http.ClientException('private-network-detail'),
+      TimeoutException('private-timeout-detail'),
+    ]) {
+      var attempts = 0;
+      final api = TarteelApiClient(
+        client: MockClient((_) async {
+          attempts++;
+          throw error;
+        }),
+        baseUrl: 'https://example.test',
+      );
+      await expectLater(
+        api.appConfig(),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.code, 'code', 'NETWORK_UNAVAILABLE')
+              .having((e) => e.requestId, 'request ID', isNull)
+              .having((e) => e.message, 'message', isNot(contains('private'))),
+        ),
+      );
+      expect(attempts, 2);
+      api.close();
+    }
+  });
+
   test('surah contract requires exactly 114 ordered surahs', () async {
     final client = MockClient((request) async {
       final rows = List<Map<String, dynamic>>.generate(

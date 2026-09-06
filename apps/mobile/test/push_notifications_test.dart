@@ -75,6 +75,11 @@ void main() {
           body: 'اختبار',
         ),
       );
+      gateway.opened.add(
+        const PushMessage(
+          data: <String, dynamic>{'route': '/prayer-times'},
+        ),
+      );
       await Future<void>.delayed(Duration.zero);
       expect(routes, <String>['/prayer-times']);
       expect(local.shown, hasLength(1));

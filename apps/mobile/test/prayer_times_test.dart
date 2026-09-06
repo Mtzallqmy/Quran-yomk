@@ -13,12 +13,18 @@ void main() {
     );
 
     expect(day.timezone, 'Asia/Aden');
-    expect(day.timeFor(PrayerKind.fajr).timeZoneOffset, const Duration(hours: 3));
+    expect(
+      day.timeFor(PrayerKind.fajr).timeZoneOffset,
+      const Duration(hours: 3),
+    );
     expect(day.timeFor(PrayerKind.fajr).hour, inInclusiveRange(4, 6));
     expect(day.timeFor(PrayerKind.dhuhr).hour, inInclusiveRange(11, 13));
     expect(day.timeFor(PrayerKind.maghrib).hour, inInclusiveRange(17, 19));
     for (var index = 1; index < day.ordered.length; index++) {
-      expect(day.ordered[index].time.isAfter(day.ordered[index - 1].time), isTrue);
+      expect(
+        day.ordered[index].time.isAfter(day.ordered[index - 1].time),
+        isTrue,
+      );
     }
 
     final repeated = await service.dayFor(
@@ -41,9 +47,9 @@ void main() {
     final second = await service.dayFor(date: date, settings: adjusted);
 
     expect(
-      second.timeFor(PrayerKind.maghrib).difference(
-        first.timeFor(PrayerKind.maghrib),
-      ),
+      second
+          .timeFor(PrayerKind.maghrib)
+          .difference(first.timeFor(PrayerKind.maghrib)),
       const Duration(minutes: 7),
     );
   });

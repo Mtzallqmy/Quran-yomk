@@ -64,12 +64,7 @@ class PrayerTimesService {
   }) async {
     await initialize();
     final location = tz.getLocation(settings.timezone);
-    final localDate = tz.TZDateTime(
-      location,
-      date.year,
-      date.month,
-      date.day,
-    );
+    final localDate = tz.TZDateTime(location, date.year, date.month, date.day);
     final parameters = _parameters(settings)
       ..madhab = settings.asrMethod == PrayerAsrMethod.hanafi
           ? adhan.Madhab.hanafi

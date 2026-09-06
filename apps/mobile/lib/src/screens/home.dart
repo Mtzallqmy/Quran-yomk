@@ -115,9 +115,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (openingPrayerTimes) return;
     openingPrayerTimes = true;
     try {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const PrayerTimesPage()),
-      );
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const PrayerTimesPage()));
     } finally {
       openingPrayerTimes = false;
     }
@@ -170,9 +170,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Card(
                   child: ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.access_time),
-                    ),
+                    leading: const CircleAvatar(child: Icon(Icons.access_time)),
                     title: const Text('مواقيت الصلاة'),
                     subtitle: const Text('تعز • تعمل دون إنترنت'),
                     trailing: const Icon(Icons.chevron_left),
@@ -489,9 +487,9 @@ class _HomeHero extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         'مختار لك',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: scheme.primary,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.labelLarge?.copyWith(color: scheme.primary),
                       ),
                     ],
                   ),

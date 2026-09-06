@@ -48,9 +48,7 @@ class _PrayerTimesPageState extends ConsumerState<PrayerTimesPage> {
     _openingSettings = true;
     try {
       await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const PrayerSettingsPage(),
-        ),
+        MaterialPageRoute<void>(builder: (_) => const PrayerSettingsPage()),
       );
     } finally {
       _openingSettings = false;
@@ -159,9 +157,9 @@ class PrayerTimesView extends StatelessWidget {
               const SizedBox(height: 20),
               Text(
                 'الصلاة القادمة',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: scheme.primary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: scheme.primary),
               ),
               const SizedBox(height: 4),
               Row(
@@ -188,7 +186,11 @@ class PrayerTimesView extends StatelessWidget {
         Card(
           child: Column(
             children: <Widget>[
-              for (var index = 0; index < snapshot.today.ordered.length; index++)
+              for (
+                var index = 0;
+                index < snapshot.today.ordered.length;
+                index++
+              )
                 _PrayerTimeRow(
                   occurrence: snapshot.today.ordered[index],
                   reminderEnabled:
@@ -266,8 +268,7 @@ class PrayerSettingsPage extends ConsumerStatefulWidget {
   const PrayerSettingsPage({super.key});
 
   @override
-  ConsumerState<PrayerSettingsPage> createState() =>
-      _PrayerSettingsPageState();
+  ConsumerState<PrayerSettingsPage> createState() => _PrayerSettingsPageState();
 }
 
 class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {

@@ -8,34 +8,37 @@ import 'package:tarteel/src/prayer_settings.dart';
 import 'package:tarteel/src/prayer_times.dart';
 
 void main() {
-  test('local notification schedule, reschedule and cancel are bounded', () async {
-    final gateway = _FakeGateway();
-    final service = LocalNotificationService(gateway: gateway);
-    final request = LocalNotificationRequest(
-      id: 99,
-      title: 'ترتيل',
-      body: 'اختبار',
-      scheduledAt: DateTime.utc(2026, 1, 15, 12),
-      timezone: 'Asia/Aden',
-      payload: '/prayer-times',
-    );
+  test(
+    'local notification schedule, reschedule and cancel are bounded',
+    () async {
+      final gateway = _FakeGateway();
+      final service = LocalNotificationService(gateway: gateway);
+      final request = LocalNotificationRequest(
+        id: 99,
+        title: 'ترتيل',
+        body: 'اختبار',
+        scheduledAt: DateTime.utc(2026, 1, 15, 12),
+        timezone: 'Asia/Aden',
+        payload: '/prayer-times',
+      );
 
-    await service.schedule(request);
-    await service.reschedule(
-      LocalNotificationRequest(
-        id: request.id,
-        title: request.title,
-        body: request.body,
-        scheduledAt: request.scheduledAt.add(const Duration(minutes: 5)),
-        timezone: request.timezone,
-        payload: request.payload,
-      ),
-    );
-    expect(gateway.pending, hasLength(1));
-    expect(gateway.cancelled.where((id) => id == 99), hasLength(2));
-    await service.cancel(99);
-    expect(gateway.pending, isEmpty);
-  });
+      await service.schedule(request);
+      await service.reschedule(
+        LocalNotificationRequest(
+          id: request.id,
+          title: request.title,
+          body: request.body,
+          scheduledAt: request.scheduledAt.add(const Duration(minutes: 5)),
+          timezone: request.timezone,
+          payload: request.payload,
+        ),
+      );
+      expect(gateway.pending, hasLength(1));
+      expect(gateway.cancelled.where((id) => id == 99), hasLength(2));
+      await service.cancel(99);
+      expect(gateway.pending, isEmpty);
+    },
+  );
 
   test('prayer reminders use stable IDs and disable cancels all', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -93,41 +96,47 @@ void main() {
     controller.dispose();
   });
 
-  test('denied permission keeps reminders disabled without scheduling', () async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
-    final preferences = await SharedPreferences.getInstance();
-    final settings = PrayerSettingsStore(preferences)..load();
-    final gateway = _FakeGateway(permission: false);
-    final controller = PrayerReminderController(
-      notifications: LocalNotificationService(gateway: gateway),
-      prayerTimes: PrayerTimesService(),
-      settings: settings,
-    );
+  test(
+    'denied permission keeps reminders disabled without scheduling',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final preferences = await SharedPreferences.getInstance();
+      final settings = PrayerSettingsStore(preferences)..load();
+      final gateway = _FakeGateway(permission: false);
+      final controller = PrayerReminderController(
+        notifications: LocalNotificationService(gateway: gateway),
+        prayerTimes: PrayerTimesService(),
+        settings: settings,
+      );
 
-    expect(await controller.setEnabled(true), isFalse);
-    expect(settings.value.remindersEnabled, isFalse);
-    expect(gateway.pending, isEmpty);
-    controller.dispose();
-  });
+      expect(await controller.setEnabled(true), isFalse);
+      expect(settings.value.remindersEnabled, isFalse);
+      expect(gateway.pending, isEmpty);
+      controller.dispose();
+    },
+  );
 
-  test('prayer settings persist locally and malformed data fails closed', () async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
-    final preferences = await SharedPreferences.getInstance();
-    final settings = PrayerSettingsStore(preferences)..load();
-    await settings.setOffset(PrayerKind.fajr, -5);
-    await settings.setRemindersEnabled(true);
+  test(
+    'prayer settings persist locally and malformed data fails closed',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final preferences = await SharedPreferences.getInstance();
+      final settings = PrayerSettingsStore(preferences)..load();
+      await settings.setOffset(PrayerKind.fajr, -5);
+      await settings.setRemindersEnabled(true);
 
-    final reloaded = PrayerSettingsStore(preferences)..load();
-    expect(reloaded.value.locationName, 'تعز');
-    expect(reloaded.value.timezone, 'Asia/Aden');
-    expect(reloaded.value.offsetFor(PrayerKind.fajr), -5);
-    expect(reloaded.value.remindersEnabled, isTrue);
+      final reloaded = PrayerSettingsStore(preferences)..load();
+      expect(reloaded.value.locationName, 'تعز');
+      expect(reloaded.value.timezone, 'Asia/Aden');
+      expect(reloaded.value.offsetFor(PrayerKind.fajr), -5);
+      expect(reloaded.value.remindersEnabled, isTrue);
 
-    await preferences.setString('settings:prayer:v1', '{broken');
-    final recovered = PrayerSettingsStore(preferences)..load();
-    expect(recovered.value.locationName, 'تعز');
-    expect(recovered.value.remindersEnabled, isFalse);
-  });
+      await preferences.setString('settings:prayer:v1', '{broken');
+      final recovered = PrayerSettingsStore(preferences)..load();
+      expect(recovered.value.locationName, 'تعز');
+      expect(recovered.value.remindersEnabled, isFalse);
+    },
+  );
 
   test('Android manifest schedules without exact alarm permission', () {
     final manifest = File(

@@ -97,8 +97,7 @@ class PrayerReminderController {
 
   Future<void> _reconcileOnce() async {
     final current = settings.value;
-    if (!current.remindersEnabled ||
-        !await notifications.permissionGranted()) {
+    if (!current.remindersEnabled || !await notifications.permissionGranted()) {
       await _cancelAll();
       return;
     }

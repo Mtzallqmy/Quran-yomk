@@ -205,10 +205,11 @@ class _IoQuranDownloadService extends QuranDownloadService {
       if (offset > 0) {
         request.headers.set(HttpHeaders.rangeHeader, 'bytes=$offset-');
       }
-      final response = await request
-          .close()
-          .timeout(const Duration(seconds: 20))
-          .timeout(remainingTime());
+      final budget = remainingTime();
+      final headerTimeout = budget < const Duration(seconds: 20)
+          ? budget
+          : const Duration(seconds: 20);
+      final response = await request.close().timeout(headerTimeout);
       if (response.statusCode != HttpStatus.ok &&
           response.statusCode != HttpStatus.partialContent) {
         throw HttpException(
@@ -237,7 +238,8 @@ class _IoQuranDownloadService extends QuranDownloadService {
       );
       final done = Completer<void>();
       _activeDone = done;
-      _activeSubscription = response.timeout(_inactivityTimeout).listen(
+      final stream = response.timeout(_inactivityTimeout);
+      _activeSubscription = stream.listen(
         (chunk) {
           record.downloadedBytes += chunk.length;
           _activeSink?.add(chunk);

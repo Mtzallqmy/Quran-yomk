@@ -12,7 +12,11 @@ void main() {
     final settings = PrayerSettings.taiz().copyWith(
       remindersEnabled: true,
       reminderModes: const <PrayerKind, PrayerReminderMode>{
+        PrayerKind.fajr: PrayerReminderMode.notificationOnly,
+        PrayerKind.dhuhr: PrayerReminderMode.notificationOnly,
+        PrayerKind.asr: PrayerReminderMode.notificationOnly,
         PrayerKind.maghrib: PrayerReminderMode.adhan,
+        PrayerKind.isha: PrayerReminderMode.notificationOnly,
       },
     );
     final times = <PrayerKind, DateTime>{

@@ -60,8 +60,9 @@ class _RootShellState extends State<RootShell> {
     if (_openingRoute) return;
     _openingRoute = true;
     try {
-      await Navigator.of(context)
-          .push(MaterialPageRoute<void>(builder: (_) => page));
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => page));
     } finally {
       _openingRoute = false;
     }

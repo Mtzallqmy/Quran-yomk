@@ -35,15 +35,15 @@ class PushNotificationSettingsPage extends ConsumerWidget {
                       if (!success && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('تعذر تفعيل الإشعارات أو رُفضت الصلاحية'),
+                            content: Text(
+                              'تعذر تفعيل الإشعارات أو رُفضت الصلاحية',
+                            ),
                           ),
                         );
                       }
                     },
               title: const Text('الإشعارات عن بُعد'),
-              subtitle: const Text(
-                'منفصلة عن تنبيهات الصلاة والأذان المحلية',
-              ),
+              subtitle: const Text('منفصلة عن تنبيهات الصلاة والأذان المحلية'),
               secondary: service.busy
                   ? const SizedBox.square(
                       dimension: 24,

@@ -12,9 +12,8 @@ class AdminEntryPage extends ConsumerWidget {
     final session = ref.watch(servicesProvider).adminSession;
     return AnimatedBuilder(
       animation: session,
-      builder: (context, _) => session.signedIn
-          ? const AdminCenterPage()
-          : const AdminLoginPage(),
+      builder: (context, _) =>
+          session.signedIn ? const AdminCenterPage() : const AdminLoginPage(),
     );
   }
 }
@@ -45,7 +44,10 @@ class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
       error = null;
     });
     try {
-      await ref.read(servicesProvider).adminSession.login(email.text, password.text);
+      await ref
+          .read(servicesProvider)
+          .adminSession
+          .login(email.text, password.text);
     } on AdminApiException catch (value) {
       if (mounted) setState(() => error = value.code);
     } finally {
@@ -74,7 +76,10 @@ class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
                     const Text(
                       'لوحة الإدارة',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     TextField(
@@ -90,11 +95,18 @@ class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
                       obscureText: true,
                       autofillHints: const <String>[AutofillHints.password],
                       onSubmitted: (_) => login(),
-                      decoration: const InputDecoration(labelText: 'كلمة المرور'),
+                      decoration: const InputDecoration(
+                        labelText: 'كلمة المرور',
+                      ),
                     ),
                     if (error != null) ...<Widget>[
                       const SizedBox(height: 12),
-                      Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                      Text(
+                        error!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
                     ],
                     const SizedBox(height: 20),
                     FilledButton.icon(
@@ -177,8 +189,14 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
             spacing: 12,
             runSpacing: 12,
             children: <Widget>[
-              _Metric(label: 'كل الأجهزة', value: '${overview['devices_total'] ?? 0}'),
-              _Metric(label: 'الأجهزة النشطة', value: '${overview['devices_active'] ?? 0}'),
+              _Metric(
+                label: 'كل الأجهزة',
+                value: '${overview['devices_total'] ?? 0}',
+              ),
+              _Metric(
+                label: 'الأجهزة النشطة',
+                value: '${overview['devices_active'] ?? 0}',
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -191,7 +209,8 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
           _AdminList(
             title: 'الأجهزة',
             future: devices,
-            label: (row) => '${row['platform']} ${row['app_version']} — ${row['locale']}',
+            label: (row) =>
+                '${row['platform']} ${row['app_version']} — ${row['locale']}',
           ),
           _RuntimeConfig(api: api, future: config),
           _AdminList(
@@ -222,10 +241,12 @@ class _Metric extends StatelessWidget {
     child: Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(children: <Widget>[
-          Text(value, style: Theme.of(context).textTheme.headlineMedium),
-          Text(label),
-        ]),
+        child: Column(
+          children: <Widget>[
+            Text(value, style: Theme.of(context).textTheme.headlineMedium),
+            Text(label),
+          ],
+        ),
       ),
     ),
   );
@@ -255,8 +276,14 @@ class _NotificationComposerState extends State<_NotificationComposer> {
           title: const Text('إرسال إلى الجميع؟'),
           content: const Text('سيصل الإشعار إلى كل الأجهزة النشطة والموافقة.'),
           actions: <Widget>[
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('تأكيد')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('تأكيد'),
+            ),
           ],
         ),
       );
@@ -276,7 +303,8 @@ class _NotificationComposerState extends State<_NotificationComposer> {
             : targetValue.text,
         'payload': <String, dynamic>{'route': '/home'},
         'confirm_all': target == 'all',
-        if (scheduledAt != null) 'scheduled_at': scheduledAt!.toUtc().toIso8601String(),
+        if (scheduledAt != null)
+          'scheduled_at': scheduledAt!.toUtc().toIso8601String(),
       };
       if (test) {
         await widget.api.sendTest(value);
@@ -285,7 +313,10 @@ class _NotificationComposerState extends State<_NotificationComposer> {
       }
       widget.onSaved();
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إرسال الإشعار')));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تعذر إرسال الإشعار')));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -295,44 +326,102 @@ class _NotificationComposerState extends State<_NotificationComposer> {
   Widget build(BuildContext context) => Card(
     child: Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(children: <Widget>[
-        TextField(controller: title, maxLength: 120, onChanged: (_) => setState(() {}), decoration: const InputDecoration(labelText: 'العنوان')),
-        TextField(controller: body, maxLength: 500, onChanged: (_) => setState(() {}), decoration: const InputDecoration(labelText: 'النص')),
-        DropdownButtonFormField<String>(
-          initialValue: target,
-          decoration: const InputDecoration(labelText: 'الهدف'),
-          items: const <DropdownMenuItem<String>>[
-            DropdownMenuItem(value: 'segment', child: Text('أجهزة Android النشطة')),
-            DropdownMenuItem(value: 'user', child: Text('مستخدم محدد')),
-            DropdownMenuItem(value: 'device', child: Text('جهاز محدد')),
-            DropdownMenuItem(value: 'all', child: Text('كل الأجهزة')),
-          ],
-          onChanged: (value) => setState(() => target = value ?? 'segment'),
-        ),
-        if (target == 'user' || target == 'device')
-          TextField(controller: targetValue, textDirection: TextDirection.ltr, decoration: const InputDecoration(labelText: 'UUID')),
-        ListTile(
-          leading: const Icon(Icons.schedule),
-          title: Text(scheduledAt == null ? 'إرسال الآن' : 'مجدول: $scheduledAt'),
-          trailing: scheduledAt == null ? null : IconButton(onPressed: () => setState(() => scheduledAt = null), icon: const Icon(Icons.close)),
-          onTap: () async {
-            final date = await showDatePicker(context: context, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)), initialDate: DateTime.now());
-            if (date == null || !context.mounted) return;
-            final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-            if (time != null) setState(() => scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute));
-          },
-        ),
-        Wrap(spacing: 8, children: <Widget>[
-          OutlinedButton(onPressed: busy ? null : () => send(test: true), child: const Text('تجربة إلى جهازي')),
-          FilledButton(onPressed: busy || title.text.isEmpty || body.text.isEmpty ? null : () => send(), child: Text(scheduledAt == null ? 'إرسال الآن' : 'جدولة')),
-        ]),
-      ]),
+      child: Column(
+        children: <Widget>[
+          TextField(
+            controller: title,
+            maxLength: 120,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(labelText: 'العنوان'),
+          ),
+          TextField(
+            controller: body,
+            maxLength: 500,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(labelText: 'النص'),
+          ),
+          DropdownButtonFormField<String>(
+            initialValue: target,
+            decoration: const InputDecoration(labelText: 'الهدف'),
+            items: const <DropdownMenuItem<String>>[
+              DropdownMenuItem(
+                value: 'segment',
+                child: Text('أجهزة Android النشطة'),
+              ),
+              DropdownMenuItem(value: 'user', child: Text('مستخدم محدد')),
+              DropdownMenuItem(value: 'device', child: Text('جهاز محدد')),
+              DropdownMenuItem(value: 'all', child: Text('كل الأجهزة')),
+            ],
+            onChanged: (value) => setState(() => target = value ?? 'segment'),
+          ),
+          if (target == 'user' || target == 'device')
+            TextField(
+              controller: targetValue,
+              textDirection: TextDirection.ltr,
+              decoration: const InputDecoration(labelText: 'UUID'),
+            ),
+          ListTile(
+            leading: const Icon(Icons.schedule),
+            title: Text(
+              scheduledAt == null ? 'إرسال الآن' : 'مجدول: $scheduledAt',
+            ),
+            trailing: scheduledAt == null
+                ? null
+                : IconButton(
+                    onPressed: () => setState(() => scheduledAt = null),
+                    icon: const Icon(Icons.close),
+                  ),
+            onTap: () async {
+              final date = await showDatePicker(
+                context: context,
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+                initialDate: DateTime.now(),
+              );
+              if (date == null || !context.mounted) return;
+              final time = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay.now(),
+              );
+              if (time != null)
+                setState(
+                  () => scheduledAt = DateTime(
+                    date.year,
+                    date.month,
+                    date.day,
+                    time.hour,
+                    time.minute,
+                  ),
+                );
+            },
+          ),
+          Wrap(
+            spacing: 8,
+            children: <Widget>[
+              OutlinedButton(
+                onPressed: busy ? null : () => send(test: true),
+                child: const Text('تجربة إلى جهازي'),
+              ),
+              FilledButton(
+                onPressed: busy || title.text.isEmpty || body.text.isEmpty
+                    ? null
+                    : () => send(),
+                child: Text(scheduledAt == null ? 'إرسال الآن' : 'جدولة'),
+              ),
+            ],
+          ),
+        ],
+      ),
     ),
   );
 }
 
 class _AdminList extends StatelessWidget {
-  const _AdminList({required this.title, required this.future, required this.label});
+  const _AdminList({
+    required this.title,
+    required this.future,
+    required this.label,
+  });
   final String title;
   final Future<List<dynamic>> future;
   final String Function(Map<String, dynamic>) label;
@@ -344,11 +433,28 @@ class _AdminList extends StatelessWidget {
         FutureBuilder<List<dynamic>>(
           future: future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) return const Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator());
-            if (snapshot.hasError) return const ListTile(title: Text('تعذر التحميل'));
+            if (snapshot.connectionState != ConnectionState.done)
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              );
+            if (snapshot.hasError)
+              return const ListTile(title: Text('تعذر التحميل'));
             final rows = snapshot.data ?? const <dynamic>[];
-            if (rows.isEmpty) return const ListTile(title: Text('لا توجد بيانات'));
-            return Column(children: rows.take(30).map((value) => ListTile(title: Text(label(Map<String, dynamic>.from(value as Map))))).toList());
+            if (rows.isEmpty)
+              return const ListTile(title: Text('لا توجد بيانات'));
+            return Column(
+              children: rows
+                  .take(30)
+                  .map(
+                    (value) => ListTile(
+                      title: Text(
+                        label(Map<String, dynamic>.from(value as Map)),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            );
           },
         ),
       ],
@@ -371,13 +477,25 @@ class _RuntimeConfig extends StatelessWidget {
             children: (snapshot.data ?? const <dynamic>[]).map((value) {
               final row = Map<String, dynamic>.from(value as Map);
               final current = row['value'];
-              if (current is! bool) return ListTile(title: Text('${row['key']}'), subtitle: Text('$current'));
+              if (current is! bool)
+                return ListTile(
+                  title: Text('${row['key']}'),
+                  subtitle: Text('$current'),
+                );
               return SwitchListTile(
                 title: Text('${row['key']}'),
                 value: current,
                 onChanged: (enabled) async {
-                  try { await api.updateRuntime(<String, dynamic>{'${row['key']}': enabled}); }
-                  catch (_) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر حفظ الإعداد'))); }
+                  try {
+                    await api.updateRuntime(<String, dynamic>{
+                      '${row['key']}': enabled,
+                    });
+                  } catch (_) {
+                    if (context.mounted)
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('تعذر حفظ الإعداد')),
+                      );
+                  }
                 },
               );
             }).toList(),

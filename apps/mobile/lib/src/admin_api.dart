@@ -4,8 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 const _supabaseUrl = 'https://qkroecnecdxghcqvvoxn.supabase.co';
-const _supabaseKey =
-    'sb_publishable_dLYCid35ZkeIE95xqiyHoQ_bEhWWISK';
+const _supabaseKey = 'sb_publishable_dLYCid35ZkeIE95xqiyHoQ_bEhWWISK';
 
 class AdminApiException implements Exception {
   const AdminApiException(this.code);
@@ -33,10 +32,8 @@ class MobileAdminSession extends ChangeNotifier {
     String? idempotencyKey,
     bool auth = true,
   }) async {
-    final request = http.Request(
-      method,
-      Uri.parse('$_supabaseUrl$path'),
-    )..headers.addAll(<String, String>{
+    final request = http.Request(method, Uri.parse('$_supabaseUrl$path'))
+      ..headers.addAll(<String, String>{
         'apikey': _supabaseKey,
         'content-type': 'application/json',
         if (auth && _accessToken != null)
@@ -44,9 +41,9 @@ class MobileAdminSession extends ChangeNotifier {
         if (idempotencyKey != null) 'idempotency-key': idempotencyKey,
       });
     if (body != null) request.body = jsonEncode(body);
-    final response = await _client.send(request).timeout(
-      const Duration(seconds: 12),
-    );
+    final response = await _client
+        .send(request)
+        .timeout(const Duration(seconds: 12));
     final bytes = await response.stream.toBytes();
     Map<String, dynamic> decoded = <String, dynamic>{};
     try {
@@ -77,9 +74,10 @@ class MobileAdminSession extends ChangeNotifier {
     _accessToken = token;
     try {
       final session = await _edge('session');
-      _permissions = (session['permissions'] as List<dynamic>? ?? const <dynamic>[])
-          .whereType<String>()
-          .toSet();
+      _permissions =
+          (session['permissions'] as List<dynamic>? ?? const <dynamic>[])
+              .whereType<String>()
+              .toSet();
       _overview = await getOverview();
       await onAuthenticationChanged?.call(token);
       notifyListeners();
@@ -102,9 +100,7 @@ class MobileAdminSession extends ChangeNotifier {
       idempotencyKey: idempotencyKey,
     );
     final data = root['data'];
-    return data is Map
-        ? Map<String, dynamic>.from(data)
-        : <String, dynamic>{};
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> getOverview() => _edge('overview');
@@ -120,16 +116,33 @@ class MobileAdminSession extends ChangeNotifier {
       (await _edge('audit'))['items'] as List<dynamic>? ?? const <dynamic>[];
 
   Future<void> createNotification(Map<String, dynamic> value) async {
-    await _edge('notifications', method: 'POST', body: value, idempotencyKey: 'mobile-${DateTime.now().microsecondsSinceEpoch}');
+    await _edge(
+      'notifications',
+      method: 'POST',
+      body: value,
+      idempotencyKey: 'mobile-${DateTime.now().microsecondsSinceEpoch}',
+    );
   }
+
   Future<void> sendTest(Map<String, dynamic> value) async {
-    await _edge('test', method: 'POST', body: value, idempotencyKey: 'mobile-test-${DateTime.now().microsecondsSinceEpoch}');
+    await _edge(
+      'test',
+      method: 'POST',
+      body: value,
+      idempotencyKey: 'mobile-test-${DateTime.now().microsecondsSinceEpoch}',
+    );
   }
+
   Future<void> cancel(String id) async {
     await _edge('notifications/$id/cancel', method: 'POST');
   }
+
   Future<void> updateRuntime(Map<String, dynamic> updates) async {
-    await _edge('runtime-config', method: 'PUT', body: <String, dynamic>{'updates': updates});
+    await _edge(
+      'runtime-config',
+      method: 'PUT',
+      body: <String, dynamic>{'updates': updates},
+    );
   }
 
   void logout() {

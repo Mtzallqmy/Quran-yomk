@@ -13,8 +13,7 @@ import 'local_notifications.dart';
 
 const _backend =
     'https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/notifications';
-const _publishableKey =
-    'sb_publishable_dLYCid35ZkeIE95xqiyHoQ_bEhWWISK';
+const _publishableKey = 'sb_publishable_dLYCid35ZkeIE95xqiyHoQ_bEhWWISK';
 const safePushRoutes = <String>{
   '/home',
   '/prayer-times',
@@ -75,7 +74,8 @@ class FirebasePushGateway implements PushGateway {
 
   @override
   Future<bool> permissionGranted() async {
-    final status = (await _messaging.getNotificationSettings()).authorizationStatus;
+    final status =
+        (await _messaging.getNotificationSettings()).authorizationStatus;
     return status == AuthorizationStatus.authorized ||
         status == AuthorizationStatus.provisional;
   }
@@ -109,10 +109,16 @@ abstract class DeviceRegistrationApi {
 }
 
 class HttpDeviceRegistrationApi implements DeviceRegistrationApi {
-  HttpDeviceRegistrationApi({http.Client? client}) : _client = client ?? http.Client();
+  HttpDeviceRegistrationApi({http.Client? client})
+    : _client = client ?? http.Client();
   final http.Client _client;
 
-  Future<void> _send(String path, String method, Map<String, dynamic> payload, {String? bearer}) async {
+  Future<void> _send(
+    String path,
+    String method,
+    Map<String, dynamic> payload, {
+    String? bearer,
+  }) async {
     final response = await _client
         .send(
           http.Request(method, Uri.parse('$_backend$path'))
@@ -164,7 +170,8 @@ class PushNotificationService extends ChangeNotifier {
        _gateway = gateway ?? FirebasePushGateway(),
        _registration = registration ?? HttpDeviceRegistrationApi(),
        _appVersion =
-           appVersion ?? (() async => (await PackageInfo.fromPlatform()).version);
+           appVersion ??
+           (() async => (await PackageInfo.fromPlatform()).version);
 
   static const _enabledKey = 'push:enabled';
   static const _installationKey = 'push:installation_id';
@@ -175,7 +182,8 @@ class PushNotificationService extends ChangeNotifier {
   final DeviceRegistrationApi _registration;
   final Future<String> Function() _appVersion;
   final StreamController<String> _routes = StreamController<String>.broadcast();
-  final List<StreamSubscription<Object?>> _subscriptions = <StreamSubscription<Object?>>[];
+  final List<StreamSubscription<Object?>> _subscriptions =
+      <StreamSubscription<Object?>>[];
   bool _ready = false;
   bool _busy = false;
   String? _userBearer;
@@ -205,9 +213,10 @@ class PushNotificationService extends ChangeNotifier {
   String get _installationSecret {
     final current = _preferences.getString(_secretKey);
     if (current != null) return current;
-    final value = List<int>.generate(32, (_) => Random.secure().nextInt(256))
-        .map((e) => e.toRadixString(16).padLeft(2, '0'))
-        .join();
+    final value = List<int>.generate(
+      32,
+      (_) => Random.secure().nextInt(256),
+    ).map((e) => e.toRadixString(16).padLeft(2, '0')).join();
     _preferences.setString(_secretKey, value);
     return value;
   }
@@ -216,7 +225,9 @@ class PushNotificationService extends ChangeNotifier {
     if (_ready) return;
     try {
       await _gateway.initialize();
-      _subscriptions.add(_gateway.tokenRefresh.listen((token) => _register(token)));
+      _subscriptions.add(
+        _gateway.tokenRefresh.listen((token) => _register(token)),
+      );
       _subscriptions.add(_gateway.foregroundMessages.listen(_foreground));
       _subscriptions.add(_gateway.openedMessages.listen(_open));
       final initial = await _gateway.initialMessage();
@@ -249,10 +260,12 @@ class PushNotificationService extends ChangeNotifier {
           rethrow;
         }
       } else {
-        await _registration.revoke(<String, dynamic>{
-          'installation_id': _installationId,
-          'installation_secret': _installationSecret,
-        }).catchError((_) {});
+        await _registration
+            .revoke(<String, dynamic>{
+              'installation_id': _installationId,
+              'installation_secret': _installationSecret,
+            })
+            .catchError((_) {});
         await _preferences.setBool(_enabledKey, false);
       }
       return true;
@@ -269,10 +282,10 @@ class PushNotificationService extends ChangeNotifier {
 
   Future<void> _savePreferences(Map<String, bool> values) async {
     await _registration.preferences(<String, dynamic>{
-        'installation_id': _installationId,
-        'installation_secret': _installationSecret,
-        ...values,
-      });
+      'installation_id': _installationId,
+      'installation_secret': _installationSecret,
+      ...values,
+    });
     for (final entry in values.entries) {
       await _preferences.setBool('push:preference:${entry.key}', entry.value);
     }
@@ -288,7 +301,9 @@ class PushNotificationService extends ChangeNotifier {
       'installation_id': _installationId,
       'installation_secret': _installationSecret,
       'fcm_token': token,
-      'platform': defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
+      'platform': defaultTargetPlatform == TargetPlatform.iOS
+          ? 'ios'
+          : 'android',
       'app_version': await _appVersion(),
       'locale': 'ar',
       'timezone': 'Asia/Aden',
@@ -300,10 +315,12 @@ class PushNotificationService extends ChangeNotifier {
     final wasAuthenticated = _userBearer != null;
     _userBearer = bearer;
     if (bearer == null && wasAuthenticated) {
-      await _registration.unlink(<String, dynamic>{
-        'installation_id': _installationId,
-        'installation_secret': _installationSecret,
-      }).catchError((_) {});
+      await _registration
+          .unlink(<String, dynamic>{
+            'installation_id': _installationId,
+            'installation_secret': _installationSecret,
+          })
+          .catchError((_) {});
     }
     if (bearer != null && enabled && _ready) {
       final token = await _gateway.token();
@@ -326,7 +343,11 @@ class PushNotificationService extends ChangeNotifier {
     unawaited(
       _localNotifications.show(
         LocalNotificationRequest(
-          id: 900000 + (message.data['notification_id']?.hashCode ?? body.hashCode).abs() % 99999,
+          id:
+              900000 +
+              (message.data['notification_id']?.hashCode ?? body.hashCode)
+                      .abs() %
+                  99999,
           title: title,
           body: body,
           scheduledAt: DateTime.now(),

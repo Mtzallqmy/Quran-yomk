@@ -225,7 +225,9 @@ class _RootShellState extends ConsumerState<RootShell> {
                 ),
                 actions: const <Widget>[SizedBox.shrink()],
               ),
-            Expanded(child: IndexedStack(index: index, children: pages)),
+            Expanded(
+              child: IndexedStack(index: index, children: pages),
+            ),
           ],
         ),
       ),

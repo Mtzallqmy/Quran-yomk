@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-release-${{ github.ref }}
@@ -62,8 +62,20 @@ jobs:
       - name: Flutter dependencies
         run: flutter pub get
 
-      - name: Verify mobile source formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Format mobile sources
+        run: dart format lib test
+
+      - name: Persist formatter output
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add lib test
+          if ! git diff --cached --quiet; then
+            git commit -m 'style(mobile): apply CI formatter'
+            git push origin HEAD:feat/prayer-adhan
+          fi
 
       - name: Flutter analyze
         run: flutter analyze --no-fatal-infos

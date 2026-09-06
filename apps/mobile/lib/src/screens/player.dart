@@ -91,16 +91,22 @@ class MiniPlayerBar extends ConsumerWidget {
                             onPressed: loading
                                 ? null
                                 : () => virtual
-                                ? playing
-                                      ? ref
-                                            .read(virtualRadioProvider.notifier)
-                                            .pause()
-                                      : ref
-                                            .read(virtualRadioProvider.notifier)
-                                            .resume()
-                                : playing
-                                ? playback.pause()
-                                : playback.play(),
+                                      ? playing
+                                            ? ref
+                                                  .read(
+                                                    virtualRadioProvider
+                                                        .notifier,
+                                                  )
+                                                  .pause()
+                                            : ref
+                                                  .read(
+                                                    virtualRadioProvider
+                                                        .notifier,
+                                                  )
+                                                  .resume()
+                                      : playing
+                                      ? playback.pause()
+                                      : playback.play(),
                             icon: loading
                                 ? const SizedBox.square(
                                     dimension: 20,
@@ -435,9 +441,8 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
     }
     playback.cancelSleepTimer();
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.timerCancelled)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.timerCancelled)));
     }
   }
 }
@@ -575,14 +580,12 @@ class _OfflineClipActionState extends ConsumerState<_OfflineClipAction> {
         maxDuration: choice == 0 ? null : Duration(minutes: choice),
       );
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.clipSavingStarted)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.clipSavingStarted)));
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.clipSavingFailed)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.clipSavingFailed)));
     }
   }
 
@@ -600,9 +603,8 @@ class _OfflineClipActionState extends ConsumerState<_OfflineClipAction> {
       );
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.clipSavingFailed)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.clipSavingFailed)));
     }
   }
 }

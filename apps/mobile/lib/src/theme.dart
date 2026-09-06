@@ -23,50 +23,49 @@ class TarteelTheme {
 
   static ThemeData _build(Brightness brightness) {
     final dark = brightness == Brightness.dark;
-    final scheme = ColorScheme.fromSeed(
-      seedColor: primary,
-      brightness: brightness,
-    ).copyWith(
-      primary: dark ? const Color(0xFF63CDB1) : primary,
-      onPrimary: dark ? deepGreen : Colors.white,
-      primaryContainer: dark
-          ? const Color(0xFF124A40)
-          : const Color(0xFFD9EEE7),
-      onPrimaryContainer: dark
-          ? const Color(0xFFDFF8F0)
-          : deepGreen,
-      secondary: dark ? const Color(0xFFE7C978) : secondary,
-      onSecondary: const Color(0xFF342A0C),
-      secondaryContainer: dark
-          ? const Color(0xFF51441F)
-          : const Color(0xFFFFEFC1),
-      onSecondaryContainer: dark
-          ? const Color(0xFFFFF2C9)
-          : const Color(0xFF3D310D),
-      tertiary: dark ? const Color(0xFFE7C978) : secondary,
-      onTertiary: const Color(0xFF342A0C),
-      tertiaryContainer: dark
-          ? const Color(0xFF51441F)
-          : const Color(0xFFFFEFC1),
-      onTertiaryContainer: dark
-          ? const Color(0xFFFFF2C9)
-          : const Color(0xFF3D310D),
-      surface: dark ? const Color(0xFF0C2420) : ivory,
-      surfaceContainerLowest: dark ? night : Colors.white,
-      surfaceContainerLow: dark
-          ? const Color(0xFF102C27)
-          : const Color(0xFFF7F3E9),
-      surfaceContainer: dark
-          ? const Color(0xFF14342E)
-          : const Color(0xFFF2EEE4),
-      surfaceContainerHigh: dark
-          ? const Color(0xFF193E36)
-          : const Color(0xFFEAE5D9),
-      outline: dark ? const Color(0xFF6C8A82) : const Color(0xFF71837D),
-      outlineVariant: dark
-          ? const Color(0xFF324D47)
-          : const Color(0xFFD4DDD8),
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: primary,
+          brightness: brightness,
+        ).copyWith(
+          primary: dark ? const Color(0xFF63CDB1) : primary,
+          onPrimary: dark ? deepGreen : Colors.white,
+          primaryContainer: dark
+              ? const Color(0xFF124A40)
+              : const Color(0xFFD9EEE7),
+          onPrimaryContainer: dark ? const Color(0xFFDFF8F0) : deepGreen,
+          secondary: dark ? const Color(0xFFE7C978) : secondary,
+          onSecondary: const Color(0xFF342A0C),
+          secondaryContainer: dark
+              ? const Color(0xFF51441F)
+              : const Color(0xFFFFEFC1),
+          onSecondaryContainer: dark
+              ? const Color(0xFFFFF2C9)
+              : const Color(0xFF3D310D),
+          tertiary: dark ? const Color(0xFFE7C978) : secondary,
+          onTertiary: const Color(0xFF342A0C),
+          tertiaryContainer: dark
+              ? const Color(0xFF51441F)
+              : const Color(0xFFFFEFC1),
+          onTertiaryContainer: dark
+              ? const Color(0xFFFFF2C9)
+              : const Color(0xFF3D310D),
+          surface: dark ? const Color(0xFF0C2420) : ivory,
+          surfaceContainerLowest: dark ? night : Colors.white,
+          surfaceContainerLow: dark
+              ? const Color(0xFF102C27)
+              : const Color(0xFFF7F3E9),
+          surfaceContainer: dark
+              ? const Color(0xFF14342E)
+              : const Color(0xFFF2EEE4),
+          surfaceContainerHigh: dark
+              ? const Color(0xFF193E36)
+              : const Color(0xFFEAE5D9),
+          outline: dark ? const Color(0xFF6C8A82) : const Color(0xFF71837D),
+          outlineVariant: dark
+              ? const Color(0xFF324D47)
+              : const Color(0xFFD4DDD8),
+        );
     final base = ThemeData(useMaterial3: true, brightness: brightness);
     final appliedTypography = base.textTheme.apply(
       fontFamilyFallback: const <String>[
@@ -137,9 +136,7 @@ class TarteelTheme {
         surfaceTintColor: Colors.transparent,
         shadowColor: deepGreen.withValues(alpha: dark ? 0.18 : 0.10),
         shape: medium.copyWith(
-          side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.7),
-          ),
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

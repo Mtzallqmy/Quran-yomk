@@ -42,11 +42,7 @@ class EmptyPane extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(
-                    Icons.inbox_outlined,
-                    size: 38,
-                    color: scheme.primary,
-                  ),
+                  Icon(Icons.inbox_outlined, size: 38, color: scheme.primary),
                   const SizedBox(height: TarteelTokens.spaceSm),
                   Text(
                     message ?? context.l10n.noData,

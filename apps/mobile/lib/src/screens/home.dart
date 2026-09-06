@@ -461,9 +461,8 @@ class _HomeHero extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         'مختار لك',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: scheme.primary,
-                        ),
+                        style: Theme.of(context).textTheme.labelLarge
+                            ?.copyWith(color: scheme.primary),
                       ),
                     ],
                   ),

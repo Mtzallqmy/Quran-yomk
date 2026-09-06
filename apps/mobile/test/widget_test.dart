@@ -5,7 +5,10 @@ import 'package:tarteel/src/theme.dart';
 
 void main() {
   test('brand themes keep the green and gold design system', () {
-    for (final theme in <ThemeData>[TarteelTheme.light(), TarteelTheme.dark()]) {
+    for (final theme in <ThemeData>[
+      TarteelTheme.light(),
+      TarteelTheme.dark(),
+    ]) {
       expect(theme.colorScheme.primary, isNot(theme.colorScheme.secondary));
       expect(theme.colorScheme.tertiary, theme.colorScheme.secondary);
       expect(theme.cardTheme.shape, isA<RoundedRectangleBorder>());
@@ -52,9 +55,7 @@ void main() {
           child: Directionality(
             textDirection: TextDirection.rtl,
             child: Scaffold(
-              body: EmptyPane(
-                message: 'لا يوجد محتوى متاح في الوقت الحالي',
-              ),
+              body: EmptyPane(message: 'لا يوجد محتوى متاح في الوقت الحالي'),
             ),
           ),
         ),

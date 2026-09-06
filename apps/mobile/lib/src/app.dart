@@ -60,9 +60,8 @@ class _RootShellState extends State<RootShell> {
     if (_openingRoute) return;
     _openingRoute = true;
     try {
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute<void>(builder: (_) => page));
+      await Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => page));
     } finally {
       _openingRoute = false;
     }
@@ -92,10 +91,7 @@ class _RootShellState extends State<RootShell> {
                   const TarteelBrandMark(size: 34),
                   const SizedBox(width: 9),
                   Flexible(
-                    child: Text(
-                      titles[index],
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: Text(titles[index], overflow: TextOverflow.ellipsis),
                   ),
                 ],
               ),
@@ -108,9 +104,7 @@ class _RootShellState extends State<RootShell> {
                 PopupMenuButton<_RootAction>(
                   tooltip: english ? 'More' : 'المزيد',
                   onSelected: (action) => switch (action) {
-                    _RootAction.playlists => _open(
-                      const QuranPlaylistsPage(),
-                    ),
+                    _RootAction.playlists => _open(const QuranPlaylistsPage()),
                     _RootAction.offline => _open(const QuranOfflinePage()),
                     _RootAction.library => _open(const IslamicLibraryPage()),
                     _RootAction.settings => _open(const SettingsPage()),

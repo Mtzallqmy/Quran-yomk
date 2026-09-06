@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 
 import 'l10n.dart';
+import 'theme.dart';
 
 class LoadingPane extends StatelessWidget {
   const LoadingPane({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      const Center(child: CircularProgressIndicator());
+  Widget build(BuildContext context) => Center(
+    child: Semantics(
+      label: 'جارٍ التحميل',
+      child: const SizedBox.square(
+        dimension: 34,
+        child: CircularProgressIndicator(strokeWidth: 3),
+      ),
+    ),
+  );
 }
 
 class EmptyPane extends StatelessWidget {
@@ -16,12 +24,38 @@ class EmptyPane extends StatelessWidget {
   final String? message;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Text(message ?? context.l10n.noData, textAlign: TextAlign.center),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(TarteelTokens.spaceLg),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(TarteelTokens.radiusMd),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(TarteelTokens.spaceLg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(Icons.inbox_outlined, size: 38, color: scheme.primary),
+                  const SizedBox(height: TarteelTokens.spaceSm),
+                  Text(
+                    message ?? context.l10n.noData,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class ErrorPane extends StatelessWidget {
@@ -33,11 +67,15 @@ class ErrorPane extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(TarteelTokens.spaceLg),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          const Icon(Icons.cloud_off_outlined, size: 44),
+          Icon(
+            Icons.cloud_off_outlined,
+            size: 44,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           const SizedBox(height: 12),
           Text(context.l10n.offlineMessage, textAlign: TextAlign.center),
           const SizedBox(height: 16),
@@ -60,11 +98,25 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+    padding: const EdgeInsets.fromLTRB(16, 26, 16, 10),
     child: Row(
       children: <Widget>[
+        Container(
+          width: 4,
+          height: 22,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.secondary,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
         Expanded(
-          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         if (action != null) action!,
       ],
@@ -92,14 +144,15 @@ class Artwork extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(TarteelTokens.radiusSm),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Icon(icon),
     );
     final value = url;
     if (value == null || value.isEmpty) return fallback;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(TarteelTokens.radiusSm),
       child: Image.network(
         value,
         width: size,

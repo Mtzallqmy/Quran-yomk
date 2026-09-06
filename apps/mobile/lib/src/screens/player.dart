@@ -9,6 +9,7 @@ import '../l10n.dart';
 import '../models.dart';
 import '../offline_clip_service.dart';
 import '../services.dart';
+import '../theme.dart';
 import '../transcription.dart';
 import '../virtual_radio.dart';
 import 'saved_clips.dart';
@@ -24,71 +25,104 @@ class MiniPlayerBar extends ConsumerWidget {
       builder: (context, itemSnapshot) {
         final item = itemSnapshot.data;
         if (item == null) return const SizedBox.shrink();
-        return Material(
-          color: Theme.of(context).colorScheme.surfaceContainer,
-          child: InkWell(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const FullPlayerPage()),
-            ),
-            child: SafeArea(
-              top: false,
-              child: SizedBox(
-                height: 68,
-                child: Row(
-                  children: <Widget>[
-                    const SizedBox(width: 12),
-                    Artwork(url: item.artUri?.toString(), size: 46),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            item.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (item.artist != null)
+        final scheme = Theme.of(context).colorScheme;
+        return Semantics(
+          container: true,
+          label: 'المشغل المصغر: ${item.title}',
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+            child: Material(
+              color: scheme.surfaceContainerLow,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(TarteelTokens.radiusMd),
+                side: BorderSide(color: scheme.outlineVariant),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const FullPlayerPage(),
+                  ),
+                ),
+                child: SizedBox(
+                  height: 62,
+                  child: Row(
+                    children: <Widget>[
+                      const SizedBox(width: 8),
+                      Artwork(url: item.artUri?.toString(), size: 46),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
                             Text(
-                              item.artist!,
+                              item.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall,
+                              style: Theme.of(context).textTheme.titleSmall,
                             ),
-                        ],
+                            if (item.artist != null)
+                              Text(
+                                item.artist!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                    StreamBuilder<PlaybackState>(
-                      stream: playback.playbackStateStream,
-                      builder: (context, state) {
-                        final playing = state.data?.playing == true;
-                        final virtual = item.extras?['kind'] == 'virtual_radio';
-                        return IconButton(
-                          tooltip: playing
-                              ? context.l10n.pause
-                              : context.l10n.play,
-                          onPressed: () => virtual
-                              ? playing
-                                    ? ref
-                                          .read(virtualRadioProvider.notifier)
-                                          .pause()
-                                    : ref
-                                          .read(virtualRadioProvider.notifier)
-                                          .resume()
-                              : playing
-                              ? playback.pause()
-                              : playback.play(),
-                          icon: Icon(
-                            playing
-                                ? Icons.pause_circle_filled
-                                : Icons.play_circle_fill,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                  ],
+                      StreamBuilder<PlaybackState>(
+                        stream: playback.playbackStateStream,
+                        builder: (context, state) {
+                          final playing = state.data?.playing == true;
+                          final processing = state.data?.processingState;
+                          final loading =
+                              processing == AudioProcessingState.loading ||
+                              processing == AudioProcessingState.buffering;
+                          final virtual =
+                              item.extras?['kind'] == 'virtual_radio';
+                          return IconButton.filled(
+                            tooltip: loading
+                                ? 'جارٍ التحميل'
+                                : playing
+                                ? context.l10n.pause
+                                : context.l10n.play,
+                            onPressed: loading
+                                ? null
+                                : () => virtual
+                                      ? playing
+                                            ? ref
+                                                  .read(
+                                                    virtualRadioProvider
+                                                        .notifier,
+                                                  )
+                                                  .pause()
+                                            : ref
+                                                  .read(
+                                                    virtualRadioProvider
+                                                        .notifier,
+                                                  )
+                                                  .resume()
+                                      : playing
+                                      ? playback.pause()
+                                      : playback.play(),
+                            icon: loading
+                                ? const SizedBox.square(
+                                    dimension: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Icon(
+                                    playing ? Icons.pause : Icons.play_arrow,
+                                  ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                  ),
                 ),
               ),
             ),

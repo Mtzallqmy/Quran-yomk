@@ -16,6 +16,21 @@ test('cron and malformed device requests fail closed',async()=>{
   assert.equal(malformed.status,422);
 });
 
+test('admin session reads RBAC through the bounded server RPC',async t=>{
+  const admin='00000000-0000-4000-8000-000000000101';
+  t.mock.method(globalThis,'fetch',async input=>{
+    const url=String(input);
+    if(url.endsWith('/auth/v1/user'))return Response.json({id:admin});
+    if(url.endsWith('/rpc/managed_radio_authorized'))return Response.json(true);
+    if(url.endsWith('/rpc/admin_session_context'))return Response.json({roles:['SUPER_ADMIN'],permissions:['notifications.read']});
+    throw new Error(`unexpected ${url}`);
+  });
+  const result=await handleNotifications(new Request('https://edge.test/notifications/admin/session',{headers:{authorization:'Bearer user-token'}}),env({SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'server-key'}));
+  assert.equal(result.status,200);
+  const body=await result.json();
+  assert.deepEqual(body.data.roles,['SUPER_ADMIN']);
+});
+
 test('missing Firebase server credential records failure without leaking device tokens',async t=>{
   const token='device-token-that-must-never-be-logged';
   const patches=[];const logs=[];

@@ -1,6 +1,6 @@
 import 'package:adhan_dart/adhan_dart.dart' as adhan;
 import 'package:flutter/foundation.dart';
-import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'prayer_settings.dart';

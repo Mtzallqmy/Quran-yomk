@@ -55,6 +55,7 @@ class _RootShellState extends ConsumerState<RootShell> {
   bool _mushafImmersive = false;
   bool _openingRoute = false;
   StreamSubscription<String>? _notificationSubscription;
+  StreamSubscription<String>? _pushSubscription;
 
   @override
   void initState() {
@@ -64,20 +65,43 @@ class _RootShellState extends ConsumerState<RootShell> {
         .localNotifications
         .payloads
         .listen(_handleNotificationPayload);
+    _pushSubscription = ref
+        .read(servicesProvider)
+        .pushNotifications
+        .routes
+        .listen(_handlePushRoute);
   }
 
   void _handleNotificationPayload(String payload) {
-    if (!mounted || !payload.startsWith('/prayer-times')) return;
-    unawaited(
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute<void>(builder: (_) => const PrayerTimesPage())),
-    );
+    if (!mounted) return;
+    _handlePushRoute(payload);
+  }
+
+  void _handlePushRoute(String route) {
+    if (!mounted) return;
+    switch (route) {
+      case '/home':
+        setState(() => index = 0);
+      case '/radio':
+        setState(() => index = 1);
+      case '/quran':
+        setState(() => index = 2);
+      case '/reciters':
+        setState(() => index = 3);
+      case '/prayer-times':
+        unawaited(_open(const PrayerTimesPage()));
+      case '/library':
+      case '/adhkar':
+        unawaited(_open(const IslamicLibraryPage()));
+      case '/custom-reminders':
+        unawaited(_open(const SettingsPage()));
+    }
   }
 
   @override
   void dispose() {
     unawaited(_notificationSubscription?.cancel());
+    unawaited(_pushSubscription?.cancel());
     super.dispose();
   }
 
@@ -99,6 +123,7 @@ class _RootShellState extends ConsumerState<RootShell> {
 
   @override
   Widget build(BuildContext context) {
+    final remoteConfig = ref.watch(servicesProvider).remoteConfig;
     final s = context.l10n;
     final english = Localizations.localeOf(context).languageCode == 'en';
     final titles = <String>[s.home, s.radio, s.mushaf, s.reciters, s.favorites];
@@ -181,7 +206,31 @@ class _RootShellState extends ConsumerState<RootShell> {
                 ),
               ],
             ),
-      body: IndexedStack(index: index, children: pages),
+      body: AnimatedBuilder(
+        animation: remoteConfig,
+        builder: (context, _) => Column(
+          children: <Widget>[
+            if (remoteConfig.maintenanceMode ||
+                remoteConfig.announcementBanner.isNotEmpty)
+              MaterialBanner(
+                content: Text(
+                  remoteConfig.maintenanceMode
+                      ? remoteConfig.maintenanceMessage
+                      : remoteConfig.announcementBanner,
+                ),
+                leading: Icon(
+                  remoteConfig.maintenanceMode
+                      ? Icons.build_outlined
+                      : Icons.campaign_outlined,
+                ),
+                actions: const <Widget>[SizedBox.shrink()],
+              ),
+            Expanded(
+              child: IndexedStack(index: index, children: pages),
+            ),
+          ],
+        ),
+      ),
       bottomNavigationBar: immersive
           ? null
           : Column(

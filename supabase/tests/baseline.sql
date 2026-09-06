@@ -1,6 +1,6 @@
 begin;
 
-select plan(40);
+select plan(50);
 
 select ok(to_regnamespace('app') is not null, 'app schema exists');
 select ok(to_regnamespace('radio') is not null, 'radio schema exists');
@@ -57,5 +57,20 @@ select throws_ok($q$select app.update_runtime_config('{"radio_enabled":true,"rec
 select is((select value from app.app_config where key='radio_enabled'),'false'::jsonb,'earlier setting remains unchanged after failed batch');
 select is((select count(*) from app.audit_logs where action='runtime_config.update' and request_id='00000000-0000-4000-8000-000000000037'),1::bigint,'only committed runtime mutation has a completion audit');
 select ok(not exists(select 1 from unnest(array['app.virtual_radio_channels','app.virtual_radio_schedule','app.virtual_radio_candidates']) t where has_table_privilege('authenticated',t,'INSERT,UPDATE,DELETE') or has_table_privilege('anon',t,'INSERT,UPDATE,DELETE')), 'direct clients cannot bypass mutation auditing');
+select ok(to_regclass('app.user_devices') is not null,'device registry exists');
+select ok(to_regclass('app.notification_preferences') is not null,'push preferences exist');
+select ok(to_regclass('app.admin_notifications') is not null,'notification outbox exists');
+select ok(to_regclass('app.notification_deliveries') is not null,'delivery ledger exists');
+select ok(to_regclass('app.in_app_announcements') is not null,'in-app announcements exist');
+select ok(not exists(select 1 from unnest(array['app.user_devices','app.notification_preferences','app.admin_notifications','app.notification_deliveries','app.in_app_announcements']) t where has_table_privilege('authenticated',t,'SELECT,INSERT,UPDATE,DELETE') or has_table_privilege('anon',t,'SELECT,INSERT,UPDATE,DELETE')),'notification tables are never exposed directly');
+select ok(not has_function_privilege('anon','app.claim_due_notifications(integer)','EXECUTE') and not has_function_privilege('authenticated','app.prepare_notification_deliveries(uuid)','EXECUTE'),'notification worker RPCs are server only');
+select is((select count(*) from app.role_permissions rp join app.roles r on r.id=rp.role_id join app.permissions p on p.id=rp.permission_id where r.code='SUPER_ADMIN' and p.code in ('notifications.read','notifications.send','notifications.schedule','notifications.cancel','devices.read','runtime_config.read','runtime_config.write')),7::bigint,'SUPER_ADMIN receives all notification permissions');
+insert into app.user_devices(id,installation_id,installation_secret_hash,fcm_token,platform,app_version) values
+ ('00000000-0000-4000-8000-000000000038','00000000-0000-4000-8000-000000000039',repeat('a',64),repeat('t',32),'android','1.0.0'),
+ ('00000000-0000-4000-8000-000000000040','00000000-0000-4000-8000-000000000041',repeat('b',64),repeat('u',32),'android','1.0.0');
+update app.user_devices set revoked_at=now() where id='00000000-0000-4000-8000-000000000040';
+insert into app.admin_notifications(id,title,body,type,target_type,scheduled_at,status,idempotency_key,created_by) values('00000000-0000-4000-8000-000000000042','CI','CI','admin_announcements','all',now(),'sending','ci-notification-idempotency','00000000-0000-4000-8000-000000000037');
+select is(app.prepare_notification_deliveries('00000000-0000-4000-8000-000000000042'),1,'only the active device is selected');
+select is(app.prepare_notification_deliveries('00000000-0000-4000-8000-000000000042'),0,'delivery fanout is idempotent on retry');
 select * from finish();
 rollback;

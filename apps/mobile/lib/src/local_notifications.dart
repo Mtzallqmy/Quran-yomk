@@ -5,7 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
-enum LocalNotificationChannel { prayerReminder, adhan }
+enum LocalNotificationChannel { prayerReminder, adhan, remotePush }
 
 @immutable
 class LocalNotificationRequest {
@@ -102,13 +102,32 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
     ),
   );
 
+  static const _remotePushDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'tarteel_remote_notifications',
+      'إشعارات ترتيل',
+      channelDescription: 'إعلانات وتحديثات ترتيل عن بُعد',
+      importance: Importance.high,
+      priority: Priority.high,
+      category: AndroidNotificationCategory.message,
+    ),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      threadIdentifier: 'tarteel_remote_notifications',
+    ),
+  );
+
   final FlutterLocalNotificationsPlugin _plugin;
 
   NotificationDetails _detailsFor(LocalNotificationRequest request) {
     if (!request.playSound) return _silentPrayerDetails;
-    return request.channel == LocalNotificationChannel.adhan
-        ? _adhanDetails
-        : _prayerDetails;
+    return switch (request.channel) {
+      LocalNotificationChannel.adhan => _adhanDetails,
+      LocalNotificationChannel.remotePush => _remotePushDetails,
+      LocalNotificationChannel.prayerReminder => _prayerDetails,
+    };
   }
 
   @override
@@ -129,6 +148,18 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
         if (payload != null && payload.isNotEmpty) onTap(payload);
       },
     );
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'tarteel_remote_notifications',
+            'إشعارات ترتيل',
+            description: 'إعلانات وتحديثات ترتيل عن بُعد',
+            importance: Importance.high,
+          ),
+        );
     final launch = await _plugin.getNotificationAppLaunchDetails();
     if (launch?.didNotificationLaunchApp == true) {
       return launch?.notificationResponse?.payload;

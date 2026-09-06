@@ -63,7 +63,9 @@ jobs:
         run: flutter pub get
 
       - name: Verify mobile source formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: |
+          dart format lib test
+          git diff --exit-code -- lib test
 
       - name: Flutter analyze
         run: flutter analyze --no-fatal-infos
@@ -96,6 +98,8 @@ jobs:
           grep -q 'minSdk = 26' android/app/build.gradle.kts
           grep -q 'android:usesCleartextTraffic="false"' android/app/src/main/AndroidManifest.xml
           grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' android/app/src/main/AndroidManifest.xml
+          grep -q '"package_name": "app.tarteel.tarteel"' android/app/google-services.json
+          grep -q '"project_id": "tarteel-b755d"' android/app/google-services.json
 
       - name: Build universal release APK
         run: flutter build apk --release
@@ -206,8 +210,8 @@ jobs:
         run: |
           set -euo pipefail
           for apk in release/android/*.apk; do
-            if strings "$apk" | grep -Ei '(RADIO_CO_(CLIENT_SECRET|REFRESH_TOKEN|ACCESS_TOKEN|DJ_PASSWORD)|\.dj\.radio\.co)'; then
-              echo "Privileged Radio.co material was found in $apk" >&2
+            if strings "$apk" | grep -Ei '(RADIO_CO_(CLIENT_SECRET|REFRESH_TOKEN|ACCESS_TOKEN|DJ_PASSWORD)|\.dj\.radio\.co|BEGIN (RSA )?PRIVATE KEY|FIREBASE_SERVICE_ACCOUNT_JSON|SUPABASE_SERVICE_ROLE_KEY|sb_secret_)'; then
+              echo "Privileged credential material was found in $apk" >&2
               exit 1
             fi
           done

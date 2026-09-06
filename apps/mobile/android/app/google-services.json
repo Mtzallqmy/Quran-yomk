@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "429259454563",
+    "project_id": "tarteel-b755d",
+    "storage_bucket": "tarteel-b755d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:429259454563:android:16db7f116d6a7fcb65a056",
+        "android_client_info": {
+          "package_name": "app.tarteel.tarteel"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3tvV-JAcRg4tCmWksuRgZ0VGttseBRfs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

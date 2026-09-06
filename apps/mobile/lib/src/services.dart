@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'adhan_audio.dart';
+import 'admin_api.dart';
 import 'islamic_content.dart';
 import 'local_notifications.dart';
 import 'mushaf_pages.dart';
@@ -14,6 +15,7 @@ import 'quran_playlist_store.dart';
 import 'prayer_reminders.dart';
 import 'prayer_settings.dart';
 import 'prayer_times.dart';
+import 'push_notifications.dart';
 import 'remote_config.dart';
 import 'repository.dart';
 import 'storage.dart';
@@ -45,6 +47,8 @@ class AppServices {
     required this.prayerTimes,
     required this.prayerReminders,
     required this.adhanAudio,
+    required this.pushNotifications,
+    required this.adminSession,
   });
 
   final TarteelRepository repository;
@@ -65,6 +69,8 @@ class AppServices {
   final PrayerTimesService prayerTimes;
   final PrayerReminderController prayerReminders;
   final AdhanAudioService adhanAudio;
+  final PushNotificationService pushNotifications;
+  final MobileAdminSession adminSession;
 }
 
 final servicesProvider = Provider<AppServices>(

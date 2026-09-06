@@ -20,3 +20,8 @@ verify_jwt = false
 
 [functions.tarteel-api-health]
 verify_jwt = false
+
+# This function validates user JWTs, installation secrets and the cron bearer
+# token itself because device registration also supports signed guest installs.
+[functions.notifications]
+verify_jwt = false

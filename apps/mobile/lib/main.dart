@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'src/api.dart';
+import 'src/admin_api.dart';
 import 'src/adhan_audio.dart';
 import 'src/app.dart';
 import 'src/islamic_content.dart';
@@ -19,6 +20,7 @@ import 'src/quran_playlist_store.dart';
 import 'src/prayer_reminders.dart';
 import 'src/prayer_settings.dart';
 import 'src/prayer_times.dart';
+import 'src/push_notifications.dart';
 import 'src/remote_config.dart';
 import 'src/repository.dart';
 import 'src/services.dart';
@@ -74,6 +76,13 @@ Future<void> main() async {
     settings: prayerSettings,
     adhanAudio: adhanAudio,
   );
+  final pushNotifications = PushNotificationService(
+    preferences: preferences,
+    localNotifications: localNotifications,
+  );
+  final adminSession = MobileAdminSession(
+    onAuthenticationChanged: pushNotifications.attachAuthenticatedUser,
+  );
   final services = AppServices(
     repository: repository,
     favorites: favorites,
@@ -93,6 +102,8 @@ Future<void> main() async {
     prayerTimes: prayerTimes,
     prayerReminders: prayerReminders,
     adhanAudio: adhanAudio,
+    pushNotifications: pushNotifications,
+    adminSession: adminSession,
   );
 
   runApp(
@@ -107,5 +118,6 @@ Future<void> main() async {
     'islamic_content': islamicContent.synchronizeInBackground,
     'remote_config': remoteConfig.refresh,
     'prayer_reminders': prayerReminders.start,
+    'firebase_messaging': pushNotifications.initialize,
   });
 }

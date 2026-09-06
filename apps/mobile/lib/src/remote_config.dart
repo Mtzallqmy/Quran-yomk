@@ -33,6 +33,15 @@ class TarteelRemoteConfig extends ChangeNotifier {
       boolValue('offline_downloads_enabled', fallback: true);
   bool get mushafTajweedEnabled =>
       boolValue('mushaf_tajweed_enabled', fallback: true);
+  bool get prayerFeaturesEnabled =>
+      boolValue('prayer_features_enabled', fallback: true);
+  bool get adhkarEnabled => boolValue('adhkar_enabled', fallback: true);
+  bool get maintenanceMode => boolValue('maintenance_mode', fallback: false);
+  String get maintenanceMessage => stringValue(
+    'maintenance_message',
+    fallback: 'تجري صيانة محدودة، وتبقى الميزات المحفوظة متاحة.',
+  );
+  String get announcementBanner => stringValue('announcement_banner');
   bool get elysiaApiEnabled => boolValue('elysia_api_enabled', fallback: false);
   int get recitersPageSize =>
       intValue('reciters_page_size', fallback: 100).clamp(30, 300);
@@ -43,6 +52,8 @@ class TarteelRemoteConfig extends ChangeNotifier {
       stringValue('minimum_android_version', fallback: '0.0.0');
   String get latestAndroidVersion =>
       stringValue('latest_android_version', fallback: '0.0.0');
+  String get recommendedAndroidVersion =>
+      stringValue('recommended_android_version', fallback: '0.0.0');
 
   Map<String, dynamic> get contentManifest {
     final raw = jsonValue('content_manifest');

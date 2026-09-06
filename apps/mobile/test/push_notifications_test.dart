@@ -76,9 +76,7 @@ void main() {
         ),
       );
       gateway.opened.add(
-        const PushMessage(
-          data: <String, dynamic>{'route': '/prayer-times'},
-        ),
+        const PushMessage(data: <String, dynamic>{'route': '/prayer-times'}),
       );
       await Future<void>.delayed(Duration.zero);
       expect(routes, <String>['/prayer-times']);

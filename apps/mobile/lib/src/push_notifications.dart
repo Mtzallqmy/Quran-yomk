@@ -213,9 +213,7 @@ class PushNotificationService extends ChangeNotifier {
        _secretStore = secretStore ?? const SecureInstallationSecretStore(),
        _appVersion =
            appVersion ??
-           (() async => (await PackageInfo.fromPlatform()).version) {
-    _registered = _preferences.getBool(_registeredKey) ?? false;
-  }
+           (() async => (await PackageInfo.fromPlatform()).version);
 
   static const _enabledKey = 'push:enabled';
   static const _consentKey = 'push:consent';
@@ -274,15 +272,49 @@ class PushNotificationService extends ChangeNotifier {
   }
 
   Future<bool> _readPermission() async {
+    bool? firebaseGranted;
+    bool? systemGranted;
     try {
-      final firebaseGranted = await _gateway.permissionGranted();
-      final systemGranted = await _localNotifications.permissionGranted();
-      _permissionGranted = firebaseGranted && systemGranted;
-      _permissionChecked = true;
-      return _permissionGranted;
+      firebaseGranted = await _gateway.permissionGranted();
     } catch (_) {
+      // The Android notification manager remains an authoritative fallback.
+    }
+    try {
+      systemGranted = await _localNotifications.permissionGranted();
+    } catch (_) {
+      // Some OEM/plugin combinations cannot query the notification manager.
+    }
+    if (firebaseGranted == null && systemGranted == null) {
       throw const PushRegistrationException('NOTIFICATION_PERMISSION_FAILED');
     }
+    _permissionGranted =
+        (firebaseGranted ?? systemGranted!) &&
+        (systemGranted ?? firebaseGranted!);
+    _permissionChecked = true;
+    return _permissionGranted;
+  }
+
+  Future<bool> _requestPermission() async {
+    bool? firebaseGranted;
+    bool? systemGranted;
+    try {
+      firebaseGranted = await _gateway.requestPermission();
+    } catch (_) {
+      // Fall back to the local notification plugin's Android permission API.
+    }
+    try {
+      systemGranted = await _localNotifications.requestPermission();
+    } catch (_) {
+      // Firebase Messaging remains authoritative when the local plugin fails.
+    }
+    if (firebaseGranted == null && systemGranted == null) {
+      throw const PushRegistrationException('NOTIFICATION_PERMISSION_FAILED');
+    }
+    _permissionGranted =
+        (firebaseGranted ?? systemGranted!) &&
+        (systemGranted ?? firebaseGranted!);
+    _permissionChecked = true;
+    return _permissionGranted;
   }
 
   Future<void> _initializeFirebase() async {
@@ -390,8 +422,7 @@ class PushNotificationService extends ChangeNotifier {
         await _preferences.setString(_consentKey, 'allowed');
         await _preferences.setBool(_enabledKey, true);
         await _initializeFirebase();
-        await _gateway.requestPermission();
-        if (!await _readPermission()) {
+        if (!await _requestPermission()) {
           _failure('PERMISSION_DENIED');
           return false;
         }
@@ -429,8 +460,7 @@ class PushNotificationService extends ChangeNotifier {
         await _preferences.setString(_consentKey, 'allowed');
         await _preferences.setBool(_enabledKey, true);
         await _initializeFirebase();
-        await _gateway.requestPermission();
-        if (!await _readPermission()) {
+        if (!await _requestPermission()) {
           _failure('PERMISSION_DENIED');
           return false;
         }
@@ -520,7 +550,7 @@ class PushNotificationService extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    if (!_permissionGranted && !_ready) {
+    if (!_permissionGranted) {
       _failure('PERMISSION_DENIED');
       notifyListeners();
       return;

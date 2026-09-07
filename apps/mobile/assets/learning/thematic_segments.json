@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "notice": "Topic labels are separate study metadata. Quran text is never stored in this file.",
+  "segments": [
+    {"surah":1,"startAyah":1,"endAyah":2,"topicTitleAr":"الثناء على الله","topicSummaryAr":"افتتاح السورة بحمد الله رب العالمين وذكر رحمته.","colorToken":"emerald","source":"التفسير الميسر، سورة الفاتحة 1-2","reviewStatus":"source_checked"},
+    {"surah":1,"startAyah":3,"endAyah":4,"topicTitleAr":"الرحمة والجزاء","topicSummaryAr":"رحمة الله وملكه ليوم الدين.","colorToken":"gold","source":"التفسير الميسر، سورة الفاتحة 3-4","reviewStatus":"source_checked"},
+    {"surah":1,"startAyah":5,"endAyah":7,"topicTitleAr":"العبادة والاستعانة والهداية","topicSummaryAr":"إفراد الله بالعبادة وطلب الهداية إلى الصراط المستقيم.","colorToken":"sage","source":"التفسير الميسر، سورة الفاتحة 5-7","reviewStatus":"source_checked"},
+    {"surah":112,"startAyah":1,"endAyah":4,"topicTitleAr":"توحيد الله وتنزيهه","topicSummaryAr":"إثبات وحدانية الله وكماله وتنزيهه عن المماثلة والولد.","colorToken":"blue","source":"التفسير الميسر، سورة الإخلاص 1-4","reviewStatus":"source_checked"}
+  ]
+}

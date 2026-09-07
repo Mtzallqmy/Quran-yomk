@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "items": [
+    {"id":"morning_1","category":"morning","text":"اللهم بك أصبحنا وبك أمسينا وبك نحيا وبك نموت وإليك النشور","count":1,"source":"سنن الترمذي","reference":"3391","authenticity":"حسن"},
+    {"id":"evening_1","category":"evening","text":"اللهم بك أمسينا وبك أصبحنا وبك نحيا وبك نموت وإليك المصير","count":1,"source":"سنن الترمذي","reference":"3391","authenticity":"حسن"},
+    {"id":"after_prayer_1","category":"after_prayer","text":"سبحان الله","count":33,"source":"صحيح مسلم","reference":"597","authenticity":"صحيح"},
+    {"id":"after_prayer_2","category":"after_prayer","text":"الحمد لله","count":33,"source":"صحيح مسلم","reference":"597","authenticity":"صحيح"},
+    {"id":"after_prayer_3","category":"after_prayer","text":"الله أكبر","count":33,"source":"صحيح مسلم","reference":"597","authenticity":"صحيح"},
+    {"id":"sleep_1","category":"sleep","text":"باسمك اللهم أموت وأحيا","count":1,"source":"صحيح البخاري","reference":"6324","authenticity":"صحيح"},
+    {"id":"waking_1","category":"waking","text":"الحمد لله الذي أحيانا بعد ما أماتنا وإليه النشور","count":1,"source":"صحيح البخاري","reference":"6312","authenticity":"صحيح"},
+    {"id":"general_1","category":"general","text":"سبحان الله وبحمده","count":100,"source":"صحيح مسلم","reference":"2692","authenticity":"صحيح"}
+  ]
+}

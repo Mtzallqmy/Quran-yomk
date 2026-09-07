@@ -4,6 +4,7 @@ import 'adhan_audio.dart';
 import 'admin_api.dart';
 import 'islamic_content.dart';
 import 'local_notifications.dart';
+import 'learning.dart';
 import 'mushaf_pages.dart';
 import 'mushaf_store.dart';
 import 'offline_clip_service.dart';
@@ -49,6 +50,8 @@ class AppServices {
     required this.adhanAudio,
     required this.pushNotifications,
     required this.adminSession,
+    required this.learning,
+    required this.adhkarReminders,
   });
 
   final TarteelRepository repository;
@@ -71,6 +74,8 @@ class AppServices {
   final AdhanAudioService adhanAudio;
   final PushNotificationService pushNotifications;
   final MobileAdminSession adminSession;
+  final LearningStore learning;
+  final AdhkarReminderController adhkarReminders;
 }
 
 final servicesProvider = Provider<AppServices>(

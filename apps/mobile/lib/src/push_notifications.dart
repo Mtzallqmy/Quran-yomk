@@ -275,7 +275,9 @@ class PushNotificationService extends ChangeNotifier {
 
   Future<bool> _readPermission() async {
     try {
-      _permissionGranted = await _gateway.permissionGranted();
+      final firebaseGranted = await _gateway.permissionGranted();
+      final systemGranted = await _localNotifications.permissionGranted();
+      _permissionGranted = firebaseGranted && systemGranted;
       _permissionChecked = true;
       return _permissionGranted;
     } catch (_) {
@@ -388,9 +390,8 @@ class PushNotificationService extends ChangeNotifier {
         await _preferences.setString(_consentKey, 'allowed');
         await _preferences.setBool(_enabledKey, true);
         await _initializeFirebase();
-        _permissionGranted = await _gateway.requestPermission();
-        _permissionChecked = true;
-        if (!_permissionGranted) {
+        await _gateway.requestPermission();
+        if (!await _readPermission()) {
           _failure('PERMISSION_DENIED');
           return false;
         }
@@ -428,9 +429,8 @@ class PushNotificationService extends ChangeNotifier {
         await _preferences.setString(_consentKey, 'allowed');
         await _preferences.setBool(_enabledKey, true);
         await _initializeFirebase();
-        _permissionGranted = await _gateway.requestPermission();
-        _permissionChecked = true;
-        if (!_permissionGranted) {
+        await _gateway.requestPermission();
+        if (!await _readPermission()) {
           _failure('PERMISSION_DENIED');
           return false;
         }

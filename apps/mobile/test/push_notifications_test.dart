@@ -26,6 +26,28 @@ void main() {
   });
 
   test(
+    'disabled Android notifications override Firebase authorization',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final registration = _Registration();
+      final service = PushNotificationService(
+        preferences: await SharedPreferences.getInstance(),
+        localNotifications: LocalNotificationService(
+          gateway: _LocalGateway(permission: false),
+        ),
+        gateway: _PushGateway(permission: true),
+        registration: registration,
+        secretStore: _SecretStore(),
+        appVersion: () async => '1.0.0',
+      );
+      expect(await service.setEnabled(true), isFalse);
+      expect(service.lastErrorCode, 'PERMISSION_DENIED');
+      expect(service.enabled, isFalse);
+      expect(registration.registered, isEmpty);
+    },
+  );
+
+  test(
     'registration, token refresh and revoke preserve one installation',
     () async {
       SharedPreferences.setMockInitialValues(<String, Object>{});

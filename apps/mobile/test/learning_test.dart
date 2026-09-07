@@ -12,17 +12,25 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   tz_data.initializeTimeZones();
 
-  test('canonical Quran snapshot checksum and verse count remain unchanged', () {
-    final manifest = jsonDecode(
-      File('../../data/quran/canonical/v1/manifest.json').readAsStringSync(),
-    ) as Map<String, dynamic>;
-    final dataset = File('../../data/quran/canonical/v1/dataset.json')
-        .readAsBytesSync();
-    expect(sha256.convert(dataset).toString(), manifest['sha256']);
-    expect(manifest['verses'], 6236);
-    expect(manifest['surahs'], 114);
-    expect(manifest['approval_policy'], 'VERBATIM_SNAPSHOT_NO_TEXT_MUTATION');
-  });
+  test(
+    'canonical Quran snapshot checksum and verse count remain unchanged',
+    () {
+      final manifest =
+          jsonDecode(
+                File(
+                  '../../data/quran/canonical/v1/manifest.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
+      final dataset = File(
+        '../../data/quran/canonical/v1/dataset.json',
+      ).readAsBytesSync();
+      expect(sha256.convert(dataset).toString(), manifest['sha256']);
+      expect(manifest['verses'], 6236);
+      expect(manifest['surahs'], 114);
+      expect(manifest['approval_policy'], 'VERBATIM_SNAPSHOT_NO_TEXT_MUTATION');
+    },
+  );
 
   test(
     'bundled educational content is source-bounded and structurally valid',

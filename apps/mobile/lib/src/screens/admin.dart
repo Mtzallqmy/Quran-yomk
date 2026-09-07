@@ -435,6 +435,14 @@ class _NotificationComposerState extends State<_NotificationComposer> {
                 child: Text('الصلاة'),
               ),
               DropdownMenuItem(value: 'adhkar', child: Text('الأذكار')),
+              DropdownMenuItem(
+                value: 'memorization_review',
+                child: Text('الحفظ والمراجعة'),
+              ),
+              DropdownMenuItem(
+                value: 'personal_reminders',
+                child: Text('التذكيرات الشخصية'),
+              ),
               DropdownMenuItem(value: 'quran_content', child: Text('القرآن')),
               DropdownMenuItem(value: 'radio', child: Text('الإذاعة')),
               DropdownMenuItem(

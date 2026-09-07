@@ -50,7 +50,8 @@ class RootShell extends ConsumerStatefulWidget {
   ConsumerState<RootShell> createState() => _RootShellState();
 }
 
-class _RootShellState extends ConsumerState<RootShell> {
+class _RootShellState extends ConsumerState<RootShell>
+    with WidgetsBindingObserver {
   int index = 0;
   bool _mushafImmersive = false;
   bool _openingRoute = false;
@@ -60,6 +61,7 @@ class _RootShellState extends ConsumerState<RootShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _notificationSubscription = ref
         .read(servicesProvider)
         .localNotifications
@@ -70,6 +72,70 @@ class _RootShellState extends ConsumerState<RootShell> {
         .pushNotifications
         .routes
         .listen(_handlePushRoute);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showPushConsent());
+  }
+
+  Future<void> _showPushConsent() async {
+    final push = ref.read(servicesProvider).pushNotifications;
+    if (!mounted) return;
+    if (!push.needsConsent) {
+      await push.refreshPermissionState();
+      return;
+    }
+    final allowed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.notifications_active_outlined),
+        title: const Text('ابقَ على اتصال مع ترتيل'),
+        content: const Text(
+          'يستخدم ترتيل الإشعارات لتذكيرك بمواقيت الصلاة، والأذكار، '
+          'وخطط الحفظ والمراجعة، والتذكيرات التي تختارها، ورسائل مهمة من التطبيق.\n\n'
+          'لن نستخدم الإشعارات لإرسال رسائل مزعجة، ويمكنك التحكم في أنواعها '
+          'أو إيقافها لاحقًا من الإعدادات. هل تسمح لتطبيق ترتيل بإرسال الإشعارات؟',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('ليس الآن'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('السماح بالإشعارات'),
+          ),
+        ],
+      ),
+    );
+    if (allowed != true) {
+      await push.deferConsent();
+      return;
+    }
+    final success = await push.setEnabled(true);
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(push.errorMessage),
+          action: push.lastErrorCode == 'PERMISSION_DENIED'
+              ? SnackBarAction(
+                  label: 'فتح الإعدادات',
+                  onPressed: ref
+                      .read(servicesProvider)
+                      .localNotifications
+                      .openSystemSettings,
+                )
+              : null,
+        ),
+      );
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(
+        ref.read(servicesProvider).pushNotifications.refreshPermissionState(),
+      );
+    }
   }
 
   void _handleNotificationPayload(String payload) {
@@ -100,6 +166,7 @@ class _RootShellState extends ConsumerState<RootShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(_notificationSubscription?.cancel());
     unawaited(_pushSubscription?.cancel());
     super.dispose();

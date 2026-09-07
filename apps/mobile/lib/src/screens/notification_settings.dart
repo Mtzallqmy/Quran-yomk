@@ -14,6 +14,8 @@ class PushNotificationSettingsPage extends ConsumerWidget {
     'prayer_related': 'إعلانات الصلاة',
     'adhkar': 'الأذكار',
     'important_system': 'تنبيهات النظام المهمة',
+    'memorization_review': 'الحفظ والمراجعة',
+    'personal_reminders': 'التذكيرات الشخصية',
   };
 
   @override
@@ -37,14 +39,43 @@ class PushNotificationSettingsPage extends ConsumerWidget {
                           ? Icons.cloud_done_outlined
                           : Icons.cloud_off_outlined,
                     ),
-                    title: Text(
-                      service.registered ? 'الجهاز مسجل' : 'الجهاز غير مسجل',
-                    ),
+                    title: const Text('حالة الإشعارات عن بُعد'),
                     subtitle: Text(
-                      'إذن النظام: ${service.systemPermissionGranted ? 'مسموح' : 'غير مسموح'}\n'
-                      'آخر مزامنة: ${service.lastSyncedAt?.toLocal() ?? 'لم تتم'}',
+                      service.enabled
+                          ? 'مفعلة بعد تحقق الإذن والرمز وتسجيل الجهاز'
+                          : 'غير مفعلة بالكامل',
                     ),
-                    isThreeLine: true,
+                  ),
+                  _StatusTile(
+                    title: 'إذن Android',
+                    value: !service.consentDecided
+                        ? 'غير مطلوب بعد'
+                        : service.systemPermissionGranted
+                        ? 'مسموح'
+                        : 'مرفوض',
+                  ),
+                  _StatusTile(
+                    title: 'Firebase',
+                    value: service.ready
+                        ? service.hasToken
+                              ? 'جاهز'
+                              : 'لا يوجد FCM token'
+                        : service.lastErrorCode ==
+                              'FIREBASE_INITIALIZATION_FAILED'
+                        ? 'فشل التهيئة'
+                        : 'غير مهيأ',
+                  ),
+                  _StatusTile(
+                    title: 'تسجيل الجهاز',
+                    value: service.registered
+                        ? 'مسجل'
+                        : service.lastSyncedAt != null
+                        ? 'يحتاج إعادة تسجيل'
+                        : 'غير مسجل',
+                  ),
+                  _StatusTile(
+                    title: 'آخر مزامنة',
+                    value: '${service.lastSyncedAt?.toLocal() ?? 'لم تتم'}',
                   ),
                   if (service.lastErrorCode != null)
                     ListTile(
@@ -116,8 +147,20 @@ class PushNotificationSettingsPage extends ConsumerWidget {
                     )
                   : const Icon(Icons.notifications_active_outlined),
             ),
+            const ListTile(
+              leading: Icon(Icons.alarm_outlined),
+              title: Text('الإشعارات المحلية'),
+              subtitle: Text(
+                'تنبيهات الصلاة والأذان والتذكيرات المحلية مستقلة عن Firebase، '
+                'وتبقى حسب إعداداتها داخل الجهاز.',
+              ),
+            ),
             if (service.enabled) ...<Widget>[
               const Divider(),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text('أنواع الإشعارات عن بُعد'),
+              ),
               for (final entry in _labels.entries)
                 SwitchListTile(
                   value: service.preference(entry.key),
@@ -142,4 +185,17 @@ class PushNotificationSettingsPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _StatusTile extends StatelessWidget {
+  const _StatusTile({required this.title, required this.value});
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    dense: true,
+    title: Text(title),
+    trailing: Text(value),
+  );
 }

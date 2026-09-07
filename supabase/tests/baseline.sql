@@ -1,6 +1,6 @@
 begin;
 
-select plan(58);
+select plan(59);
 
 select ok(to_regnamespace('app') is not null, 'app schema exists');
 select ok(to_regnamespace('radio') is not null, 'radio schema exists');
@@ -59,6 +59,7 @@ select is((select count(*) from app.audit_logs where action='runtime_config.upda
 select ok(not exists(select 1 from unnest(array['app.virtual_radio_channels','app.virtual_radio_schedule','app.virtual_radio_candidates']) t where has_table_privilege('authenticated',t,'INSERT,UPDATE,DELETE') or has_table_privilege('anon',t,'INSERT,UPDATE,DELETE')), 'direct clients cannot bypass mutation auditing');
 select ok(to_regclass('app.user_devices') is not null,'device registry exists');
 select ok(to_regclass('app.notification_preferences') is not null,'push preferences exist');
+select is((select count(*) from information_schema.columns where table_schema='app' and table_name='notification_preferences' and column_name in ('memorization_review','personal_reminders')),2::bigint,'all independent push preference categories exist');
 select ok(to_regclass('app.admin_notifications') is not null,'notification outbox exists');
 select ok(to_regclass('app.notification_deliveries') is not null,'delivery ledger exists');
 select ok(to_regclass('app.in_app_announcements') is not null,'in-app announcements exist');

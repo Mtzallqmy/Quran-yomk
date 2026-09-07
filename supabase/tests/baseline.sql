@@ -1,6 +1,6 @@
 begin;
 
-select plan(50);
+select plan(52);
 
 select ok(to_regnamespace('app') is not null, 'app schema exists');
 select ok(to_regnamespace('radio') is not null, 'radio schema exists');
@@ -64,6 +64,8 @@ select ok(to_regclass('app.notification_deliveries') is not null,'delivery ledge
 select ok(to_regclass('app.in_app_announcements') is not null,'in-app announcements exist');
 select ok(not exists(select 1 from unnest(array['app.user_devices','app.notification_preferences','app.admin_notifications','app.notification_deliveries','app.in_app_announcements']) t where has_table_privilege('authenticated',t,'SELECT,INSERT,UPDATE,DELETE') or has_table_privilege('anon',t,'SELECT,INSERT,UPDATE,DELETE')),'notification tables are never exposed directly');
 select ok(not has_function_privilege('anon','app.claim_due_notifications(integer)','EXECUTE') and not has_function_privilege('authenticated','app.prepare_notification_deliveries(uuid)','EXECUTE'),'notification worker RPCs are server only');
+select ok(to_regprocedure('app.admin_session_context(uuid)') is not null,'admin session RBAC RPC exists');
+select ok(not has_function_privilege('anon','app.admin_session_context(uuid)','EXECUTE') and not has_function_privilege('authenticated','app.admin_session_context(uuid)','EXECUTE'),'admin session RBAC RPC is server only');
 select is((select count(*) from app.role_permissions rp join app.roles r on r.id=rp.role_id join app.permissions p on p.id=rp.permission_id where r.code='SUPER_ADMIN' and p.code in ('notifications.read','notifications.send','notifications.schedule','notifications.cancel','devices.read','runtime_config.read','runtime_config.write')),7::bigint,'SUPER_ADMIN receives all notification permissions');
 insert into app.user_devices(id,installation_id,installation_secret_hash,fcm_token,platform,app_version) values
  ('00000000-0000-4000-8000-000000000038','00000000-0000-4000-8000-000000000039',repeat('a',64),repeat('t',32),'android','1.0.0'),

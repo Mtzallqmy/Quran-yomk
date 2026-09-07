@@ -44,3 +44,5 @@ flutter:
   assets:
     - assets/islamic_content_manifest.json
     - assets/audio/adhan.ogg
+    - assets/learning/thematic_segments.json
+    - assets/learning/adhkar.json

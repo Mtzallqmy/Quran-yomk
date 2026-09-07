@@ -193,9 +193,6 @@ class _StatusTile extends StatelessWidget {
   final String value;
 
   @override
-  Widget build(BuildContext context) => ListTile(
-    dense: true,
-    title: Text(title),
-    trailing: Text(value),
-  );
+  Widget build(BuildContext context) =>
+      ListTile(dense: true, title: Text(title), trailing: Text(value));
 }

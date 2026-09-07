@@ -122,9 +122,7 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
   );
 
   final FlutterLocalNotificationsPlugin _plugin;
-  static const _settingsChannel = MethodChannel(
-    'app.tarteel.tarteel/settings',
-  );
+  static const _settingsChannel = MethodChannel('app.tarteel.tarteel/settings');
 
   NotificationDetails _detailsFor(LocalNotificationRequest request) {
     if (!request.playSound) return _silentPrayerDetails;

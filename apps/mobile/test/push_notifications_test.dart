@@ -209,6 +209,7 @@ class _Registration implements DeviceRegistrationApi {
     registered.add(payload);
     bearers.add(bearer);
   }
+
   @override
   Future<void> revoke(Map<String, dynamic> payload) async =>
       revoked.add(payload);

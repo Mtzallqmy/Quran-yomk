@@ -166,6 +166,7 @@ class MobileAdminSession extends ChangeNotifier {
     _overview = await getOverview();
     notifyListeners();
   }
+
   Future<List<dynamic>> notifications() async =>
       (await _edge('notifications'))['items'] as List<dynamic>? ??
       const <dynamic>[];
@@ -213,7 +214,10 @@ class MobileAdminSession extends ChangeNotifier {
 
   Future<void> logout() async {
     if (_accessToken != null) {
-      await _request('/auth/v1/logout', method: 'POST').catchError((_) => <String, dynamic>{});
+      await _request(
+        '/auth/v1/logout',
+        method: 'POST',
+      ).catchError((_) => <String, dynamic>{});
     }
     _accessToken = null;
     _permissions = <String>{};

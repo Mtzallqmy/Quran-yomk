@@ -243,20 +243,20 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
               final status = '${row['status']}';
               if (status == 'scheduled') {
                 return TextButton(
-                    onPressed: () async {
-                      try {
-                        await api.cancel('${row['id']}');
-                        if (mounted) setState(refresh);
-                      } on AdminApiException catch (error) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(_adminError(error.code))),
-                          );
-                        }
+                  onPressed: () async {
+                    try {
+                      await api.cancel('${row['id']}');
+                      if (mounted) setState(refresh);
+                    } on AdminApiException catch (error) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(_adminError(error.code))),
+                        );
                       }
-                    },
-                    child: const Text('إلغاء'),
-                  );
+                    }
+                  },
+                  child: const Text('إلغاء'),
+                );
               }
               if (status == 'failed' || status == 'partially_failed') {
                 return TextButton(
@@ -430,10 +430,7 @@ class _NotificationComposerState extends State<_NotificationComposer> {
                 value: 'admin_announcements',
                 child: Text('إعلان إداري'),
               ),
-              DropdownMenuItem(
-                value: 'prayer_related',
-                child: Text('الصلاة'),
-              ),
+              DropdownMenuItem(value: 'prayer_related', child: Text('الصلاة')),
               DropdownMenuItem(value: 'adhkar', child: Text('الأذكار')),
               DropdownMenuItem(
                 value: 'memorization_review',
@@ -564,18 +561,13 @@ class _AdminList extends StatelessWidget {
             if (rows.isEmpty)
               return const ListTile(title: Text('لا توجد بيانات'));
             return Column(
-              children: rows
-                  .take(30)
-                  .map(
-                    (value) {
-                      final row = Map<String, dynamic>.from(value as Map);
-                      return ListTile(
-                        title: Text(label(row)),
-                        trailing: trailing?.call(row),
-                      );
-                    },
-                  )
-                  .toList(),
+              children: rows.take(30).map((value) {
+                final row = Map<String, dynamic>.from(value as Map);
+                return ListTile(
+                  title: Text(label(row)),
+                  trailing: trailing?.call(row),
+                );
+              }).toList(),
             );
           },
         ),

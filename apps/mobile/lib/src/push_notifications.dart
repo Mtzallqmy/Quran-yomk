@@ -315,9 +315,7 @@ class PushNotificationService extends ChangeNotifier {
     try {
       await _gateway.initialize();
       _ready = true;
-      _subscriptions.add(
-        _gateway.tokenRefresh.listen(_tokenRefreshed),
-      );
+      _subscriptions.add(_gateway.tokenRefresh.listen(_tokenRefreshed));
       _subscriptions.add(_gateway.foregroundMessages.listen(_foreground));
       _subscriptions.add(_gateway.openedMessages.listen(_open));
       final initial = await _gateway.initialMessage();
@@ -330,7 +328,9 @@ class PushNotificationService extends ChangeNotifier {
         notificationsEnabled: requested && _permissionGranted,
       );
     } catch (error) {
-      final code = _ready ? _errorCode(error) : 'FIREBASE_INITIALIZATION_FAILED';
+      final code = _ready
+          ? _errorCode(error)
+          : 'FIREBASE_INITIALIZATION_FAILED';
       _failure(code);
     }
     notifyListeners();

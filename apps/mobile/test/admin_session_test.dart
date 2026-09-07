@@ -6,28 +6,28 @@ import 'package:http/testing.dart';
 import 'package:tarteel/src/admin_api.dart';
 
 void main() {
-  test('admin login stores only the refresh session and links the device', () async {
-    final store = _SessionStore();
-    final linked = <String?>[];
-    final session = MobileAdminSession(
-      client: _client(),
-      sessionStore: store,
-      onAuthenticationChanged: (token) async => linked.add(token),
-    );
+  test(
+    'admin login stores only the refresh session and links the device',
+    () async {
+      final store = _SessionStore();
+      final linked = <String?>[];
+      final session = MobileAdminSession(
+        client: _client(),
+        sessionStore: store,
+        onAuthenticationChanged: (token) async => linked.add(token),
+      );
 
-    await session.login('admin@example.test', 'password');
+      await session.login('admin@example.test', 'password');
 
-    expect(session.signedIn, isTrue);
-    expect(store.value, 'refresh-2');
-    expect(linked, <String?>['access-2']);
-  });
+      expect(session.signedIn, isTrue);
+      expect(store.value, 'refresh-2');
+      expect(linked, <String?>['access-2']);
+    },
+  );
 
   test('saved refresh session restores without another password', () async {
     final store = _SessionStore()..value = 'refresh-1';
-    final session = MobileAdminSession(
-      client: _client(),
-      sessionStore: store,
-    );
+    final session = MobileAdminSession(client: _client(), sessionStore: store);
 
     await session.restore();
 
@@ -61,10 +61,7 @@ MockClient _client() => MockClient((request) async {
   if (request.url.path.endsWith('/admin/overview')) {
     return http.Response(
       jsonEncode(<String, dynamic>{
-        'data': <String, dynamic>{
-          'devices_total': 1,
-          'devices_active': 1,
-        },
+        'data': <String, dynamic>{'devices_total': 1, 'devices_active': 1},
       }),
       200,
     );

@@ -56,8 +56,8 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
       'tarteel_prayer_reminders',
       'تذكيرات الصلاة',
       channelDescription: 'تنبيهات مواقيت الصلاة في ترتيل',
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
       category: AndroidNotificationCategory.reminder,
     ),
     iOS: DarwinNotificationDetails(
@@ -73,8 +73,8 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
       'tarteel_prayer_reminders',
       'تذكيرات الصلاة',
       channelDescription: 'تنبيهات مواقيت الصلاة في ترتيل',
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
       playSound: false,
       category: AndroidNotificationCategory.reminder,
     ),
@@ -109,8 +109,8 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
       'tarteel_remote_notifications',
       'إشعارات ترتيل',
       channelDescription: 'إعلانات وتحديثات ترتيل عن بُعد',
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
       category: AndroidNotificationCategory.message,
     ),
     iOS: DarwinNotificationDetails(
@@ -151,18 +151,33 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
         if (payload != null && payload.isNotEmpty) onTap(payload);
       },
     );
-    await _plugin
+    final android = _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'tarteel_remote_notifications',
-            'إشعارات ترتيل',
-            description: 'إعلانات وتحديثات ترتيل عن بُعد',
-            importance: Importance.high,
-          ),
-        );
+        >();
+    for (final channel in const <AndroidNotificationChannel>[
+      AndroidNotificationChannel(
+        'tarteel_prayer_reminders',
+        'تذكيرات الصلاة',
+        description: 'تنبيهات مواقيت الصلاة في ترتيل',
+        importance: Importance.max,
+      ),
+      AndroidNotificationChannel(
+        'tarteel_adhan_v1',
+        'الأذان',
+        description: 'تنبيهات الصلاة بصوت أذان محلي',
+        importance: Importance.max,
+        sound: RawResourceAndroidNotificationSound('adhan'),
+      ),
+      AndroidNotificationChannel(
+        'tarteel_remote_notifications',
+        'إشعارات ترتيل',
+        description: 'إعلانات وتحديثات ترتيل عن بُعد',
+        importance: Importance.max,
+      ),
+    ]) {
+      await android?.createNotificationChannel(channel);
+    }
     final launch = await _plugin.getNotificationAppLaunchDetails();
     if (launch?.didNotificationLaunchApp == true) {
       return launch?.notificationResponse?.payload;

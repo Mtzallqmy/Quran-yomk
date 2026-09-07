@@ -8,6 +8,7 @@ import 'l10n.dart';
 import 'screens/favorites.dart';
 import 'screens/home.dart';
 import 'screens/islamic_library.dart';
+import 'screens/learning.dart';
 import 'screens/mushaf.dart';
 import 'screens/player.dart';
 import 'screens/prayer_times.dart';
@@ -157,8 +158,9 @@ class _RootShellState extends ConsumerState<RootShell>
       case '/prayer-times':
         unawaited(_open(const PrayerTimesPage()));
       case '/library':
-      case '/adhkar':
         unawaited(_open(const IslamicLibraryPage()));
+      case '/adhkar':
+        unawaited(_open(const AdhkarPage()));
       case '/custom-reminders':
         unawaited(_open(const SettingsPage()));
     }
@@ -229,9 +231,19 @@ class _RootShellState extends ConsumerState<RootShell>
                     _RootAction.playlists => _open(const QuranPlaylistsPage()),
                     _RootAction.offline => _open(const QuranOfflinePage()),
                     _RootAction.library => _open(const IslamicLibraryPage()),
+                    _RootAction.learning => _open(const LearningCenterPage()),
                     _RootAction.settings => _open(const SettingsPage()),
                   },
                   itemBuilder: (_) => <PopupMenuEntry<_RootAction>>[
+                    PopupMenuItem<_RootAction>(
+                      value: _RootAction.learning,
+                      child: ListTile(
+                        leading: const Icon(Icons.school_outlined),
+                        title: Text(
+                          english ? 'Memorization and review' : 'الحفظ والمراجعة',
+                        ),
+                      ),
+                    ),
                     PopupMenuItem<_RootAction>(
                       value: _RootAction.playlists,
                       child: ListTile(
@@ -344,4 +356,4 @@ class _RootShellState extends ConsumerState<RootShell>
   }
 }
 
-enum _RootAction { playlists, offline, library, settings }
+enum _RootAction { learning, playlists, offline, library, settings }

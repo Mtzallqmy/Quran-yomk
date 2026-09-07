@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handleNotifications, notificationPath, validPushRoute } from '../notifications/index.ts';
+import { fcmMessage, handleNotifications, notificationPath, validPushRoute } from '../notifications/index.ts';
+
+test('FCM Android notifications request heads-up delivery on the app channel',()=>{
+  const value=fcmMessage('token',{title:'T',body:'B',payload:{route:'/prayer-times'}},'00000000-0000-4000-8000-000000000100');
+  assert.equal(value.message.android.priority,'HIGH');
+  assert.equal(value.message.android.notification.channel_id,'tarteel_remote_notifications');
+  assert.equal(value.message.android.notification.notification_priority,'PRIORITY_HIGH');
+  assert.equal(value.message.android.notification.default_sound,true);
+});
 
 test('push deep links are an explicit allowlist',()=>{
   for(const route of ['/home','/prayer-times','/adhkar','/radio','/reciters','/quran','/library','/custom-reminders'])assert.equal(validPushRoute(route),true);

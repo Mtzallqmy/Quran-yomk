@@ -70,38 +70,44 @@ void main() {
     expect(gateway.initializeCount, 0);
   });
 
-  test('accepted consent initializes Firebase and requests permission once', () async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
-    final gateway = _PushGateway();
-    final registration = _Registration();
-    final service = PushNotificationService(
-      preferences: await SharedPreferences.getInstance(),
-      localNotifications: LocalNotificationService(gateway: _LocalGateway()),
-      gateway: gateway,
-      registration: registration,
-      secretStore: _SecretStore(),
-      appVersion: () async => '1.0.0',
-    );
-    expect(await service.setEnabled(true), isTrue);
-    expect(gateway.initializeCount, 1);
-    expect(gateway.permissionRequestCount, 1);
-    expect(service.enabled, isTrue);
-    expect(registration.registered, hasLength(1));
-  });
+  test(
+    'accepted consent initializes Firebase and requests permission once',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final gateway = _PushGateway();
+      final registration = _Registration();
+      final service = PushNotificationService(
+        preferences: await SharedPreferences.getInstance(),
+        localNotifications: LocalNotificationService(gateway: _LocalGateway()),
+        gateway: gateway,
+        registration: registration,
+        secretStore: _SecretStore(),
+        appVersion: () async => '1.0.0',
+      );
+      expect(await service.setEnabled(true), isTrue);
+      expect(gateway.initializeCount, 1);
+      expect(gateway.permissionRequestCount, 1);
+      expect(service.enabled, isTrue);
+      expect(registration.registered, hasLength(1));
+    },
+  );
 
-  test('Firebase initialization failure is not reported as device failure', () async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
-    final service = PushNotificationService(
-      preferences: await SharedPreferences.getInstance(),
-      localNotifications: LocalNotificationService(gateway: _LocalGateway()),
-      gateway: _FailingPushGateway(),
-      registration: _Registration(),
-      secretStore: _SecretStore(),
-      appVersion: () async => '1.0.0',
-    );
-    expect(await service.setEnabled(true), isFalse);
-    expect(service.lastErrorCode, 'FIREBASE_INITIALIZATION_FAILED');
-  });
+  test(
+    'Firebase initialization failure is not reported as device failure',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final service = PushNotificationService(
+        preferences: await SharedPreferences.getInstance(),
+        localNotifications: LocalNotificationService(gateway: _LocalGateway()),
+        gateway: _FailingPushGateway(),
+        registration: _Registration(),
+        secretStore: _SecretStore(),
+        appVersion: () async => '1.0.0',
+      );
+      expect(await service.setEnabled(true), isFalse);
+      expect(service.lastErrorCode, 'FIREBASE_INITIALIZATION_FAILED');
+    },
+  );
 
   test('permission change on resume updates the active registration', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -226,6 +232,7 @@ class _PushGateway implements PushGateway {
     permissionRequestCount++;
     return permission;
   }
+
   @override
   Future<String?> token() async => 'initial-token-value-123456789';
   @override

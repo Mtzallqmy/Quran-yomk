@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -36,6 +37,7 @@ abstract class LocalNotificationGateway {
   Future<String?> initialize(void Function(String payload) onTap);
   Future<bool> permissionGranted();
   Future<bool> requestPermission();
+  Future<bool> openSystemSettings();
   Future<void> show(LocalNotificationRequest request);
   Future<bool> exactSchedulingAvailable();
   Future<void> schedule(
@@ -120,6 +122,9 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
   );
 
   final FlutterLocalNotificationsPlugin _plugin;
+  static const _settingsChannel = MethodChannel(
+    'app.tarteel.tarteel/settings',
+  );
 
   NotificationDetails _detailsFor(LocalNotificationRequest request) {
     if (!request.playSound) return _silentPrayerDetails;
@@ -200,6 +205,15 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
   }
 
   @override
+  Future<bool> openSystemSettings() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    return await _settingsChannel.invokeMethod<bool>(
+          'openNotificationSettings',
+        ) ??
+        false;
+  }
+
+  @override
   Future<void> show(LocalNotificationRequest request) => _plugin.show(
     id: request.id,
     title: request.title,
@@ -262,6 +276,11 @@ class LocalNotificationService {
   Future<bool> requestPermission() async {
     await initialize();
     return _gateway.requestPermission();
+  }
+
+  Future<bool> openSystemSettings() async {
+    await initialize();
+    return _gateway.openSystemSettings();
   }
 
   Future<void> show(LocalNotificationRequest request) async {

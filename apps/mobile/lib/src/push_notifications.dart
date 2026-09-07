@@ -130,9 +130,21 @@ class HttpDeviceRegistrationApi implements DeviceRegistrationApi {
             ..body = jsonEncode(payload),
         )
         .timeout(const Duration(seconds: 12));
-    await response.stream.drain<void>();
+    final bytes = await response.stream.toBytes();
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw const PushRegistrationException('DEVICE_REGISTRATION_FAILED');
+      var code = 'DEVICE_REGISTRATION_FAILED';
+      if (bytes.length <= 65536) {
+        try {
+          final value = jsonDecode(utf8.decode(bytes));
+          final error = value is Map ? value['error'] : null;
+          if (error is Map && error['code'] is String) {
+            code = error['code'] as String;
+          }
+        } catch (_) {
+          // A malformed backend response remains a bounded registration error.
+        }
+      }
+      throw PushRegistrationException(code);
     }
   }
 
@@ -157,6 +169,13 @@ class PushRegistrationException implements Exception {
   const PushRegistrationException(this.code);
   final String code;
 }
+
+const pushErrorMessages = <String, String>{
+  'FCM_TOKEN_FAILED': 'تعذر الحصول على رمز الإشعارات من Firebase',
+  'DEVICE_REGISTRATION_FAILED': 'تعذر تسجيل الجهاز في الخادم',
+  'PERMISSION_DENIED': 'إذن الإشعارات مرفوض من إعدادات النظام',
+  'BACKEND_UNAVAILABLE': 'خادم الإشعارات غير متاح حاليًا',
+};
 
 class PushNotificationService extends ChangeNotifier {
   PushNotificationService({
@@ -186,12 +205,49 @@ class PushNotificationService extends ChangeNotifier {
       <StreamSubscription<Object?>>[];
   bool _ready = false;
   bool _busy = false;
+  bool _registered = false;
+  bool _permissionGranted = false;
+  DateTime? _lastSyncedAt;
+  String? _lastErrorCode;
   String? _userBearer;
 
   bool get enabled => _preferences.getBool(_enabledKey) ?? false;
   bool get ready => _ready;
   bool get busy => _busy;
+  bool get registered => _registered;
+  bool get systemPermissionGranted => _permissionGranted;
+  DateTime? get lastSyncedAt => _lastSyncedAt;
+  String? get lastErrorCode => _lastErrorCode;
   Stream<String> get routes => _routes.stream;
+
+  String get errorMessage =>
+      pushErrorMessages[_lastErrorCode] ?? _lastErrorCode ?? '';
+
+  void _failure(String code) {
+    _lastErrorCode = code;
+    if (kDebugMode) debugPrint('PUSH_SETUP_FAILED:$code');
+  }
+
+  String _errorCode(Object error) {
+    if (error is PushRegistrationException) return error.code;
+    if (error is TimeoutException || error is http.ClientException) {
+      return 'BACKEND_UNAVAILABLE';
+    }
+    return 'DEVICE_REGISTRATION_FAILED';
+  }
+
+  Future<String> _requiredToken() async {
+    try {
+      final value = await _gateway.token();
+      if (value == null || value.isEmpty) {
+        throw const PushRegistrationException('FCM_TOKEN_FAILED');
+      }
+      return value;
+    } catch (error) {
+      if (error is PushRegistrationException) rethrow;
+      throw const PushRegistrationException('FCM_TOKEN_FAILED');
+    }
+  }
 
   String _randomUuid() {
     final random = Random.secure();
@@ -225,22 +281,73 @@ class PushNotificationService extends ChangeNotifier {
     if (_ready) return;
     try {
       await _gateway.initialize();
+      _ready = true;
       _subscriptions.add(
-        _gateway.tokenRefresh.listen((token) => _register(token)),
+        _gateway.tokenRefresh.listen(_tokenRefreshed),
       );
       _subscriptions.add(_gateway.foregroundMessages.listen(_foreground));
       _subscriptions.add(_gateway.openedMessages.listen(_open));
       final initial = await _gateway.initialMessage();
       if (initial != null) _open(initial);
-      _ready = true;
-      if (enabled && await _gateway.permissionGranted()) {
-        final token = await _gateway.token();
-        if (token != null) await _register(token);
-      }
-    } catch (_) {
+      _permissionGranted = await _gateway.permissionGranted();
+      final token = await _requiredToken();
+      await _register(
+        token,
+        notificationsEnabled: enabled && _permissionGranted,
+      );
+    } catch (error) {
+      _failure(_errorCode(error));
       _ready = false;
     }
     notifyListeners();
+  }
+
+  Future<void> _tokenRefreshed(String token) async {
+    try {
+      await _register(
+        token,
+        notificationsEnabled: enabled && _permissionGranted,
+      );
+    } catch (error) {
+      _failure(_errorCode(error));
+      notifyListeners();
+    }
+  }
+
+  Future<bool> registerCurrentDevice({bool requestPermission = false}) async {
+    _busy = true;
+    notifyListeners();
+    try {
+      if (!_ready) await initialize();
+      if (!_ready) return false;
+      if (requestPermission) {
+        _permissionGranted = await _gateway.requestPermission();
+      } else {
+        _permissionGranted = await _gateway.permissionGranted();
+      }
+      if (requestPermission && !_permissionGranted) {
+        _failure('PERMISSION_DENIED');
+        return false;
+      }
+      final token = await _requiredToken();
+      if (requestPermission) {
+        await _preferences.setBool(_enabledKey, true);
+      }
+      await _register(
+        token,
+        notificationsEnabled: enabled && _permissionGranted,
+      );
+      return true;
+    } catch (error) {
+      if (requestPermission) {
+        await _preferences.setBool(_enabledKey, false);
+      }
+      _failure(_errorCode(error));
+      return false;
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
   }
 
   Future<bool> setEnabled(bool value) async {
@@ -249,27 +356,31 @@ class PushNotificationService extends ChangeNotifier {
     try {
       if (value) {
         await initialize();
-        if (!_ready || !await _gateway.requestPermission()) return false;
-        final token = await _gateway.token();
-        if (token == null || token.isEmpty) return false;
+        if (!_ready) return false;
+        _permissionGranted = await _gateway.requestPermission();
+        if (!_permissionGranted) {
+          _failure('PERMISSION_DENIED');
+          return false;
+        }
+        final token = await _requiredToken();
         await _preferences.setBool(_enabledKey, true);
         try {
-          await _register(token);
+          await _register(token, notificationsEnabled: true);
         } catch (_) {
           await _preferences.setBool(_enabledKey, false);
           rethrow;
         }
       } else {
-        await _registration
-            .revoke(<String, dynamic>{
-              'installation_id': _installationId,
-              'installation_secret': _installationSecret,
-            })
-            .catchError((_) {});
+        await _registration.revoke(<String, dynamic>{
+          'installation_id': _installationId,
+          'installation_secret': _installationSecret,
+        });
         await _preferences.setBool(_enabledKey, false);
+        _registered = false;
       }
       return true;
-    } catch (_) {
+    } catch (error) {
+      _failure(_errorCode(error));
       return false;
     } finally {
       _busy = false;
@@ -295,8 +406,10 @@ class PushNotificationService extends ChangeNotifier {
   bool preference(String key) =>
       _preferences.getBool('push:preference:$key') ?? true;
 
-  Future<void> _register(String token) async {
-    if (!enabled) return;
+  Future<void> _register(
+    String token, {
+    required bool notificationsEnabled,
+  }) async {
     await _registration.register(<String, dynamic>{
       'installation_id': _installationId,
       'installation_secret': _installationSecret,
@@ -307,24 +420,33 @@ class PushNotificationService extends ChangeNotifier {
       'app_version': await _appVersion(),
       'locale': 'ar',
       'timezone': 'Asia/Aden',
-      'notifications_enabled': true,
+      'notifications_enabled': notificationsEnabled,
     }, bearer: _userBearer);
+    _registered = true;
+    _lastSyncedAt = DateTime.now();
+    _lastErrorCode = null;
   }
 
   Future<void> attachAuthenticatedUser(String? bearer) async {
     final wasAuthenticated = _userBearer != null;
     _userBearer = bearer;
     if (bearer == null && wasAuthenticated) {
-      await _registration
-          .unlink(<String, dynamic>{
-            'installation_id': _installationId,
-            'installation_secret': _installationSecret,
-          })
-          .catchError((_) {});
+      try {
+        await _registration.unlink(<String, dynamic>{
+          'installation_id': _installationId,
+          'installation_secret': _installationSecret,
+        });
+      } catch (error) {
+        _failure(_errorCode(error));
+      }
     }
-    if (bearer != null && enabled && _ready) {
-      final token = await _gateway.token();
-      if (token != null && token.isNotEmpty) await _register(token);
+    if (bearer != null && !_ready) await initialize();
+    if (bearer != null && _ready) {
+      final token = await _requiredToken();
+      await _register(
+        token,
+        notificationsEnabled: enabled && _permissionGranted,
+      );
     }
   }
 

@@ -6,7 +6,7 @@ import 'package:tarteel/src/local_notifications.dart';
 import 'package:tarteel/src/push_notifications.dart';
 
 void main() {
-  test('permission denied does not register a device', () async {
+  test('permission denied registers an inactive device without crashing', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final registration = _Registration();
     final service = PushNotificationService(
@@ -18,7 +18,9 @@ void main() {
     );
     expect(await service.setEnabled(true), isFalse);
     expect(service.enabled, isFalse);
-    expect(registration.registered, isEmpty);
+    expect(registration.registered, hasLength(1));
+    expect(registration.registered.single['notifications_enabled'], isFalse);
+    expect(service.lastErrorCode, 'PERMISSION_DENIED');
   });
 
   test(
@@ -37,7 +39,7 @@ void main() {
       expect(await service.setEnabled(true), isTrue);
       gateway.tokens.add('refreshed-token-value-123456789');
       await Future<void>.delayed(Duration.zero);
-      expect(registration.registered, hasLength(2));
+      expect(registration.registered, hasLength(3));
       expect(
         registration.registered.first['installation_id'],
         registration.registered.last['installation_id'],
@@ -46,6 +48,26 @@ void main() {
       expect(registration.revoked, hasLength(1));
     },
   );
+
+  test('admin authentication links the current installation', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final registration = _Registration();
+    final service = PushNotificationService(
+      preferences: await SharedPreferences.getInstance(),
+      localNotifications: LocalNotificationService(gateway: _LocalGateway()),
+      gateway: _PushGateway(),
+      registration: registration,
+      appVersion: () async => '2.0.0',
+    );
+    await service.initialize();
+    await service.attachAuthenticatedUser('admin-access-token');
+    expect(registration.registered, hasLength(2));
+    expect(registration.bearers.last, 'admin-access-token');
+    expect(
+      registration.registered.first['installation_id'],
+      registration.registered.last['installation_id'],
+    );
+  });
 
   test(
     'foreground and opened payloads accept only known internal routes',
@@ -112,10 +134,13 @@ class _PushGateway implements PushGateway {
 
 class _Registration implements DeviceRegistrationApi {
   final registered = <Map<String, dynamic>>[];
+  final bearers = <String?>[];
   final revoked = <Map<String, dynamic>>[];
   @override
-  Future<void> register(Map<String, dynamic> payload, {String? bearer}) async =>
-      registered.add(payload);
+  Future<void> register(Map<String, dynamic> payload, {String? bearer}) async {
+    registered.add(payload);
+    bearers.add(bearer);
+  }
   @override
   Future<void> revoke(Map<String, dynamic> payload) async =>
       revoked.add(payload);
@@ -137,6 +162,8 @@ class _LocalGateway implements LocalNotificationGateway {
   Future<bool> permissionGranted() async => true;
   @override
   Future<bool> requestPermission() async => true;
+  @override
+  Future<bool> openSystemSettings() async => true;
   @override
   Future<void> schedule(
     LocalNotificationRequest request, {

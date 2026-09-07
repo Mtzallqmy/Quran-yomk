@@ -60,7 +60,9 @@ jobs:
           java -version
 
       - name: Flutter dependencies
-        run: flutter pub get
+        run: |
+          flutter pub get
+          git diff --exit-code -- pubspec.lock
 
       - name: Verify mobile source formatting
         run: |

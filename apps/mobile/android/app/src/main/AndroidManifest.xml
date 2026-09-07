@@ -9,6 +9,7 @@
         android:label="ترتيل"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
         android:usesCleartextTraffic="false">
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"

@@ -119,5 +119,6 @@ Future<void> main() async {
     'remote_config': remoteConfig.refresh,
     'prayer_reminders': prayerReminders.start,
     'firebase_messaging': pushNotifications.initialize,
+    'admin_session': adminSession.restore,
   });
 }

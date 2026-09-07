@@ -4,6 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../admin_api.dart';
 import '../services.dart';
 
+const _adminErrors = <String, String>{
+  'ADMIN_DEVICE_NOT_REGISTERED': 'لم يتم تسجيل هذا الجهاز للإشعارات بعد',
+  'FIREBASE_CREDENTIAL_MISSING': 'بيانات إرسال Firebase غير مضافة إلى الخادم',
+  'FCM_AUTH_FAILED': 'تعذر توثيق خادم Firebase',
+  'FCM_TOKEN_REJECTED': 'رمز الجهاز غير صالح ويحتاج إعادة تسجيل',
+  'FCM_PROVIDER_FAILURE': 'رفض مزود Firebase عملية الإرسال',
+  'DATABASE_ERROR': 'خطأ في قاعدة البيانات',
+  'BACKEND_UNAVAILABLE': 'خادم الإشعارات غير متاح حاليًا',
+};
+
+String _adminError(String code) => _adminErrors[code] ?? 'فشلت العملية ($code)';
+
 class AdminEntryPage extends ConsumerWidget {
   const AdminEntryPage({super.key});
 
@@ -49,7 +61,7 @@ class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
           .adminSession
           .login(email.text, password.text);
     } on AdminApiException catch (value) {
-      if (mounted) setState(() => error = value.code);
+      if (mounted) setState(() => error = _adminError(value.code));
     } finally {
       password.clear();
       if (mounted) setState(() => busy = false);
@@ -156,6 +168,7 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
 
   void refresh() {
     final api = ref.read(servicesProvider).adminSession;
+    api.refreshOverview();
     notifications = api.notifications();
     devices = api.devices();
     config = api.runtimeConfig();
@@ -197,6 +210,14 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
                 label: 'الأجهزة النشطة',
                 value: '${overview['devices_active'] ?? 0}',
               ),
+              _Metric(
+                label: 'إرسال Firebase',
+                value: overview['fcm_configured'] == true ? 'جاهز' : 'غير مهيأ',
+              ),
+              _Metric(
+                label: 'الجدولة',
+                value: overview['scheduler_active'] == true ? 'تعمل' : 'متوقفة',
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -204,15 +225,74 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
           _AdminList(
             title: 'الإشعارات والمجدولة',
             future: notifications,
-            label: (row) => '${row['title']} — ${row['status']}',
+            label: (row) {
+              final deliveries = row['notification_deliveries'] is List
+                  ? row['notification_deliveries'] as List<dynamic>
+                  : const <dynamic>[];
+              final accepted = deliveries
+                  .where((value) => (value as Map)['status'] == 'accepted')
+                  .length;
+              final failed = deliveries
+                  .where((value) => (value as Map)['status'] == 'failed')
+                  .length;
+              return '${row['title']} — ${row['status']}\n'
+                  '${row['target_type']} • مقبول $accepted • فشل $failed\n'
+                  'المجدول ${row['scheduled_at'] ?? '-'} • أرسل ${row['sent_at'] ?? '-'}';
+            },
+            trailing: (row) {
+              final status = '${row['status']}';
+              if (status == 'scheduled') {
+                return TextButton(
+                    onPressed: () async {
+                      try {
+                        await api.cancel('${row['id']}');
+                        if (mounted) setState(refresh);
+                      } on AdminApiException catch (error) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(_adminError(error.code))),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('إلغاء'),
+                  );
+              }
+              if (status == 'failed' || status == 'partially_failed') {
+                return TextButton(
+                  onPressed: () async {
+                    try {
+                      await api.retry('${row['id']}');
+                      if (mounted) setState(refresh);
+                    } on AdminApiException catch (error) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(_adminError(error.code))),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('إعادة المحاولة'),
+                );
+              }
+              return null;
+            },
           ),
           _AdminList(
             title: 'الأجهزة',
             future: devices,
             label: (row) =>
-                '${row['platform']} ${row['app_version']} — ${row['locale']}',
+                '${row['platform']} ${row['app_version']} — ${row['locale']}\n'
+                '${row['notifications_enabled'] == true ? 'مفعّل' : 'معطّل'} • '
+                '${row['revoked_at'] == null ? 'نشط' : 'ملغى'} • '
+                'آخر ظهور ${row['last_seen_at']}\n'
+                '${row['user_id'] == null ? 'غير مرتبط بمستخدم' : 'مرتبط بمستخدم'}',
           ),
-          _RuntimeConfig(api: api, future: config),
+          _RuntimeConfig(
+            api: api,
+            future: config,
+            onSaved: () => setState(refresh),
+          ),
           _AdminList(
             title: 'آخر عمليات التدقيق',
             future: audit,
@@ -265,6 +345,7 @@ class _NotificationComposerState extends State<_NotificationComposer> {
   final body = TextEditingController();
   final targetValue = TextEditingController();
   String target = 'segment';
+  String notificationType = 'admin_announcements';
   DateTime? scheduledAt;
   bool busy = false;
 
@@ -294,7 +375,7 @@ class _NotificationComposerState extends State<_NotificationComposer> {
       final value = <String, dynamic>{
         'title': title.text,
         'body': body.text,
-        'type': 'admin_announcements',
+        'type': notificationType,
         'target_type': target,
         'target': target == 'all'
             ? null
@@ -312,11 +393,12 @@ class _NotificationComposerState extends State<_NotificationComposer> {
         await widget.api.createNotification(value);
       }
       widget.onSaved();
-    } catch (_) {
-      if (mounted)
+    } on AdminApiException catch (error) {
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('تعذر إرسال الإشعار')));
+        ).showSnackBar(SnackBar(content: Text(_adminError(error.code))));
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -339,6 +421,34 @@ class _NotificationComposerState extends State<_NotificationComposer> {
             maxLength: 500,
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(labelText: 'النص'),
+          ),
+          DropdownButtonFormField<String>(
+            initialValue: notificationType,
+            decoration: const InputDecoration(labelText: 'نوع الإشعار'),
+            items: const <DropdownMenuItem<String>>[
+              DropdownMenuItem(
+                value: 'admin_announcements',
+                child: Text('إعلان إداري'),
+              ),
+              DropdownMenuItem(
+                value: 'prayer_related',
+                child: Text('الصلاة'),
+              ),
+              DropdownMenuItem(value: 'adhkar', child: Text('الأذكار')),
+              DropdownMenuItem(value: 'quran_content', child: Text('القرآن')),
+              DropdownMenuItem(value: 'radio', child: Text('الإذاعة')),
+              DropdownMenuItem(
+                value: 'content_updates',
+                child: Text('تحديث محتوى'),
+              ),
+              DropdownMenuItem(
+                value: 'important_system',
+                child: Text('تنبيه نظام مهم'),
+              ),
+            ],
+            onChanged: (value) => setState(
+              () => notificationType = value ?? 'admin_announcements',
+            ),
           ),
           DropdownButtonFormField<String>(
             initialValue: target,
@@ -421,10 +531,12 @@ class _AdminList extends StatelessWidget {
     required this.title,
     required this.future,
     required this.label,
+    this.trailing,
   });
   final String title;
   final Future<List<dynamic>> future;
   final String Function(Map<String, dynamic>) label;
+  final Widget? Function(Map<String, dynamic>)? trailing;
   @override
   Widget build(BuildContext context) => Card(
     child: ExpansionTile(
@@ -447,11 +559,13 @@ class _AdminList extends StatelessWidget {
               children: rows
                   .take(30)
                   .map(
-                    (value) => ListTile(
-                      title: Text(
-                        label(Map<String, dynamic>.from(value as Map)),
-                      ),
-                    ),
+                    (value) {
+                      final row = Map<String, dynamic>.from(value as Map);
+                      return ListTile(
+                        title: Text(label(row)),
+                        trailing: trailing?.call(row),
+                      );
+                    },
                   )
                   .toList(),
             );
@@ -463,9 +577,26 @@ class _AdminList extends StatelessWidget {
 }
 
 class _RuntimeConfig extends StatelessWidget {
-  const _RuntimeConfig({required this.api, required this.future});
+  const _RuntimeConfig({
+    required this.api,
+    required this.future,
+    required this.onSaved,
+  });
   final MobileAdminSession api;
   final Future<List<dynamic>> future;
+  final VoidCallback onSaved;
+  static const labels = <String, String>{
+    'adhkar_enabled': 'تفعيل الأذكار',
+    'announcement_banner': 'إعلان داخل التطبيق',
+    'maintenance_mode': 'وضع الصيانة',
+    'maintenance_message': 'رسالة الصيانة',
+    'prayer_features_enabled': 'مواقيت الصلاة',
+    'radio_enabled': 'الإذاعة',
+    'offline_downloads_enabled': 'التنزيلات دون اتصال',
+    'minimum_android_version': 'الحد الأدنى للإصدار',
+    'recommended_android_version': 'الإصدار المقترح',
+    'latest_android_version': 'أحدث إصدار',
+  };
   @override
   Widget build(BuildContext context) => Card(
     child: ExpansionTile(
@@ -479,22 +610,24 @@ class _RuntimeConfig extends StatelessWidget {
               final current = row['value'];
               if (current is! bool)
                 return ListTile(
-                  title: Text('${row['key']}'),
+                  title: Text(labels['${row['key']}'] ?? '${row['key']}'),
                   subtitle: Text('$current'),
                 );
               return SwitchListTile(
-                title: Text('${row['key']}'),
+                title: Text(labels['${row['key']}'] ?? '${row['key']}'),
                 value: current,
                 onChanged: (enabled) async {
                   try {
                     await api.updateRuntime(<String, dynamic>{
                       '${row['key']}': enabled,
                     });
-                  } catch (_) {
-                    if (context.mounted)
+                    onSaved();
+                  } on AdminApiException catch (error) {
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('تعذر حفظ الإعداد')),
+                        SnackBar(content: Text(_adminError(error.code))),
                       );
+                    }
                   }
                 },
               );

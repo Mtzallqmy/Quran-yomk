@@ -18,7 +18,8 @@ class PushNotificationSettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final service = ref.watch(servicesProvider).pushNotifications;
+    final services = ref.watch(servicesProvider);
+    final service = services.pushNotifications;
     return AnimatedBuilder(
       animation: service,
       builder: (context, _) => Scaffold(
@@ -26,6 +27,74 @@ class PushNotificationSettingsPage extends ConsumerWidget {
         body: ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: <Widget>[
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
+                children: <Widget>[
+                  ListTile(
+                    leading: Icon(
+                      service.registered
+                          ? Icons.cloud_done_outlined
+                          : Icons.cloud_off_outlined,
+                    ),
+                    title: Text(
+                      service.registered ? 'الجهاز مسجل' : 'الجهاز غير مسجل',
+                    ),
+                    subtitle: Text(
+                      'إذن النظام: ${service.systemPermissionGranted ? 'مسموح' : 'غير مسموح'}\n'
+                      'آخر مزامنة: ${service.lastSyncedAt?.toLocal() ?? 'لم تتم'}',
+                    ),
+                    isThreeLine: true,
+                  ),
+                  if (service.lastErrorCode != null)
+                    ListTile(
+                      leading: Icon(
+                        Icons.error_outline,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      title: Text(service.errorMessage),
+                      subtitle: Text(service.lastErrorCode!),
+                      trailing: service.lastErrorCode == 'PERMISSION_DENIED'
+                          ? TextButton(
+                              onPressed: services
+                                  .localNotifications
+                                  .openSystemSettings,
+                              child: const Text('فتح الإعدادات'),
+                            )
+                          : null,
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: service.busy
+                            ? null
+                            : () async {
+                                final success = await service
+                                    .registerCurrentDevice(
+                                      requestPermission: true,
+                                    );
+                                if (!success && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(service.errorMessage),
+                                    ),
+                                  );
+                                }
+                              },
+                        icon: const Icon(Icons.sync),
+                        label: Text(
+                          service.registered
+                              ? 'إعادة تسجيل الجهاز'
+                              : 'تفعيل وتسجيل الجهاز',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             SwitchListTile(
               value: service.enabled,
               onChanged: service.busy
@@ -34,11 +103,7 @@ class PushNotificationSettingsPage extends ConsumerWidget {
                       final success = await service.setEnabled(value);
                       if (!success && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'تعذر تفعيل الإشعارات أو رُفضت الصلاحية',
-                            ),
-                          ),
+                          SnackBar(content: Text(service.errorMessage)),
                         );
                       }
                     },

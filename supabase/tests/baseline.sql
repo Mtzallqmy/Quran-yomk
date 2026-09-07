@@ -1,6 +1,6 @@
 begin;
 
-select plan(52);
+select plan(58);
 
 select ok(to_regnamespace('app') is not null, 'app schema exists');
 select ok(to_regnamespace('radio') is not null, 'radio schema exists');
@@ -66,6 +66,12 @@ select ok(not exists(select 1 from unnest(array['app.user_devices','app.notifica
 select ok(not has_function_privilege('anon','app.claim_due_notifications(integer)','EXECUTE') and not has_function_privilege('authenticated','app.prepare_notification_deliveries(uuid)','EXECUTE'),'notification worker RPCs are server only');
 select ok(to_regprocedure('app.admin_session_context(uuid)') is not null,'admin session RBAC RPC exists');
 select ok(not has_function_privilege('anon','app.admin_session_context(uuid)','EXECUTE') and not has_function_privilege('authenticated','app.admin_session_context(uuid)','EXECUTE'),'admin session RBAC RPC is server only');
+select ok(to_regprocedure('app.claim_notification(uuid)') is not null,'single notification dispatch claim exists');
+select ok(to_regprocedure('app.authorize_notification_dispatch(text)') is not null,'cron dispatch authorization exists');
+select ok(not has_function_privilege('anon','app.claim_notification(uuid)','EXECUTE') and not has_function_privilege('authenticated','app.authorize_notification_dispatch(text)','EXECUTE'),'dispatch RPCs are server only');
+select ok(exists(select 1 from vault.secrets where name='notification_dispatch_url'),'notification dispatch URL is provisioned');
+select ok(exists(select 1 from vault.secrets where name='notification_cron_secret'),'notification cron credential is provisioned');
+select ok(exists(select 1 from cron.job where jobname='tarteel-notification-dispatch' and active),'notification dispatcher runs without an Admin browser');
 select is((select count(*) from app.role_permissions rp join app.roles r on r.id=rp.role_id join app.permissions p on p.id=rp.permission_id where r.code='SUPER_ADMIN' and p.code in ('notifications.read','notifications.send','notifications.schedule','notifications.cancel','devices.read','runtime_config.read','runtime_config.write')),7::bigint,'SUPER_ADMIN receives all notification permissions');
 insert into app.user_devices(id,installation_id,installation_secret_hash,fcm_token,platform,app_version) values
  ('00000000-0000-4000-8000-000000000038','00000000-0000-4000-8000-000000000039',repeat('a',64),repeat('t',32),'android','1.0.0'),

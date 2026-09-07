@@ -70,6 +70,45 @@ void main() {
     expect(gateway.initializeCount, 0);
   });
 
+  test(
+    'accepted consent initializes Firebase and requests permission once',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final gateway = _PushGateway();
+      final registration = _Registration();
+      final service = PushNotificationService(
+        preferences: await SharedPreferences.getInstance(),
+        localNotifications: LocalNotificationService(gateway: _LocalGateway()),
+        gateway: gateway,
+        registration: registration,
+        secretStore: _SecretStore(),
+        appVersion: () async => '1.0.0',
+      );
+      expect(await service.setEnabled(true), isTrue);
+      expect(gateway.initializeCount, 1);
+      expect(gateway.permissionRequestCount, 1);
+      expect(service.enabled, isTrue);
+      expect(registration.registered, hasLength(1));
+    },
+  );
+
+  test(
+    'Firebase initialization failure is not reported as device failure',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final service = PushNotificationService(
+        preferences: await SharedPreferences.getInstance(),
+        localNotifications: LocalNotificationService(gateway: _LocalGateway()),
+        gateway: _FailingPushGateway(),
+        registration: _Registration(),
+        secretStore: _SecretStore(),
+        appVersion: () async => '1.0.0',
+      );
+      expect(await service.setEnabled(true), isFalse);
+      expect(service.lastErrorCode, 'FIREBASE_INITIALIZATION_FAILED');
+    },
+  );
+
   test('permission change on resume updates the active registration', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final registration = _Registration();
@@ -178,6 +217,7 @@ class _PushGateway implements PushGateway {
   _PushGateway({this.permission = true});
   bool permission;
   int initializeCount = 0;
+  int permissionRequestCount = 0;
   final tokens = StreamController<String>.broadcast();
   final foreground = StreamController<PushMessage>.broadcast();
   final opened = StreamController<PushMessage>.broadcast();
@@ -188,7 +228,11 @@ class _PushGateway implements PushGateway {
   @override
   Future<bool> permissionGranted() async => permission;
   @override
-  Future<bool> requestPermission() async => permission;
+  Future<bool> requestPermission() async {
+    permissionRequestCount++;
+    return permission;
+  }
+
   @override
   Future<String?> token() async => 'initial-token-value-123456789';
   @override
@@ -197,6 +241,11 @@ class _PushGateway implements PushGateway {
   Stream<PushMessage> get foregroundMessages => foreground.stream;
   @override
   Stream<PushMessage> get openedMessages => opened.stream;
+}
+
+class _FailingPushGateway extends _PushGateway {
+  @override
+  Future<void> initialize() => throw StateError('firebase unavailable');
 }
 
 class _Registration implements DeviceRegistrationApi {

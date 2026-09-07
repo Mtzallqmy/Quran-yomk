@@ -8,6 +8,7 @@ import '../repository.dart';
 import '../services.dart';
 import '../theme.dart';
 import 'legacy_reciter_detail.dart';
+import 'learning.dart';
 import 'prayer_times.dart';
 import 'quran_offline.dart';
 import 'radio.dart';
@@ -39,6 +40,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   String? pendingStationId;
   bool openingFeatured = false;
   bool openingPrayerTimes = false;
+  bool openingLearning = false;
 
   @override
   void initState() {
@@ -123,6 +125,18 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
+  Future<void> _openLearning() async {
+    if (openingLearning) return;
+    openingLearning = true;
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const LearningCenterPage()),
+      );
+    } finally {
+      openingLearning = false;
+    }
+  }
+
   List<String> _sectionOrder() {
     final configured = ref
         .read(servicesProvider)
@@ -175,6 +189,24 @@ class _HomePageState extends ConsumerState<HomePage> {
                     subtitle: const Text('تعز • تعمل دون إنترنت'),
                     trailing: const Icon(Icons.chevron_left),
                     onTap: openingPrayerTimes ? null : _openPrayerTimes,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.school_outlined),
+                    ),
+                    title: const Text('الحفظ والمراجعة'),
+                    subtitle: Text(
+                      services.learning.dueReviews(DateTime.now()).isEmpty
+                          ? 'ابدأ حفظًا جديدًا أو أكمل أذكارك'
+                          : 'لديك مراجعة مستحقة اليوم',
+                    ),
+                    trailing: const Icon(Icons.chevron_left),
+                    onTap: openingLearning ? null : _openLearning,
                   ),
                 ),
               ),

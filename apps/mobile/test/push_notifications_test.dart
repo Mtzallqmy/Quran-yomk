@@ -115,6 +115,76 @@ void main() {
   );
 
   test(
+    'Firebase permission remains usable when Android plugin request fails',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final registration = _Registration();
+      final service = PushNotificationService(
+        preferences: await SharedPreferences.getInstance(),
+        localNotifications: LocalNotificationService(
+          gateway: _LocalGateway(failPermissionRequest: true),
+        ),
+        gateway: _PushGateway(permission: true),
+        registration: registration,
+        secretStore: _SecretStore(),
+        appVersion: () async => '1.0.0',
+      );
+
+      expect(await service.setEnabled(true), isTrue);
+      expect(service.systemPermissionChecked, isTrue);
+      expect(service.systemPermissionGranted, isTrue);
+      expect(service.hasToken, isTrue);
+      expect(service.registered, isTrue);
+      expect(registration.registered, hasLength(1));
+    },
+  );
+
+  test(
+    'permission refresh falls back when Android plugin query fails',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'push:consent': 'allowed',
+        'push:enabled': true,
+      });
+      final registration = _Registration();
+      final service = PushNotificationService(
+        preferences: await SharedPreferences.getInstance(),
+        localNotifications: LocalNotificationService(
+          gateway: _LocalGateway(failPermissionQuery: true),
+        ),
+        gateway: _PushGateway(permission: true),
+        registration: registration,
+        secretStore: _SecretStore(),
+        appVersion: () async => '1.0.0',
+      );
+
+      await service.refreshPermissionState();
+
+      expect(service.systemPermissionChecked, isTrue);
+      expect(service.enabled, isTrue);
+      expect(registration.registered, hasLength(1));
+    },
+  );
+
+  test('persisted registration is verified again after app restart', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'push:registered': true,
+      'push:last_sync': '2026-09-07T03:29:06.000Z',
+    });
+    final service = PushNotificationService(
+      preferences: await SharedPreferences.getInstance(),
+      localNotifications: LocalNotificationService(gateway: _LocalGateway()),
+      gateway: _PushGateway(),
+      registration: _Registration(),
+      secretStore: _SecretStore(),
+      appVersion: () async => '1.0.0',
+    );
+
+    expect(service.registered, isFalse);
+    expect(service.lastSyncedAt, isNotNull);
+  });
+
+  test(
     'Firebase initialization failure is not reported as device failure',
     () async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -292,8 +362,14 @@ class _Registration implements DeviceRegistrationApi {
 }
 
 class _LocalGateway implements LocalNotificationGateway {
-  _LocalGateway({this.permission = true});
+  _LocalGateway({
+    this.permission = true,
+    this.failPermissionQuery = false,
+    this.failPermissionRequest = false,
+  });
   bool permission;
+  final bool failPermissionQuery;
+  final bool failPermissionRequest;
   final shown = <LocalNotificationRequest>[];
   @override
   Future<void> cancel(int id) async {}
@@ -302,9 +378,15 @@ class _LocalGateway implements LocalNotificationGateway {
   @override
   Future<String?> initialize(void Function(String payload) onTap) async => null;
   @override
-  Future<bool> permissionGranted() async => permission;
+  Future<bool> permissionGranted() async {
+    if (failPermissionQuery) throw StateError('query unavailable');
+    return permission;
+  }
   @override
-  Future<bool> requestPermission() async => permission;
+  Future<bool> requestPermission() async {
+    if (failPermissionRequest) throw StateError('request unavailable');
+    return permission;
+  }
   @override
   Future<bool> openSystemSettings() async => true;
   @override

@@ -552,6 +552,14 @@ class PushNotificationService extends ChangeNotifier {
     }
     if (!_permissionGranted) {
       _failure('PERMISSION_DENIED');
+      try {
+        final token = await _requiredToken();
+        _hasToken = true;
+        await _register(token, notificationsEnabled: false);
+      } catch (_) {
+        // Keep the permission error primary; registration will retry on resume.
+      }
+      _failure('PERMISSION_DENIED');
       notifyListeners();
       return;
     }

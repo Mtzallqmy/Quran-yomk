@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../learning.dart';
-import '../models.dart';
 import '../quran_audio.dart';
 import '../quran_models.dart';
 import '../services.dart';

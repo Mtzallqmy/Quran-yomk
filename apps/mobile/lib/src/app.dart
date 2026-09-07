@@ -240,7 +240,9 @@ class _RootShellState extends ConsumerState<RootShell>
                       child: ListTile(
                         leading: const Icon(Icons.school_outlined),
                         title: Text(
-                          english ? 'Memorization and review' : 'الحفظ والمراجعة',
+                          english
+                              ? 'Memorization and review'
+                              : 'الحفظ والمراجعة',
                         ),
                       ),
                     ),

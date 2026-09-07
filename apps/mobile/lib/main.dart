@@ -9,6 +9,7 @@ import 'src/adhan_audio.dart';
 import 'src/app.dart';
 import 'src/islamic_content.dart';
 import 'src/local_notifications.dart';
+import 'src/learning.dart';
 import 'src/mushaf_pages.dart';
 import 'src/mushaf_store.dart';
 import 'src/offline_clip_service.dart';
@@ -67,6 +68,11 @@ Future<void> main() async {
   final repository = TarteelRepository(api, MetadataCache(preferences));
   final remoteConfig = TarteelRemoteConfig(repository, preferences)..load();
   final localNotifications = LocalNotificationService();
+  final learning = LearningStore(preferences)..load();
+  final adhkarReminders = AdhkarReminderController(
+    notifications: localNotifications,
+    store: learning,
+  );
   final prayerSettings = PrayerSettingsStore(preferences)..load();
   final prayerTimes = PrayerTimesService();
   final adhanAudio = AdhanAudioService(playback: playback);
@@ -104,6 +110,8 @@ Future<void> main() async {
     adhanAudio: adhanAudio,
     pushNotifications: pushNotifications,
     adminSession: adminSession,
+    learning: learning,
+    adhkarReminders: adhkarReminders,
   );
 
   runApp(
@@ -119,5 +127,6 @@ Future<void> main() async {
     'remote_config': remoteConfig.refresh,
     'prayer_reminders': prayerReminders.start,
     'admin_session': adminSession.restore,
+    'adhkar_reminders': adhkarReminders.start,
   });
 }

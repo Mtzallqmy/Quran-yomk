@@ -118,6 +118,6 @@ Future<void> main() async {
     'islamic_content': islamicContent.synchronizeInBackground,
     'remote_config': remoteConfig.refresh,
     'prayer_reminders': prayerReminders.start,
-    'firebase_messaging': pushNotifications.initialize,
+    'admin_session': adminSession.restore,
   });
 }

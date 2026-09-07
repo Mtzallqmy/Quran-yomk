@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 const _supabaseUrl = 'https://qkroecnecdxghcqvvoxn.supabase.co';
@@ -11,10 +12,37 @@ class AdminApiException implements Exception {
   final String code;
 }
 
+abstract class AdminSessionStore {
+  Future<String?> readRefreshToken();
+  Future<void> writeRefreshToken(String value);
+  Future<void> clear();
+}
+
+class SecureAdminSessionStore implements AdminSessionStore {
+  const SecureAdminSessionStore();
+  static const _storage = FlutterSecureStorage();
+  static const _key = 'tarteel_admin_refresh_token';
+
+  @override
+  Future<String?> readRefreshToken() => _storage.read(key: _key);
+
+  @override
+  Future<void> writeRefreshToken(String value) =>
+      _storage.write(key: _key, value: value);
+
+  @override
+  Future<void> clear() => _storage.delete(key: _key);
+}
+
 class MobileAdminSession extends ChangeNotifier {
-  MobileAdminSession({http.Client? client, this.onAuthenticationChanged})
-    : _client = client ?? http.Client();
+  MobileAdminSession({
+    http.Client? client,
+    AdminSessionStore? sessionStore,
+    this.onAuthenticationChanged,
+  }) : _client = client ?? http.Client(),
+       _sessionStore = sessionStore ?? const SecureAdminSessionStore();
   final http.Client _client;
+  final AdminSessionStore _sessionStore;
   final Future<void> Function(String? token)? onAuthenticationChanged;
   String? _accessToken;
   Set<String> _permissions = <String>{};
@@ -68,9 +96,35 @@ class MobileAdminSession extends ChangeNotifier {
       auth: false,
     );
     final token = auth['access_token'];
-    if (token is! String || token.isEmpty) {
+    final refreshToken = auth['refresh_token'];
+    if (token is! String || token.isEmpty || refreshToken is! String) {
       throw const AdminApiException('INVALID_AUTH_RESPONSE');
     }
+    await _activate(token, refreshToken);
+  }
+
+  Future<void> restore() async {
+    final saved = await _sessionStore.readRefreshToken();
+    if (saved == null || saved.isEmpty || signedIn) return;
+    try {
+      final auth = await _request(
+        '/auth/v1/token?grant_type=refresh_token',
+        method: 'POST',
+        body: <String, dynamic>{'refresh_token': saved},
+        auth: false,
+      );
+      final token = auth['access_token'];
+      final rotated = auth['refresh_token'];
+      if (token is! String || rotated is! String) {
+        throw const AdminApiException('INVALID_AUTH_RESPONSE');
+      }
+      await _activate(token, rotated);
+    } catch (_) {
+      await _sessionStore.clear();
+    }
+  }
+
+  Future<void> _activate(String token, String refreshToken) async {
     _accessToken = token;
     try {
       final session = await _edge('session');
@@ -78,11 +132,15 @@ class MobileAdminSession extends ChangeNotifier {
           (session['permissions'] as List<dynamic>? ?? const <dynamic>[])
               .whereType<String>()
               .toSet();
-      _overview = await getOverview();
       await onAuthenticationChanged?.call(token);
+      _overview = await getOverview();
+      await _sessionStore.writeRefreshToken(refreshToken);
       notifyListeners();
     } catch (_) {
-      logout();
+      _accessToken = null;
+      _permissions = <String>{};
+      _overview = null;
+      await _sessionStore.clear();
       rethrow;
     }
   }
@@ -104,6 +162,11 @@ class MobileAdminSession extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> getOverview() => _edge('overview');
+  Future<void> refreshOverview() async {
+    _overview = await getOverview();
+    notifyListeners();
+  }
+
   Future<List<dynamic>> notifications() async =>
       (await _edge('notifications'))['items'] as List<dynamic>? ??
       const <dynamic>[];
@@ -137,6 +200,10 @@ class MobileAdminSession extends ChangeNotifier {
     await _edge('notifications/$id/cancel', method: 'POST');
   }
 
+  Future<void> retry(String id) async {
+    await _edge('notifications/$id/retry', method: 'POST');
+  }
+
   Future<void> updateRuntime(Map<String, dynamic> updates) async {
     await _edge(
       'runtime-config',
@@ -145,11 +212,18 @@ class MobileAdminSession extends ChangeNotifier {
     );
   }
 
-  void logout() {
+  Future<void> logout() async {
+    if (_accessToken != null) {
+      await _request(
+        '/auth/v1/logout',
+        method: 'POST',
+      ).catchError((_) => <String, dynamic>{});
+    }
     _accessToken = null;
     _permissions = <String>{};
     _overview = null;
-    onAuthenticationChanged?.call(null);
+    await _sessionStore.clear();
+    await onAuthenticationChanged?.call(null);
     notifyListeners();
   }
 }

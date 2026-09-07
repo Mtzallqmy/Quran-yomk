@@ -290,8 +290,17 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
     setState(() => _changingPrayer = null);
     if (mode != PrayerReminderMode.disabled && !accepted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('لم تُمنح صلاحية الإشعارات. لم يتم تفعيل التذكيرات.'),
+        SnackBar(
+          content: const Text(
+            'إذن الإشعارات مرفوض. فعّله من إعدادات Android ثم أعد المحاولة.',
+          ),
+          action: SnackBarAction(
+            label: 'فتح الإعدادات',
+            onPressed: () => ref
+                .read(servicesProvider)
+                .localNotifications
+                .openSystemSettings(),
+          ),
         ),
       );
     }

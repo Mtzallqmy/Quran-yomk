@@ -217,6 +217,8 @@ class _FakeGateway implements LocalNotificationGateway {
 
   @override
   Future<bool> requestPermission() async => permission;
+  @override
+  Future<bool> openSystemSettings() async => true;
 
   @override
   Future<bool> exactSchedulingAvailable() async => false;

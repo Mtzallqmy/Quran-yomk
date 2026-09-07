@@ -382,11 +382,13 @@ class _LocalGateway implements LocalNotificationGateway {
     if (failPermissionQuery) throw StateError('query unavailable');
     return permission;
   }
+
   @override
   Future<bool> requestPermission() async {
     if (failPermissionRequest) throw StateError('request unavailable');
     return permission;
   }
+
   @override
   Future<bool> openSystemSettings() async => true;
   @override

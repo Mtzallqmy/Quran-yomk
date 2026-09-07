@@ -19,7 +19,13 @@ extension MemorizationStatusAr on MemorizationStatus {
   };
 }
 
-enum MemorizationMode { listenAndRead, listenThenRepeat, gradualHide, nextAyah, blanks }
+enum MemorizationMode {
+  listenAndRead,
+  listenThenRepeat,
+  gradualHide,
+  nextAyah,
+  blanks,
+}
 
 extension MemorizationModeAr on MemorizationMode {
   String get label => switch (this) {
@@ -67,16 +73,17 @@ class ThematicSegment {
 
   String get id => '$surah:$startAyah-$endAyah';
 
-  factory ThematicSegment.fromJson(Map<String, dynamic> json) => ThematicSegment(
-    surah: (json['surah'] as num).toInt(),
-    startAyah: (json['startAyah'] as num).toInt(),
-    endAyah: (json['endAyah'] as num).toInt(),
-    topicTitleAr: json['topicTitleAr'] as String,
-    topicSummaryAr: json['topicSummaryAr'] as String,
-    colorToken: json['colorToken'] as String,
-    source: json['source'] as String,
-    reviewStatus: json['reviewStatus'] as String,
-  );
+  factory ThematicSegment.fromJson(Map<String, dynamic> json) =>
+      ThematicSegment(
+        surah: (json['surah'] as num).toInt(),
+        startAyah: (json['startAyah'] as num).toInt(),
+        endAyah: (json['endAyah'] as num).toInt(),
+        topicTitleAr: json['topicTitleAr'] as String,
+        topicSummaryAr: json['topicSummaryAr'] as String,
+        colorToken: json['colorToken'] as String,
+        source: json['source'] as String,
+        reviewStatus: json['reviewStatus'] as String,
+      );
 }
 
 @immutable
@@ -118,20 +125,28 @@ class EducationalContent {
 
   static Future<EducationalContent> load({AssetBundle? bundle}) async {
     final assets = bundle ?? rootBundle;
-    final thematic = jsonDecode(
-      await assets.loadString('assets/learning/thematic_segments.json'),
-    ) as Map<String, dynamic>;
-    final adhkar = jsonDecode(
-      await assets.loadString('assets/learning/adhkar.json'),
-    ) as Map<String, dynamic>;
+    final thematic =
+        jsonDecode(
+              await assets.loadString('assets/learning/thematic_segments.json'),
+            )
+            as Map<String, dynamic>;
+    final adhkar =
+        jsonDecode(await assets.loadString('assets/learning/adhkar.json'))
+            as Map<String, dynamic>;
     final segments = (thematic['segments'] as List<dynamic>)
-        .map((value) => ThematicSegment.fromJson(Map<String, dynamic>.from(value as Map)))
+        .map(
+          (value) =>
+              ThematicSegment.fromJson(Map<String, dynamic>.from(value as Map)),
+        )
         .toList(growable: false);
     validateThematicSegments(segments, const <int, int>{1: 7, 112: 4});
     return EducationalContent(
       segments: segments,
       adhkar: (adhkar['items'] as List<dynamic>)
-          .map((value) => AdhkarEntry.fromJson(Map<String, dynamic>.from(value as Map)))
+          .map(
+            (value) =>
+                AdhkarEntry.fromJson(Map<String, dynamic>.from(value as Map)),
+          )
           .toList(growable: false),
     );
   }
@@ -147,12 +162,16 @@ void validateThematicSegments(
     var expected = 1;
     for (final value in values) {
       if (value.startAyah != expected || value.endAyah < value.startAyah) {
-        throw FormatException('Invalid thematic coverage for surah ${entry.key}');
+        throw FormatException(
+          'Invalid thematic coverage for surah ${entry.key}',
+        );
       }
       expected = value.endAyah + 1;
     }
     if (expected != entry.value + 1) {
-      throw FormatException('Incomplete thematic coverage for surah ${entry.key}');
+      throw FormatException(
+        'Incomplete thematic coverage for surah ${entry.key}',
+      );
     }
   }
 }
@@ -187,18 +206,19 @@ class MemorizationRecord {
     'intervalDays': intervalDays,
   };
 
-  factory MemorizationRecord.fromJson(Map<String, dynamic> json) => MemorizationRecord(
-    key: json['key'] as String,
-    status: MemorizationStatus.values.firstWhere(
-      (value) => value.name == json['status'],
-      orElse: () => MemorizationStatus.newItem,
-    ),
-    lastReviewedAt: DateTime.parse(json['lastReviewedAt'] as String),
-    nextReviewAt: DateTime.parse(json['nextReviewAt'] as String),
-    successes: (json['successes'] as num?)?.toInt() ?? 0,
-    errors: (json['errors'] as num?)?.toInt() ?? 0,
-    intervalDays: (json['intervalDays'] as num?)?.toInt() ?? 1,
-  );
+  factory MemorizationRecord.fromJson(Map<String, dynamic> json) =>
+      MemorizationRecord(
+        key: json['key'] as String,
+        status: MemorizationStatus.values.firstWhere(
+          (value) => value.name == json['status'],
+          orElse: () => MemorizationStatus.newItem,
+        ),
+        lastReviewedAt: DateTime.parse(json['lastReviewedAt'] as String),
+        nextReviewAt: DateTime.parse(json['nextReviewAt'] as String),
+        successes: (json['successes'] as num?)?.toInt() ?? 0,
+        errors: (json['errors'] as num?)?.toInt() ?? 0,
+        intervalDays: (json['intervalDays'] as num?)?.toInt() ?? 1,
+      );
 }
 
 enum ReviewOutcome { correct, helped, incorrect }
@@ -233,15 +253,22 @@ class MemorizationPlan {
     'studyWeekdays': studyWeekdays.toList(),
   };
 
-  factory MemorizationPlan.fromJson(Map<String, dynamic> json) => MemorizationPlan(
-    ayahsPerDay: (json['ayahsPerDay'] as num?)?.toInt() ?? 5,
-    pagesPerDay: (json['pagesPerDay'] as num?)?.toInt() ?? 0,
-    thematicSegmentsPerDay: (json['thematicSegmentsPerDay'] as num?)?.toInt() ?? 0,
-    fromSurah: (json['fromSurah'] as num?)?.toInt() ?? 1,
-    toSurah: (json['toSurah'] as num?)?.toInt() ?? 114,
-    startDate: DateTime.parse(json['startDate'] as String),
-    studyWeekdays: Set<int>.from((json['studyWeekdays'] as List<dynamic>? ?? const <int>[1, 2, 3, 4, 5]).cast<num>().map((value) => value.toInt())),
-  );
+  factory MemorizationPlan.fromJson(Map<String, dynamic> json) =>
+      MemorizationPlan(
+        ayahsPerDay: (json['ayahsPerDay'] as num?)?.toInt() ?? 5,
+        pagesPerDay: (json['pagesPerDay'] as num?)?.toInt() ?? 0,
+        thematicSegmentsPerDay:
+            (json['thematicSegmentsPerDay'] as num?)?.toInt() ?? 0,
+        fromSurah: (json['fromSurah'] as num?)?.toInt() ?? 1,
+        toSurah: (json['toSurah'] as num?)?.toInt() ?? 114,
+        startDate: DateTime.parse(json['startDate'] as String),
+        studyWeekdays: Set<int>.from(
+          (json['studyWeekdays'] as List<dynamic>? ??
+                  const <int>[1, 2, 3, 4, 5])
+              .cast<num>()
+              .map((value) => value.toInt()),
+        ),
+      );
 }
 
 class LearningStore extends ChangeNotifier {
@@ -254,7 +281,8 @@ class LearningStore extends ChangeNotifier {
   static const _reminderPrefix = 'learning:adhkar:reminder:';
 
   final SharedPreferences _preferences;
-  final Map<String, MemorizationRecord> _records = <String, MemorizationRecord>{};
+  final Map<String, MemorizationRecord> _records =
+      <String, MemorizationRecord>{};
   final Map<String, int> _adhkarCounts = <String, int>{};
   MemorizationPlan? plan;
 
@@ -265,7 +293,9 @@ class LearningStore extends ChangeNotifier {
     if (raw != null) {
       try {
         for (final value in jsonDecode(raw) as List<dynamic>) {
-          final record = MemorizationRecord.fromJson(Map<String, dynamic>.from(value as Map));
+          final record = MemorizationRecord.fromJson(
+            Map<String, dynamic>.from(value as Map),
+          );
           _records[record.key] = record;
         }
       } catch (_) {
@@ -275,7 +305,9 @@ class LearningStore extends ChangeNotifier {
     final rawPlan = _preferences.getString(_planKey);
     if (rawPlan != null) {
       try {
-        plan = MemorizationPlan.fromJson(Map<String, dynamic>.from(jsonDecode(rawPlan) as Map));
+        plan = MemorizationPlan.fromJson(
+          Map<String, dynamic>.from(jsonDecode(rawPlan) as Map),
+        );
       } catch (_) {
         plan = null;
       }
@@ -283,19 +315,23 @@ class LearningStore extends ChangeNotifier {
     _loadDailyAdhkar(now ?? DateTime.now());
   }
 
-  MemorizationStatus statusFor(String key) => _records[key]?.status ?? MemorizationStatus.newItem;
+  MemorizationStatus statusFor(String key) =>
+      _records[key]?.status ?? MemorizationStatus.newItem;
 
-  Future<void> setLearning(String key, {DateTime? now}) => recordReview(
-    key,
-    ReviewOutcome.helped,
-    now: now,
-  );
+  Future<void> setLearning(String key, {DateTime? now}) =>
+      recordReview(key, ReviewOutcome.helped, now: now);
 
-  Future<void> recordReview(String key, ReviewOutcome outcome, {DateTime? now}) async {
+  Future<void> recordReview(
+    String key,
+    ReviewOutcome outcome, {
+    DateTime? now,
+  }) async {
     final at = now ?? DateTime.now();
     final previous = _records[key];
-    final successes = (previous?.successes ?? 0) + (outcome == ReviewOutcome.correct ? 1 : 0);
-    final errors = (previous?.errors ?? 0) + (outcome == ReviewOutcome.incorrect ? 1 : 0);
+    final successes =
+        (previous?.successes ?? 0) + (outcome == ReviewOutcome.correct ? 1 : 0);
+    final errors =
+        (previous?.errors ?? 0) + (outcome == ReviewOutcome.incorrect ? 1 : 0);
     final oldInterval = previous?.intervalDays ?? 1;
     final interval = switch (outcome) {
       ReviewOutcome.correct => (oldInterval * 2).clamp(2, 30).toInt(),
@@ -384,7 +420,9 @@ class LearningStore extends ChangeNotifier {
     if (raw == null) return;
     try {
       final values = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      _adhkarCounts.addAll(values.map((key, value) => MapEntry(key, (value as num).toInt())));
+      _adhkarCounts.addAll(
+        values.map((key, value) => MapEntry(key, (value as num).toInt())),
+      );
     } catch (_) {
       _adhkarCounts.clear();
     }
@@ -403,10 +441,8 @@ class LearningStore extends ChangeNotifier {
     jsonEncode(_records.values.map((value) => value.toJson()).toList()),
   );
 
-  Future<void> _persistAdhkar() => _preferences.setString(
-    _adhkarCountsKey,
-    jsonEncode(_adhkarCounts),
-  );
+  Future<void> _persistAdhkar() =>
+      _preferences.setString(_adhkarCountsKey, jsonEncode(_adhkarCounts));
 }
 
 class AdhkarReminderController {
@@ -433,23 +469,41 @@ class AdhkarReminderController {
     }
   }
 
-  Future<bool> schedule(String category, {required int hour, required int minute, DateTime? now}) async {
+  Future<bool> schedule(
+    String category, {
+    required int hour,
+    required int minute,
+    DateTime? now,
+  }) async {
     final id = ids[category];
     if (id == null || !await notifications.permissionGranted()) return false;
     final location = tz.getLocation('Asia/Aden');
     final current = tz.TZDateTime.from(now ?? DateTime.now(), location);
-    var target = tz.TZDateTime(location, current.year, current.month, current.day, hour, minute);
+    var target = tz.TZDateTime(
+      location,
+      current.year,
+      current.month,
+      current.day,
+      hour,
+      minute,
+    );
     if (!target.isAfter(current)) target = target.add(const Duration(days: 1));
-    await notifications.schedule(LocalNotificationRequest(
-      id: id,
-      title: 'أذكار ترتيل',
-      body: category == 'morning' ? 'حان وقت أذكار الصباح' : category == 'evening' ? 'حان وقت أذكار المساء' : 'لا تنس أذكار النوم',
-      scheduledAt: target.toUtc(),
-      timezone: 'Asia/Aden',
-      payload: '/adhkar',
-      channel: LocalNotificationChannel.prayerReminder,
-      preferExact: false,
-    ));
+    await notifications.schedule(
+      LocalNotificationRequest(
+        id: id,
+        title: 'أذكار ترتيل',
+        body: category == 'morning'
+            ? 'حان وقت أذكار الصباح'
+            : category == 'evening'
+            ? 'حان وقت أذكار المساء'
+            : 'لا تنس أذكار النوم',
+        scheduledAt: target.toUtc(),
+        timezone: 'Asia/Aden',
+        payload: '/adhkar',
+        channel: LocalNotificationChannel.prayerReminder,
+        preferExact: false,
+      ),
+    );
     return true;
   }
 
@@ -461,7 +515,10 @@ class AdhkarReminderController {
 
 String presentationBlank(String uthmaniText, {int stride = 3}) {
   final words = uthmaniText.split(RegExp(r'\s+'));
-  return List<String>.generate(words.length, (index) => index % stride == stride - 1 ? 'ــــــ' : words[index]).join(' ');
+  return List<String>.generate(
+    words.length,
+    (index) => index % stride == stride - 1 ? 'ــــــ' : words[index],
+  ).join(' ');
 }
 
 int reviewPriority(MemorizationRecord record, DateTime now) {

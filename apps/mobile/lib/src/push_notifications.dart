@@ -191,6 +191,8 @@ class SecureInstallationSecretStore implements InstallationSecretStore {
 const pushErrorMessages = <String, String>{
   'FIREBASE_INITIALIZATION_FAILED': 'تعذر تهيئة Firebase للإشعارات',
   'FCM_TOKEN_FAILED': 'تعذر الحصول على رمز الإشعارات من Firebase',
+  'NOTIFICATION_PERMISSION_FAILED': 'تعذر التحقق من إذن الإشعارات',
+  'INSTALLATION_STORAGE_FAILED': 'تعذر حفظ هوية تثبيت التطبيق بأمان',
   'DEVICE_REGISTRATION_FAILED': 'تعذر تسجيل الجهاز في الخادم',
   'PERMISSION_DENIED': 'إذن الإشعارات مرفوض من إعدادات النظام',
   'BACKEND_UNAVAILABLE': 'خادم الإشعارات غير متاح حاليًا',
@@ -234,6 +236,7 @@ class PushNotificationService extends ChangeNotifier {
   bool _registered = false;
   bool _hasToken = false;
   bool _permissionGranted = false;
+  bool _permissionChecked = false;
   String? _lastErrorCode;
   String? _userBearer;
 
@@ -247,6 +250,7 @@ class PushNotificationService extends ChangeNotifier {
   bool get busy => _busy;
   bool get registered => _registered;
   bool get systemPermissionGranted => _permissionGranted;
+  bool get systemPermissionChecked => _permissionChecked;
   bool get hasToken => _hasToken;
   DateTime? get lastSyncedAt =>
       DateTime.tryParse(_preferences.getString(_lastSyncKey) ?? '');
@@ -267,6 +271,31 @@ class PushNotificationService extends ChangeNotifier {
       return 'BACKEND_UNAVAILABLE';
     }
     return 'DEVICE_REGISTRATION_FAILED';
+  }
+
+  Future<bool> _readPermission() async {
+    try {
+      _permissionGranted = await _gateway.permissionGranted();
+      _permissionChecked = true;
+      return _permissionGranted;
+    } catch (_) {
+      throw const PushRegistrationException('NOTIFICATION_PERMISSION_FAILED');
+    }
+  }
+
+  Future<void> _initializeFirebase() async {
+    if (_ready) return;
+    try {
+      await _gateway.initialize();
+    } catch (_) {
+      throw const PushRegistrationException('FIREBASE_INITIALIZATION_FAILED');
+    }
+    _ready = true;
+    _subscriptions.add(_gateway.tokenRefresh.listen(_tokenRefreshed));
+    _subscriptions.add(_gateway.foregroundMessages.listen(_foreground));
+    _subscriptions.add(_gateway.openedMessages.listen(_open));
+    final initial = await _gateway.initialMessage();
+    if (initial != null) _open(initial);
   }
 
   Future<String> _requiredToken() async {
@@ -300,27 +329,28 @@ class PushNotificationService extends ChangeNotifier {
   }
 
   Future<String> get _installationSecret async {
-    final current = await _secretStore.read();
-    if (current != null && current.length == 64) return current;
-    final value = List<int>.generate(
-      32,
-      (_) => Random.secure().nextInt(256),
-    ).map((e) => e.toRadixString(16).padLeft(2, '0')).join();
-    await _secretStore.write(value);
-    return value;
+    try {
+      final current = await _secretStore.read();
+      if (current != null && current.length == 64) return current;
+      final value = List<int>.generate(
+        32,
+        (_) => Random.secure().nextInt(256),
+      ).map((e) => e.toRadixString(16).padLeft(2, '0')).join();
+      await _secretStore.write(value);
+      return value;
+    } catch (_) {
+      throw const PushRegistrationException('INSTALLATION_STORAGE_FAILED');
+    }
   }
 
   Future<void> initialize() async {
-    if (_ready || !consentGranted || !_permissionGranted) return;
+    if (!consentGranted) return;
     try {
-      await _gateway.initialize();
-      _ready = true;
-      _subscriptions.add(_gateway.tokenRefresh.listen(_tokenRefreshed));
-      _subscriptions.add(_gateway.foregroundMessages.listen(_foreground));
-      _subscriptions.add(_gateway.openedMessages.listen(_open));
-      final initial = await _gateway.initialMessage();
-      if (initial != null) _open(initial);
-      _permissionGranted = await _gateway.permissionGranted();
+      await _initializeFirebase();
+      if (!await _readPermission()) {
+        _failure('PERMISSION_DENIED');
+        return;
+      }
       final token = await _requiredToken();
       _hasToken = true;
       await _register(
@@ -328,10 +358,7 @@ class PushNotificationService extends ChangeNotifier {
         notificationsEnabled: requested && _permissionGranted,
       );
     } catch (error) {
-      final code = _ready
-          ? _errorCode(error)
-          : 'FIREBASE_INITIALIZATION_FAILED';
-      _failure(code);
+      _failure(_errorCode(error));
     }
     notifyListeners();
   }
@@ -360,16 +387,18 @@ class PushNotificationService extends ChangeNotifier {
       if (requestPermission) {
         await _preferences.setString(_consentKey, 'allowed');
         await _preferences.setBool(_enabledKey, true);
-        _permissionGranted = await _localNotifications.requestPermission();
+        await _initializeFirebase();
+        _permissionGranted = await _gateway.requestPermission();
+        _permissionChecked = true;
         if (!_permissionGranted) {
           _failure('PERMISSION_DENIED');
           return false;
         }
       }
-      if (!_ready) await initialize();
+      if (!_ready) await _initializeFirebase();
       if (!_ready) return false;
       if (!requestPermission) {
-        _permissionGranted = await _gateway.permissionGranted();
+        await _readPermission();
       }
       if (requestPermission && !_permissionGranted) {
         _failure('PERMISSION_DENIED');
@@ -398,7 +427,9 @@ class PushNotificationService extends ChangeNotifier {
       if (value) {
         await _preferences.setString(_consentKey, 'allowed');
         await _preferences.setBool(_enabledKey, true);
-        _permissionGranted = await _localNotifications.requestPermission();
+        await _initializeFirebase();
+        _permissionGranted = await _gateway.requestPermission();
+        _permissionChecked = true;
         if (!_permissionGranted) {
           _failure('PERMISSION_DENIED');
           return false;
@@ -481,7 +512,14 @@ class PushNotificationService extends ChangeNotifier {
 
   Future<void> refreshPermissionState() async {
     if (!consentGranted) return;
-    _permissionGranted = await _localNotifications.permissionGranted();
+    try {
+      await _initializeFirebase();
+      await _readPermission();
+    } catch (error) {
+      _failure(_errorCode(error));
+      notifyListeners();
+      return;
+    }
     if (!_permissionGranted && !_ready) {
       _failure('PERMISSION_DENIED');
       notifyListeners();

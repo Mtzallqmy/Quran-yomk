@@ -1,10 +1,35 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handleNotifications, validPushRoute } from '../notifications/index.ts';
+import { handleNotifications, notificationPath, validPushRoute } from '../notifications/index.ts';
 
 test('push deep links are an explicit allowlist',()=>{
   for(const route of ['/home','/prayer-times','/adhkar','/radio','/reciters','/quran','/library','/custom-reminders'])assert.equal(validPushRoute(route),true);
   for(const route of ['https://evil.test','javascript:alert(1)','/admin','../quran',null])assert.equal(validPushRoute(route),false);
+});
+
+test('deployed function prefix is stripped once for nested notification routes',()=>{
+  assert.equal(notificationPath('https://project.supabase.co/functions/v1/notifications/admin/notifications'),'/admin/notifications');
+  assert.equal(notificationPath('https://edge.test/notifications/admin/notifications/id/retry'),'/admin/notifications/id/retry');
+  assert.equal(notificationPath('https://edge.test/notifications/devices/register'),'/devices/register');
+});
+
+test('guest device registration reaches PostgREST and creates preferences',async t=>{
+  const installation='00000000-0000-4000-8000-000000000111';
+  const device='00000000-0000-4000-8000-000000000112';
+  const writes=[];
+  t.mock.method(globalThis,'fetch',async(input,init={})=>{
+    const url=String(input);
+    if(url.endsWith('/rpc/consume_rate_limit'))return Response.json(true);
+    if(url.includes('/user_devices?installation_id='))return Response.json([]);
+    if(url.includes('/user_devices?fcm_token='))return Response.json([]);
+    if(url.includes('/user_devices?on_conflict=')){writes.push(JSON.parse(init.body));return Response.json([{id:device}]);}
+    if(url.includes('/notification_preferences?on_conflict='))return Response.json([{device_id:device}]);
+    throw new Error(`unexpected ${url}`);
+  });
+  const result=await handleNotifications(new Request('https://project.supabase.co/functions/v1/notifications/devices/register',{method:'POST',body:JSON.stringify({installation_id:installation,installation_secret:'a'.repeat(64),fcm_token:'actual-shaped-fcm-token-value-123456789',platform:'android',app_version:'1.0.0',locale:'ar',timezone:'Asia/Aden',notifications_enabled:true})}),env({SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'server-key'}));
+  assert.equal(result.status,200);
+  assert.equal((await result.json()).data.device_id,device);
+  assert.equal(writes[0].notifications_enabled,true);
 });
 
 const env=values=>name=>values[name];

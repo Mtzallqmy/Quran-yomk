@@ -50,6 +50,8 @@ class PushNotificationSettingsPage extends ConsumerWidget {
                     title: 'إذن Android',
                     value: !service.consentDecided
                         ? 'غير مطلوب بعد'
+                        : !service.systemPermissionChecked
+                        ? 'جارٍ التحقق'
                         : service.systemPermissionGranted
                         ? 'مسموح'
                         : 'مرفوض',

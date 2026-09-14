@@ -8,8 +8,8 @@ test('Edge health rejects silent 200s and never exposes signed playback URLs', a
   t.mock.method(globalThis, 'fetch', async () => Response.json({ data: [] }));
   assert.equal((await apiHealth(request, env)).status, 503);
   t.mock.method(globalThis, 'fetch', async url => {
-    if (String(url).endsWith('/surahs')) return Response.json({ data: [{ track: { playback_url: 'https://audio.test/file?token=private' } }] });
-    if (String(url).includes('/reciters?')) return Response.json({ data: [{ id: '00000000-0000-4000-8000-000000000001' }] });
+    if (String(url).endsWith('/tracks')) return Response.json({ data: { tracks: [{ playback_url: 'https://audio.test/file?token=private' }] } });
+    if (String(url).includes('/quran/reciters?')) return Response.json({ data: { reciters: [{ id: '123' }] } });
     return Response.json({ data: [{ playback_url: 'https://audio.test/station' }] });
   });
   const response = await apiHealth(request, env);

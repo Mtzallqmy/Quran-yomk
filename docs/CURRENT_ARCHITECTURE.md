@@ -1,6 +1,6 @@
 # Tarteel — Current Architecture
 
-Status: **As implemented**, audited from `feature/reciter-offline-ux-remote-updates` at `ea2be74220b59900104d92a3199eed9deb1570c2` plus the connected DEVELOPMENT Supabase project on 2026-09-02.
+Status: **As implemented**, refreshed from `main` and live public-service checks on 2026-09-14.
 
 This document records the current system. It is not a target architecture and does not authorize refactors by itself.
 
@@ -20,7 +20,7 @@ Tarteel is a monorepo containing:
 
 ## 2. Current public application path
 
-The Flutter application currently uses the Supabase Edge Function as its default public API:
+The production Android workflow explicitly configures the Supabase Edge Function as its public API:
 
 ```text
 Flutter Mobile
@@ -29,13 +29,13 @@ Flutter Mobile
 Supabase Edge Function: tarteel-api
     |
     +--> PostgreSQL/PostgREST RPCs
-    +--> AlQuran Cloud for live Quran text/Tajweed requests
+    +--> pinned AlQuran Cloud Quran snapshots with SHA-256 verification
     +--> MP3Quran for reciter/track discovery
     |
     +--> direct external stream/audio URLs returned to Flutter
 ```
 
-`TarteelApiClient.productionBaseUrl` points to `/functions/v1/tarteel-api`. The mobile client carries a Supabase **publishable** key as a public client credential; it is not treated as a server secret.
+`TarteelApiClient.productionBaseUrl` points to `/functions/v1/tarteel-api`, while an ordinary local build defaults to the reserved non-routable `.invalid` endpoint. Release CI supplies the production URL explicitly. The mobile client carries a Supabase **publishable** key as a public client credential; it is not treated as a server secret.
 
 The Edge Function is currently the de-facto public contract because the production Flutter client calls it directly. Elysia is not yet the canonical public API.
 
@@ -67,14 +67,18 @@ Flutter Mushaf/Text UI
     v
 Supabase tarteel-api /quran/{surah|juz|page}/N
     |
-    +--> live AlQuran Cloud quran-uthmani
-    +--> live AlQuran Cloud quran-tajweed
+    +--> pinned AlQuran Cloud quran-uthmani snapshot + SHA-256
+    +--> pinned AlQuran Cloud quran-tajweed snapshot + SHA-256
     |
     v
 Normalized verse DTO
 ```
 
-The current implementation normalizes `surah_number`, `ayah_number`, `verse_key`, page/juz/ruku and text fields, but the approved Quran text is **not yet a pinned, versioned canonical dataset**. This is a P0 integrity gap documented separately in the audit.
+The implementation fetches exact source snapshots, enforces their expected
+byte lengths and SHA-256 identities, validates the full
+114-surah/6236-ayah/604-page structure, and then returns normalized
+`surah_number`, `ayah_number`, `verse_key`, page/juz/ruku and text fields.
+Integrity mismatches fail closed rather than serving changed Quran text.
 
 ## 5. Mushaf page flow
 
@@ -198,7 +202,18 @@ Browser
 
 Admin session cookies are HttpOnly, SameSite=Lax and conditionally Secure in production configuration. Access tokens are refreshed server-side from a refresh cookie. Authorization is checked server-side using administrator membership, roles and permissions.
 
-Mutation routes inspected for Runtime Config and Managed Radio call same-origin validation and a rate limiter. The current limiter is process-local memory and therefore is not sufficient as the final production limiter for horizontally scaled sensitive routes.
+Mutation routes inspected for Runtime Config and Managed Radio call same-origin validation and a shared database-backed rate limiter. The limiter hashes identities, fails closed, and is covered by regression tests.
+
+## 11.1 Notification consent and delivery
+
+Firebase push initialization and the operating-system permission prompt occur
+only after a versioned in-app privacy notice is accepted. Registration stores a
+random installation identifier, a hashed installation secret, the FCM token,
+platform/app metadata, preferences, and consent evidence. Revocation disables
+local processing immediately and scrubs linkable server metadata. Remote
+notification routes use an internal allow-list; Android lock-screen visibility
+is private. Prayer and adhkar reminders are local and request notification
+permission only after an explicit user action.
 
 ## 12. Runtime configuration
 

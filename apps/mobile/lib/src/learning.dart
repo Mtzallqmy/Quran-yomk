@@ -473,10 +473,15 @@ class AdhkarReminderController {
     String category, {
     required int hour,
     required int minute,
+    bool requestPermission = false,
     DateTime? now,
   }) async {
     final id = ids[category];
-    if (id == null || !await notifications.permissionGranted()) return false;
+    if (id == null) return false;
+    final permitted = requestPermission
+        ? await notifications.requestPermission()
+        : await notifications.permissionGranted();
+    if (!permitted) return false;
     final location = tz.getLocation('Asia/Aden');
     final current = tz.TZDateTime.from(now ?? DateTime.now(), location);
     var target = tz.TZDateTime(

@@ -43,22 +43,10 @@
 					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
 					<key>UISceneStoryboardFile</key>
 					<string>Main</string>
-					<key>UIBackgroundModes</key>
-	<array>
-		<string>audio</string>
-	</array>
-</dict>
+				</dict>
 			</array>
-			<key>UIBackgroundModes</key>
-	<array>
-		<string>audio</string>
-	</array>
-</dict>
-		<key>UIBackgroundModes</key>
-	<array>
-		<string>audio</string>
-	</array>
-</dict>
+		</dict>
+	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -81,6 +69,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
+		<string>remote-notification</string>
 	</array>
 </dict>
 </plist>

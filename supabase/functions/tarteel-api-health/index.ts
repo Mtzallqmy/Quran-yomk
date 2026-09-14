@@ -19,15 +19,15 @@ export async function apiHealth(_request: Request, env: (name: string) => string
       }, { timeoutMs: 2000, maxBytes: 256 * 1024 });
       return { status: response.status, body: response.ok ? await response.json() : null };
     };
-    const [stations, reciters] = await Promise.all([get('stations?limit=50'), get('reciters?limit=5')]);
+    const [stations, reciters] = await Promise.all([get('stations?limit=50'), get('quran/reciters?surah=1')]);
     const stationRows = Array.isArray(stations.body?.data) ? stations.body.data : [];
-    const reciterRows = Array.isArray(reciters.body?.data) ? reciters.body.data : [];
+    const reciterRows = Array.isArray(reciters.body?.data?.reciters) ? reciters.body.data.reciters : [];
     const first = reciterRows[0];
-    const tracks = typeof first?.id === 'string' && /^[0-9a-f-]{36}$/i.test(first.id)
-      ? await get(`reciters/${encodeURIComponent(first.id)}/surahs`) : { status: 0, body: null };
-    const trackRows = Array.isArray(tracks.body?.data) ? tracks.body.data : [];
+    const tracks = typeof first?.id === 'string' && /^[a-z0-9-]{1,160}$/i.test(first.id)
+      ? await get(`quran/reciters/${encodeURIComponent(first.id)}/tracks`) : { status: 0, body: null };
+    const trackRows = Array.isArray(tracks.body?.data?.tracks) ? tracks.body.data.tracks : [];
     const playableStations = stationRows.filter((row: { playback_url?: unknown }) => playable(row?.playback_url)).length;
-    const playableTracks = trackRows.filter((row: { track?: { playback_url?: unknown } }) => playable(row?.track?.playback_url)).length;
+    const playableTracks = trackRows.filter((row: { playback_url?: unknown }) => playable(row?.playback_url)).length;
     const ok = stations.status === 200 && reciters.status === 200 && tracks.status === 200 && playableStations > 0 && playableTracks > 0;
     if (!ok) console.error(JSON.stringify({ event: 'API_HEALTH_NOT_READY', request_id: id }));
     return Response.json({ ok, request_id: id, stations_status: stations.status, stations: stationRows.length, playable_stations: playableStations,

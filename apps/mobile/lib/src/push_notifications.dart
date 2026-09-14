@@ -15,6 +15,18 @@ import 'local_notifications.dart';
 const _backend =
     'https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/notifications';
 const _publishableKey = 'sb_publishable_dLYCid35ZkeIE95xqiyHoQ_bEhWWISK';
+const notificationConsentNoticeVersion = 'notifications-v1';
+const pushPreferenceKeys = <String>[
+  'admin_announcements',
+  'content_updates',
+  'quran_content',
+  'radio',
+  'prayer_related',
+  'adhkar',
+  'memorization_review',
+  'personal_reminders',
+  'important_system',
+];
 const safePushRoutes = <String>{
   '/home',
   '/prayer-times',
@@ -25,6 +37,13 @@ const safePushRoutes = <String>{
   '/library',
   '/custom-reminders',
 };
+
+String? notificationRoutePath(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  final uri = Uri.tryParse(value);
+  if (uri == null || uri.hasScheme || uri.hasAuthority) return null;
+  return safePushRoutes.contains(uri.path) ? uri.path : null;
+}
 
 @pragma('vm:entry-point')
 Future<void> tarteelFirebaseBackgroundHandler(RemoteMessage message) async {
@@ -47,6 +66,7 @@ abstract class PushGateway {
   Future<bool> requestPermission();
   Future<bool> permissionGranted();
   Future<String?> token();
+  Future<void> deleteToken();
   Stream<String> get tokenRefresh;
   Stream<PushMessage> get foregroundMessages;
   Stream<PushMessage> get openedMessages;
@@ -83,6 +103,9 @@ class FirebasePushGateway implements PushGateway {
 
   @override
   Future<String?> token() => _messaging.getToken();
+
+  @override
+  Future<void> deleteToken() => _messaging.deleteToken();
 
   @override
   Stream<String> get tokenRefresh => _messaging.onTokenRefresh;
@@ -196,6 +219,7 @@ const pushErrorMessages = <String, String>{
   'DEVICE_REGISTRATION_FAILED': 'تعذر تسجيل الجهاز في الخادم',
   'PERMISSION_DENIED': 'إذن الإشعارات مرفوض من إعدادات النظام',
   'BACKEND_UNAVAILABLE': 'خادم الإشعارات غير متاح حاليًا',
+  'CONSENT_REQUIRED': 'يجب الموافقة على إشعار الخصوصية أولًا',
 };
 
 class PushNotificationService extends ChangeNotifier {
@@ -217,6 +241,8 @@ class PushNotificationService extends ChangeNotifier {
 
   static const _enabledKey = 'push:enabled';
   static const _consentKey = 'push:consent';
+  static const _consentNoticeKey = 'push:consent_notice_version';
+  static const _consentedAtKey = 'push:consented_at';
   static const _registeredKey = 'push:registered';
   static const _lastSyncKey = 'push:last_sync';
   static const _installationKey = 'push:installation_id';
@@ -241,8 +267,12 @@ class PushNotificationService extends ChangeNotifier {
   bool get requested => _preferences.getBool(_enabledKey) ?? false;
   bool get enabled =>
       requested && _permissionGranted && _registered && _hasToken;
-  bool get consentDecided => _preferences.containsKey(_consentKey);
-  bool get consentGranted => _preferences.getString(_consentKey) == 'allowed';
+  bool get consentDecided =>
+      _preferences.containsKey(_consentKey) &&
+      _preferences.getString(_consentNoticeKey) ==
+          notificationConsentNoticeVersion;
+  bool get consentGranted =>
+      consentDecided && _preferences.getString(_consentKey) == 'allowed';
   bool get needsConsent => !consentDecided;
   bool get ready => _ready;
   bool get busy => _busy;
@@ -399,10 +429,16 @@ class PushNotificationService extends ChangeNotifier {
 
   Future<void> deferConsent() async {
     await _preferences.setString(_consentKey, 'later');
+    await _preferences.setString(
+      _consentNoticeKey,
+      notificationConsentNoticeVersion,
+    );
+    await _preferences.setBool(_enabledKey, false);
     notifyListeners();
   }
 
   Future<void> _tokenRefreshed(String token) async {
+    if (!consentGranted || !requested) return;
     try {
       await _register(
         token,
@@ -418,8 +454,20 @@ class PushNotificationService extends ChangeNotifier {
     _busy = true;
     notifyListeners();
     try {
+      if (!requestPermission && !consentGranted) {
+        _failure('CONSENT_REQUIRED');
+        return false;
+      }
       if (requestPermission) {
         await _preferences.setString(_consentKey, 'allowed');
+        await _preferences.setString(
+          _consentNoticeKey,
+          notificationConsentNoticeVersion,
+        );
+        await _preferences.setString(
+          _consentedAtKey,
+          DateTime.now().toUtc().toIso8601String(),
+        );
         await _preferences.setBool(_enabledKey, true);
         await _initializeFirebase();
         if (!await _requestPermission()) {
@@ -458,6 +506,14 @@ class PushNotificationService extends ChangeNotifier {
     try {
       if (value) {
         await _preferences.setString(_consentKey, 'allowed');
+        await _preferences.setString(
+          _consentNoticeKey,
+          notificationConsentNoticeVersion,
+        );
+        await _preferences.setString(
+          _consentedAtKey,
+          DateTime.now().toUtc().toIso8601String(),
+        );
         await _preferences.setBool(_enabledKey, true);
         await _initializeFirebase();
         if (!await _requestPermission()) {
@@ -479,13 +535,35 @@ class PushNotificationService extends ChangeNotifier {
           rethrow;
         }
       } else {
-        await _registration.revoke(<String, dynamic>{
-          'installation_id': _installationId,
-          'installation_secret': await _installationSecret,
-        });
+        final hadRegistration =
+            _registered || (_preferences.getBool(_registeredKey) ?? false);
+        await _preferences.setString(_consentKey, 'denied');
+        await _preferences.setString(
+          _consentNoticeKey,
+          notificationConsentNoticeVersion,
+        );
+        await _preferences.remove(_consentedAtKey);
         await _preferences.setBool(_enabledKey, false);
         _registered = false;
+        _hasToken = false;
         await _preferences.setBool(_registeredKey, false);
+        Object? revocationError;
+        if (hadRegistration) {
+          try {
+            await _registration.revoke(<String, dynamic>{
+              'installation_id': _installationId,
+              'installation_secret': await _installationSecret,
+            });
+          } catch (error) {
+            revocationError = error;
+          }
+          try {
+            await _gateway.deleteToken();
+          } catch (error) {
+            revocationError ??= error;
+          }
+        }
+        if (revocationError != null) throw revocationError;
       }
       return true;
     } catch (error) {
@@ -501,6 +579,9 @@ class PushNotificationService extends ChangeNotifier {
       _savePreferences(values);
 
   Future<void> _savePreferences(Map<String, bool> values) async {
+    if (!consentGranted || !_registered) {
+      throw const PushRegistrationException('CONSENT_REQUIRED');
+    }
     await _registration.preferences(<String, dynamic>{
       'installation_id': _installationId,
       'installation_secret': await _installationSecret,
@@ -519,6 +600,10 @@ class PushNotificationService extends ChangeNotifier {
     String token, {
     required bool notificationsEnabled,
   }) async {
+    final consentedAt = _preferences.getString(_consentedAtKey);
+    if (!consentGranted || consentedAt == null) {
+      throw const PushRegistrationException('CONSENT_REQUIRED');
+    }
     await _registration.register(<String, dynamic>{
       'installation_id': _installationId,
       'installation_secret': await _installationSecret,
@@ -530,6 +615,10 @@ class PushNotificationService extends ChangeNotifier {
       'locale': 'ar',
       'timezone': 'Asia/Aden',
       'notifications_enabled': notificationsEnabled,
+      'consent_granted': true,
+      'consent_notice_version': notificationConsentNoticeVersion,
+      'consented_at': consentedAt,
+      for (final key in pushPreferenceKeys) key: preference(key),
     }, bearer: _userBearer);
     _registered = true;
     await _preferences.setBool(_registeredKey, true);
@@ -583,7 +672,9 @@ class PushNotificationService extends ChangeNotifier {
   Future<void> attachAuthenticatedUser(String? bearer) async {
     final wasAuthenticated = _userBearer != null;
     _userBearer = bearer;
-    if (bearer == null && wasAuthenticated) {
+    final hadRegistration =
+        _registered || (_preferences.getBool(_registeredKey) ?? false);
+    if (bearer == null && wasAuthenticated && hadRegistration) {
       try {
         await _registration.unlink(<String, dynamic>{
           'installation_id': _installationId,
@@ -593,8 +684,10 @@ class PushNotificationService extends ChangeNotifier {
         _failure(_errorCode(error));
       }
     }
-    if (bearer != null && !_ready && consentGranted) await initialize();
-    if (bearer != null && _ready) {
+    if (bearer != null && !_ready && consentGranted && requested) {
+      await initialize();
+    }
+    if (bearer != null && _ready && consentGranted && requested) {
       final token = await _requiredToken();
       await _register(
         token,
@@ -604,17 +697,16 @@ class PushNotificationService extends ChangeNotifier {
   }
 
   void _open(PushMessage message) {
-    final route = message.data['route'];
-    if (route is String && safePushRoutes.contains(route)) _routes.add(route);
+    final route = notificationRoutePath(message.data['route']);
+    if (route != null && consentGranted && requested) _routes.add(route);
   }
 
   void _foreground(PushMessage message) {
+    if (!enabled) return;
     final title = message.title;
     final body = message.body;
     if (title == null || body == null) return;
-    final route = safePushRoutes.contains(message.data['route'])
-        ? message.data['route'] as String
-        : '/home';
+    final route = notificationRoutePath(message.data['route']) ?? '/home';
     unawaited(
       _localNotifications.show(
         LocalNotificationRequest(

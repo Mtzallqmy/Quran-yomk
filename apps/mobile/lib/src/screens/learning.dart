@@ -1042,6 +1042,7 @@ class _AdhkarPageState extends ConsumerState<AdhkarPage> {
                               ? 18
                               : 22,
                           minute: 0,
+                          requestPermission: true,
                         );
                       } else {
                         await controller.cancel(_category);

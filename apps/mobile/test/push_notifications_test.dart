@@ -62,6 +62,17 @@ void main() {
         appVersion: () async => '2.0.0',
       );
       expect(await service.setEnabled(true), isTrue);
+      expect(
+        registration.registered.single['consent_notice_version'],
+        notificationConsentNoticeVersion,
+      );
+      expect(registration.registered.single['consent_granted'], isTrue);
+      expect(
+        DateTime.tryParse(
+          registration.registered.single['consented_at'] as String,
+        ),
+        isNotNull,
+      );
       gateway.tokens.add('refreshed-token-value-123456789');
       await Future<void>.delayed(Duration.zero);
       expect(registration.registered, hasLength(2));
@@ -71,8 +82,68 @@ void main() {
       );
       expect(await service.setEnabled(false), isTrue);
       expect(registration.revoked, hasLength(1));
+      expect(gateway.deletedTokenCount, 1);
+      gateway.tokens.add('ignored-after-revoke-token-123456789');
+      await service.attachAuthenticatedUser('admin-access-token');
+      await Future<void>.delayed(Duration.zero);
+      expect(registration.registered, hasLength(2));
     },
   );
+
+  test('registration and preferences are blocked before consent', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final registration = _Registration();
+    final gateway = _PushGateway();
+    final service = PushNotificationService(
+      preferences: await SharedPreferences.getInstance(),
+      localNotifications: LocalNotificationService(gateway: _LocalGateway()),
+      gateway: gateway,
+      registration: registration,
+      secretStore: _SecretStore(),
+      appVersion: () async => '1.0.0',
+    );
+    expect(await service.registerCurrentDevice(), isFalse);
+    expect(service.lastErrorCode, 'CONSENT_REQUIRED');
+    expect(gateway.initializeCount, 0);
+    expect(registration.registered, isEmpty);
+    await service.attachAuthenticatedUser('admin-access-token');
+    await service.attachAuthenticatedUser(null);
+    expect(registration.unlinked, isEmpty);
+    await expectLater(
+      service.updatePreferences(<String, bool>{'radio': true}),
+      throwsA(isA<PushRegistrationException>()),
+    );
+  });
+
+  test('local consent is withdrawn even when server revoke fails', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final registration = _Registration();
+    final gateway = _PushGateway();
+    final local = _LocalGateway();
+    final service = PushNotificationService(
+      preferences: await SharedPreferences.getInstance(),
+      localNotifications: LocalNotificationService(gateway: local),
+      gateway: gateway,
+      registration: registration,
+      secretStore: _SecretStore(),
+      appVersion: () async => '1.0.0',
+    );
+    expect(await service.setEnabled(true), isTrue);
+    registration.failRevoke = true;
+    expect(await service.setEnabled(false), isFalse);
+    expect(service.consentGranted, isFalse);
+    expect(service.enabled, isFalse);
+    expect(gateway.deletedTokenCount, 1);
+    gateway.foreground.add(
+      const PushMessage(
+        data: <String, dynamic>{'route': '/home'},
+        title: 'hidden',
+        body: 'hidden',
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(local.shown, isEmpty);
+  });
 
   test('not now persists consent without initializing Firebase', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -89,6 +160,25 @@ void main() {
     expect(service.needsConsent, isTrue);
     await service.deferConsent();
     expect(service.needsConsent, isFalse);
+    expect(gateway.initializeCount, 0);
+  });
+
+  test('an unversioned historical choice requires consent again', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'push:consent': 'allowed',
+      'push:enabled': true,
+    });
+    final gateway = _PushGateway();
+    final service = PushNotificationService(
+      preferences: await SharedPreferences.getInstance(),
+      localNotifications: LocalNotificationService(gateway: _LocalGateway()),
+      gateway: gateway,
+      registration: _Registration(),
+      secretStore: _SecretStore(),
+      appVersion: () async => '1.0.0',
+    );
+    expect(service.needsConsent, isTrue);
+    await service.initialize();
     expect(gateway.initializeCount, 0);
   });
 
@@ -144,6 +234,8 @@ void main() {
     () async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'push:consent': 'allowed',
+        'push:consent_notice_version': notificationConsentNoticeVersion,
+        'push:consented_at': '2026-09-07T03:29:06.000Z',
         'push:enabled': true,
       });
       final registration = _Registration();
@@ -273,7 +365,9 @@ void main() {
         ),
       );
       gateway.opened.add(
-        const PushMessage(data: <String, dynamic>{'route': '/prayer-times'}),
+        const PushMessage(
+          data: <String, dynamic>{'route': '/prayer-times?prayer=fajr'},
+        ),
       );
       await Future<void>.delayed(Duration.zero);
       expect(routes, <String>['/prayer-times']);
@@ -310,6 +404,7 @@ class _PushGateway implements PushGateway {
   bool permission;
   int initializeCount = 0;
   int permissionRequestCount = 0;
+  int deletedTokenCount = 0;
   final tokens = StreamController<String>.broadcast();
   final foreground = StreamController<PushMessage>.broadcast();
   final opened = StreamController<PushMessage>.broadcast();
@@ -324,6 +419,9 @@ class _PushGateway implements PushGateway {
     permissionRequestCount++;
     return permission;
   }
+
+  @override
+  Future<void> deleteToken() async => deletedTokenCount++;
 
   @override
   Future<String?> token() async => 'initial-token-value-123456789';
@@ -341,9 +439,11 @@ class _FailingPushGateway extends _PushGateway {
 }
 
 class _Registration implements DeviceRegistrationApi {
+  bool failRevoke = false;
   final registered = <Map<String, dynamic>>[];
   final bearers = <String?>[];
   final revoked = <Map<String, dynamic>>[];
+  final unlinked = <Map<String, dynamic>>[];
   final savedPreferences = <Map<String, dynamic>>[];
   @override
   Future<void> register(Map<String, dynamic> payload, {String? bearer}) async {
@@ -352,10 +452,14 @@ class _Registration implements DeviceRegistrationApi {
   }
 
   @override
-  Future<void> revoke(Map<String, dynamic> payload) async =>
-      revoked.add(payload);
+  Future<void> revoke(Map<String, dynamic> payload) async {
+    if (failRevoke) throw TimeoutException('offline');
+    revoked.add(payload);
+  }
+
   @override
-  Future<void> unlink(Map<String, dynamic> payload) async {}
+  Future<void> unlink(Map<String, dynamic> payload) async =>
+      unlinked.add(payload);
   @override
   Future<void> preferences(Map<String, dynamic> payload) async =>
       savedPreferences.add(payload);

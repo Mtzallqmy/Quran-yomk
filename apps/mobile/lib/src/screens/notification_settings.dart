@@ -3,6 +3,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services.dart';
 
+Future<void> showNotificationPrivacyDetails(BuildContext context) =>
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('خصوصية الإشعارات'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'لا يبدأ Firebase ولا يُرسل رمز الجهاز قبل موافقتك. عند التفعيل، '
+            'يرسل ترتيل إلى خادمه معرّف تثبيت عشوائيًا، ورمز FCM، ونوع النظام، '
+            'وإصدار التطبيق، واللغة والمنطقة الزمنية، وتفضيلات الإشعارات.\n\n'
+            'لا يصل التطبيق إلى جهات الاتصال أو الرسائل أو الصور أو الملفات أو '
+            'الموقع من أجل الإشعارات. عند الإيقاف، يُلغى رمز الإرسال ويُفصل '
+            'الحساب عن الجهاز. يمكنك إعادة التفعيل في أي وقت من هذه الصفحة.',
+          ),
+        ),
+        actions: <Widget>[
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('حسنًا'),
+          ),
+        ],
+      ),
+    );
+
 class PushNotificationSettingsPage extends ConsumerWidget {
   const PushNotificationSettingsPage({super.key});
 
@@ -124,6 +148,14 @@ class PushNotificationSettingsPage extends ConsumerWidget {
                         ),
                       ),
                     ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.privacy_tip_outlined),
+                    title: const Text('ما البيانات المستخدمة؟'),
+                    subtitle: const Text(
+                      'اعرض تفاصيل الموافقة والسحب وبيانات تسجيل الإشعارات',
+                    ),
+                    onTap: () => showNotificationPrivacyDetails(context),
                   ),
                 ],
               ),

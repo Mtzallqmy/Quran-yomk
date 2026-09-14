@@ -1,10 +1,6 @@
 name: Publish Tarteel First Beta
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/publish-beta.yml'
   workflow_dispatch:
 
 permissions:
@@ -15,15 +11,22 @@ jobs:
   publish-beta:
     runs-on: ubuntu-24.04
     steps:
-      - name: Download verified Android artifact from run 34
+      - name: Download latest verified Android artifact
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          run_id=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/android-release-apk.yml/runs?branch=main&status=success&per_page=1" --jq '.workflow_runs[0].id')
+          target=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.head_sha')
+          artifact_id=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts" --jq '[.artifacts[] | select(.name | startswith("tarteel-android-release-"))] | sort_by(.created_at) | last | .id')
+          test -n "$run_id"
+          test -n "$target"
+          test -n "$artifact_id"
+          echo "TARGET=$target" >> "$GITHUB_ENV"
           mkdir -p artifact
           gh api \
             -H 'Accept: application/vnd.github+json' \
-            /repos/${GITHUB_REPOSITORY}/actions/artifacts/9784116943/zip \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
             > artifact.zip
           unzip -q artifact.zip -d artifact
           test -s artifact/tarteel-release-arm64-v8a.apk
@@ -36,17 +39,21 @@ jobs:
           test "$expected_universal" = "$actual_universal"
           test "$expected_arm64" = "$actual_arm64"
 
-      - name: Publish first beta release
+      - name: Publish verified beta release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='tarteel-beta-1'
-          TARGET='4114e890cc5d6d986219266709bc5ef3f16e5cd5'
+          version_name=$(jq -r '.versionName' artifact/release-metadata.json)
+          version_code=$(jq -r '.versionCode' artifact/release-metadata.json)
+          test -n "$version_name"
+          test -n "$version_code"
+          TAG="v${version_name}-beta.${version_code}"
+          TITLE="ترتيل v${version_name} Beta ${version_code}"
           cat > notes.md <<'EOF'
-          ## ترتيل — الإصدار التجريبي الأول
+          ## ترتيل — إصدار تجريبي موثّق
 
-          أول نسخة تجريبية APK للتحميل المباشر والاختبار.
+          نسخة APK تجريبية مبنية من آخر تشغيل Android ناجح ومتحقق منه.
 
           **التوافق:** Android 8.0 (API 26) أو أحدث.
 
@@ -83,7 +90,7 @@ jobs:
               artifact/release-metadata.json \
               --repo "$GITHUB_REPOSITORY" \
               --target "$TARGET" \
-              --title 'ترتيل v0.1.0 Beta 1' \
+              --title "$TITLE" \
               --notes-file notes.md \
               --prerelease
           fi

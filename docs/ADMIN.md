@@ -12,6 +12,12 @@ The login form calls `/api/v1/admin/auth/login`. The server authenticates with S
 
 No service-role or secret Storage credential is shipped to browser code.
 
+The primary account `mtzallqmy@gmail.com` is activated as `SUPER_ADMIN` by a
+database trigger when its Supabase Auth user is created or its email is updated.
+`SUPER_ADMIN` is synchronized to every current permission, and a protected
+database trigger grants every permission added later. Endpoint checks remain
+authoritative; the browser cannot self-assign a role or permission.
+
 ## Screens
 
 - Dashboard: current item, engine state, heartbeat, recent commands, schedules, media/processing counts.

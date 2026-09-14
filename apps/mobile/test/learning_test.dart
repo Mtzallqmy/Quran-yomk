@@ -173,6 +173,7 @@ void main() {
           'morning',
           hour: 6,
           minute: 0,
+          requestPermission: true,
           now: DateTime.utc(2026, 9, 7),
         ),
         isFalse,
@@ -190,6 +191,7 @@ void main() {
       expect(gateway.pending.keys, <int>[
         AdhkarReminderController.ids['morning']!,
       ]);
+      expect(gateway.permissionRequests, 1);
       await controller.cancel('morning');
       expect(gateway.pending, isEmpty);
     },
@@ -198,6 +200,7 @@ void main() {
 
 class _NotificationGateway implements LocalNotificationGateway {
   bool allowed = false;
+  int permissionRequests = 0;
   final Map<int, LocalNotificationRequest> pending =
       <int, LocalNotificationRequest>{};
 
@@ -212,7 +215,11 @@ class _NotificationGateway implements LocalNotificationGateway {
   @override
   Future<bool> permissionGranted() async => allowed;
   @override
-  Future<bool> requestPermission() async => allowed;
+  Future<bool> requestPermission() async {
+    permissionRequests++;
+    return allowed;
+  }
+
   @override
   Future<void> schedule(
     LocalNotificationRequest request, {

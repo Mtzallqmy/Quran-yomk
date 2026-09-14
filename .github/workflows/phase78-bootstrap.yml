@@ -34,7 +34,7 @@ jobs:
           node-version: '22'
       - name: Install admin dependencies
         working-directory: apps/admin
-        run: npm install --ignore-scripts
+        run: npm ci --ignore-scripts
       - name: Backend contract tests
         working-directory: apps/admin
         run: npm test

@@ -1,6 +1,6 @@
 begin;
 
-select plan(59);
+select plan(63);
 
 select ok(to_regnamespace('app') is not null, 'app schema exists');
 select ok(to_regnamespace('radio') is not null, 'radio schema exists');
@@ -58,6 +58,7 @@ select is((select value from app.app_config where key='radio_enabled'),'false'::
 select is((select count(*) from app.audit_logs where action='runtime_config.update' and request_id='00000000-0000-4000-8000-000000000037'),1::bigint,'only committed runtime mutation has a completion audit');
 select ok(not exists(select 1 from unnest(array['app.virtual_radio_channels','app.virtual_radio_schedule','app.virtual_radio_candidates']) t where has_table_privilege('authenticated',t,'INSERT,UPDATE,DELETE') or has_table_privilege('anon',t,'INSERT,UPDATE,DELETE')), 'direct clients cannot bypass mutation auditing');
 select ok(to_regclass('app.user_devices') is not null,'device registry exists');
+select is((select count(*) from information_schema.columns where table_schema='app' and table_name='user_devices' and column_name in ('consent_notice_version','consented_at')),2::bigint,'device registry stores versioned consent evidence');
 select ok(to_regclass('app.notification_preferences') is not null,'push preferences exist');
 select is((select count(*) from information_schema.columns where table_schema='app' and table_name='notification_preferences' and column_name in ('memorization_review','personal_reminders')),2::bigint,'all independent push preference categories exist');
 select ok(to_regclass('app.admin_notifications') is not null,'notification outbox exists');
@@ -74,9 +75,12 @@ select ok(exists(select 1 from vault.secrets where name='notification_dispatch_u
 select ok(exists(select 1 from vault.secrets where name='notification_cron_secret'),'notification cron credential is provisioned');
 select ok(exists(select 1 from cron.job where jobname='tarteel-notification-dispatch' and active),'notification dispatcher runs without an Admin browser');
 select is((select count(*) from app.role_permissions rp join app.roles r on r.id=rp.role_id join app.permissions p on p.id=rp.permission_id where r.code='SUPER_ADMIN' and p.code in ('notifications.read','notifications.send','notifications.schedule','notifications.cancel','devices.read','runtime_config.read','runtime_config.write')),7::bigint,'SUPER_ADMIN receives all notification permissions');
-insert into app.user_devices(id,installation_id,installation_secret_hash,fcm_token,platform,app_version) values
- ('00000000-0000-4000-8000-000000000038','00000000-0000-4000-8000-000000000039',repeat('a',64),repeat('t',32),'android','1.0.0'),
- ('00000000-0000-4000-8000-000000000040','00000000-0000-4000-8000-000000000041',repeat('b',64),repeat('u',32),'android','1.0.0');
+select is((select count(*) from app.role_permissions rp join app.roles r on r.id=rp.role_id where r.code='SUPER_ADMIN'),(select count(*) from app.permissions),'SUPER_ADMIN receives every current permission');
+select ok(exists(select 1 from pg_trigger where tgname='permissions_grant_super_admin' and not tgisinternal),'future permissions automatically reach SUPER_ADMIN');
+select ok(not has_function_privilege('anon','app.grant_new_permission_to_super_admin()','EXECUTE') and not has_function_privilege('authenticated','app.grant_new_permission_to_super_admin()','EXECUTE'),'permission synchronization trigger cannot be called by clients');
+insert into app.user_devices(id,installation_id,installation_secret_hash,fcm_token,platform,app_version,consent_notice_version,consented_at) values
+ ('00000000-0000-4000-8000-000000000038','00000000-0000-4000-8000-000000000039',repeat('a',64),repeat('t',32),'android','1.0.0','notifications-v1',now()),
+ ('00000000-0000-4000-8000-000000000040','00000000-0000-4000-8000-000000000041',repeat('b',64),repeat('u',32),'android','1.0.0','notifications-v1',now());
 update app.user_devices set revoked_at=now() where id='00000000-0000-4000-8000-000000000040';
 insert into app.admin_notifications(id,title,body,type,target_type,scheduled_at,status,idempotency_key,created_by) values('00000000-0000-4000-8000-000000000042','CI','CI','admin_announcements','all',now(),'sending','ci-notification-idempotency','00000000-0000-4000-8000-000000000037');
 select is(app.prepare_notification_deliveries('00000000-0000-4000-8000-000000000042'),1,'only the active device is selected');

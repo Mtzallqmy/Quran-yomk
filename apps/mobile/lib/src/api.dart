@@ -43,13 +43,10 @@ class TarteelApiClient {
   static String _resolveBaseUrl(String? override) {
     const configured = String.fromEnvironment(
       'TARTEEL_API_BASE_URL',
-      defaultValue: productionBaseUrl,
+      defaultValue: 'https://api.tarteel.invalid/api/v1',
     );
     final value = override ?? configured;
-    return (value.contains('.invalid') ? productionBaseUrl : value).replaceAll(
-      RegExp(r'/$'),
-      '',
-    );
+    return value.replaceAll(RegExp(r'/$'), '');
   }
 
   Map<String, String> get _headers => <String, String>{

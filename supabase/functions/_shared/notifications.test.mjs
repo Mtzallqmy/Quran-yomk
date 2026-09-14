@@ -7,6 +7,7 @@ test('FCM Android notifications request heads-up delivery on the app channel',()
   assert.equal(value.message.android.priority,'HIGH');
   assert.equal(value.message.android.notification.channel_id,'tarteel_remote_notifications');
   assert.equal(value.message.android.notification.notification_priority,'PRIORITY_HIGH');
+  assert.equal(value.message.android.notification.visibility,'PRIVATE');
   assert.equal(value.message.android.notification.default_sound,true);
 });
 
@@ -34,10 +35,37 @@ test('guest device registration reaches PostgREST and creates preferences',async
     if(url.includes('/notification_preferences?on_conflict='))return Response.json([{device_id:device}]);
     throw new Error(`unexpected ${url}`);
   });
-  const result=await handleNotifications(new Request('https://project.supabase.co/functions/v1/notifications/devices/register',{method:'POST',body:JSON.stringify({installation_id:installation,installation_secret:'a'.repeat(64),fcm_token:'actual-shaped-fcm-token-value-123456789',platform:'android',app_version:'1.0.0',locale:'ar',timezone:'Asia/Aden',notifications_enabled:true})}),env({SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'server-key'}));
+  const result=await handleNotifications(new Request('https://project.supabase.co/functions/v1/notifications/devices/register',{method:'POST',body:JSON.stringify({installation_id:installation,installation_secret:'a'.repeat(64),fcm_token:'actual-shaped-fcm-token-value-123456789',platform:'android',app_version:'1.0.0',locale:'ar',timezone:'Asia/Aden',notifications_enabled:true,consent_granted:true,consent_notice_version:'notifications-v1',consented_at:new Date().toISOString()})}),env({SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'server-key'}));
   assert.equal(result.status,200);
   assert.equal((await result.json()).data.device_id,device);
   assert.equal(writes[0].notifications_enabled,true);
+  assert.equal(writes[0].consent_notice_version,'notifications-v1');
+});
+
+test('device registration rejects missing or invalid consent evidence before storage',async()=>{
+  const result=await handleNotifications(new Request('https://edge.test/notifications/devices/register',{method:'POST',body:JSON.stringify({installation_id:'00000000-0000-4000-8000-000000000111',installation_secret:'a'.repeat(64),fcm_token:'actual-shaped-fcm-token-value-123456789',platform:'android',app_version:'1.0.0'})}),env({SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'server-key'}));
+  assert.equal(result.status,422);
+  assert.equal((await result.json()).error.code,'CONSENT_REQUIRED');
+});
+
+test('revoking consent scrubs linkable device metadata',async t=>{
+  const patch=[];
+  let preferencesDeleted=false;
+  t.mock.method(globalThis,'fetch',async(input,init={})=>{
+    const url=String(input);
+    if(url.includes('/user_devices?installation_id='))return Response.json([{id:'00000000-0000-4000-8000-000000000112'}]);
+    if(url.includes('/notification_preferences?device_id=')){preferencesDeleted=init.method==='DELETE';return Response.json([]);}
+    if(url.includes('/user_devices?id=eq.')){patch.push(JSON.parse(init.body));return Response.json([]);}
+    throw new Error(`unexpected ${url}`);
+  });
+  const result=await handleNotifications(new Request('https://edge.test/notifications/devices/revoke',{method:'POST',body:JSON.stringify({installation_id:'00000000-0000-4000-8000-000000000111',installation_secret:'a'.repeat(64)})}),env({SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'server-key'}));
+  assert.equal(result.status,200);
+  assert.equal(patch[0].user_id,null);
+  assert.equal(patch[0].consent_notice_version,null);
+  assert.equal(patch[0].consented_at,null);
+  assert.equal(patch[0].locale,'und');
+  assert.match(patch[0].fcm_token,/^revoked:/);
+  assert.equal(preferencesDeleted,true);
 });
 
 const env=values=>name=>values[name];

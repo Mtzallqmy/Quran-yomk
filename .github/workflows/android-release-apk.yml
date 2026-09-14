@@ -104,7 +104,7 @@ jobs:
           grep -q '"project_id": "tarteel-b755d"' android/app/google-services.json
 
       - name: Build universal release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
 
       - name: Preserve universal APK
         shell: bash
@@ -115,7 +115,7 @@ jobs:
             release/android/tarteel-release-universal.apk
 
       - name: Build ARM64 release APK
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
 
       - name: Collect and verify APK evidence
         id: evidence
@@ -266,19 +266,23 @@ jobs:
           name: tarteel-android-release-${{ github.run_number }}
           path: release/android
 
-      - name: Publish Tarteel first beta release
+      - name: Publish verified Tarteel beta release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG='v0.1.0-beta.1'
-          TITLE='ترتيل v0.1.0 Beta 1'
+          version_name=$(jq -r '.versionName' release/android/release-metadata.json)
+          version_code=$(jq -r '.versionCode' release/android/release-metadata.json)
+          test -n "$version_name"
+          test -n "$version_code"
+          TAG="v${version_name}-beta.${version_code}"
+          TITLE="ترتيل v${version_name} Beta ${version_code}"
           NOTES_FILE=$(mktemp)
           cat > "$NOTES_FILE" <<'EOF'
-          ## ترتيل — الإصدار التجريبي الأول
+          ## ترتيل — إصدار تجريبي موثّق
 
-          أول نسخة APK تجريبية للتحميل المباشر والاختبار.
+          نسخة APK تجريبية مبنية ومختبرة آليًا للتحميل المباشر والاختبار.
 
           ### المتطلبات
           - Android 8.0 (API 26) أو أحدث.

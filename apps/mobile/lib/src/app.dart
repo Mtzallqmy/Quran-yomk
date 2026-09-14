@@ -10,6 +10,7 @@ import 'screens/home.dart';
 import 'screens/islamic_library.dart';
 import 'screens/learning.dart';
 import 'screens/mushaf.dart';
+import 'screens/notification_settings.dart';
 import 'screens/player.dart';
 import 'screens/prayer_times.dart';
 import 'screens/quran_offline.dart';
@@ -92,10 +93,16 @@ class _RootShellState extends ConsumerState<RootShell>
         content: const Text(
           'يستخدم ترتيل الإشعارات لتذكيرك بمواقيت الصلاة، والأذكار، '
           'وخطط الحفظ والمراجعة، والتذكيرات التي تختارها، ورسائل مهمة من التطبيق.\n\n'
-          'لن نستخدم الإشعارات لإرسال رسائل مزعجة، ويمكنك التحكم في أنواعها '
-          'أو إيقافها لاحقًا من الإعدادات. هل تسمح لتطبيق ترتيل بإرسال الإشعارات؟',
+          'بعد موافقتك فقط، نحفظ معرّف تثبيت عشوائي ورمز Firebase وإصدار التطبيق '
+          'وتفضيلات أنواع الإشعارات. لا نقرأ جهات الاتصال أو الرسائل أو الملفات أو الموقع.\n\n'
+          'يمكنك التحكم في الأنواع أو سحب الموافقة وإلغاء تسجيل الجهاز لاحقًا من '
+          'الإعدادات. هل تسمح لتطبيق ترتيل بإرسال الإشعارات؟',
         ),
         actions: <Widget>[
+          TextButton(
+            onPressed: () => showNotificationPrivacyDetails(context),
+            child: const Text('تفاصيل الخصوصية'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('ليس الآن'),
@@ -146,7 +153,7 @@ class _RootShellState extends ConsumerState<RootShell>
 
   void _handlePushRoute(String route) {
     if (!mounted) return;
-    switch (route) {
+    switch (notificationRoutePath(route)) {
       case '/home':
         setState(() => index = 0);
       case '/radio':

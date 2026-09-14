@@ -5,6 +5,14 @@ import '../admin_api.dart';
 import '../services.dart';
 
 const _adminErrors = <String, String>{
+  'INVALID_LOGIN_CREDENTIALS': 'البريد أو كلمة المرور غير صحيحة',
+  'AUTHENTICATION_FAILED': 'تعذر إكمال تسجيل الدخول إلى Supabase',
+  'INVALID_AUTH_RESPONSE': 'لم تُرجع Supabase جلسة دخول صالحة',
+  'INVALID_ADMIN_RESPONSE': 'استجابة خدمة التحقق الإداري غير صالحة',
+  'AUTH_REQUIRED': 'انتهت جلسة الدخول؛ سجّل الدخول مرة أخرى',
+  'FORBIDDEN': 'الحساب لا يملك صلاحية دخول لوحة الإدارة',
+  'ADMIN_ENDPOINT_NOT_FOUND': 'خدمة التحقق الإداري غير منشورة على الخادم',
+  'RATE_LIMITED': 'محاولات كثيرة؛ انتظر قليلاً ثم أعد المحاولة',
   'ADMIN_DEVICE_NOT_REGISTERED': 'لم يتم تسجيل هذا الجهاز للإشعارات بعد',
   'FIREBASE_CREDENTIAL_MISSING': 'بيانات إرسال Firebase غير مضافة إلى الخادم',
   'FCM_AUTH_FAILED': 'تعذر توثيق خادم Firebase',
@@ -69,82 +77,92 @@ class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('دخول الإدارة')),
-    body: Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: AutofillGroup(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    const Icon(Icons.admin_panel_settings_outlined, size: 48),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'لوحة الإدارة',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: email,
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const <String>[AutofillHints.username],
-                      textDirection: TextDirection.ltr,
-                      decoration: const InputDecoration(labelText: 'البريد'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: password,
-                      obscureText: true,
-                      autofillHints: const <String>[AutofillHints.password],
-                      onSubmitted: (_) => login(),
-                      decoration: const InputDecoration(
-                        labelText: 'كلمة المرور',
-                      ),
-                    ),
-                    if (error != null) ...<Widget>[
-                      const SizedBox(height: 12),
-                      Text(
-                        error!,
+  Widget build(BuildContext context) {
+    final verifying = ref.watch(servicesProvider).adminSession.checking;
+    final waiting = busy || verifying;
+    return Scaffold(
+      appBar: AppBar(title: const Text('دخول الإدارة')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: AutofillGroup(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      const Icon(Icons.admin_panel_settings_outlined, size: 48),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'لوحة الإدارة',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: email,
+                        keyboardType: TextInputType.emailAddress,
+                        autofillHints: const <String>[AutofillHints.username],
+                        textDirection: TextDirection.ltr,
+                        decoration: const InputDecoration(labelText: 'البريد'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: password,
+                        obscureText: true,
+                        autofillHints: const <String>[AutofillHints.password],
+                        onSubmitted: (_) => login(),
+                        decoration: const InputDecoration(
+                          labelText: 'كلمة المرور',
+                        ),
+                      ),
+                      if (error != null) ...<Widget>[
+                        const SizedBox(height: 12),
+                        Text(
+                          error!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      FilledButton.icon(
+                        onPressed: waiting ? null : login,
+                        icon: waiting
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.login),
+                        label: Text(
+                          verifying
+                              ? 'جارٍ التحقق من صلاحيات الإدارة…'
+                              : 'تحقق ودخول',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'الصلاحية تُتحقق من خادم Supabase؛ لا تُحفظ كلمة المرور.',
+                        textAlign: TextAlign.center,
+                      ),
                     ],
-                    const SizedBox(height: 20),
-                    FilledButton.icon(
-                      onPressed: busy ? null : login,
-                      icon: busy
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.login),
-                      label: const Text('تحقق ودخول'),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'الصلاحية تُتحقق من خادم Supabase؛ لا تُحفظ كلمة المرور.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class AdminCenterPage extends ConsumerStatefulWidget {
@@ -395,9 +413,8 @@ class _NotificationComposerState extends State<_NotificationComposer> {
       widget.onSaved();
     } on AdminApiException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(_adminError(error.code))));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_adminError(error.code))));
       }
     } finally {
       if (mounted) setState(() => busy = false);

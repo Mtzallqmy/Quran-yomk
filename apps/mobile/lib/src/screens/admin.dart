@@ -413,8 +413,9 @@ class _NotificationComposerState extends State<_NotificationComposer> {
       widget.onSaved();
     } on AdminApiException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(_adminError(error.code))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_adminError(error.code))));
       }
     } finally {
       if (mounted) setState(() => busy = false);

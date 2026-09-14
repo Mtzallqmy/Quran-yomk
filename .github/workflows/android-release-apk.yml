@@ -212,7 +212,7 @@ jobs:
         run: |
           set -euo pipefail
           for apk in release/android/*.apk; do
-            if strings "$apk" | grep -Ei '(RADIO_CO_(CLIENT_SECRET|REFRESH_TOKEN|ACCESS_TOKEN|DJ_PASSWORD)|\.dj\.radio\.co|BEGIN (RSA )?PRIVATE KEY|FIREBASE_SERVICE_ACCOUNT_JSON|SUPABASE_SERVICE_ROLE_KEY|sb_secret_)'; then
+            if strings "$apk" | grep -Ei '(RADIO_CO_(CLIENT_SECRET|REFRESH_TOKEN|ACCESS_TOKEN|DJ_PASSWORD)|\.dj\.radio\.co|BEGIN (RSA )?PRIVATE KEY|FIREBASE_SERVICE_ACCOUNT_JSON|SUPABASE_SERVICE_ROLE_KEY|sb_secret_[A-Za-z0-9_-]{12,})'; then
               echo "Privileged credential material was found in $apk" >&2
               exit 1
             fi

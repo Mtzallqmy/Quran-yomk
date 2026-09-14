@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'branding.dart';
 import 'l10n.dart';
+import 'push_notifications.dart';
 import 'screens/favorites.dart';
 import 'screens/home.dart';
 import 'screens/islamic_library.dart';

@@ -68,6 +68,9 @@ void main() {
     ]) {
       expect(criticalPath, isNot(contains('await $optional.')));
     }
-    expect(source.split('  runApp(').last, contains("'prayer_reminders'"));
+    final deferred = source.split('  runApp(').last;
+    expect(deferred, contains("'runtime_config_and_reminders'"));
+    expect(deferred, contains("'push_notifications'"));
+    expect(deferred, contains("'announcements'"));
   });
 }

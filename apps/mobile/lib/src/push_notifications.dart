@@ -28,6 +28,7 @@ const pushPreferenceKeys = <String>[
   'important_system',
 ];
 const safePushRoutes = <String>{
+  '/',
   '/home',
   '/prayer-times',
   '/adhkar',
@@ -49,8 +50,37 @@ String? notificationRoutePath(Object? value) {
 Future<void> tarteelFirebaseBackgroundHandler(RemoteMessage message) async {
   try {
     await Firebase.initializeApp();
+    final deliveryId = int.tryParse('${message.data['delivery_id'] ?? ''}');
+    if (deliveryId == null) return;
+    final preferences = await SharedPreferences.getInstance();
+    final installationId = preferences.getString('push:installation_id');
+    final registered = preferences.getBool('push:registered') ?? false;
+    const storage = FlutterSecureStorage();
+    final secret = await storage.read(
+      key: 'tarteel_push_installation_secret',
+    );
+    if (!registered || installationId == null || secret == null) return;
+    await http
+        .post(
+          Uri.parse('$_backend/devices/receipts'),
+          headers: const <String, String>{
+            'apikey': _publishableKey,
+            'content-type': 'application/json',
+          },
+          body: jsonEncode(<String, dynamic>{
+            'installation_id': installationId,
+            'installation_secret': secret,
+            'delivery_id': deliveryId,
+            'event': 'received_by_app',
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+    await preferences.setString(
+      'push:last_received',
+      DateTime.now().toUtc().toIso8601String(),
+    );
   } catch (_) {
-    // Android still displays the provider notification. Never crash a worker.
+    // Android can still display the provider notification. Never crash worker.
   }
 }
 
@@ -130,6 +160,8 @@ abstract class DeviceRegistrationApi {
   Future<void> revoke(Map<String, dynamic> payload);
   Future<void> unlink(Map<String, dynamic> payload);
   Future<void> preferences(Map<String, dynamic> payload);
+  Future<void> receipt(Map<String, dynamic> payload);
+  Future<void> test(Map<String, dynamic> payload);
 }
 
 class HttpDeviceRegistrationApi implements DeviceRegistrationApi {
@@ -187,6 +219,14 @@ class HttpDeviceRegistrationApi implements DeviceRegistrationApi {
   @override
   Future<void> preferences(Map<String, dynamic> payload) =>
       _send('/devices/preferences', 'PUT', payload);
+
+  @override
+  Future<void> receipt(Map<String, dynamic> payload) =>
+      _send('/devices/receipts', 'POST', payload);
+
+  @override
+  Future<void> test(Map<String, dynamic> payload) =>
+      _send('/devices/test', 'POST', payload);
 }
 
 class PushRegistrationException implements Exception {
@@ -245,6 +285,10 @@ class PushNotificationService extends ChangeNotifier {
   static const _consentedAtKey = 'push:consented_at';
   static const _registeredKey = 'push:registered';
   static const _lastSyncKey = 'push:last_sync';
+  static const _lastTokenRefreshKey = 'push:last_token_refresh';
+  static const _lastReceivedKey = 'push:last_received';
+  static const _lastDisplayedKey = 'push:last_displayed';
+  static const _lastOpenedKey = 'push:last_opened';
   static const _installationKey = 'push:installation_id';
   final SharedPreferences _preferences;
   final LocalNotificationService _localNotifications;
@@ -280,8 +324,23 @@ class PushNotificationService extends ChangeNotifier {
   bool get systemPermissionGranted => _permissionGranted;
   bool get systemPermissionChecked => _permissionChecked;
   bool get hasToken => _hasToken;
+  bool get linkedToUser => _userBearer != null;
   DateTime? get lastSyncedAt =>
       DateTime.tryParse(_preferences.getString(_lastSyncKey) ?? '');
+  DateTime? get lastTokenRefreshAt =>
+      DateTime.tryParse(_preferences.getString(_lastTokenRefreshKey) ?? '');
+  DateTime? get lastReceivedAt =>
+      DateTime.tryParse(_preferences.getString(_lastReceivedKey) ?? '');
+  DateTime? get lastDisplayedAt =>
+      DateTime.tryParse(_preferences.getString(_lastDisplayedKey) ?? '');
+  DateTime? get lastOpenedAt =>
+      DateTime.tryParse(_preferences.getString(_lastOpenedKey) ?? '');
+  String get maskedInstallationId {
+    final value = _installationId;
+    return value.length < 13
+        ? '***'
+        : '${value.substring(0, 8)}…${value.substring(value.length - 4)}';
+  }
   String? get lastErrorCode => _lastErrorCode;
   Stream<String> get routes => _routes.stream;
 
@@ -358,6 +417,7 @@ class PushNotificationService extends ChangeNotifier {
     _subscriptions.add(_gateway.tokenRefresh.listen(_tokenRefreshed));
     _subscriptions.add(_gateway.foregroundMessages.listen(_foreground));
     _subscriptions.add(_gateway.openedMessages.listen(_open));
+    _subscriptions.add(_localNotifications.payloads.listen(_localOpened));
     final initial = await _gateway.initialMessage();
     if (initial != null) _open(initial);
   }
@@ -440,6 +500,10 @@ class PushNotificationService extends ChangeNotifier {
   Future<void> _tokenRefreshed(String token) async {
     if (!consentGranted || !requested) return;
     try {
+      await _preferences.setString(
+        _lastTokenRefreshKey,
+        DateTime.now().toUtc().toIso8601String(),
+      );
       await _register(
         token,
         notificationsEnabled: requested && _permissionGranted,
@@ -578,6 +642,27 @@ class PushNotificationService extends ChangeNotifier {
   Future<void> updatePreferences(Map<String, bool> values) =>
       _savePreferences(values);
 
+  Future<bool> sendServerTest() async {
+    if (!enabled) {
+      _failure('CONSENT_REQUIRED');
+      notifyListeners();
+      return false;
+    }
+    try {
+      await _registration.test(<String, dynamic>{
+        'installation_id': _installationId,
+        'installation_secret': await _installationSecret,
+      });
+      _lastErrorCode = null;
+      notifyListeners();
+      return true;
+    } catch (error) {
+      _failure(_errorCode(error));
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> _savePreferences(Map<String, bool> values) async {
     if (!consentGranted || !_registered) {
       throw const PushRegistrationException('CONSENT_REQUIRED');
@@ -696,9 +781,49 @@ class PushNotificationService extends ChangeNotifier {
     }
   }
 
+  int? _deliveryId(PushMessage message) =>
+      int.tryParse('${message.data['delivery_id'] ?? ''}');
+
+  Future<void> _receipt(int? deliveryId, String event) async {
+    if (deliveryId == null || !consentGranted || !_registered) return;
+    try {
+      await _registration.receipt(<String, dynamic>{
+        'installation_id': _installationId,
+        'installation_secret': await _installationSecret,
+        'delivery_id': deliveryId,
+        'event': event,
+      });
+    } catch (error) {
+      _failure(_errorCode(error));
+    }
+  }
+
   void _open(PushMessage message) {
+    unawaited(_recordOpened(_deliveryId(message)));
     final route = notificationRoutePath(message.data['route']);
     if (route != null && consentGranted && requested) _routes.add(route);
+  }
+
+  Future<void> _recordOpened(int? deliveryId) async {
+    await _preferences.setString(
+      _lastOpenedKey,
+      DateTime.now().toUtc().toIso8601String(),
+    );
+    await _receipt(deliveryId, 'opened');
+    notifyListeners();
+  }
+
+  void _localOpened(String payload) {
+    try {
+      final value = jsonDecode(payload);
+      if (value is! Map || value['source'] != 'remote_push') return;
+      final route = notificationRoutePath(value['route']);
+      final deliveryId = int.tryParse('${value['delivery_id'] ?? ''}');
+      unawaited(_recordOpened(deliveryId));
+      if (route != null && consentGranted && requested) _routes.add(route);
+    } catch (_) {
+      // Non-push local reminders intentionally use their route as payload.
+    }
   }
 
   void _foreground(PushMessage message) {
@@ -707,22 +832,40 @@ class PushNotificationService extends ChangeNotifier {
     final body = message.body;
     if (title == null || body == null) return;
     final route = notificationRoutePath(message.data['route']) ?? '/home';
+    final deliveryId = _deliveryId(message);
     unawaited(
-      _localNotifications.show(
-        LocalNotificationRequest(
-          id:
-              900000 +
-              (message.data['notification_id']?.hashCode ?? body.hashCode)
-                      .abs() %
-                  99999,
-          title: title,
-          body: body,
-          scheduledAt: DateTime.now(),
-          timezone: 'Asia/Aden',
-          payload: route,
-          channel: LocalNotificationChannel.remotePush,
-        ),
-      ),
+      (() async {
+        await _preferences.setString(
+          _lastReceivedKey,
+          DateTime.now().toUtc().toIso8601String(),
+        );
+        await _receipt(deliveryId, 'received_by_app');
+        await _localNotifications.show(
+          LocalNotificationRequest(
+            id:
+                900000 +
+                (message.data['notification_id']?.hashCode ?? body.hashCode)
+                        .abs() %
+                    99999,
+            title: title,
+            body: body,
+            scheduledAt: DateTime.now(),
+            timezone: 'Asia/Aden',
+            payload: jsonEncode(<String, dynamic>{
+              'source': 'remote_push',
+              'route': route,
+              if (deliveryId != null) 'delivery_id': deliveryId,
+            }),
+            channel: LocalNotificationChannel.remotePush,
+          ),
+        );
+        await _preferences.setString(
+          _lastDisplayedKey,
+          DateTime.now().toUtc().toIso8601String(),
+        );
+        await _receipt(deliveryId, 'displayed');
+        notifyListeners();
+      })(),
     );
   }
 

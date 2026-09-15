@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fcmMessage, handleNotifications, notificationPath, validPushRoute } from '../notifications/index.ts';
+import { classifyFcmError, fcmMessage, handleNotifications, notificationPath, validPushRoute } from '../notifications/index.ts';
 
 test('FCM Android notifications request heads-up delivery on the app channel',()=>{
   const value=fcmMessage('token',{title:'T',body:'B',payload:{route:'/prayer-times'}},'00000000-0000-4000-8000-000000000100');
@@ -12,7 +12,7 @@ test('FCM Android notifications request heads-up delivery on the app channel',()
 });
 
 test('push deep links are an explicit allowlist',()=>{
-  for(const route of ['/home','/prayer-times','/adhkar','/radio','/reciters','/quran','/library','/custom-reminders'])assert.equal(validPushRoute(route),true);
+  for(const route of ['/','/home','/prayer-times','/adhkar','/radio','/reciters','/quran','/library','/custom-reminders'])assert.equal(validPushRoute(route),true);
   for(const route of ['https://evil.test','javascript:alert(1)','/admin','../quran',null])assert.equal(validPushRoute(route),false);
 });
 
@@ -48,7 +48,7 @@ test('device registration rejects missing or invalid consent evidence before sto
   assert.equal((await result.json()).error.code,'CONSENT_REQUIRED');
 });
 
-test('revoking consent scrubs linkable device metadata',async t=>{
+test('revoking consent preserves history and preferences but removes active linkage',async t=>{
   const patch=[];
   let preferencesDeleted=false;
   t.mock.method(globalThis,'fetch',async(input,init={})=>{
@@ -63,9 +63,19 @@ test('revoking consent scrubs linkable device metadata',async t=>{
   assert.equal(patch[0].user_id,null);
   assert.equal(patch[0].consent_notice_version,null);
   assert.equal(patch[0].consented_at,null);
-  assert.equal(patch[0].locale,'und');
+  assert.equal(patch[0].locale,undefined);
+  assert.equal(patch[0].app_version,undefined);
   assert.match(patch[0].fcm_token,/^revoked:/);
-  assert.equal(preferencesDeleted,true);
+  assert.equal(preferencesDeleted,false);
+});
+
+test('FCM errors are classified without treating every 400 or 404 as a rejected token',()=>{
+  const errorCode=code=>({error:{status:'INVALID_ARGUMENT',details:[{errorCode:code}]}});
+  assert.equal(classifyFcmError(404,errorCode('UNREGISTERED')),'UNREGISTERED');
+  assert.equal(classifyFcmError(400,errorCode('INVALID_ARGUMENT')),'INVALID_ARGUMENT');
+  assert.equal(classifyFcmError(400,errorCode('SENDER_ID_MISMATCH')),'SENDER_ID_MISMATCH');
+  assert.equal(classifyFcmError(403,{error:{status:'PERMISSION_DENIED'}}),'PERMISSION_DENIED');
+  assert.equal(classifyFcmError(404,{error:{status:'NOT_FOUND'}}),'FCM_PROVIDER_FAILURE');
 });
 
 const env=values=>name=>values[name];

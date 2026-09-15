@@ -516,6 +516,12 @@ class AdhkarReminderController {
     final id = ids[category];
     if (id != null) await notifications.cancel(id);
   }
+
+  Future<void> suspend() async {
+    for (final category in ids.keys) {
+      await cancel(category);
+    }
+  }
 }
 
 String presentationBlank(String uthmaniText, {int stride = 3}) {

@@ -187,7 +187,7 @@ void main() {
     },
   );
 
-  test('Android manifest schedules without exact alarm permission', () {
+  test('Android manifest supports exact alarms with inexact fallback', () {
     final manifest = File(
       'android/app/src/main/AndroidManifest.xml',
     ).readAsStringSync();
@@ -195,7 +195,7 @@ void main() {
     expect(manifest, contains('android.permission.RECEIVE_BOOT_COMPLETED'));
     expect(manifest, contains('ScheduledNotificationReceiver'));
     expect(manifest, contains('ScheduledNotificationBootReceiver'));
-    expect(manifest, isNot(contains('SCHEDULE_EXACT_ALARM')));
+    expect(manifest, contains('SCHEDULE_EXACT_ALARM'));
     expect(manifest, isNot(contains('USE_EXACT_ALARM')));
   });
 }
@@ -222,6 +222,15 @@ class _FakeGateway implements LocalNotificationGateway {
 
   @override
   Future<bool> exactSchedulingAvailable() async => false;
+
+  @override
+  Future<bool> requestExactSchedulingPermission() async => false;
+
+  @override
+  Future<bool> remoteChannelExists() async => true;
+
+  @override
+  Future<bool> remoteChannelEnabled() async => true;
 
   @override
   Future<void> show(LocalNotificationRequest request) async {}

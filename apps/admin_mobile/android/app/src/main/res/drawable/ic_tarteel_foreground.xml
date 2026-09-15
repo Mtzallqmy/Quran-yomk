@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/tarteel_icon_accent"
+        android:pathData="M51,49 L51,31 L54,23 L57,31 L57,49 Z" />
+    <path
+        android:fillColor="@color/tarteel_icon_accent"
+        android:pathData="M54,19 a2,2 0,1 0,0.1,0" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@color/tarteel_icon_foreground"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M24,61 Q39,53 53,66 Q68,53 84,61 L82,76 Q68,68 54,78 Q40,68 26,76 Z" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@color/tarteel_icon_foreground"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M54,66 L54,78" />
+    <path
+        android:fillColor="@color/tarteel_icon_foreground"
+        android:pathData="M35,42 a3,3 0,1 0,0.1,0 M73,42 a3,3 0,1 0,0.1,0" />
+</vector>

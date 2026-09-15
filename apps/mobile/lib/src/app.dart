@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'branding.dart';
+import 'feature_manager.dart';
 import 'l10n.dart';
 import 'push_notifications.dart';
 import 'screens/favorites.dart';
@@ -141,9 +142,27 @@ class _RootShellState extends ConsumerState<RootShell>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(
-        ref.read(servicesProvider).pushNotifications.refreshPermissionState(),
-      );
+      unawaited(_refreshRuntimeState());
+    }
+  }
+
+  Future<void> _refreshRuntimeState() async {
+    final services = ref.read(servicesProvider);
+    await Future.wait<void>(<Future<void>>[
+      services.pushNotifications.refreshPermissionState(),
+      services.remoteConfig.refresh(),
+      services.announcements.refresh(),
+    ]);
+    if (services.features.enabled(TarteelFeature.prayer)) {
+      await services.prayerReminders.start();
+      await services.prayerReminders.reconcile();
+    } else {
+      await services.prayerReminders.suspend();
+    }
+    if (services.features.enabled(TarteelFeature.adhkar)) {
+      await services.adhkarReminders.start();
+    } else {
+      await services.adhkarReminders.suspend();
     }
   }
 
@@ -154,15 +173,19 @@ class _RootShellState extends ConsumerState<RootShell>
 
   void _handlePushRoute(String route) {
     if (!mounted) return;
-    switch (notificationRoutePath(route)) {
+    final normalized = notificationRoutePath(route);
+    final features = ref.read(servicesProvider).features;
+    if (normalized == null || !features.routeAllowed(normalized)) return;
+    switch (normalized) {
+      case '/':
       case '/home':
         setState(() => index = 0);
       case '/radio':
-        setState(() => index = 1);
+        setState(() => index = features.enabled(TarteelFeature.radio) ? 1 : 0);
       case '/quran':
-        setState(() => index = 2);
+        setState(() => index = features.enabled(TarteelFeature.radio) ? 2 : 1);
       case '/reciters':
-        setState(() => index = 3);
+        setState(() => index = features.enabled(TarteelFeature.radio) ? 3 : 2);
       case '/prayer-times':
         unawaited(_open(const PrayerTimesPage()));
       case '/library':
@@ -201,13 +224,33 @@ class _RootShellState extends ConsumerState<RootShell>
   @override
   Widget build(BuildContext context) {
     final remoteConfig = ref.watch(servicesProvider).remoteConfig;
+    final features = ref.watch(servicesProvider).features;
+    final announcements = ref.watch(servicesProvider).announcements;
     final s = context.l10n;
     final english = Localizations.localeOf(context).languageCode == 'en';
-    final titles = <String>[s.home, s.radio, s.mushaf, s.reciters, s.favorites];
-    final immersive = index == 2 && _mushafImmersive;
+    if (features.maintenanceMode) {
+      return _MaintenanceScreen(
+        message: features.maintenanceMessage,
+        onRefresh: remoteConfig.refresh,
+      );
+    }
+    if (features.updateRequirement == UpdateRequirement.required) {
+      return _ForcedUpdateScreen(onRefresh: remoteConfig.refresh);
+    }
+    final radioEnabled = features.enabled(TarteelFeature.radio);
+    final titles = <String>[
+      s.home,
+      if (radioEnabled) s.radio,
+      s.mushaf,
+      s.reciters,
+      s.favorites,
+    ];
+    final mushafIndex = radioEnabled ? 2 : 1;
+    if (index >= titles.length) index = 0;
+    final immersive = index == mushafIndex && _mushafImmersive;
     final pages = <Widget>[
       const HomePage(),
-      const RadioPage(),
+      if (radioEnabled) const RadioPage(),
       MushafPage(onImmersiveChanged: _setMushafImmersive),
       const RecitersPage(),
       const FavoritesPage(),
@@ -263,17 +306,20 @@ class _RootShellState extends ConsumerState<RootShell>
                         ),
                       ),
                     ),
-                    PopupMenuItem<_RootAction>(
-                      value: _RootAction.offline,
-                      child: ListTile(
-                        leading: const Icon(
-                          Icons.download_for_offline_outlined,
-                        ),
-                        title: Text(
-                          english ? 'Offline Quran' : 'الاستماع بدون إنترنت',
+                    if (features.enabled(TarteelFeature.offlineDownloads))
+                      PopupMenuItem<_RootAction>(
+                        value: _RootAction.offline,
+                        child: ListTile(
+                          leading: const Icon(
+                            Icons.download_for_offline_outlined,
+                          ),
+                          title: Text(
+                            english
+                                ? 'Offline Quran'
+                                : 'الاستماع بدون إنترنت',
+                          ),
                         ),
                       ),
-                    ),
                     PopupMenuItem<_RootAction>(
                       value: _RootAction.library,
                       child: ListTile(
@@ -296,9 +342,41 @@ class _RootShellState extends ConsumerState<RootShell>
               ],
             ),
       body: AnimatedBuilder(
-        animation: remoteConfig,
+        animation: Listenable.merge(<Listenable>[
+          remoteConfig,
+          features,
+          announcements,
+        ]),
         builder: (context, _) => Column(
           children: <Widget>[
+            if (announcements.current case final announcement?)
+              MaterialBanner(
+                leading: const Icon(Icons.campaign_outlined),
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      announcement.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(announcement.body),
+                  ],
+                ),
+                actions: <Widget>[
+                  if (announcement.deepLink != null)
+                    TextButton(
+                      onPressed: () =>
+                          _handlePushRoute(announcement.deepLink!),
+                      child: const Text('فتح'),
+                    ),
+                  if (announcement.dismissible)
+                    TextButton(
+                      onPressed: () =>
+                          announcements.dismiss(announcement.id),
+                      child: const Text('إخفاء'),
+                    ),
+                ],
+              ),
             if (remoteConfig.maintenanceMode ||
                 remoteConfig.announcementBanner.isNotEmpty)
               MaterialBanner(
@@ -338,11 +416,12 @@ class _RootShellState extends ConsumerState<RootShell>
                       selectedIcon: const Icon(Icons.home),
                       label: s.home,
                     ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.radio_outlined),
-                      selectedIcon: const Icon(Icons.radio),
-                      label: s.radio,
-                    ),
+                    if (radioEnabled)
+                      NavigationDestination(
+                        icon: const Icon(Icons.radio_outlined),
+                        selectedIcon: const Icon(Icons.radio),
+                        label: s.radio,
+                      ),
                     NavigationDestination(
                       icon: const Icon(Icons.auto_stories_outlined),
                       selectedIcon: const Icon(Icons.auto_stories),
@@ -367,3 +446,70 @@ class _RootShellState extends ConsumerState<RootShell>
 }
 
 enum _RootAction { learning, playlists, offline, library, settings }
+
+class _MaintenanceScreen extends StatelessWidget {
+  const _MaintenanceScreen({required this.message, required this.onRefresh});
+  final String message;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.build_circle_outlined, size: 64),
+            const SizedBox(height: 16),
+            Text('وضع الصيانة', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 8),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: onRefresh,
+              icon: const Icon(Icons.refresh),
+              label: const Text('إعادة التحقق'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _ForcedUpdateScreen extends StatelessWidget {
+  const _ForcedUpdateScreen({required this.onRefresh});
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.system_update_alt, size: 64),
+            const SizedBox(height: 16),
+            Text(
+              'يلزم تحديث ترتيل',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'هذه النسخة لم تعد مدعومة. ثبّت النسخة التجريبية الأحدث ثم أعد المحاولة.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: onRefresh,
+              icon: const Icon(Icons.refresh),
+              label: const Text('إعادة التحقق'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}

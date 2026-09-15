@@ -372,7 +372,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(routes, <String>['/prayer-times']);
       expect(local.shown, hasLength(1));
-      expect(local.shown.single.payload, '/prayer-times');
+      expect(local.shown.single.payload, contains('remote_push'));
     },
   );
 
@@ -445,6 +445,8 @@ class _Registration implements DeviceRegistrationApi {
   final revoked = <Map<String, dynamic>>[];
   final unlinked = <Map<String, dynamic>>[];
   final savedPreferences = <Map<String, dynamic>>[];
+  final receipts = <Map<String, dynamic>>[];
+  final tests = <Map<String, dynamic>>[];
   @override
   Future<void> register(Map<String, dynamic> payload, {String? bearer}) async {
     registered.add(payload);
@@ -463,6 +465,11 @@ class _Registration implements DeviceRegistrationApi {
   @override
   Future<void> preferences(Map<String, dynamic> payload) async =>
       savedPreferences.add(payload);
+  @override
+  Future<void> receipt(Map<String, dynamic> payload) async =>
+      receipts.add(payload);
+  @override
+  Future<void> test(Map<String, dynamic> payload) async => tests.add(payload);
 }
 
 class _LocalGateway implements LocalNotificationGateway {
@@ -479,6 +486,12 @@ class _LocalGateway implements LocalNotificationGateway {
   Future<void> cancel(int id) async {}
   @override
   Future<bool> exactSchedulingAvailable() async => false;
+  @override
+  Future<bool> requestExactSchedulingPermission() async => false;
+  @override
+  Future<bool> remoteChannelExists() async => true;
+  @override
+  Future<bool> remoteChannelEnabled() async => true;
   @override
   Future<String?> initialize(void Function(String payload) onTap) async => null;
   @override

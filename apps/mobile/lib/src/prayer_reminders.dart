@@ -217,6 +217,11 @@ class PrayerReminderController {
     }
   }
 
+  Future<void> suspend() async {
+    _adhanTimer?.cancel();
+    await _cancelAll();
+  }
+
   void _settingsChanged() => _scheduleSafely();
 
   void _scheduleSafely() {

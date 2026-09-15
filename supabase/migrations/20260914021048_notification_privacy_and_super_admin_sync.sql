@@ -2,17 +2,12 @@ alter table app.user_devices
   add column consent_notice_version text,
   add column consented_at timestamptz;
 
--- No historical row is treated as proof of informed consent. Existing push
--- registrations must opt in again to the versioned notice before reactivation.
-delete from app.notification_preferences;
-
+-- No historical row is treated as proof of informed consent. Preserve the
+-- registration and preference history, but retire the old provider token so
+-- it cannot be used again until this installation explicitly opts in.
 update app.user_devices
-set user_id = null,
-    fcm_token = 'revoked:' || gen_random_uuid()::text,
+set fcm_token = 'revoked:' || gen_random_uuid()::text,
     notifications_enabled = false,
-    locale = 'und',
-    timezone = 'UTC',
-    app_version = 'revoked',
     revoked_at = coalesce(revoked_at, now()),
     consent_notice_version = null,
     consented_at = null;

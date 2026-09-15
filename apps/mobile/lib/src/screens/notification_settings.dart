@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
+import '../local_notifications.dart';
 import '../services.dart';
 
 Future<void> showNotificationPrivacyDetails(BuildContext context) =>
@@ -160,6 +162,7 @@ class PushNotificationSettingsPage extends ConsumerWidget {
                 ],
               ),
             ),
+            const _NotificationDiagnosticsCard(),
             SwitchListTile(
               value: service.enabled,
               onChanged: service.busy
@@ -214,6 +217,154 @@ class PushNotificationSettingsPage extends ConsumerWidget {
                   },
                 ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationDiagnosticsCard extends ConsumerStatefulWidget {
+  const _NotificationDiagnosticsCard();
+
+  @override
+  ConsumerState<_NotificationDiagnosticsCard> createState() =>
+      _NotificationDiagnosticsCardState();
+}
+
+class _NotificationDiagnosticsCardState
+    extends ConsumerState<_NotificationDiagnosticsCard> {
+  bool? _channelExists;
+  bool? _channelEnabled;
+  String _appVersion = '…';
+  bool _testing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final services = ref.read(servicesProvider);
+    final results = await Future.wait<Object>(<Future<Object>>[
+      services.localNotifications.remoteChannelExists(),
+      services.localNotifications.remoteChannelEnabled(),
+      PackageInfo.fromPlatform(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _channelExists = results[0] as bool;
+      _channelEnabled = results[1] as bool;
+      final info = results[2] as PackageInfo;
+      _appVersion = '${info.version} (${info.buildNumber})';
+    });
+  }
+
+  Future<void> _localTest() async {
+    final notifications = ref.read(servicesProvider).localNotifications;
+    if (!await notifications.permissionGranted()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('إذن Android غير مسموح')),
+        );
+      }
+      return;
+    }
+    await notifications.show(
+      LocalNotificationRequest(
+        id: 990001,
+        title: 'اختبار محلي من ترتيل',
+        body: 'القناة وإذن Android يعملان على هذا الجهاز.',
+        scheduledAt: DateTime.now(),
+        timezone: 'Asia/Aden',
+        payload: '/home',
+        channel: LocalNotificationChannel.remotePush,
+        preferExact: false,
+      ),
+    );
+    await _refresh();
+  }
+
+  Future<void> _serverTest() async {
+    setState(() => _testing = true);
+    final push = ref.read(servicesProvider).pushNotifications;
+    final accepted = await push.sendServerTest();
+    if (!mounted) return;
+    setState(() => _testing = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          accepted
+              ? 'قبل Firebase الاختبار؛ راقب وصول الإشعار وفتحه أدناه.'
+              : push.errorMessage,
+        ),
+      ),
+    );
+  }
+
+  String _time(DateTime? value) =>
+      value == null ? 'لم يحدث' : value.toLocal().toString();
+
+  @override
+  Widget build(BuildContext context) {
+    final push = ref.watch(servicesProvider).pushNotifications;
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          children: <Widget>[
+            const ListTile(
+              leading: Icon(Icons.monitor_heart_outlined),
+              title: Text('تشخيص الإشعارات'),
+              subtitle: Text('لا يعرض رمز FCM أو أي معلومات سرية'),
+            ),
+            _StatusTile(title: 'Firebase initialized', value: push.ready ? 'YES' : 'NO'),
+            _StatusTile(title: 'Notification consent', value: push.consentGranted ? 'YES' : 'NO'),
+            _StatusTile(title: 'POST_NOTIFICATIONS', value: push.systemPermissionGranted ? 'GRANTED' : 'DENIED'),
+            _StatusTile(title: 'Notification channel exists', value: _channelExists == null ? '…' : _channelExists! ? 'YES' : 'NO'),
+            _StatusTile(title: 'Notification channel enabled', value: _channelEnabled == null ? '…' : _channelEnabled! ? 'YES' : 'NO'),
+            _StatusTile(title: 'FCM token exists', value: push.hasToken ? 'YES' : 'NO'),
+            _StatusTile(title: 'Backend registration', value: push.registered ? 'REGISTERED' : 'UNREGISTERED'),
+            _StatusTile(title: 'Device linked to user', value: push.linkedToUser ? 'YES' : 'NO'),
+            _StatusTile(title: 'Installation ID', value: push.maskedInstallationId),
+            _StatusTile(title: 'App version', value: _appVersion),
+            _StatusTile(title: 'Last token refresh', value: _time(push.lastTokenRefreshAt)),
+            _StatusTile(title: 'Last backend registration', value: _time(push.lastSyncedAt)),
+            _StatusTile(title: 'Last push received', value: _time(push.lastReceivedAt)),
+            _StatusTile(title: 'Last notification displayed', value: _time(push.lastDisplayedAt)),
+            _StatusTile(title: 'Last notification opened', value: _time(push.lastOpenedAt)),
+            _StatusTile(title: 'Last error code', value: push.lastErrorCode ?? 'NONE'),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: <Widget>[
+                  OutlinedButton.icon(
+                    onPressed: _localTest,
+                    icon: const Icon(Icons.notifications_active_outlined),
+                    label: const Text('اختبار محلي'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _testing || !push.enabled ? null : _serverTest,
+                    icon: _testing
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.cloud_upload_outlined),
+                    label: const Text('اختبار FCM من الخادم'),
+                  ),
+                  IconButton(
+                    tooltip: 'تحديث التشخيص',
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

@@ -281,11 +281,37 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
 
   Future<void> _setMode(PrayerKind prayer, PrayerReminderMode mode) async {
     if (_changingPrayer != null) return;
+    final services = ref.read(servicesProvider);
+    if (mode != PrayerReminderMode.disabled &&
+        !await services.localNotifications.exactSchedulingAvailable() &&
+        mounted) {
+      final requestExact = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('السماح بالتوقيت الدقيق؟'),
+          content: const Text(
+            'يحتاج تنبيه الصلاة في وقتها الدقيق إلى إذن «المنبّهات والتذكيرات» من Android. '
+            'إذا لم تمنحه سيستمر ترتيل بتوقيت تقريبي آمن دون توقف التطبيق.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('استخدام توقيت تقريبي'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('فتح الإذن'),
+            ),
+          ],
+        ),
+      );
+      if (requestExact == true) {
+        await services.localNotifications.requestExactSchedulingPermission();
+      }
+    }
+    if (!mounted) return;
     setState(() => _changingPrayer = prayer);
-    final accepted = await ref
-        .read(servicesProvider)
-        .prayerReminders
-        .setPrayerMode(prayer, mode);
+    final accepted = await services.prayerReminders.setPrayerMode(prayer, mode);
     if (!mounted) return;
     setState(() => _changingPrayer = null);
     if (mode != PrayerReminderMode.disabled && !accepted) {

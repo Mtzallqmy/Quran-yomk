@@ -209,6 +209,12 @@ class _NotificationGateway implements LocalNotificationGateway {
   @override
   Future<bool> exactSchedulingAvailable() async => false;
   @override
+  Future<bool> requestExactSchedulingPermission() async => false;
+  @override
+  Future<bool> remoteChannelExists() async => true;
+  @override
+  Future<bool> remoteChannelEnabled() async => true;
+  @override
   Future<String?> initialize(void Function(String payload) onTap) async => null;
   @override
   Future<bool> openSystemSettings() async => false;

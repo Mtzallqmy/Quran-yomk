@@ -75,9 +75,7 @@ class FeatureManager extends ChangeNotifier {
 
   UpdateRequirement get updateRequirement {
     final minimum = SemanticVersion.safe(_config.minimumAndroidVersion);
-    final recommended = SemanticVersion.safe(
-      _config.recommendedAndroidVersion,
-    );
+    final recommended = SemanticVersion.safe(_config.recommendedAndroidVersion);
     final latest = SemanticVersion.safe(_config.latestAndroidVersion);
     if (_installedVersion.compareTo(minimum) < 0) {
       return UpdateRequirement.required;
@@ -93,8 +91,7 @@ class FeatureManager extends ChangeNotifier {
 
   bool routeAllowed(String route) => switch (route) {
     '/radio' => enabled(TarteelFeature.radio),
-    '/prayer-times' || '/custom-reminders' =>
-      enabled(TarteelFeature.prayer),
+    '/prayer-times' || '/custom-reminders' => enabled(TarteelFeature.prayer),
     '/adhkar' => enabled(TarteelFeature.adhkar),
     _ => true,
   };

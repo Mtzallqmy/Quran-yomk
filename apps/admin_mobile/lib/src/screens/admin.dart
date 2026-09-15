@@ -259,10 +259,9 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
                   ? row['notification_deliveries'] as List<dynamic>
                   : const <dynamic>[];
               final accepted = deliveries
-                .where(
-                  (value) =>
-                      (value as Map)['status'] == 'accepted_by_fcm',
-                )
+                  .where(
+                    (value) => (value as Map)['status'] == 'accepted_by_fcm',
+                  )
                   .length;
               final failed = deliveries
                   .where((value) => (value as Map)['status'] == 'failed')
@@ -333,10 +332,7 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
             future: config,
             onSaved: () => setState(refresh),
           ),
-          _AnnouncementComposer(
-            api: api,
-            onSaved: () => setState(refresh),
-          ),
+          _AnnouncementComposer(api: api, onSaved: () => setState(refresh)),
           _AdminList(
             title: 'الإعلانات داخل التطبيق',
             future: announcements,
@@ -350,9 +346,10 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
                       if (mounted) setState(refresh);
                     }
                   : () async {
-                      await api.updateAnnouncement('${row['id']}', <String, dynamic>{
-                        'is_active': true,
-                      });
+                      await api.updateAnnouncement(
+                        '${row['id']}',
+                        <String, dynamic>{'is_active': true},
+                      );
                       if (mounted) setState(refresh);
                     },
               child: Text(row['is_active'] == true ? 'أرشفة' : 'تفعيل'),
@@ -467,8 +464,7 @@ class _AnnouncementComposer extends StatefulWidget {
   final VoidCallback onSaved;
 
   @override
-  State<_AnnouncementComposer> createState() =>
-      _AnnouncementComposerState();
+  State<_AnnouncementComposer> createState() => _AnnouncementComposerState();
 }
 
 class _AnnouncementComposerState extends State<_AnnouncementComposer> {
@@ -532,15 +528,21 @@ class _AnnouncementComposerState extends State<_AnnouncementComposer> {
         DropdownButtonFormField<String>(
           initialValue: route,
           decoration: const InputDecoration(labelText: 'الرابط الداخلي'),
-          items: const <String>[
-            '/',
-            '/home',
-            '/prayer-times',
-            '/adhkar',
-            '/radio',
-            '/quran',
-            '/library',
-          ].map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
+          items:
+              const <String>[
+                    '/',
+                    '/home',
+                    '/prayer-times',
+                    '/adhkar',
+                    '/radio',
+                    '/quran',
+                    '/library',
+                  ]
+                  .map(
+                    (value) =>
+                        DropdownMenuItem(value: value, child: Text(value)),
+                  )
+                  .toList(),
           onChanged: (value) => route = value ?? '/home',
         ),
         const SizedBox(height: 12),

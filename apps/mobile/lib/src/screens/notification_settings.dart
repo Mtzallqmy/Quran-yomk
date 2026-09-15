@@ -265,9 +265,9 @@ class _NotificationDiagnosticsCardState
     final notifications = ref.read(servicesProvider).localNotifications;
     if (!await notifications.permissionGranted()) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('إذن Android غير مسموح')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('إذن Android غير مسموح')));
       }
       return;
     }
@@ -320,22 +320,75 @@ class _NotificationDiagnosticsCardState
               title: Text('تشخيص الإشعارات'),
               subtitle: Text('لا يعرض رمز FCM أو أي معلومات سرية'),
             ),
-            _StatusTile(title: 'Firebase initialized', value: push.ready ? 'YES' : 'NO'),
-            _StatusTile(title: 'Notification consent', value: push.consentGranted ? 'YES' : 'NO'),
-            _StatusTile(title: 'POST_NOTIFICATIONS', value: push.systemPermissionGranted ? 'GRANTED' : 'DENIED'),
-            _StatusTile(title: 'Notification channel exists', value: _channelExists == null ? '…' : _channelExists! ? 'YES' : 'NO'),
-            _StatusTile(title: 'Notification channel enabled', value: _channelEnabled == null ? '…' : _channelEnabled! ? 'YES' : 'NO'),
-            _StatusTile(title: 'FCM token exists', value: push.hasToken ? 'YES' : 'NO'),
-            _StatusTile(title: 'Backend registration', value: push.registered ? 'REGISTERED' : 'UNREGISTERED'),
-            _StatusTile(title: 'Device linked to user', value: push.linkedToUser ? 'YES' : 'NO'),
-            _StatusTile(title: 'Installation ID', value: push.maskedInstallationId),
+            _StatusTile(
+              title: 'Firebase initialized',
+              value: push.ready ? 'YES' : 'NO',
+            ),
+            _StatusTile(
+              title: 'Notification consent',
+              value: push.consentGranted ? 'YES' : 'NO',
+            ),
+            _StatusTile(
+              title: 'POST_NOTIFICATIONS',
+              value: push.systemPermissionGranted ? 'GRANTED' : 'DENIED',
+            ),
+            _StatusTile(
+              title: 'Notification channel exists',
+              value: _channelExists == null
+                  ? '…'
+                  : _channelExists!
+                  ? 'YES'
+                  : 'NO',
+            ),
+            _StatusTile(
+              title: 'Notification channel enabled',
+              value: _channelEnabled == null
+                  ? '…'
+                  : _channelEnabled!
+                  ? 'YES'
+                  : 'NO',
+            ),
+            _StatusTile(
+              title: 'FCM token exists',
+              value: push.hasToken ? 'YES' : 'NO',
+            ),
+            _StatusTile(
+              title: 'Backend registration',
+              value: push.registered ? 'REGISTERED' : 'UNREGISTERED',
+            ),
+            _StatusTile(
+              title: 'Device linked to user',
+              value: push.linkedToUser ? 'YES' : 'NO',
+            ),
+            _StatusTile(
+              title: 'Installation ID',
+              value: push.maskedInstallationId,
+            ),
             _StatusTile(title: 'App version', value: _appVersion),
-            _StatusTile(title: 'Last token refresh', value: _time(push.lastTokenRefreshAt)),
-            _StatusTile(title: 'Last backend registration', value: _time(push.lastSyncedAt)),
-            _StatusTile(title: 'Last push received', value: _time(push.lastReceivedAt)),
-            _StatusTile(title: 'Last notification displayed', value: _time(push.lastDisplayedAt)),
-            _StatusTile(title: 'Last notification opened', value: _time(push.lastOpenedAt)),
-            _StatusTile(title: 'Last error code', value: push.lastErrorCode ?? 'NONE'),
+            _StatusTile(
+              title: 'Last token refresh',
+              value: _time(push.lastTokenRefreshAt),
+            ),
+            _StatusTile(
+              title: 'Last backend registration',
+              value: _time(push.lastSyncedAt),
+            ),
+            _StatusTile(
+              title: 'Last push received',
+              value: _time(push.lastReceivedAt),
+            ),
+            _StatusTile(
+              title: 'Last notification displayed',
+              value: _time(push.lastDisplayedAt),
+            ),
+            _StatusTile(
+              title: 'Last notification opened',
+              value: _time(push.lastOpenedAt),
+            ),
+            _StatusTile(
+              title: 'Last error code',
+              value: push.lastErrorCode ?? 'NONE',
+            ),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Wrap(

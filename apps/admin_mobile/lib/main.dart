@@ -13,9 +13,7 @@ Future<void> main() async {
   final session = MobileAdminSession();
   runApp(
     ProviderScope(
-      overrides: [
-        servicesProvider.overrideWithValue(AdminServices(session)),
-      ],
+      overrides: [servicesProvider.overrideWithValue(AdminServices(session))],
       child: const TarteelAdminApp(),
     ),
   );

@@ -392,10 +392,7 @@ class MobileAdminSession extends ChangeNotifier {
     await _edge('announcements', method: 'POST', body: value);
   }
 
-  Future<void> updateAnnouncement(
-    String id,
-    Map<String, dynamic> value,
-  ) async {
+  Future<void> updateAnnouncement(String id, Map<String, dynamic> value) async {
     await _edge('announcements/$id', method: 'PUT', body: value);
   }
 

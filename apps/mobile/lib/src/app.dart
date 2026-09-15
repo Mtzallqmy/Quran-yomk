@@ -314,9 +314,7 @@ class _RootShellState extends ConsumerState<RootShell>
                             Icons.download_for_offline_outlined,
                           ),
                           title: Text(
-                            english
-                                ? 'Offline Quran'
-                                : 'الاستماع بدون إنترنت',
+                            english ? 'Offline Quran' : 'الاستماع بدون إنترنت',
                           ),
                         ),
                       ),
@@ -365,14 +363,12 @@ class _RootShellState extends ConsumerState<RootShell>
                 actions: <Widget>[
                   if (announcement.deepLink != null)
                     TextButton(
-                      onPressed: () =>
-                          _handlePushRoute(announcement.deepLink!),
+                      onPressed: () => _handlePushRoute(announcement.deepLink!),
                       child: const Text('فتح'),
                     ),
                   if (announcement.dismissible)
                     TextButton(
-                      onPressed: () =>
-                          announcements.dismiss(announcement.id),
+                      onPressed: () => announcements.dismiss(announcement.id),
                       child: const Text('إخفاء'),
                     ),
                 ],
@@ -462,7 +458,10 @@ class _MaintenanceScreen extends StatelessWidget {
           children: <Widget>[
             const Icon(Icons.build_circle_outlined, size: 64),
             const SizedBox(height: 16),
-            Text('وضع الصيانة', style: Theme.of(context).textTheme.headlineSmall),
+            Text(
+              'وضع الصيانة',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             const SizedBox(height: 8),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),

@@ -56,9 +56,7 @@ Future<void> tarteelFirebaseBackgroundHandler(RemoteMessage message) async {
     final installationId = preferences.getString('push:installation_id');
     final registered = preferences.getBool('push:registered') ?? false;
     const storage = FlutterSecureStorage();
-    final secret = await storage.read(
-      key: 'tarteel_push_installation_secret',
-    );
+    final secret = await storage.read(key: 'tarteel_push_installation_secret');
     if (!registered || installationId == null || secret == null) return;
     await http
         .post(
@@ -341,6 +339,7 @@ class PushNotificationService extends ChangeNotifier {
         ? '***'
         : '${value.substring(0, 8)}…${value.substring(value.length - 4)}';
   }
+
   String? get lastErrorCode => _lastErrorCode;
   Stream<String> get routes => _routes.stream;
 

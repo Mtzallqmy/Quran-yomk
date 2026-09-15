@@ -7,12 +7,13 @@ import 'package:tarteel/src/repository.dart';
 void main() {
   test('semantic versions compare numerically', () {
     expect(
-      SemanticVersion.parse('0.10.0').compareTo(
-        SemanticVersion.parse('0.9.9'),
-      ),
+      SemanticVersion.parse('0.10.0').compareTo(SemanticVersion.parse('0.9.9')),
       greaterThan(0),
     );
-    expect(SemanticVersion.parse('1.2').compareTo(SemanticVersion.parse('1.2.0')), 0);
+    expect(
+      SemanticVersion.parse('1.2').compareTo(SemanticVersion.parse('1.2.0')),
+      0,
+    );
     expect(() => SemanticVersion.parse('1.bad.0'), throwsFormatException);
   });
 
@@ -29,10 +30,7 @@ void main() {
       _Repository(),
       await SharedPreferences.getInstance(),
     )..load();
-    final features = FeatureManager(
-      config: config,
-      installedVersion: '0.5.3',
-    );
+    final features = FeatureManager(config: config, installedVersion: '0.5.3');
     expect(features.enabled(TarteelFeature.radio), isFalse);
     expect(features.routeAllowed('/radio'), isFalse);
     expect(features.routeAllowed('/prayer-times'), isTrue);

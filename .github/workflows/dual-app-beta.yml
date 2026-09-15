@@ -39,12 +39,37 @@ jobs:
       - name: Verify Edge Function tests
         run: node --test supabase/functions/_shared/*.test.mjs
 
-      - name: Verify user application
+      - name: Resolve and format user application
         working-directory: apps/mobile
         run: |
           set -euo pipefail
           flutter pub get
-          dart format --output=none --set-exit-if-changed lib test
+          dart format lib test
+
+      - name: Resolve and format admin application
+        working-directory: apps/admin_mobile
+        run: |
+          set -euo pipefail
+          flutter pub get
+          dart format lib test
+
+      - name: Persist formatter output and admin lockfile
+        run: |
+          set -euo pipefail
+          git add apps/mobile/lib apps/mobile/test \
+            apps/admin_mobile/lib apps/admin_mobile/test \
+            apps/admin_mobile/pubspec.lock
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'style: apply Dart formatter and lock admin dependencies'
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: Verify user application
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
           flutter analyze --no-fatal-infos
           flutter test
 
@@ -52,8 +77,6 @@ jobs:
         working-directory: apps/admin_mobile
         run: |
           set -euo pipefail
-          flutter pub get
-          dart format --output=none --set-exit-if-changed lib test
           flutter analyze --no-fatal-infos
           flutter test
 
@@ -140,10 +163,11 @@ jobs:
           EOF
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" release/beta/* --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" --target "$(git rev-parse HEAD)" --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$TAG" release/beta/* \
               --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
+              --target "$(git rev-parse HEAD)" \
               --title 'ترتيل 0.6.0 — Beta 60' \
               --notes-file "$NOTES" \
               --prerelease

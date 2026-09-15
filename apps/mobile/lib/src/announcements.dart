@@ -61,13 +61,16 @@ class AnnouncementService extends ChangeNotifier {
       final data = decoded is Map ? decoded['data'] : null;
       final rows = data is Map ? data['items'] : null;
       if (rows is! List) return;
-      final next =
-          rows
-              .whereType<Map>()
-              .map((row) => InAppAnnouncement.fromJson(Map.from(row)))
-              .where((item) => !_dismissed(item.id))
-              .toList()
-            ..sort((left, right) => right.priority.compareTo(left.priority));
+      final next = rows
+          .whereType<Map<dynamic, dynamic>>()
+          .map(
+            (row) => InAppAnnouncement.fromJson(
+              Map<String, dynamic>.from(row),
+            ),
+          )
+          .where((item) => !_dismissed(item.id))
+          .toList()
+        ..sort((left, right) => right.priority.compareTo(left.priority));
       _items = next;
       notifyListeners();
     } catch (_) {

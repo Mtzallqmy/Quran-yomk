@@ -111,7 +111,7 @@ Future<void> main() async {
     for (final key in const <String>['salawat', 'daily_wird', 'daily_quran']) {
       await personalReminderStore.setEnabled(key, true);
     }
-    await prayerReminders.reconcile();
+    await Future<void>.sync(prayerReminders.reconcile);
     await adhkarReminders.start();
     await personalReminders.reconcile();
     await preferences.setBool('local:defaults_activated:v1', true);
@@ -151,8 +151,6 @@ Future<void> main() async {
     personalReminders: personalReminders,
   );
 
-  await initializeReminderBackgroundWork();
-
   runApp(
     ProviderScope(
       overrides: [servicesProvider.overrideWithValue(services)],
@@ -164,6 +162,7 @@ Future<void> main() async {
     'offline_clips': offlineClips.initialize,
     'quran_downloads': quranDownloads.initialize,
     'islamic_content': islamicContent.synchronizeInBackground,
+    'background_reminders': initializeReminderBackgroundWork,
     'runtime_config_and_reminders': () async {
       await remoteConfig.refresh();
       if (features.enabled(TarteelFeature.prayer)) {

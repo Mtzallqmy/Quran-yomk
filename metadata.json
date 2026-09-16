@@ -1,0 +1,6 @@
+{
+  "name": "قرآن يتلى",
+  "description": "منصة وتطبيق قرآن يتلى — تلاوات قرآنية، إذاعات مدارة، ومصحف شريف",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

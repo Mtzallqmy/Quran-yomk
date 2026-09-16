@@ -1,0 +1,22 @@
+{
+  "name": "quran-yutla-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Quran Yutla (قرآن يتلى) — Monorepo Ecosystem",
+  "workspaces": [
+    "packages/*",
+    "apps/admin",
+    "services/*"
+  ],
+  "scripts": {
+    "lint": "echo 'Running linter across monorepo packages...'",
+    "typecheck": "echo 'Running typecheck across TypeScript packages...'",
+    "test": "echo 'Running test suites across monorepo...'",
+    "build": "echo 'Building monorepo artifacts...'",
+    "check-env": "./scripts/check-env.sh",
+    "validate-checksums": "./scripts/validate-checksums.sh"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,11 +1,50 @@
-<div align="center">
+# قرآن يتلى — Quran Yutla
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+منصة القرآن الكريم السيادية والبث الإذاعي الصوتي المدار على مدار الساعة.
 
-  <h1>Built with AI Studio</h2>
+---
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## 🌟 نظرة عامة
+**«قرآن يتلى»** هو تطبيق إسلامي مستقل تم بناؤه بأعلى معايير البرمجيات السيادية، خالي تماماً من أي إعلانات أو أدوات تتبع للمستخدمين (Zero Surveillance). يوفر التطبيق تجربة عربية أصيلة (RTL-First) بالغة السلاسة، مع اعتماد تام على مجمع الملك فهد لطباعة المصحف الشريف بالمدينة المنورة ومطابقة هندسية لمعايير الصوت العالمية EBU R128 (-16.0 LUFS).
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+---
 
-</div>
+## 🎨 الهوية البصرية (Visual Identity)
+- **الأزرق النيلي العميق (Deep Indigo)**: `#243B6B` — اللون السيادي الأساسي.
+- **التيل الصوتي (Acoustic Teal)**: `#2E9E9E` — للموجات الصوتية والتمييز الحي.
+- **النحاسي الدافئ (Copper Accent)**: `#C77955` — مستوحى من الخشب الطبيعي لحامل المصحف.
+- **الأبيض اللؤلؤي (Pearl Canvas)**: `#F8F6F1` — لراحة القراءة المديدة.
+- **الليلي الهادئ (Night Background)**: `#0E1726` — للوضع الداكن المريح للعينين.
+
+---
+
+## 🚀 التشغيل والفحص المحلي السريع
+
+### 1. فحص سلامة نصوص القرآن الكريم (Fail-Closed Gate)
+```bash
+./scripts/validate-checksums.sh
+```
+
+### 2. تشغيل لوحة الإدارة (Next.js)
+```bash
+cd apps/admin
+npm install
+npm run dev
+```
+
+### 3. تشغيل خدمات معالجة الصوت ومحرك الإذاعة
+```bash
+cd services/audio-worker && npm install && npm run start
+cd services/radio-engine && npm install && npm run start
+```
+
+---
+
+## 📚 التوثيق المرجعي الكامل
+- **[مصفوفة التكافؤ الوظيفي](docs/FEATURE_PARITY.md)**: مقارنة تفصيلية لجميع وظائف المشروع.
+- **[أمان النص القرآني](QURAN_INTEGRITY.md)**: مبدأ الـ Fail-Closed في التحقق من صحة النص.
+- **[توحيد هوية القراء](RECITER_IDENTITY.md)**: المعيار الموحد لأسماء القراء وبياناتهم وتراخيصهم.
+- **[دليل عمليات البث الإذاعي](docs/RADIO_OPERATIONS.md)**: بنية محرك Liquidsoap 2.2 وخوادم Icecast.
+- **[المراجعة الأمنية والخصوصية](docs/SECURITY_REVIEW.md)**: سياسات RLS والتشفير وحماية بيانات المستخدمين.
+- **[دليل النشر والترحيل](docs/DEPLOYMENT.md)**: خطوات النشر على بيئات الإنتاج المختلفة.
+- **[الإشعارات القانونية والمصادر](THIRD_PARTY_NOTICES.md)**: تراخيص المصادر المفتوحة وأوقاف التلاوات.

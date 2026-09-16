@@ -27,7 +27,6 @@ import 'src/quran_playlist_store.dart';
 import 'src/prayer_reminders.dart';
 import 'src/prayer_settings.dart';
 import 'src/prayer_times.dart';
-import 'src/push_notifications.dart';
 import 'src/remote_config.dart';
 import 'src/repository.dart';
 import 'src/services.dart';

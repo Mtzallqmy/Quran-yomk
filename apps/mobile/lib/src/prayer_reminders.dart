@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 
 import 'adhan_audio.dart';
 import 'local_notifications.dart';
+import 'native_prayer_alarm.dart';
 import 'prayer_settings.dart';
 import 'prayer_times.dart';
 
@@ -17,9 +18,6 @@ abstract final class PrayerReminderIds {
 
   static const List<int> all = <int>[fajr, dhuhr, asr, maghrib, isha];
 
-  /// Android notification IDs for a prayer on a particular local calendar
-  /// day. They stay below the signed 32-bit limit and are deterministic, so
-  /// changing location/method can replace the same pending alarm cleanly.
   static int forPrayerOnDate(PrayerKind prayer, DateTime date) {
     final prayerIndex = switch (prayer) {
       PrayerKind.fajr => 0,
@@ -28,10 +26,10 @@ abstract final class PrayerReminderIds {
       PrayerKind.maghrib => 3,
       PrayerKind.isha => 4,
       PrayerKind.sunrise => throw ArgumentError.value(
-        prayer,
-        'prayer',
-        'Sunrise is not a prayer reminder',
-      ),
+          prayer,
+          'prayer',
+          'Sunrise is not a prayer reminder',
+        ),
     };
     final dayOfYear = date.difference(DateTime(date.year)).inDays;
     return 4_200_000 +
@@ -41,17 +39,17 @@ abstract final class PrayerReminderIds {
   }
 
   static int forPrayer(PrayerKind prayer) => switch (prayer) {
-    PrayerKind.fajr => fajr,
-    PrayerKind.dhuhr => dhuhr,
-    PrayerKind.asr => asr,
-    PrayerKind.maghrib => maghrib,
-    PrayerKind.isha => isha,
-    PrayerKind.sunrise => throw ArgumentError.value(
-      prayer,
-      'prayer',
-      'Sunrise is not a prayer reminder',
-    ),
-  };
+        PrayerKind.fajr => fajr,
+        PrayerKind.dhuhr => dhuhr,
+        PrayerKind.asr => asr,
+        PrayerKind.maghrib => maghrib,
+        PrayerKind.isha => isha,
+        PrayerKind.sunrise => throw ArgumentError.value(
+            prayer,
+            'prayer',
+            'Sunrise is not a prayer reminder',
+          ),
+      };
 }
 
 class PrayerReminderController {
@@ -60,19 +58,22 @@ class PrayerReminderController {
     required this.prayerTimes,
     required this.settings,
     this.adhanAudio,
+    NativePrayerAlarmBridge? nativeAlarm,
     DateTime Function()? clock,
     bool Function()? isForeground,
-  }) : _clock = clock ?? DateTime.now,
-       _isForeground =
-           isForeground ??
-           (() =>
-               SchedulerBinding.instance.lifecycleState ==
-               AppLifecycleState.resumed);
+  })  : nativeAlarm = nativeAlarm ?? const NativePrayerAlarmBridge(),
+        _clock = clock ?? DateTime.now,
+        _isForeground =
+            isForeground ??
+                (() =>
+                    SchedulerBinding.instance.lifecycleState ==
+                    AppLifecycleState.resumed);
 
   final LocalNotificationService notifications;
   final PrayerTimesService prayerTimes;
   final PrayerSettingsStore settings;
   final AdhanAudioService? adhanAudio;
+  final NativePrayerAlarmBridge nativeAlarm;
   final DateTime Function() _clock;
   final bool Function() _isForeground;
   Timer? _dateTimer;
@@ -81,8 +82,8 @@ class PrayerReminderController {
   bool _rerun = false;
   bool _started = false;
 
-  /// 45 days keeps prayer alarms useful fully offline while remaining below
-  /// Android vendor limits (225 prayer alarms, plus the app's other alarms).
+  /// Non-Android fallback window. Android uses a native self-refreshing alarm
+  /// engine that survives app process death and reboots.
   static const scheduleDays = 45;
 
   Future<void> start() async {
@@ -138,6 +139,11 @@ class PrayerReminderController {
     }
   }
 
+  Future<NativePrayerAlarmStatus> nativeStatus() => nativeAlarm.status();
+
+  Future<bool> scheduleAlarmTest({required bool playAdhan}) =>
+      nativeAlarm.scheduleTest(playAdhan: playAdhan);
+
   Future<void> reconcile() {
     _rerun = true;
     return _running ??= _drainReconciliations();
@@ -157,10 +163,21 @@ class PrayerReminderController {
   Future<void> _reconcileOnce() async {
     final current = settings.value;
     if (!current.remindersEnabled || !await notifications.permissionGranted()) {
-      await _cancelAll();
+      await nativeAlarm.disable();
+      await _cancelFlutterManaged();
       _adhanTimer?.cancel();
       return;
     }
+
+    // Android uses AlarmManager + a native foreground media service for the
+    // adhan. This path continues to work when Flutter is killed and is restored
+    // after reboot/time changes. Tests and other platforms fall back below.
+    if (await nativeAlarm.configure(current)) {
+      await _cancelFlutterManaged();
+      _adhanTimer?.cancel();
+      return;
+    }
+
     final now = _clock();
     final snapshot = await prayerTimes.snapshot(now: now, settings: current);
     await _cancelManagedWindow(now);
@@ -239,7 +256,7 @@ class PrayerReminderController {
     });
   }
 
-  Future<void> _cancelAll() async {
+  Future<void> _cancelFlutterManaged() async {
     for (final id in PrayerReminderIds.all) {
       await notifications.cancel(id);
     }
@@ -247,7 +264,6 @@ class PrayerReminderController {
   }
 
   Future<void> _cancelManagedWindow(DateTime now) async {
-    // Include yesterday to clear stale alarms after timezone/location edits.
     for (var offset = -1; offset <= scheduleDays; offset++) {
       final date = now.add(Duration(days: offset));
       for (final prayer in PrayerKind.values.where(
@@ -262,7 +278,8 @@ class PrayerReminderController {
 
   Future<void> suspend() async {
     _adhanTimer?.cancel();
-    await _cancelAll();
+    await nativeAlarm.disable();
+    await _cancelFlutterManaged();
   }
 
   void _settingsChanged() => _scheduleSafely();

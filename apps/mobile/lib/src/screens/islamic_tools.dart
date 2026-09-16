@@ -1,14 +1,95 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:hijri_core/hijri_core.dart' as hijri_core;
 
+import '../prayer_settings.dart';
 import '../services.dart';
 
 class IslamicToolsPage extends ConsumerWidget {
   const IslamicToolsPage({super.key});
+
+  static const _settingsChannel = MethodChannel('app.tarteel.tarteel/settings');
+
+  Future<void> _useCurrentLocation(BuildContext context, WidgetRef ref) async {
+    final services = ref.read(servicesProvider);
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('فعّل خدمة الموقع في الهاتف أولًا.')),
+        );
+      }
+      return;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.deniedForever) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('إذن الموقع مرفوض نهائيًا من Android.'),
+            action: SnackBarAction(
+              label: 'الإعدادات',
+              onPressed: Geolocator.openAppSettings,
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    if (permission == LocationPermission.denied) return;
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+      String timezone = services.prayerSettings.value.timezone;
+      try {
+        timezone =
+            await _settingsChannel.invokeMethod<String>('getSystemTimezone') ??
+                timezone;
+      } on PlatformException {
+        // Keep the saved timezone if the native lookup is unavailable.
+      }
+      final current = services.prayerSettings.value;
+      final method = timezone == 'Asia/Riyadh'
+          ? PrayerCalculationMethod.ummAlQura
+          : current.calculationMethod;
+      await services.prayerSettings.updateLocation(
+        current.copyWith(
+          locationName: 'موقعي الحالي',
+          latitude: position.latitude,
+          longitude: position.longitude,
+          timezone: timezone,
+          calculationMethod: method,
+        ),
+      );
+      await services.prayerReminders.reconcile();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم تحديث موقع الصلاة والقبلة وإعادة جدولة المنبهات.'),
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر الحصول على موقع دقيق من الجهاز.')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,6 +100,17 @@ class IslamicToolsPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.my_location_outlined),
+              title: const Text('استخدام موقعي الحالي'),
+              subtitle: const Text(
+                'يستخدم GPS عند اختيارك فقط ثم يحفظ الإحداثيات للعمل دون إنترنت.',
+              ),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => _useCurrentLocation(context, ref),
+            ),
+          ),
           Card(
             child: ListTile(
               leading: const Icon(Icons.explore_outlined),

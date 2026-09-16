@@ -16,6 +16,7 @@ import 'src/local_notifications.dart';
 import 'src/learning.dart';
 import 'src/mushaf_pages.dart';
 import 'src/mushaf_store.dart';
+import 'src/notification_consent_service.dart';
 import 'src/offline_clip_service.dart';
 import 'src/personal_reminders.dart';
 import 'src/playback.dart';
@@ -101,9 +102,26 @@ Future<void> main() async {
     settings: prayerSettings,
     adhanAudio: adhanAudio,
   );
-  final pushNotifications = PushNotificationService(
+
+  Future<void> enableLocalDefaults() async {
+    if (preferences.getBool('local:defaults_activated:v1') == true) return;
+    await prayerSettings.setRemindersEnabled(true);
+    for (final category in const <String>['morning', 'evening', 'sleep']) {
+      await learning.setReminderMode(category, AdhkarReminderMode.tone);
+    }
+    for (final key in const <String>['salawat', 'daily_wird', 'daily_quran']) {
+      await personalReminderStore.setEnabled(key, true);
+    }
+    await prayerReminders.reconcile();
+    await adhkarReminders.start();
+    await personalReminders.reconcile();
+    await preferences.setBool('local:defaults_activated:v1', true);
+  }
+
+  final pushNotifications = TarteelPushNotificationService(
     preferences: preferences,
     localNotifications: localNotifications,
+    onLocalConsentGranted: enableLocalDefaults,
   );
 
   final services = AppServices(

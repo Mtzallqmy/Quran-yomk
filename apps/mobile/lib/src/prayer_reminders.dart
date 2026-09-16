@@ -17,6 +17,29 @@ abstract final class PrayerReminderIds {
 
   static const List<int> all = <int>[fajr, dhuhr, asr, maghrib, isha];
 
+  /// Android notification IDs for a prayer on a particular local calendar
+  /// day. They stay below the signed 32-bit limit and are deterministic, so
+  /// changing location/method can replace the same pending alarm cleanly.
+  static int forPrayerOnDate(PrayerKind prayer, DateTime date) {
+    final prayerIndex = switch (prayer) {
+      PrayerKind.fajr => 0,
+      PrayerKind.dhuhr => 1,
+      PrayerKind.asr => 2,
+      PrayerKind.maghrib => 3,
+      PrayerKind.isha => 4,
+      PrayerKind.sunrise => throw ArgumentError.value(
+        prayer,
+        'prayer',
+        'Sunrise is not a prayer reminder',
+      ),
+    };
+    final dayOfYear = date.difference(DateTime(date.year)).inDays;
+    return 4_200_000 +
+        (prayerIndex * 40_000) +
+        ((date.year % 100) * 366) +
+        dayOfYear;
+  }
+
   static int forPrayer(PrayerKind prayer) => switch (prayer) {
     PrayerKind.fajr => fajr,
     PrayerKind.dhuhr => dhuhr,
@@ -57,6 +80,10 @@ class PrayerReminderController {
   Future<void>? _running;
   bool _rerun = false;
   bool _started = false;
+
+  /// 45 days keeps prayer alarms useful fully offline while remaining below
+  /// Android vendor limits (225 prayer alarms, plus the app's other alarms).
+  static const scheduleDays = 45;
 
   Future<void> start() async {
     if (_started) return;
@@ -136,40 +163,41 @@ class PrayerReminderController {
     }
     final now = _clock();
     final snapshot = await prayerTimes.snapshot(now: now, settings: current);
-    final tomorrow = await prayerTimes.dayFor(
-      date: snapshot.today.date.add(const Duration(days: 1)),
-      settings: current,
-    );
+    await _cancelManagedWindow(now);
     final adhanSchedules = <({PrayerKind prayer, DateTime time})>[];
-    for (final prayer in PrayerKind.values.where(
-      (value) => value.isRequiredPrayer,
-    )) {
-      final mode = current.reminderModeFor(prayer);
-      if (mode == PrayerReminderMode.disabled) {
-        await notifications.cancel(PrayerReminderIds.forPrayer(prayer));
-        continue;
-      }
-      final todayTime = snapshot.today.timeFor(prayer);
-      final scheduledAt = todayTime.isAfter(now)
-          ? todayTime
-          : tomorrow.timeFor(prayer);
-      await notifications.reschedule(
-        LocalNotificationRequest(
-          id: PrayerReminderIds.forPrayer(prayer),
-          title: 'ترتيل',
-          body: mode == PrayerReminderMode.adhan
-              ? 'حان موعد أذان صلاة ${prayer.nameAr}'
-              : 'حان موعد صلاة ${prayer.nameAr}',
-          scheduledAt: scheduledAt,
-          timezone: current.timezone,
-          payload: '/prayer-times?prayer=${prayer.name}',
-          channel: mode == PrayerReminderMode.adhan
-              ? LocalNotificationChannel.adhan
-              : LocalNotificationChannel.prayerReminder,
-        ),
-      );
-      if (mode == PrayerReminderMode.adhan) {
-        adhanSchedules.add((prayer: prayer, time: scheduledAt));
+    for (var dayOffset = 0; dayOffset < scheduleDays; dayOffset++) {
+      final day = dayOffset == 0
+          ? snapshot.today
+          : await prayerTimes.dayFor(
+              date: snapshot.today.date.add(Duration(days: dayOffset)),
+              settings: current,
+            );
+      for (final prayer in PrayerKind.values.where(
+        (value) => value.isRequiredPrayer,
+      )) {
+        final mode = current.reminderModeFor(prayer);
+        if (mode == PrayerReminderMode.disabled) continue;
+        final scheduledAt = day.timeFor(prayer);
+        if (!scheduledAt.isAfter(now)) continue;
+        await notifications.reschedule(
+          LocalNotificationRequest(
+            id: PrayerReminderIds.forPrayerOnDate(prayer, scheduledAt),
+            title: 'ترتيل',
+            body: mode == PrayerReminderMode.adhan
+                ? 'حان موعد أذان صلاة ${prayer.nameAr}'
+                : 'حان موعد صلاة ${prayer.nameAr}',
+            scheduledAt: scheduledAt,
+            timezone: current.timezone,
+            payload: '/prayer-times?prayer=${prayer.name}',
+            channel: mode == PrayerReminderMode.adhan
+                ? LocalNotificationChannel.adhan
+                : LocalNotificationChannel.prayerReminder,
+            playSound: mode != PrayerReminderMode.silent,
+          ),
+        );
+        if (mode == PrayerReminderMode.adhan) {
+          adhanSchedules.add((prayer: prayer, time: scheduledAt));
+        }
       }
     }
     _scheduleForegroundAdhan(adhanSchedules, current);
@@ -215,6 +243,26 @@ class PrayerReminderController {
     for (final id in PrayerReminderIds.all) {
       await notifications.cancel(id);
     }
+    await _cancelManagedWindow(_clock());
+  }
+
+  Future<void> _cancelManagedWindow(DateTime now) async {
+    // Include yesterday to clear stale alarms after timezone/location edits.
+    for (var offset = -1; offset <= scheduleDays; offset++) {
+      final date = now.add(Duration(days: offset));
+      for (final prayer in PrayerKind.values.where(
+        (value) => value.isRequiredPrayer,
+      )) {
+        await notifications.cancel(
+          PrayerReminderIds.forPrayerOnDate(prayer, date),
+        );
+      }
+    }
+  }
+
+  Future<void> suspend() async {
+    _adhanTimer?.cancel();
+    await _cancelAll();
   }
 
   void _settingsChanged() => _scheduleSafely();

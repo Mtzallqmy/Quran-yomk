@@ -54,6 +54,14 @@ class TarteelRemoteConfig extends ChangeNotifier {
       stringValue('latest_android_version', fallback: '0.0.0');
   String get recommendedAndroidVersion =>
       stringValue('recommended_android_version', fallback: '0.0.0');
+  String get androidUpdateUrl => stringValue(
+    'android_update_url',
+    fallback: 'https://github.com/Mtzallqmy/Quran-yomk/releases/latest',
+  );
+  String get androidUpdateMessage => stringValue(
+    'android_update_message',
+    fallback: 'يتوفر إصدار أحدث من ترتيل.',
+  );
 
   Map<String, dynamic> get contentManifest {
     final raw = jsonValue('content_manifest');

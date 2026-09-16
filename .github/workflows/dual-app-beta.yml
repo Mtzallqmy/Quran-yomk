@@ -1,0 +1,174 @@
+name: Tarteel User and Admin Beta
+
+on:
+  push:
+    branches:
+      - hardening/production-notifications-admin
+    paths:
+      - 'apps/mobile/**'
+      - 'apps/admin_mobile/**'
+      - 'supabase/**'
+      - '.github/workflows/dual-app-beta.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dual-app-beta-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-build-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Verify Edge Function tests
+        run: node --test supabase/functions/_shared/*.test.mjs
+
+      - name: Resolve and format user application
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
+          flutter pub get
+          dart format lib test
+
+      - name: Resolve and format admin application
+        working-directory: apps/admin_mobile
+        run: |
+          set -euo pipefail
+          flutter pub get
+          dart format lib test
+
+      - name: Persist formatter output and admin lockfile
+        run: |
+          set -euo pipefail
+          git add apps/mobile/lib apps/mobile/test \
+            apps/admin_mobile/lib apps/admin_mobile/test \
+            apps/admin_mobile/pubspec.lock
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'style: apply Dart formatter and lock admin dependencies'
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: Verify user application
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
+          flutter analyze --no-fatal-infos
+          flutter test
+
+      - name: Verify admin application
+        working-directory: apps/admin_mobile
+        run: |
+          set -euo pipefail
+          flutter analyze --no-fatal-infos
+          flutter test
+
+      - name: Verify client configuration
+        run: |
+          set -euo pipefail
+          grep -q 'applicationId = "app.tarteel.tarteel"' apps/mobile/android/app/build.gradle.kts
+          grep -q '"package_name": "app.tarteel.tarteel"' apps/mobile/android/app/google-services.json
+          grep -q '"project_id": "tarteel-b755d"' apps/mobile/android/app/google-services.json
+          grep -q 'applicationId = "app.tarteel.admin"' apps/admin_mobile/android/app/build.gradle.kts
+          test ! -e apps/admin_mobile/android/app/google-services.json
+
+      - name: Build user beta APK
+        working-directory: apps/mobile
+        run: >-
+          flutter build apk --release
+          --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
+
+      - name: Build admin beta APK
+        working-directory: apps/admin_mobile
+        run: flutter build apk --release
+
+      - name: Collect and inspect beta APKs
+        run: |
+          set -euo pipefail
+          mkdir -p release/beta
+          cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk release/beta/tarteel-user-0.7.0.apk
+          cp apps/admin_mobile/build/app/outputs/flutter-apk/app-release.apk release/beta/tarteel-admin-0.2.0.apk
+
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)
+          "$AAPT" dump badging release/beta/tarteel-user-0.7.0.apk > release/beta/user-badging.txt
+          "$AAPT" dump badging release/beta/tarteel-admin-0.2.0.apk > release/beta/admin-badging.txt
+          grep -q "package: name='app.tarteel.tarteel'" release/beta/user-badging.txt
+          grep -q "versionName='0.7.0'" release/beta/user-badging.txt
+          grep -q "package: name='app.tarteel.admin'" release/beta/admin-badging.txt
+          grep -q "versionName='0.2.0'" release/beta/admin-badging.txt
+
+          for apk in release/beta/*.apk; do
+            if strings "$apk" | grep -Ei '(BEGIN (RSA )?PRIVATE KEY|FIREBASE_SERVICE_ACCOUNT_JSON|SUPABASE_SERVICE_ROLE_KEY|sb_secret_[A-Za-z0-9_-]{12,})'; then
+              echo "Privileged credential material was found in $apk" >&2
+              exit 1
+            fi
+          done
+
+          sha256sum release/beta/*.apk > release/beta/SHA256SUMS.txt
+          {
+            echo '## Tarteel dual-app beta'
+            echo
+            echo '- User: `app.tarteel.tarteel` (`0.7.0+70`)'
+            echo '- Admin: `app.tarteel.admin` (`0.2.0+2`)'
+            echo '- Signing: internal beta/debug signing; not Play Store production signing'
+            echo '- Physical-device notification test: **NOT VERIFIED**'
+            echo
+            echo '```text'
+            cat release/beta/SHA256SUMS.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarteel-dual-app-beta-${{ github.run_number }}
+          path: release/beta
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub prerelease
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='v0.7.0-beta.70'
+          NOTES=$(mktemp)
+          cat > "$NOTES" <<'EOF'
+          ## ترتيل — نسخة اختبار شاملة
+
+          تتضمن هذه النسخة تطبيق المستخدم وتطبيق الإدارة المنفصل، مع تحسينات الإشعارات، تشخيص الجهاز، وصول الإدارة، Feature Flags، وضع الصيانة، وسياسة التحديث.
+
+          - `tarteel-user-0.7.0.apk`: تطبيق المستخدم مع صلاة وأذكار Offline-first.
+          - `tarteel-admin-0.2.0.apk`: تطبيق الإدارة مع حفظ الجلسة وتحسين إدارة الإشعارات.
+          - `SHA256SUMS.txt`: بصمات التحقق.
+
+          التوقيع الحالي للاختبار الداخلي فقط وليس توقيع متجر Google Play. اختبار FCM والإشعارات على جهاز فعلي يجب تنفيذه بعد التثبيت.
+          EOF
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/beta/* --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" --target "$(git rev-parse HEAD)" --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" release/beta/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$(git rev-parse HEAD)" \
+              --title 'ترتيل 0.7.0 — Beta 70' \
+              --notes-file "$NOTES" \
+              --prerelease
+          fi

@@ -1,12 +1,14 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'src/api.dart';
-import 'src/admin_api.dart';
 import 'src/adhan_audio.dart';
+import 'src/announcements.dart';
 import 'src/app.dart';
+import 'src/feature_manager.dart';
 import 'src/islamic_content.dart';
 import 'src/local_notifications.dart';
 import 'src/learning.dart';
@@ -67,6 +69,12 @@ Future<void> main() async {
   final api = TarteelApiClient();
   final repository = TarteelRepository(api, MetadataCache(preferences));
   final remoteConfig = TarteelRemoteConfig(repository, preferences)..load();
+  final announcements = AnnouncementService(preferences);
+  final packageInfo = await PackageInfo.fromPlatform();
+  final features = FeatureManager(
+    config: remoteConfig,
+    installedVersion: packageInfo.version,
+  );
   final localNotifications = LocalNotificationService();
   final learning = LearningStore(preferences)..load();
   final adhkarReminders = AdhkarReminderController(
@@ -86,9 +94,6 @@ Future<void> main() async {
     preferences: preferences,
     localNotifications: localNotifications,
   );
-  final adminSession = MobileAdminSession(
-    onAuthenticationChanged: pushNotifications.attachAuthenticatedUser,
-  );
   final services = AppServices(
     repository: repository,
     favorites: favorites,
@@ -103,13 +108,14 @@ Future<void> main() async {
     quranPlayback: quranPlayback,
     quranPlaylists: quranPlaylists,
     remoteConfig: remoteConfig,
+    announcements: announcements,
+    features: features,
     localNotifications: localNotifications,
     prayerSettings: prayerSettings,
     prayerTimes: prayerTimes,
     prayerReminders: prayerReminders,
     adhanAudio: adhanAudio,
     pushNotifications: pushNotifications,
-    adminSession: adminSession,
     learning: learning,
     adhkarReminders: adhkarReminders,
   );
@@ -124,9 +130,20 @@ Future<void> main() async {
     'offline_clips': offlineClips.initialize,
     'quran_downloads': quranDownloads.initialize,
     'islamic_content': islamicContent.synchronizeInBackground,
-    'remote_config': remoteConfig.refresh,
-    'prayer_reminders': prayerReminders.start,
-    'admin_session': adminSession.restore,
-    'adhkar_reminders': adhkarReminders.start,
+    'runtime_config_and_reminders': () async {
+      await remoteConfig.refresh();
+      if (features.enabled(TarteelFeature.prayer)) {
+        await prayerReminders.start();
+      } else {
+        await prayerReminders.suspend();
+      }
+      if (features.enabled(TarteelFeature.adhkar)) {
+        await adhkarReminders.start();
+      } else {
+        await adhkarReminders.suspend();
+      }
+    },
+    'push_notifications': pushNotifications.initialize,
+    'announcements': announcements.refresh,
   });
 }

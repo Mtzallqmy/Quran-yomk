@@ -32,8 +32,16 @@ class AdminEntryPage extends ConsumerWidget {
     final session = ref.watch(servicesProvider).adminSession;
     return AnimatedBuilder(
       animation: session,
-      builder: (context, _) =>
-          session.signedIn ? const AdminCenterPage() : const AdminLoginPage(),
+      builder: (context, _) {
+        if (session.state == AdminSessionState.restoring) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        return session.signedIn
+            ? const AdminCenterPage()
+            : const AdminLoginPage();
+      },
     );
   }
 }
@@ -46,7 +54,7 @@ class AdminLoginPage extends ConsumerStatefulWidget {
 }
 
 class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
-  final email = TextEditingController(text: 'mtzallqmy@gmail.com');
+  final email = TextEditingController();
   final password = TextEditingController();
   bool busy = false;
   String? error;
@@ -175,8 +183,11 @@ class AdminCenterPage extends ConsumerStatefulWidget {
 class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
   late Future<List<dynamic>> notifications;
   late Future<List<dynamic>> devices;
+  late Future<List<dynamic>> deviceHistory;
   late Future<List<dynamic>> config;
   late Future<List<dynamic>> audit;
+  late Future<List<dynamic>> announcements;
+  late Future<Map<String, dynamic>> health;
 
   @override
   void initState() {
@@ -189,8 +200,11 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
     api.refreshOverview();
     notifications = api.notifications();
     devices = api.devices();
+    deviceHistory = api.devices(history: true);
     config = api.runtimeConfig();
     audit = api.audit();
+    announcements = api.announcements();
+    health = api.health();
   }
 
   @override
@@ -221,12 +235,16 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
             runSpacing: 12,
             children: <Widget>[
               _Metric(
-                label: 'كل الأجهزة',
-                value: '${overview['devices_total'] ?? 0}',
+                label: 'السجلات التاريخية',
+                value: '${overview['historical_registrations'] ?? 0}',
               ),
               _Metric(
                 label: 'الأجهزة النشطة',
-                value: '${overview['devices_active'] ?? 0}',
+                value: '${overview['active_devices'] ?? 0}',
+              ),
+              _Metric(
+                label: 'الأجهزة الملغاة',
+                value: '${overview['revoked_devices'] ?? 0}',
               ),
               _Metric(
                 label: 'إرسال Firebase',
@@ -240,6 +258,7 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
           ),
           const SizedBox(height: 16),
           _NotificationComposer(api: api, onSaved: () => setState(refresh)),
+          _SystemHealth(future: health),
           _AdminList(
             title: 'الإشعارات والمجدولة',
             future: notifications,
@@ -247,14 +266,18 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
               final deliveries = row['notification_deliveries'] is List
                   ? row['notification_deliveries'] as List<dynamic>
                   : const <dynamic>[];
-              final accepted = deliveries
-                  .where((value) => (value as Map)['status'] == 'accepted')
-                  .length;
-              final failed = deliveries
-                  .where((value) => (value as Map)['status'] == 'failed')
-                  .length;
+              final counts = <String, int>{};
+              for (final value in deliveries) {
+                final status = '${(value as Map)['status']}';
+                counts[status] = (counts[status] ?? 0) + 1;
+              }
               return '${row['title']} — ${row['status']}\n'
-                  '${row['target_type']} • مقبول $accepted • فشل $failed\n'
+                  '${row['target_type']} • مجدول ${counts['scheduled'] ?? 0} • '
+                  'قَبِل FCM ${counts['accepted_by_fcm'] ?? 0}\n'
+                  'استلم ${counts['received_by_app'] ?? 0} • '
+                  'عُرض ${counts['displayed'] ?? 0} • '
+                  'فُتح ${counts['opened'] ?? 0} • '
+                  'فشل ${counts['failed'] ?? 0}\n'
                   'المجدول ${row['scheduled_at'] ?? '-'} • أرسل ${row['sent_at'] ?? '-'}';
             },
             trailing: (row) {
@@ -297,7 +320,7 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
             },
           ),
           _AdminList(
-            title: 'الأجهزة',
+            title: 'الأجهزة النشطة الحالية',
             future: devices,
             label: (row) =>
                 '${row['platform']} ${row['app_version']} — ${row['locale']}\n'
@@ -306,10 +329,41 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
                 'آخر ظهور ${row['last_seen_at']}\n'
                 '${row['user_id'] == null ? 'غير مرتبط بمستخدم' : 'مرتبط بمستخدم'}',
           ),
+          _AdminList(
+            title: 'سجل الأجهزة التاريخي',
+            future: deviceHistory,
+            label: (row) =>
+                '${row['platform']} ${row['app_version']} — ${row['locale']}\n'
+                '${row['revoked_at'] == null ? 'قديم/غير نشط' : 'ملغى'} • '
+                'آخر ظهور ${row['last_seen_at']}',
+          ),
           _RuntimeConfig(
             api: api,
             future: config,
             onSaved: () => setState(refresh),
+          ),
+          _AnnouncementComposer(api: api, onSaved: () => setState(refresh)),
+          _AdminList(
+            title: 'الإعلانات داخل التطبيق',
+            future: announcements,
+            label: (row) =>
+                '${row['title']} — ${row['is_active'] == true ? 'نشط' : 'مؤرشف'}\n'
+                '${row['start_at']} ← ${row['end_at']}',
+            trailing: (row) => TextButton(
+              onPressed: row['is_active'] == true
+                  ? () async {
+                      await api.archiveAnnouncement('${row['id']}');
+                      if (mounted) setState(refresh);
+                    }
+                  : () async {
+                      await api.updateAnnouncement(
+                        '${row['id']}',
+                        <String, dynamic>{'is_active': true},
+                      );
+                      if (mounted) setState(refresh);
+                    },
+              child: Text(row['is_active'] == true ? 'أرشفة' : 'تفعيل'),
+            ),
           ),
           _AdminList(
             title: 'آخر عمليات التدقيق',
@@ -350,6 +404,168 @@ class _Metric extends StatelessWidget {
   );
 }
 
+class _SystemHealth extends StatelessWidget {
+  const _SystemHealth({required this.future});
+  final Future<Map<String, dynamic>> future;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: ExpansionTile(
+      leading: const Icon(Icons.monitor_heart_outlined),
+      title: const Text('صحة النظام'),
+      children: <Widget>[
+        FutureBuilder<Map<String, dynamic>>(
+          future: future,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              );
+            }
+            final value = snapshot.data!;
+            final firebase = value['firebase'] is Map
+                ? Map<String, dynamic>.from(value['firebase'] as Map)
+                : const <String, dynamic>{};
+            final deliveries = value['deliveries'] is Map
+                ? Map<String, dynamic>.from(value['deliveries'] as Map)
+                : const <String, dynamic>{};
+            return Column(
+              children: <Widget>[
+                ListTile(
+                  title: const Text('Supabase وEdge Function'),
+                  trailing: Text(
+                    value['supabase_reachable'] == true ? 'جاهز' : 'متعطل',
+                  ),
+                ),
+                ListTile(
+                  title: const Text('Firebase authentication'),
+                  subtitle: Text('${firebase['error_code'] ?? ''}'),
+                  trailing: Text(
+                    firebase['authenticated'] == true ? 'ناجح' : 'فشل',
+                  ),
+                ),
+                ListTile(
+                  title: const Text('مجدول الإرسال'),
+                  trailing: Text(
+                    value['scheduler_active'] == true ? 'يعمل' : 'متوقف',
+                  ),
+                ),
+                ListTile(
+                  title: const Text('حالات التسليم'),
+                  subtitle: Text(
+                    deliveries.entries
+                        .map((entry) => '${entry.key}: ${entry.value}')
+                        .join(' • '),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+class _AnnouncementComposer extends StatefulWidget {
+  const _AnnouncementComposer({required this.api, required this.onSaved});
+  final MobileAdminSession api;
+  final VoidCallback onSaved;
+
+  @override
+  State<_AnnouncementComposer> createState() => _AnnouncementComposerState();
+}
+
+class _AnnouncementComposerState extends State<_AnnouncementComposer> {
+  final title = TextEditingController();
+  final body = TextEditingController();
+  String route = '/home';
+  bool busy = false;
+
+  @override
+  void dispose() {
+    title.dispose();
+    body.dispose();
+    super.dispose();
+  }
+
+  Future<void> save() async {
+    setState(() => busy = true);
+    try {
+      final now = DateTime.now().toUtc();
+      await widget.api.createAnnouncement(<String, dynamic>{
+        'title': title.text,
+        'body': body.text,
+        'priority': 50,
+        'dismissible': true,
+        'deep_link': route,
+        'start_at': now.toIso8601String(),
+        'end_at': now.add(const Duration(days: 7)).toIso8601String(),
+        'is_active': true,
+      });
+      title.clear();
+      body.clear();
+      widget.onSaved();
+    } on AdminApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_adminError(error.code))));
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: ExpansionTile(
+      leading: const Icon(Icons.campaign_outlined),
+      title: const Text('إنشاء إعلان داخل التطبيق'),
+      childrenPadding: const EdgeInsets.all(16),
+      children: <Widget>[
+        TextField(
+          controller: title,
+          maxLength: 120,
+          decoration: const InputDecoration(labelText: 'العنوان'),
+        ),
+        TextField(
+          controller: body,
+          maxLength: 500,
+          decoration: const InputDecoration(labelText: 'النص'),
+        ),
+        DropdownButtonFormField<String>(
+          initialValue: route,
+          decoration: const InputDecoration(labelText: 'الرابط الداخلي'),
+          items:
+              const <String>[
+                    '/',
+                    '/home',
+                    '/prayer-times',
+                    '/adhkar',
+                    '/radio',
+                    '/quran',
+                    '/library',
+                  ]
+                  .map(
+                    (value) =>
+                        DropdownMenuItem(value: value, child: Text(value)),
+                  )
+                  .toList(),
+          onChanged: (value) => route = value ?? '/home',
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: busy ? null : save,
+          icon: const Icon(Icons.save_outlined),
+          label: const Text('نشر لمدة سبعة أيام'),
+        ),
+      ],
+    ),
+  );
+}
+
 class _NotificationComposer extends StatefulWidget {
   const _NotificationComposer({required this.api, required this.onSaved});
   final MobileAdminSession api;
@@ -364,6 +580,7 @@ class _NotificationComposerState extends State<_NotificationComposer> {
   final targetValue = TextEditingController();
   String target = 'segment';
   String notificationType = 'admin_announcements';
+  String route = '/home';
   DateTime? scheduledAt;
   bool busy = false;
 
@@ -400,7 +617,7 @@ class _NotificationComposerState extends State<_NotificationComposer> {
             : target == 'segment'
             ? <String, dynamic>{'platform': 'android'}
             : targetValue.text,
-        'payload': <String, dynamic>{'route': '/home'},
+        'payload': <String, dynamic>{'route': route},
         'confirm_all': target == 'all',
         if (scheduledAt != null)
           'scheduled_at': scheduledAt!.toUtc().toIso8601String(),
@@ -472,6 +689,27 @@ class _NotificationComposerState extends State<_NotificationComposer> {
             onChanged: (value) => setState(
               () => notificationType = value ?? 'admin_announcements',
             ),
+          ),
+          DropdownButtonFormField<String>(
+            initialValue: route,
+            decoration: const InputDecoration(labelText: 'الصفحة عند الفتح'),
+            items: const <DropdownMenuItem<String>>[
+              DropdownMenuItem(value: '/home', child: Text('الرئيسية')),
+              DropdownMenuItem(
+                value: '/prayer-times',
+                child: Text('مواقيت الصلاة'),
+              ),
+              DropdownMenuItem(value: '/adhkar', child: Text('الأذكار')),
+              DropdownMenuItem(value: '/radio', child: Text('الإذاعة')),
+              DropdownMenuItem(value: '/reciters', child: Text('القراء')),
+              DropdownMenuItem(value: '/quran', child: Text('المصحف')),
+              DropdownMenuItem(value: '/library', child: Text('المكتبة')),
+              DropdownMenuItem(
+                value: '/custom-reminders',
+                child: Text('التذكيرات الشخصية'),
+              ),
+            ],
+            onChanged: (value) => setState(() => route = value ?? '/home'),
           ),
           DropdownButtonFormField<String>(
             initialValue: target,
@@ -626,11 +864,53 @@ class _RuntimeConfig extends StatelessWidget {
             children: (snapshot.data ?? const <dynamic>[]).map((value) {
               final row = Map<String, dynamic>.from(value as Map);
               final current = row['value'];
-              if (current is! bool)
+              if (current is! bool) {
                 return ListTile(
                   title: Text(labels['${row['key']}'] ?? '${row['key']}'),
                   subtitle: Text('$current'),
+                  trailing: const Icon(Icons.edit_outlined),
+                  onTap: () async {
+                    final controller = TextEditingController(text: '$current');
+                    final next = await showDialog<String>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text(labels['${row['key']}'] ?? '${row['key']}'),
+                        content: TextField(
+                          controller: controller,
+                          maxLength: 500,
+                          autofocus: true,
+                          textDirection: TextDirection.ltr,
+                        ),
+                        actions: <Widget>[
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('إلغاء'),
+                          ),
+                          FilledButton(
+                            onPressed: () =>
+                                Navigator.pop(context, controller.text.trim()),
+                            child: const Text('حفظ'),
+                          ),
+                        ],
+                      ),
+                    );
+                    controller.dispose();
+                    if (next == null || next == '$current') return;
+                    try {
+                      await api.updateRuntime(<String, dynamic>{
+                        '${row['key']}': next,
+                      });
+                      onSaved();
+                    } on AdminApiException catch (error) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(_adminError(error.code))),
+                        );
+                      }
+                    }
+                  },
                 );
+              }
               return SwitchListTile(
                 title: Text(labels['${row['key']}'] ?? '${row['key']}'),
                 value: current,

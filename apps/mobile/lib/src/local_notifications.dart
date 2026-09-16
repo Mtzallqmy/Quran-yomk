@@ -20,6 +20,7 @@ class LocalNotificationRequest {
     this.channel = LocalNotificationChannel.prayerReminder,
     this.playSound = true,
     this.preferExact = true,
+    this.repeatDaily = false,
   });
 
   final int id;
@@ -31,6 +32,7 @@ class LocalNotificationRequest {
   final LocalNotificationChannel channel;
   final bool playSound;
   final bool preferExact;
+  final bool repeatDaily;
 }
 
 abstract class LocalNotificationGateway {
@@ -40,6 +42,9 @@ abstract class LocalNotificationGateway {
   Future<bool> openSystemSettings();
   Future<void> show(LocalNotificationRequest request);
   Future<bool> exactSchedulingAvailable();
+  Future<bool> requestExactSchedulingPermission();
+  Future<bool> remoteChannelExists();
+  Future<bool> remoteChannelEnabled();
   Future<void> schedule(
     LocalNotificationRequest request, {
     required bool exact,
@@ -111,6 +116,9 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
       channelDescription: 'إعلانات وتحديثات ترتيل عن بُعد',
       importance: Importance.max,
       priority: Priority.max,
+      playSound: true,
+      enableVibration: true,
+      visibility: NotificationVisibility.private,
       category: AndroidNotificationCategory.message,
     ),
     iOS: DarwinNotificationDetails(
@@ -174,6 +182,8 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
         'إشعارات ترتيل',
         description: 'إعلانات وتحديثات ترتيل عن بُعد',
         importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
       ),
     ]) {
       await android?.createNotificationChannel(channel);
@@ -236,7 +246,51 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
   );
 
   @override
-  Future<bool> exactSchedulingAvailable() async => false;
+  Future<bool> exactSchedulingAvailable() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return true;
+    return await _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.canScheduleExactNotifications() ??
+        false;
+  }
+
+  @override
+  Future<bool> requestExactSchedulingPermission() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return true;
+    return await _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.requestExactAlarmsPermission() ??
+        false;
+  }
+
+  Future<AndroidNotificationChannel?> _remoteChannel() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return null;
+    final channels = await _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.getNotificationChannels();
+    for (final channel in channels ?? const <AndroidNotificationChannel>[]) {
+      if (channel.id == 'tarteel_remote_notifications') return channel;
+    }
+    return null;
+  }
+
+  @override
+  Future<bool> remoteChannelExists() async =>
+      defaultTargetPlatform != TargetPlatform.android ||
+      await _remoteChannel() != null;
+
+  @override
+  Future<bool> remoteChannelEnabled() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return true;
+    final channel = await _remoteChannel();
+    return channel != null && channel.importance != Importance.none;
+  }
 
   @override
   Future<void> schedule(
@@ -254,6 +308,9 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
     androidScheduleMode: exact
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle,
+    matchDateTimeComponents: request.repeatDaily
+        ? DateTimeComponents.time
+        : null,
     payload: request.payload,
   );
 
@@ -294,6 +351,26 @@ class LocalNotificationService {
   Future<bool> openSystemSettings() async {
     await initialize();
     return _gateway.openSystemSettings();
+  }
+
+  Future<bool> exactSchedulingAvailable() async {
+    await initialize();
+    return _gateway.exactSchedulingAvailable();
+  }
+
+  Future<bool> requestExactSchedulingPermission() async {
+    await initialize();
+    return _gateway.requestExactSchedulingPermission();
+  }
+
+  Future<bool> remoteChannelExists() async {
+    await initialize();
+    return _gateway.remoteChannelExists();
+  }
+
+  Future<bool> remoteChannelEnabled() async {
+    await initialize();
+    return _gateway.remoteChannelEnabled();
   }
 
   Future<void> show(LocalNotificationRequest request) async {

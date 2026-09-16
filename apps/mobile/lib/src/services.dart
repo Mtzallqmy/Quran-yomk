@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'adhan_audio.dart';
-import 'admin_api.dart';
+import 'announcements.dart';
+import 'feature_manager.dart';
 import 'islamic_content.dart';
 import 'local_notifications.dart';
 import 'learning.dart';
@@ -43,13 +44,14 @@ class AppServices {
     required this.quranPlayback,
     required this.quranPlaylists,
     required this.remoteConfig,
+    required this.announcements,
+    required this.features,
     required this.localNotifications,
     required this.prayerSettings,
     required this.prayerTimes,
     required this.prayerReminders,
     required this.adhanAudio,
     required this.pushNotifications,
-    required this.adminSession,
     required this.learning,
     required this.adhkarReminders,
   });
@@ -67,13 +69,14 @@ class AppServices {
   final QuranPlaybackStore quranPlayback;
   final QuranPlaylistStore quranPlaylists;
   final TarteelRemoteConfig remoteConfig;
+  final AnnouncementService announcements;
+  final FeatureManager features;
   final LocalNotificationService localNotifications;
   final PrayerSettingsStore prayerSettings;
   final PrayerTimesService prayerTimes;
   final PrayerReminderController prayerReminders;
   final AdhanAudioService adhanAudio;
   final PushNotificationService pushNotifications;
-  final MobileAdminSession adminSession;
   final LearningStore learning;
   final AdhkarReminderController adhkarReminders;
 }

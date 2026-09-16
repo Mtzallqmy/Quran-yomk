@@ -40,7 +40,7 @@ void main() {
     },
   );
 
-  test('prayer reminders use stable IDs and disable cancels all', () async {
+  test('prayer reminders schedule a stable 45 day offline window', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final preferences = await SharedPreferences.getInstance();
     final settings = PrayerSettingsStore(preferences)..load();
@@ -55,17 +55,27 @@ void main() {
     expect(gateway.pending, isEmpty);
 
     expect(await controller.setEnabled(true), isTrue);
-    expect(gateway.pending.keys.toSet(), PrayerReminderIds.all.toSet());
-    expect(gateway.pending, hasLength(5));
-    final maghrib = gateway.pending[PrayerReminderIds.maghrib]!;
+    expect(
+      gateway.pending,
+      hasLength(PrayerReminderController.scheduleDays * 5),
+    );
+    final maghrib = gateway.pending.values.firstWhere(
+      (request) => request.payload.contains('prayer=maghrib'),
+    );
 
     await settings.setOffset(PrayerKind.maghrib, 10);
     await controller.reconcile();
-    expect(gateway.pending, hasLength(5));
     expect(
-      gateway.pending[PrayerReminderIds.maghrib]!.scheduledAt.difference(
-        maghrib.scheduledAt,
-      ),
+      gateway.pending,
+      hasLength(PrayerReminderController.scheduleDays * 5),
+    );
+    final updatedMaghrib = gateway.pending.values.firstWhere(
+      (request) =>
+          request.payload.contains('prayer=maghrib') &&
+          request.scheduledAt.day == maghrib.scheduledAt.day,
+    );
+    expect(
+      updatedMaghrib.scheduledAt.difference(maghrib.scheduledAt),
       const Duration(minutes: 10),
     );
 
@@ -93,19 +103,15 @@ void main() {
       ),
       isTrue,
     );
-    expect(gateway.pending.keys, <int>[PrayerReminderIds.maghrib]);
-    expect(gateway.pending, hasLength(1));
+    expect(gateway.pending, hasLength(PrayerReminderController.scheduleDays));
     expect(
-      gateway.pending[PrayerReminderIds.maghrib]!.channel,
+      gateway.pending.values.first.channel,
       LocalNotificationChannel.adhan,
     );
-    expect(
-      gateway.pending[PrayerReminderIds.maghrib]!.body,
-      'حان موعد أذان صلاة المغرب',
-    );
+    expect(gateway.pending.values.first.body, 'حان موعد أذان صلاة المغرب');
 
     await controller.reconcile();
-    expect(gateway.pending, hasLength(1));
+    expect(gateway.pending, hasLength(PrayerReminderController.scheduleDays));
     expect(gateway.scheduledExact, everyElement(isFalse));
 
     await controller.setPrayerMode(
@@ -130,9 +136,14 @@ void main() {
     );
 
     await controller.start();
-    expect(gateway.pending, hasLength(5));
     expect(
-      gateway.pending.values.every((request) => request.scheduledAt.day == 16),
+      gateway.pending,
+      hasLength(PrayerReminderController.scheduleDays * 5),
+    );
+    expect(
+      gateway.pending.values
+          .take(5)
+          .every((request) => request.scheduledAt.day == 16),
       isTrue,
     );
     controller.dispose();
@@ -187,7 +198,7 @@ void main() {
     },
   );
 
-  test('Android manifest schedules without exact alarm permission', () {
+  test('Android manifest supports exact alarms with inexact fallback', () {
     final manifest = File(
       'android/app/src/main/AndroidManifest.xml',
     ).readAsStringSync();
@@ -195,7 +206,7 @@ void main() {
     expect(manifest, contains('android.permission.RECEIVE_BOOT_COMPLETED'));
     expect(manifest, contains('ScheduledNotificationReceiver'));
     expect(manifest, contains('ScheduledNotificationBootReceiver'));
-    expect(manifest, isNot(contains('SCHEDULE_EXACT_ALARM')));
+    expect(manifest, contains('SCHEDULE_EXACT_ALARM'));
     expect(manifest, isNot(contains('USE_EXACT_ALARM')));
   });
 }
@@ -222,6 +233,15 @@ class _FakeGateway implements LocalNotificationGateway {
 
   @override
   Future<bool> exactSchedulingAvailable() async => false;
+
+  @override
+  Future<bool> requestExactSchedulingPermission() async => false;
+
+  @override
+  Future<bool> remoteChannelExists() async => true;
+
+  @override
+  Future<bool> remoteChannelEnabled() async => true;
 
   @override
   Future<void> show(LocalNotificationRequest request) async {}

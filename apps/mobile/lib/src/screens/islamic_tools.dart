@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../prayer_settings.dart';
 import '../services.dart';
 
 class IslamicToolsPage extends ConsumerWidget {
@@ -36,7 +35,9 @@ class IslamicToolsPage extends ConsumerWidget {
               subtitle: const Text('تحويل حسابي محلي دون اتصال'),
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const HijriCalendarPage()),
+                MaterialPageRoute<void>(
+                  builder: (_) => const HijriCalendarPage(),
+                ),
               ),
             ),
           ),
@@ -211,21 +212,23 @@ class HijriDate {
     'ذو الحجة',
   ];
 
-  String get monthNameAr => _months[(month - 1).clamp(0, 11)];
+  String get monthNameAr => _months[(month - 1).clamp(0, 11).toInt()];
 
   factory HijriDate.fromGregorian(DateTime date) {
     final jd = _gregorianToJulian(date.year, date.month, date.day);
     final z = (jd + 0.5).floor();
     final year = ((30 * (z - 1948439) + 10646) / 10631).floor();
     final firstDay = _islamicToJulian(year, 1, 1).floor();
-    var month = (((z - 29 - firstDay) / 29.5).ceil() + 1).clamp(1, 12);
+    var month = (((z - 29 - firstDay) / 29.5).ceil() + 1)
+        .clamp(1, 12)
+        .toInt();
     final monthStart = _islamicToJulian(year, month, 1).floor();
     var day = z - monthStart + 1;
     if (day < 1) {
-      month = (month - 1).clamp(1, 12);
+      month = (month - 1).clamp(1, 12).toInt();
       day = z - _islamicToJulian(year, month, 1).floor() + 1;
     }
-    return HijriDate(year, month, day.clamp(1, 30));
+    return HijriDate(year, month, day.clamp(1, 30).toInt());
   }
 
   static double _gregorianToJulian(int year, int month, int day) {

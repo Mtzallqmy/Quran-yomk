@@ -19,7 +19,6 @@ class PrayerTimesPage extends ConsumerStatefulWidget {
 class _PrayerTimesPageState extends ConsumerState<PrayerTimesPage> {
   late Future<PrayerSnapshot> _future;
   Timer? _clock;
-  bool _openingSettings = false;
 
   @override
   void initState() {
@@ -34,25 +33,11 @@ class _PrayerTimesPageState extends ConsumerState<PrayerTimesPage> {
 
   Future<PrayerSnapshot> _load() {
     final services = ref.read(servicesProvider);
-    return services.prayerTimes.snapshot(
-      settings: services.prayerSettings.value,
-    );
+    return services.prayerTimes.snapshot(settings: services.prayerSettings.value);
   }
 
   void _reload() {
     if (mounted) setState(() => _future = _load());
-  }
-
-  Future<void> _openSettings() async {
-    if (_openingSettings) return;
-    _openingSettings = true;
-    try {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const PrayerSettingsPage()),
-      );
-    } finally {
-      _openingSettings = false;
-    }
   }
 
   @override
@@ -71,7 +56,9 @@ class _PrayerTimesPageState extends ConsumerState<PrayerTimesPage> {
         actions: <Widget>[
           IconButton(
             tooltip: 'إعدادات الصلاة',
-            onPressed: _openSettings,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const PrayerSettingsPage()),
+            ),
             icon: const Icon(Icons.tune),
           ),
         ],
@@ -134,36 +121,34 @@ class PrayerTimesView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              Row(
                 children: <Widget>[
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(Icons.location_on_outlined, color: scheme.primary),
-                      const SizedBox(width: 6),
-                      Text(
-                        settings.locationName,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
+                  Icon(Icons.location_on_outlined, color: scheme.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      settings.locationName,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                   ),
-                  _ReminderChip(enabled: settings.remindersEnabled),
+                  Chip(
+                    avatar: Icon(
+                      settings.remindersEnabled
+                          ? Icons.notifications_active
+                          : Icons.notifications_off_outlined,
+                      size: 18,
+                    ),
+                    label: Text(settings.remindersEnabled ? 'التذكير مفعل' : 'متوقف'),
+                  ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Text(
                 'الصلاة القادمة',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(color: scheme.primary),
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(color: scheme.primary),
               ),
               const SizedBox(height: 4),
               Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
                 children: <Widget>[
                   Expanded(
                     child: Text(
@@ -171,10 +156,7 @@ class PrayerTimesView extends StatelessWidget {
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                   ),
-                  Text(
-                    _time(snapshot.next.time),
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+                  Text(_time(snapshot.next.time), style: Theme.of(context).textTheme.titleLarge),
                 ],
               ),
               const SizedBox(height: 6),
@@ -186,41 +168,36 @@ class PrayerTimesView extends StatelessWidget {
         Card(
           child: Column(
             children: <Widget>[
-              for (
-                var index = 0;
-                index < snapshot.today.ordered.length;
-                index++
-              )
-                _PrayerTimeRow(
-                  occurrence: snapshot.today.ordered[index],
-                  reminderMode: settings.reminderModeFor(
-                    snapshot.today.ordered[index].prayer,
-                  ),
-                  divider: index < snapshot.today.ordered.length - 1,
+              for (var i = 0; i < snapshot.today.ordered.length; i++) ...<Widget>[
+                _PrayerRow(
+                  occurrence: snapshot.today.ordered[i],
+                  mode: settings.reminderModeFor(snapshot.today.ordered[i].prayer),
                 ),
+                if (i < snapshot.today.ordered.length - 1)
+                  const Divider(indent: 16, endIndent: 16),
+              ],
             ],
           ),
+        ),
+        const SizedBox(height: 8),
+        ListTile(
+          leading: const Icon(Icons.calculate_outlined),
+          title: Text(_methodName(settings.calculationMethod)),
+          subtitle: const Text('الحساب محليًا دون إنترنت • Adhan Kotlin على Android'),
         ),
       ],
     );
   }
 }
 
-class _PrayerTimeRow extends StatelessWidget {
-  const _PrayerTimeRow({
-    required this.occurrence,
-    required this.reminderMode,
-    required this.divider,
-  });
+class _PrayerRow extends StatelessWidget {
+  const _PrayerRow({required this.occurrence, required this.mode});
 
   final PrayerOccurrence occurrence;
-  final PrayerReminderMode reminderMode;
-  final bool divider;
+  final PrayerReminderMode mode;
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: <Widget>[
-      ListTile(
+  Widget build(BuildContext context) => ListTile(
         leading: Icon(
           occurrence.prayer == PrayerKind.sunrise
               ? Icons.wb_sunny_outlined
@@ -230,43 +207,19 @@ class _PrayerTimeRow extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text(
-              _time(occurrence.time),
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            if (reminderMode != PrayerReminderMode.disabled) ...<Widget>[
+            Text(_time(occurrence.time)),
+            if (mode != PrayerReminderMode.disabled) ...<Widget>[
               const SizedBox(width: 10),
-              Tooltip(
-                message: reminderMode.nameAr,
-                child: Icon(
-                  reminderMode == PrayerReminderMode.adhan
-                      ? Icons.volume_up_outlined
-                      : Icons.notifications_active_outlined,
-                  size: 20,
-                ),
+              Icon(
+                mode == PrayerReminderMode.adhan
+                    ? Icons.volume_up_outlined
+                    : Icons.notifications_active_outlined,
+                size: 20,
               ),
             ],
           ],
         ),
-      ),
-      if (divider) const Divider(indent: 16, endIndent: 16),
-    ],
-  );
-}
-
-class _ReminderChip extends StatelessWidget {
-  const _ReminderChip({required this.enabled});
-
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) => Chip(
-    avatar: Icon(
-      enabled ? Icons.notifications_active : Icons.notifications_off_outlined,
-      size: 18,
-    ),
-    label: Text(enabled ? 'التذكير مفعل' : 'التذكير متوقف'),
-  );
+      );
 }
 
 class PrayerSettingsPage extends ConsumerStatefulWidget {
@@ -281,7 +234,7 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
 
   Future<void> _editCalculation(PrayerSettings current) async {
     var city = _prayerCities.firstWhere(
-      (value) => value.name == current.locationName,
+      (value) => value.matches(current),
       orElse: () => _prayerCities.first,
     );
     var calculation = current.calculationMethod;
@@ -303,7 +256,13 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                       DropdownMenuItem(value: value, child: Text(value.name)),
                   ],
                   onChanged: (value) {
-                    if (value != null) setDialogState(() => city = value);
+                    if (value == null) return;
+                    setDialogState(() {
+                      city = value;
+                      if (value.timezone == 'Asia/Riyadh') {
+                        calculation = PrayerCalculationMethod.ummAlQura;
+                      }
+                    });
                   },
                 ),
                 const SizedBox(height: 12),
@@ -312,15 +271,10 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                   decoration: const InputDecoration(labelText: 'طريقة الحساب'),
                   items: <DropdownMenuItem<PrayerCalculationMethod>>[
                     for (final value in PrayerCalculationMethod.values)
-                      DropdownMenuItem(
-                        value: value,
-                        child: Text(_methodName(value)),
-                      ),
+                      DropdownMenuItem(value: value, child: Text(_methodName(value))),
                   ],
                   onChanged: (value) {
-                    if (value != null) {
-                      setDialogState(() => calculation = value);
-                    }
+                    if (value != null) setDialogState(() => calculation = value);
                   },
                 ),
                 const SizedBox(height: 12),
@@ -329,10 +283,7 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                   decoration: const InputDecoration(labelText: 'حساب العصر'),
                   items: <DropdownMenuItem<PrayerAsrMethod>>[
                     for (final value in PrayerAsrMethod.values)
-                      DropdownMenuItem(
-                        value: value,
-                        child: Text(_asrName(value)),
-                      ),
+                      DropdownMenuItem(value: value, child: Text(_asrName(value))),
                   ],
                   onChanged: (value) {
                     if (value != null) setDialogState(() => asr = value);
@@ -340,16 +291,13 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'تُحفظ هذه البيانات على جهازك وتُحسب المواقيت محليًا دون إرسال موقعك إلى الخادم.',
+                  'مكة ومدن السعودية تستخدم أم القرى تلقائيًا. تبقى جميع البيانات والحسابات محلية على الجهاز.',
                 ),
               ],
             ),
           ),
           actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('إلغاء'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('حفظ وإعادة الجدولة'),
@@ -359,17 +307,16 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
       ),
     );
     if (saved != true || !mounted) return;
-    final store = ref.read(servicesProvider).prayerSettings;
-    await store.updateLocation(
-      current.copyWith(
-        locationName: city.name,
-        latitude: city.latitude,
-        longitude: city.longitude,
-        timezone: city.timezone,
-        calculationMethod: calculation,
-        asrMethod: asr,
-      ),
-    );
+    await ref.read(servicesProvider).prayerSettings.updateLocation(
+          current.copyWith(
+            locationName: city.name,
+            latitude: city.latitude,
+            longitude: city.longitude,
+            timezone: city.timezone,
+            calculationMethod: calculation,
+            asrMethod: asr,
+          ),
+        );
   }
 
   Future<void> _setMode(PrayerKind prayer, PrayerReminderMode mode) async {
@@ -378,27 +325,20 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
     if (mode != PrayerReminderMode.disabled &&
         !await services.localNotifications.exactSchedulingAvailable() &&
         mounted) {
-      final requestExact = await showDialog<bool>(
+      final exact = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('السماح بالتوقيت الدقيق؟'),
           content: const Text(
-            'يحتاج تنبيه الصلاة في وقتها الدقيق إلى إذن «المنبّهات والتذكيرات» من Android. '
-            'إذا لم تمنحه سيستمر ترتيل بتوقيت تقريبي آمن دون توقف التطبيق.',
+            'تنبيهات الصلاة الدقيقة على Android تستفيد من إذن «المنبّهات والتذكيرات». بدون الإذن يستخدم ترتيل الجدولة التقريبية الآمنة.',
           ),
           actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('استخدام توقيت تقريبي'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('فتح الإذن'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('لاحقًا')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('فتح الإذن')),
           ],
         ),
       );
-      if (requestExact == true) {
+      if (exact == true) {
         await services.localNotifications.requestExactSchedulingPermission();
       }
     }
@@ -410,15 +350,10 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
     if (mode != PrayerReminderMode.disabled && !accepted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text(
-            'إذن الإشعارات مرفوض. فعّله من إعدادات Android ثم أعد المحاولة.',
-          ),
+          content: const Text('إذن الإشعارات مرفوض من Android.'),
           action: SnackBarAction(
-            label: 'فتح الإعدادات',
-            onPressed: () => ref
-                .read(servicesProvider)
-                .localNotifications
-                .openSystemSettings(),
+            label: 'الإعدادات',
+            onPressed: services.localNotifications.openSystemSettings,
           ),
         ),
       );
@@ -449,26 +384,19 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
               ),
               ListTile(
                 leading: const Icon(Icons.calculate_outlined),
-                title: const Text('طريقة الحساب'),
-                subtitle: Text(
-                  '${_methodName(settings.calculationMethod)} • ${_asrName(settings.asrMethod)}',
-                ),
+                title: Text(_methodName(settings.calculationMethod)),
+                subtitle: Text(_asrName(settings.asrMethod)),
               ),
               const SectionHeader('التذكيرات المحلية'),
               const Padding(
                 padding: EdgeInsetsDirectional.fromSTEB(16, 0, 16, 8),
                 child: Text(
-                  'اختر لكل صلاة إشعارًا نصيًا أو أذانًا محليًا. يعمل إشعار الأذان كبديل آمن عندما يكون التطبيق في الخلفية.',
+                  'لكل صلاة: إيقاف، إشعار صامت، إشعار، أو أذان. يمكن أيضًا تثبيت وقت يدوي أو تعديل الدقائق.',
                 ),
               ),
-              for (final prayer in PrayerKind.values.where(
-                (value) => value.isRequiredPrayer,
-              ))
+              for (final prayer in PrayerKind.values.where((value) => value.isRequiredPrayer))
                 Card(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 5,
-                  ),
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
                   child: ExpansionTile(
                     leading: _changingPrayer == prayer
                         ? const SizedBox.square(
@@ -476,8 +404,7 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Icon(
-                            settings.reminderModeFor(prayer) ==
-                                    PrayerReminderMode.adhan
+                            settings.reminderModeFor(prayer) == PrayerReminderMode.adhan
                                 ? Icons.volume_up_outlined
                                 : Icons.notifications_outlined,
                           ),
@@ -485,18 +412,11 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                     subtitle: Text(
                       '${settings.reminderModeFor(prayer).nameAr} • ${_offsetLabel(settings.offsetFor(prayer))}',
                     ),
-                    childrenPadding: const EdgeInsetsDirectional.fromSTEB(
-                      16,
-                      0,
-                      16,
-                      16,
-                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     children: <Widget>[
                       SwitchListTile(
                         title: const Text('توقيت يدوي ثابت يوميًا'),
-                        subtitle: const Text(
-                          'عند إيقافه تُستخدم المواقيت المحسوبة حسب التاريخ والموقع. الوقت اليدوي لا يتغير مع الفصول.',
-                        ),
+                        subtitle: const Text('عند إيقافه يستخدم الحساب الفلكي حسب التاريخ والموقع.'),
                         value: settings.manualTimes.containsKey(prayer),
                         onChanged: (enabled) async {
                           if (!enabled) {
@@ -508,16 +428,13 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                             initialTime: TimeOfDay.now(),
                           );
                           if (chosen != null) {
-                            await store.setManualTime(
-                              prayer,
-                              chosen.hour * 60 + chosen.minute,
-                            );
+                            await store.setManualTime(prayer, chosen.hour * 60 + chosen.minute);
                           }
                         },
                       ),
                       if (settings.manualTimes.containsKey(prayer))
                         ListTile(
-                          title: const Text('موعد الصلاة اليدوي'),
+                          title: const Text('الوقت اليدوي'),
                           subtitle: Text(
                             TimeOfDay(
                               hour: settings.manualTimes[prayer]! ~/ 60,
@@ -529,31 +446,20 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                             final minutes = settings.manualTimes[prayer]!;
                             final chosen = await showTimePicker(
                               context: context,
-                              initialTime: TimeOfDay(
-                                hour: minutes ~/ 60,
-                                minute: minutes % 60,
-                              ),
+                              initialTime: TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60),
                             );
                             if (chosen != null) {
-                              await store.setManualTime(
-                                prayer,
-                                chosen.hour * 60 + chosen.minute,
-                              );
+                              await store.setManualTime(prayer, chosen.hour * 60 + chosen.minute);
                             }
                           },
                         ),
                       DropdownButtonFormField<PrayerReminderMode>(
                         key: ValueKey<String>('prayer-mode-${prayer.name}'),
                         initialValue: settings.reminderModeFor(prayer),
-                        decoration: const InputDecoration(
-                          labelText: 'نوع التذكير',
-                        ),
+                        decoration: const InputDecoration(labelText: 'نوع التذكير'),
                         items: <DropdownMenuItem<PrayerReminderMode>>[
                           for (final mode in PrayerReminderMode.values)
-                            DropdownMenuItem<PrayerReminderMode>(
-                              value: mode,
-                              child: Text(mode.nameAr),
-                            ),
+                            DropdownMenuItem(value: mode, child: Text(mode.nameAr)),
                         ],
                         onChanged: _changingPrayer == null
                             ? (mode) {
@@ -565,23 +471,15 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                       DropdownButtonFormField<int>(
                         key: ValueKey<String>('prayer-offset-${prayer.name}'),
                         initialValue: settings.offsetFor(prayer),
-                        decoration: const InputDecoration(
-                          labelText: 'تعديل الوقت',
-                        ),
+                        decoration: const InputDecoration(labelText: 'تعديل الدقائق'),
                         items: <DropdownMenuItem<int>>[
-                          for (final value in _offsetValues(
-                            settings.offsetFor(prayer),
-                          ))
-                            DropdownMenuItem<int>(
-                              value: value,
-                              child: Text(_offsetLabel(value)),
-                            ),
+                          for (final value in _offsetValues(settings.offsetFor(prayer)))
+                            DropdownMenuItem(value: value, child: Text(_offsetLabel(value))),
                         ],
                         onChanged: settings.manualTimes.containsKey(prayer)
                             ? null
                             : (value) {
-                                if (value != null)
-                                  store.setOffset(prayer, value);
+                                if (value != null) store.setOffset(prayer, value);
                               },
                       ),
                     ],
@@ -597,21 +495,33 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
 
 class _PrayerCity {
   const _PrayerCity(this.name, this.latitude, this.longitude, this.timezone);
+
   final String name;
   final double latitude;
   final double longitude;
   final String timezone;
+
+  bool matches(PrayerSettings value) =>
+      value.locationName == name ||
+      ((value.latitude - latitude).abs() < 0.01 &&
+          (value.longitude - longitude).abs() < 0.01);
 }
 
 const _prayerCities = <_PrayerCity>[
+  _PrayerCity('مكة المكرمة', 21.4225, 39.8262, 'Asia/Riyadh'),
+  _PrayerCity('المدينة المنورة', 24.4672, 39.6111, 'Asia/Riyadh'),
+  _PrayerCity('الرياض', 24.7136, 46.6753, 'Asia/Riyadh'),
+  _PrayerCity('جدة', 21.5433, 39.1728, 'Asia/Riyadh'),
   _PrayerCity('تعز', 13.5795, 44.0209, 'Asia/Aden'),
   _PrayerCity('صنعاء', 15.3694, 44.1910, 'Asia/Aden'),
   _PrayerCity('عدن', 12.7855, 45.0187, 'Asia/Aden'),
-  _PrayerCity('إب', 13.9667, 44.1833, 'Asia/Aden'),
-  _PrayerCity('الحديدة', 14.7978, 42.9545, 'Asia/Aden'),
   _PrayerCity('المكلا', 14.5425, 49.1242, 'Asia/Aden'),
-  _PrayerCity('سيئون', 15.9433, 48.7873, 'Asia/Aden'),
-  _PrayerCity('مأرب', 15.4625, 45.3258, 'Asia/Aden'),
+  _PrayerCity('القاهرة', 30.0444, 31.2357, 'Africa/Cairo'),
+  _PrayerCity('دبي', 25.2048, 55.2708, 'Asia/Dubai'),
+  _PrayerCity('الدوحة', 25.2854, 51.5310, 'Asia/Qatar'),
+  _PrayerCity('الكويت', 29.3759, 47.9774, 'Asia/Kuwait'),
+  _PrayerCity('إسطنبول', 41.0082, 28.9784, 'Europe/Istanbul'),
+  _PrayerCity('كوالالمبور', 3.1390, 101.6869, 'Asia/Kuala_Lumpur'),
 ];
 
 String _time(DateTime value) =>
@@ -625,27 +535,34 @@ String _remaining(Duration value) {
 }
 
 String _methodName(PrayerCalculationMethod value) => switch (value) {
-  PrayerCalculationMethod.muslimWorldLeague => 'رابطة العالم الإسلامي',
-  PrayerCalculationMethod.egyptian => 'الهيئة المصرية',
-  PrayerCalculationMethod.ummAlQura => 'أم القرى',
-};
+      PrayerCalculationMethod.muslimWorldLeague => 'رابطة العالم الإسلامي',
+      PrayerCalculationMethod.egyptian => 'الهيئة المصرية للمساحة',
+      PrayerCalculationMethod.karachi => 'جامعة العلوم الإسلامية - كراتشي',
+      PrayerCalculationMethod.ummAlQura => 'أم القرى - مكة المكرمة',
+      PrayerCalculationMethod.dubai => 'دبي / الإمارات',
+      PrayerCalculationMethod.qatar => 'قطر',
+      PrayerCalculationMethod.kuwait => 'الكويت',
+      PrayerCalculationMethod.moonSightingCommittee => 'لجنة رؤية الهلال',
+      PrayerCalculationMethod.singapore => 'سنغافورة / ماليزيا',
+      PrayerCalculationMethod.northAmerica => 'ISNA - أمريكا الشمالية',
+      PrayerCalculationMethod.turkey => 'ديانت - تركيا',
+    };
 
 String _asrName(PrayerAsrMethod value) => switch (value) {
-  PrayerAsrMethod.shafi => 'العصر: شافعي',
-  PrayerAsrMethod.hanafi => 'العصر: حنفي',
-};
+      PrayerAsrMethod.shafi => 'العصر: شافعي/مالكي/حنبلي',
+      PrayerAsrMethod.hanafi => 'العصر: حنفي',
+    };
 
 String _offsetLabel(int value) => value == 0
     ? 'بدون تعديل'
     : value > 0
-    ? '+$value دقيقة'
-    : '$value دقيقة';
+        ? '+$value دقيقة'
+        : '$value دقيقة';
 
 List<int> _offsetValues(int current) {
   final values = <int>{current};
   for (var value = -60; value <= 60; value += 5) {
     values.add(value);
   }
-  final sorted = values.toList()..sort();
-  return sorted;
+  return values.toList()..sort();
 }

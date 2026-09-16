@@ -1,0 +1,82 @@
+name: Tarteel Islamic Content Library
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Import scope
+        required: true
+        default: all
+        type: choice
+        options: [all, seen, fitrahive, hisn, tanzil, audio, verify]
+  push:
+    branches: [release/islamic-suite-72]
+    paths:
+      - '.github/workflows/islamic-content-library.yml'
+      - 'apps/mobile/tool/import_islamic_content.py'
+      - 'supabase/migrations/20260916153430_islamic_content_library_v1.sql'
+      - 'supabase/functions/islamic-library/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: islamic-content-library-production
+  cancel-in-progress: false
+
+env:
+  SUPABASE_PROJECT_URL: https://qkroecnecdxghcqvvoxn.supabase.co
+
+jobs:
+  validate-import:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate importer syntax
+        run: |
+          set -euo pipefail
+          python3 -m py_compile apps/mobile/tool/import_islamic_content.py
+
+      - name: Import reviewed texts and independently licensed audio
+        env:
+          SUPABASE_SERVER_KEY: ${{ secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          IMPORT_SCOPE: ${{ github.event.inputs.scope || 'all' }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVER_KEY" || {
+            echo 'Configure SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY in GitHub Actions secrets.' >&2
+            exit 1
+          }
+          mkdir -p "$RUNNER_TEMP/islamic-content-evidence"
+          python3 apps/mobile/tool/import_islamic_content.py \
+            --scope "$IMPORT_SCOPE" \
+            --report "$RUNNER_TEMP/islamic-content-evidence/import-report.json"
+
+      - name: Validate evidence policy
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/islamic-content-evidence/import-report.json" <<'PY'
+          import json, sys
+          report = json.load(open(sys.argv[1], encoding='utf-8'))
+          if report.get('status') != 'PASS':
+              raise SystemExit('import report did not pass')
+          audio = report.get('sources', {}).get('audio', {}).get('assets', [])
+          if audio:
+              if len(audio) != 4:
+                  raise SystemExit(f'expected exactly four allowlisted Wikimedia audio assets, got {len(audio)}')
+              for item in audio:
+                  if 'CC0' not in str(item.get('license', '')).upper():
+                      raise SystemExit(f'audio license is not CC0: {item}')
+          print(json.dumps({'status': 'PASS', 'scope': '${{ github.event.inputs.scope || 'all' }}'}, ensure_ascii=False))
+          PY
+
+      - name: Upload import evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: islamic-content-import-${{ github.run_number }}
+          path: ${{ runner.temp }}/islamic-content-evidence/import-report.json
+          if-no-files-found: warn
+          retention-days: 30

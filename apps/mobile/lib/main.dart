@@ -32,6 +32,8 @@ import 'src/repository.dart';
 import 'src/services.dart';
 import 'src/storage.dart';
 import 'src/startup.dart';
+import 'src/trusted_islamic_library.dart';
+import 'src/trusted_islamic_schedules.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +59,7 @@ Future<void> main() async {
   final mushaf = MushafStore(preferences)..load();
   final mushafPages = MushafPageRepository();
   final islamicContent = IslamicContentRepository();
+  final trustedIslamicLibrary = TrustedIslamicLibraryRepository();
   final offlineClips = createOfflineClipService(preferences);
   final quranDownloads = createQuranDownloadService(preferences);
   final quranAudio = QuranAudioRepository(
@@ -82,6 +85,13 @@ Future<void> main() async {
   final localNotifications = LocalNotificationService();
   final prayerSettings = PrayerSettingsStore(preferences)..load();
   final prayerTimes = PrayerTimesService();
+  final trustedIslamicSchedules = TrustedIslamicScheduleController(
+    preferences: preferences,
+    library: trustedIslamicLibrary,
+    notifications: localNotifications,
+    prayerTimes: prayerTimes,
+    prayerSettings: prayerSettings,
+  );
   final learning = LearningStore(preferences)..load();
   final adhkarReminders = AdaptiveAdhkarReminderController(
     notifications: localNotifications,
@@ -130,6 +140,8 @@ Future<void> main() async {
     mushaf: mushaf,
     mushafPages: mushafPages,
     islamicContent: islamicContent,
+    trustedIslamicLibrary: trustedIslamicLibrary,
+    trustedIslamicSchedules: trustedIslamicSchedules,
     offlineClips: offlineClips,
     playback: playback,
     quranAudio: quranAudio,
@@ -161,7 +173,11 @@ Future<void> main() async {
   initializeAfterFirstFrame(<String, Future<void> Function()>{
     'offline_clips': offlineClips.initialize,
     'quran_downloads': quranDownloads.initialize,
-    'islamic_content': islamicContent.synchronizeInBackground,
+    'legacy_islamic_content': islamicContent.synchronizeInBackground,
+    'trusted_islamic_content': () async {
+      await trustedIslamicLibrary.synchronizeInBackground();
+      await trustedIslamicSchedules.start();
+    },
     'background_reminders': initializeReminderBackgroundWork,
     'runtime_config_and_reminders': () async {
       await remoteConfig.refresh();

@@ -45,6 +45,7 @@ class PrayerSettings {
     required this.offsets,
     required this.remindersEnabled,
     this.reminderModes = const <PrayerKind, PrayerReminderMode>{},
+    this.manualTimes = const <PrayerKind, int>{},
   });
 
   factory PrayerSettings.taiz() => PrayerSettings(
@@ -125,6 +126,14 @@ class PrayerSettings {
         (value) => value != PrayerReminderMode.disabled,
       ),
       reminderModes: Map<PrayerKind, PrayerReminderMode>.unmodifiable(modes),
+      manualTimes: Map<PrayerKind, int>.unmodifiable({
+        for (final prayer in PrayerKind.values)
+          if (json['manual_times'] is Map &&
+              (json['manual_times'] as Map)[prayer.name] is int &&
+              ((json['manual_times'] as Map)[prayer.name] as int) >= 0 &&
+              ((json['manual_times'] as Map)[prayer.name] as int) < 1440)
+            prayer: (json['manual_times'] as Map)[prayer.name] as int,
+      }),
     );
   }
 
@@ -137,6 +146,8 @@ class PrayerSettings {
   final Map<PrayerKind, int> offsets;
   final bool remindersEnabled;
   final Map<PrayerKind, PrayerReminderMode> reminderModes;
+  /// Minutes after midnight in the configured timezone; absent = calculated.
+  final Map<PrayerKind, int> manualTimes;
 
   int offsetFor(PrayerKind prayer) => offsets[prayer] ?? 0;
 
@@ -160,6 +171,7 @@ class PrayerSettings {
     Map<PrayerKind, int>? offsets,
     bool? remindersEnabled,
     Map<PrayerKind, PrayerReminderMode>? reminderModes,
+    Map<PrayerKind, int>? manualTimes,
   }) => PrayerSettings(
     locationName: locationName ?? this.locationName,
     latitude: latitude ?? this.latitude,
@@ -172,6 +184,7 @@ class PrayerSettings {
     reminderModes: Map<PrayerKind, PrayerReminderMode>.unmodifiable(
       reminderModes ?? this.reminderModes,
     ),
+    manualTimes: Map<PrayerKind, int>.unmodifiable(manualTimes ?? this.manualTimes),
   );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -181,6 +194,9 @@ class PrayerSettings {
     'timezone': timezone,
     'calculation_method': calculationMethod.name,
     'asr_method': asrMethod.name,
+    'manual_times': {
+      for (final entry in manualTimes.entries) entry.key.name: entry.value,
+    },
     'offsets': <String, int>{
       for (final prayer in PrayerKind.values) prayer.name: offsetFor(prayer),
     },
@@ -252,6 +268,19 @@ class PrayerSettingsStore extends ChangeNotifier {
   }
 
   Future<void> updateLocation(PrayerSettings settings) => _save(settings);
+
+  Future<void> setManualTime(PrayerKind prayer, int? minutes) async {
+    if (minutes != null && (minutes < 0 || minutes >= 1440)) {
+      throw ArgumentError.value(minutes, 'minutes');
+    }
+    final times = Map<PrayerKind, int>.from(value.manualTimes);
+    if (minutes == null) {
+      times.remove(prayer);
+    } else {
+      times[prayer] = minutes;
+    }
+    await _save(value.copyWith(manualTimes: times));
+  }
 
   Future<void> _save(PrayerSettings next) async {
     value = next;

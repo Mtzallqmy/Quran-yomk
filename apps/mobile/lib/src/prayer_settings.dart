@@ -5,7 +5,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 enum PrayerKind { fajr, sunrise, dhuhr, asr, maghrib, isha }
 
-enum PrayerCalculationMethod { muslimWorldLeague, egyptian, ummAlQura }
+enum PrayerCalculationMethod {
+  muslimWorldLeague,
+  egyptian,
+  karachi,
+  ummAlQura,
+  dubai,
+  qatar,
+  kuwait,
+  moonSightingCommittee,
+  singapore,
+  northAmerica,
+  turkey,
+}
 
 enum PrayerAsrMethod { shafi, hanafi }
 
@@ -48,16 +60,28 @@ class PrayerSettings {
     this.manualTimes = const <PrayerKind, int>{},
   });
 
-  factory PrayerSettings.taiz() => PrayerSettings(
+  factory PrayerSettings.taiz() => const PrayerSettings(
     locationName: 'تعز',
     latitude: 13.5795,
     longitude: 44.0209,
     timezone: 'Asia/Aden',
     calculationMethod: PrayerCalculationMethod.muslimWorldLeague,
     asrMethod: PrayerAsrMethod.shafi,
-    offsets: const <PrayerKind, int>{},
+    offsets: <PrayerKind, int>{},
     remindersEnabled: false,
-    reminderModes: const <PrayerKind, PrayerReminderMode>{},
+    reminderModes: <PrayerKind, PrayerReminderMode>{},
+  );
+
+  factory PrayerSettings.makkah() => const PrayerSettings(
+    locationName: 'مكة المكرمة',
+    latitude: 21.4225,
+    longitude: 39.8262,
+    timezone: 'Asia/Riyadh',
+    calculationMethod: PrayerCalculationMethod.ummAlQura,
+    asrMethod: PrayerAsrMethod.shafi,
+    offsets: <PrayerKind, int>{},
+    remindersEnabled: false,
+    reminderModes: <PrayerKind, PrayerReminderMode>{},
   );
 
   factory PrayerSettings.fromJson(Map<String, dynamic> json) {
@@ -108,14 +132,18 @@ class PrayerSettings {
         modes[prayer] = PrayerReminderMode.notificationOnly;
       }
     }
+    final rawMethod = json['calculation_method'];
+    final recommended = timezone == 'Asia/Riyadh'
+        ? PrayerCalculationMethod.ummAlQura
+        : PrayerCalculationMethod.muslimWorldLeague;
     return PrayerSettings(
       locationName: locationName.trim(),
       latitude: latitude.toDouble(),
       longitude: longitude.toDouble(),
       timezone: timezone,
       calculationMethod: PrayerCalculationMethod.values.firstWhere(
-        (value) => value.name == json['calculation_method'],
-        orElse: () => PrayerCalculationMethod.muslimWorldLeague,
+        (value) => value.name == rawMethod,
+        orElse: () => recommended,
       ),
       asrMethod: PrayerAsrMethod.values.firstWhere(
         (value) => value.name == json['asr_method'],

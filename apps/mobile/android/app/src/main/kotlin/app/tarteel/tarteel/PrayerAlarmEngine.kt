@@ -36,7 +36,7 @@ object PrayerAlarmEngine {
     private const val IDS = "scheduled_ids"
     private const val REFRESH_ID = 7_990_001
     private const val TEST_ID = 7_990_002
-    private const val DAYS_AHEAD = 8L
+    private const val DAYS_AHEAD = 8
 
     const val ACTION_PRAYER = "app.tarteel.tarteel.PRAYER_ALARM"
     const val ACTION_REFRESH = "app.tarteel.tarteel.PRAYER_REFRESH"
@@ -111,14 +111,15 @@ object PrayerAlarmEngine {
 
         val modes = config.optJSONObject("modes") ?: JSONObject()
         val manual = config.optJSONObject("manualTimes") ?: JSONObject()
-        val soundPath = config.optString("soundPath", "").ifBlank { null }
+        val rawSoundPath = config.optString("soundPath", "")
+        val soundPath = rawSoundPath.takeIf { it.isNotBlank() }
         val now = Instant.now()
         val today = LocalDate.now(zone)
         val ids = mutableSetOf<String>()
         var scheduled = 0
 
         for (dayOffset in 0 until DAYS_AHEAD) {
-            val date = today.plusDays(dayOffset)
+            val date = today.plusDays(dayOffset.toLong())
             val calculated = calculatedTimes(config, date, latitude, longitude)
             prayerNames.forEachIndexed { index, prayer ->
                 val mode = modes.optString(prayer, "disabled")
@@ -337,11 +338,14 @@ object PrayerAlarmEngine {
         val result = JSONObject()
         for ((key, value) in map) {
             if (key !is String) continue
-            result.put(key, when (value) {
-                is Map<*, *> -> mapToJson(value)
-                null -> JSONObject.NULL
-                else -> value
-            })
+            result.put(
+                key,
+                when (value) {
+                    is Map<*, *> -> mapToJson(value)
+                    null -> JSONObject.NULL
+                    else -> value
+                },
+            )
         }
         return result
     }
@@ -355,11 +359,7 @@ class PrayerAlarmReceiver : BroadcastReceiver() {
             val service = Intent(context, PrayerAlarmService::class.java).apply {
                 putExtras(intent)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(service)
-            } else {
-                context.startService(service)
-            }
+            context.startForegroundService(service)
         } else {
             PrayerAlarmNotifications.show(context, intent, silent = mode == "silent")
         }
@@ -478,7 +478,7 @@ private object PrayerAlarmNotifications {
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_ALARM)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-            .addAction(Notification.Action.Builder(null, "إيقاف الأذان", stopPending).build())
+            .addAction(android.R.drawable.ic_media_pause, "إيقاف الأذان", stopPending)
             .build()
     }
 }

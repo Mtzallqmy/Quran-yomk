@@ -107,8 +107,8 @@ jobs:
           cp apps/admin_mobile/build/app/outputs/flutter-apk/app-release.apk release/beta/tarteel-admin-0.2.0.apk
 
           AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)
-          "$AAPT" dump badging release/beta/tarteel-user-0.6.0.apk > release/beta/user-badging.txt
-          "$AAPT" dump badging release/beta/tarteel-admin-0.1.0.apk > release/beta/admin-badging.txt
+          "$AAPT" dump badging release/beta/tarteel-user-0.7.0.apk > release/beta/user-badging.txt
+          "$AAPT" dump badging release/beta/tarteel-admin-0.2.0.apk > release/beta/admin-badging.txt
           grep -q "package: name='app.tarteel.tarteel'" release/beta/user-badging.txt
           grep -q "versionName='0.7.0'" release/beta/user-badging.txt
           grep -q "package: name='app.tarteel.admin'" release/beta/admin-badging.txt

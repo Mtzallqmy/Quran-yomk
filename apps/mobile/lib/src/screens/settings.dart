@@ -9,6 +9,7 @@ import '../services.dart';
 import 'about.dart';
 import 'islamic_tools.dart';
 import 'notification_settings.dart';
+import 'prayer_alarm_status.dart';
 import 'prayer_times.dart';
 import 'saved_clips.dart';
 
@@ -109,6 +110,19 @@ class SettingsPage extends ConsumerWidget {
                 ),
               ),
               ListTile(
+                leading: const Icon(Icons.alarm_on_outlined),
+                title: const Text('حالة واختبار منبه الصلاة'),
+                subtitle: const Text(
+                  'فحص المحرك الأصلي • إذن التوقيت الدقيق • اختبار خلال 10 ثوانٍ',
+                ),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PrayerAlarmStatusPage(),
+                  ),
+                ),
+              ),
+              ListTile(
                 leading: const Icon(Icons.alarm_add_outlined),
                 title: const Text('تذكيراتي اليومية'),
                 subtitle: const Text(
@@ -126,8 +140,10 @@ class SettingsPage extends ConsumerWidget {
               ),
               ListTile(
                 leading: const Icon(Icons.explore_outlined),
-                title: const Text('القبلة والتقويم الهجري'),
-                subtitle: const Text('أدوات محلية تعمل دون إنترنت'),
+                title: const Text('الموقع والقبلة والتقويم الهجري'),
+                subtitle: const Text(
+                  'GPS اختياري • بوصلة حقيقية • أم القرى دون إنترنت',
+                ),
                 trailing: const Icon(Icons.chevron_left),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(

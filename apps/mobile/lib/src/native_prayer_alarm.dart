@@ -87,7 +87,7 @@ class NativePrayerAlarmBridge {
     }
     try {
       final result = await _channel.invokeMapMethod<String, dynamic>('status');
-      if (result == null) throw const MissingPluginException();
+      if (result == null) throw MissingPluginException();
       return NativePrayerAlarmStatus(
         available: true,
         configured: result['configured'] == true,

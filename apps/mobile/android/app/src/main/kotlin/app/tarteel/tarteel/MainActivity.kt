@@ -12,6 +12,7 @@ import com.batoulapps.adhan2.data.DateComponents
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.util.TimeZone
 
 class MainActivity : AudioServiceActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -19,15 +20,41 @@ class MainActivity : AudioServiceActivity() {
         val messenger = flutterEngine.dartExecutor.binaryMessenger
 
         MethodChannel(messenger, "app.tarteel.tarteel/settings").setMethodCallHandler { call, result ->
-            if (call.method != "openNotificationSettings") {
-                result.notImplemented()
-                return@setMethodCallHandler
+            when (call.method) {
+                "openNotificationSettings" -> {
+                    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                    }
+                    startActivity(intent)
+                    result.success(true)
+                }
+                "getSystemTimezone" -> result.success(TimeZone.getDefault().id)
+                else -> result.notImplemented()
             }
-            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        }
+
+        MethodChannel(messenger, "app.tarteel.tarteel/prayer-alarm").setMethodCallHandler { call, result ->
+            try {
+                when (call.method) {
+                    "configure" -> {
+                        val args = call.arguments as? Map<*, *> ?: error("INVALID_ARGUMENTS")
+                        result.success(PrayerAlarmEngine.configure(applicationContext, args))
+                    }
+                    "disable" -> {
+                        PrayerAlarmEngine.disable(applicationContext)
+                        result.success(true)
+                    }
+                    "status" -> result.success(PrayerAlarmEngine.status(applicationContext))
+                    "test" -> {
+                        val args = call.arguments as? Map<*, *>
+                        val playAdhan = args?.get("playAdhan") == true
+                        result.success(PrayerAlarmEngine.scheduleTest(applicationContext, playAdhan))
+                    }
+                    else -> result.notImplemented()
+                }
+            } catch (error: Throwable) {
+                result.error("PRAYER_ALARM_ERROR", error.message ?: error.javaClass.simpleName, null)
             }
-            startActivity(intent)
-            result.success(true)
         }
 
         MethodChannel(messenger, "app.tarteel.tarteel/adhan").setMethodCallHandler { call, result ->

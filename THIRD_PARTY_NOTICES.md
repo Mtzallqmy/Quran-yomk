@@ -1,7 +1,8 @@
 # Third-Party Content Notices
 
-This notice covers externally streamed Quran/Islamic audio content surfaced by Tarteel and Quran text/assets used by Tarteel. It is separate from software dependency license notices.
+This notice covers externally streamed Quran/Islamic audio content surfaced by Tarteel and Quran text/assets used by Tarteel. Software dependencies called out below retain their own licenses and notices.
 
+- **Adhan Kotlin / Adhan2** — Android prayer-time and Qibla calculations use `com.batoulapps.adhan:adhan2:0.0.7` from Batoul Apps. The upstream project is licensed under the MIT License, Copyright © 2016 Batoul Apps. Source: https://github.com/batoulapps/adhan-kotlin. Tarteel uses the published library through a Flutter platform bridge and does not vendor Hidaya GPL source code for this integration.
 - **Bundled adhan audio** — `apps/mobile/assets/audio/adhan.ogg` is adapted from “Adhan.ogg” by Aishatu98, dedicated to the public domain under CC0 1.0. Source: https://commons.wikimedia.org/wiki/File:Adhan.ogg.
 
 - **Islamic Radio API** — Tarteel periodically synchronizes the station catalog published by `uthumany/islamic-radio-api` from `client/public/api/stations.json`. The upstream README states that the API/catalog is provided under CC0-1.0. Tarteel records this as a **catalog metadata** license only; it does not infer that every indexed third-party broadcast/audio stream is CC0, owned by Tarteel, or endorsed by its broadcaster. Listener audio connects directly to the normalized station's external provider URL.

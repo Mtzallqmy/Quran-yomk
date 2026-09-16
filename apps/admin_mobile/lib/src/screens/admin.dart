@@ -342,7 +342,10 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
             future: config,
             onSaved: () => setState(refresh),
           ),
-          _AnnouncementComposer(api: api, onSaved: () => setState(refresh)),
+          _AnnouncementComposer(
+            api: api,
+            onSaved: () => setState(refresh),
+          ),
           _AdminList(
             title: 'الإعلانات داخل التطبيق',
             future: announcements,
@@ -356,10 +359,9 @@ class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
                       if (mounted) setState(refresh);
                     }
                   : () async {
-                      await api.updateAnnouncement(
-                        '${row['id']}',
-                        <String, dynamic>{'is_active': true},
-                      );
+                      await api.updateAnnouncement('${row['id']}', <String, dynamic>{
+                        'is_active': true,
+                      });
                       if (mounted) setState(refresh);
                     },
               child: Text(row['is_active'] == true ? 'أرشفة' : 'تفعيل'),
@@ -474,7 +476,8 @@ class _AnnouncementComposer extends StatefulWidget {
   final VoidCallback onSaved;
 
   @override
-  State<_AnnouncementComposer> createState() => _AnnouncementComposerState();
+  State<_AnnouncementComposer> createState() =>
+      _AnnouncementComposerState();
 }
 
 class _AnnouncementComposerState extends State<_AnnouncementComposer> {
@@ -538,21 +541,15 @@ class _AnnouncementComposerState extends State<_AnnouncementComposer> {
         DropdownButtonFormField<String>(
           initialValue: route,
           decoration: const InputDecoration(labelText: 'الرابط الداخلي'),
-          items:
-              const <String>[
-                    '/',
-                    '/home',
-                    '/prayer-times',
-                    '/adhkar',
-                    '/radio',
-                    '/quran',
-                    '/library',
-                  ]
-                  .map(
-                    (value) =>
-                        DropdownMenuItem(value: value, child: Text(value)),
-                  )
-                  .toList(),
+          items: const <String>[
+            '/',
+            '/home',
+            '/prayer-times',
+            '/adhkar',
+            '/radio',
+            '/quran',
+            '/library',
+          ].map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
           onChanged: (value) => route = value ?? '/home',
         ),
         const SizedBox(height: 12),
@@ -645,6 +642,30 @@ class _NotificationComposerState extends State<_NotificationComposer> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: <Widget>[
+          const Text('الإرسال الإداري يحتاج اتصالًا بالإنترنت. مواقيت الصلاة وتكرار الأذكار المحلي يضبطهما المستخدم؛ هذا الإرسال لا يغيّر مواعيده أو موافقته على الصوت.'),
+          Wrap(
+            spacing: 8,
+            children: [
+              ActionChip(
+                label: const Text('قالب الصلاة'),
+                onPressed: busy ? null : () => setState(() {
+                  title.text = 'تذكير بالصلاة';
+                  body.text = 'راجع مواقيت الصلاة المحلية واضبط التنبيهات المناسبة لك.';
+                  notificationType = 'prayer_related';
+                  route = '/prayer-times';
+                }),
+              ),
+              ActionChip(
+                label: const Text('قالب الأذكار'),
+                onPressed: busy ? null : () => setState(() {
+                  title.text = 'وقت الذكر';
+                  body.text = 'اذكر الله وافتح أذكارك المحفوظة.';
+                  notificationType = 'adhkar';
+                  route = '/adhkar';
+                }),
+              ),
+            ],
+          ),
           TextField(
             controller: title,
             maxLength: 120,
@@ -658,6 +679,7 @@ class _NotificationComposerState extends State<_NotificationComposer> {
             decoration: const InputDecoration(labelText: 'النص'),
           ),
           DropdownButtonFormField<String>(
+            key: ValueKey('notification-type-$notificationType'),
             initialValue: notificationType,
             decoration: const InputDecoration(labelText: 'نوع الإشعار'),
             items: const <DropdownMenuItem<String>>[
@@ -691,6 +713,7 @@ class _NotificationComposerState extends State<_NotificationComposer> {
             ),
           ),
           DropdownButtonFormField<String>(
+            key: ValueKey('notification-route-$route'),
             initialValue: route,
             decoration: const InputDecoration(labelText: 'الصفحة عند الفتح'),
             items: const <DropdownMenuItem<String>>[
@@ -874,7 +897,9 @@ class _RuntimeConfig extends StatelessWidget {
                     final next = await showDialog<String>(
                       context: context,
                       builder: (context) => AlertDialog(
-                        title: Text(labels['${row['key']}'] ?? '${row['key']}'),
+                        title: Text(
+                          labels['${row['key']}'] ?? '${row['key']}',
+                        ),
                         content: TextField(
                           controller: controller,
                           maxLength: 500,

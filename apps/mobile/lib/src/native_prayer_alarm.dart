@@ -62,6 +62,9 @@ class NativePrayerAlarmBridge {
     } on PlatformException catch (error) {
       debugPrint('NATIVE_PRAYER_ALARM_CONFIGURE_FAILED:${error.code}');
       return false;
+    } on FlutterError catch (error) {
+      debugPrint('NATIVE_PRAYER_ALARM_BINDING_UNAVAILABLE:${error.message}');
+      return false;
     }
   }
 
@@ -73,18 +76,13 @@ class NativePrayerAlarmBridge {
       return;
     } on PlatformException catch (error) {
       debugPrint('NATIVE_PRAYER_ALARM_DISABLE_FAILED:${error.code}');
+    } on FlutterError catch (error) {
+      debugPrint('NATIVE_PRAYER_ALARM_BINDING_UNAVAILABLE:${error.message}');
     }
   }
 
   Future<NativePrayerAlarmStatus> status() async {
-    if (!supported) {
-      return const NativePrayerAlarmStatus(
-        available: false,
-        configured: false,
-        exact: false,
-        scheduled: 0,
-      );
-    }
+    if (!supported) return _unavailableStatus;
     try {
       final result = await _channel.invokeMapMethod<String, dynamic>('status');
       if (result == null) throw MissingPluginException();
@@ -95,19 +93,13 @@ class NativePrayerAlarmBridge {
         scheduled: (result['scheduled'] as num?)?.toInt() ?? 0,
       );
     } on MissingPluginException {
-      return const NativePrayerAlarmStatus(
-        available: false,
-        configured: false,
-        exact: false,
-        scheduled: 0,
-      );
-    } on PlatformException {
-      return const NativePrayerAlarmStatus(
-        available: false,
-        configured: false,
-        exact: false,
-        scheduled: 0,
-      );
+      return _unavailableStatus;
+    } on PlatformException catch (error) {
+      debugPrint('NATIVE_PRAYER_ALARM_STATUS_FAILED:${error.code}');
+      return _unavailableStatus;
+    } on FlutterError catch (error) {
+      debugPrint('NATIVE_PRAYER_ALARM_BINDING_UNAVAILABLE:${error.message}');
+      return _unavailableStatus;
     }
   }
 
@@ -124,6 +116,17 @@ class NativePrayerAlarmBridge {
     } on PlatformException catch (error) {
       debugPrint('NATIVE_PRAYER_ALARM_TEST_FAILED:${error.code}');
       return false;
+    } on FlutterError catch (error) {
+      debugPrint('NATIVE_PRAYER_ALARM_BINDING_UNAVAILABLE:${error.message}');
+      return false;
     }
   }
+
+  static const NativePrayerAlarmStatus _unavailableStatus =
+      NativePrayerAlarmStatus(
+        available: false,
+        configured: false,
+        exact: false,
+        scheduled: 0,
+      );
 }

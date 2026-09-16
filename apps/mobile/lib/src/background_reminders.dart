@@ -42,7 +42,13 @@ void tarteelReminderCallbackDispatcher() {
         prayerSettings: prayerSettings,
       );
 
-      await prayerReminders.reconcile();
+      // Android prayer alarms are maintained natively with AlarmManager and a
+      // boot/time-change receiver. The WorkManager isolate intentionally does
+      // not create a second Flutter alarm set. Other platforms keep the
+      // existing local-notification refill behavior.
+      if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+        await prayerReminders.reconcile();
+      }
       await adhkar.start();
       await personal.reconcile();
       return true;

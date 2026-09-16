@@ -423,14 +423,8 @@ class LearningStore extends ChangeNotifier {
   bool reminderEnabled(String category) =>
       reminderMode(category) != AdhkarReminderMode.disabled;
 
-  Future<void> setReminderMode(
-    String category,
-    AdhkarReminderMode mode,
-  ) async {
-    await _preferences.setString(
-      '$_reminderPrefix$category:mode',
-      mode.name,
-    );
+  Future<void> setReminderMode(String category, AdhkarReminderMode mode) async {
+    await _preferences.setString('$_reminderPrefix$category:mode', mode.name);
     await _preferences.setBool(
       '$_reminderPrefix$category',
       mode != AdhkarReminderMode.disabled,

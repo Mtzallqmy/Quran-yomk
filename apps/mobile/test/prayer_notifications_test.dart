@@ -55,14 +55,20 @@ void main() {
     expect(gateway.pending, isEmpty);
 
     expect(await controller.setEnabled(true), isTrue);
-    expect(gateway.pending, hasLength(PrayerReminderController.scheduleDays * 5));
+    expect(
+      gateway.pending,
+      hasLength(PrayerReminderController.scheduleDays * 5),
+    );
     final maghrib = gateway.pending.values.firstWhere(
       (request) => request.payload.contains('prayer=maghrib'),
     );
 
     await settings.setOffset(PrayerKind.maghrib, 10);
     await controller.reconcile();
-    expect(gateway.pending, hasLength(PrayerReminderController.scheduleDays * 5));
+    expect(
+      gateway.pending,
+      hasLength(PrayerReminderController.scheduleDays * 5),
+    );
     final updatedMaghrib = gateway.pending.values.firstWhere(
       (request) =>
           request.payload.contains('prayer=maghrib') &&
@@ -102,10 +108,7 @@ void main() {
       gateway.pending.values.first.channel,
       LocalNotificationChannel.adhan,
     );
-    expect(
-      gateway.pending.values.first.body,
-      'حان موعد أذان صلاة المغرب',
-    );
+    expect(gateway.pending.values.first.body, 'حان موعد أذان صلاة المغرب');
 
     await controller.reconcile();
     expect(gateway.pending, hasLength(PrayerReminderController.scheduleDays));
@@ -133,7 +136,10 @@ void main() {
     );
 
     await controller.start();
-    expect(gateway.pending, hasLength(PrayerReminderController.scheduleDays * 5));
+    expect(
+      gateway.pending,
+      hasLength(PrayerReminderController.scheduleDays * 5),
+    );
     expect(
       gateway.pending.values
           .take(5)

@@ -309,9 +309,7 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<PrayerCalculationMethod>(
                   initialValue: calculation,
-                  decoration: const InputDecoration(
-                    labelText: 'طريقة الحساب',
-                  ),
+                  decoration: const InputDecoration(labelText: 'طريقة الحساب'),
                   items: <DropdownMenuItem<PrayerCalculationMethod>>[
                     for (final value in PrayerCalculationMethod.values)
                       DropdownMenuItem(

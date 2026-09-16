@@ -186,34 +186,37 @@ void main() {
     },
   );
 
-  test('expired access token is refreshed once and request is retried', () async {
-    var calls = 0;
-    final auth = _AuthGateway();
-    final store = _SessionStore();
-    final session = MobileAdminSession(
-      client: MockClient((request) async {
-        calls++;
-        if (calls == 1) {
-          return http.Response(
-            jsonEncode(<String, dynamic>{
-              'error': <String, dynamic>{'code': 'AUTH_REQUIRED'},
-            }),
-            401,
-          );
-        }
-        return _sessionResponse();
-      }),
-      authGateway: auth,
-      sessionStore: store,
-    );
+  test(
+    'expired access token is refreshed once and request is retried',
+    () async {
+      var calls = 0;
+      final auth = _AuthGateway();
+      final store = _SessionStore();
+      final session = MobileAdminSession(
+        client: MockClient((request) async {
+          calls++;
+          if (calls == 1) {
+            return http.Response(
+              jsonEncode(<String, dynamic>{
+                'error': <String, dynamic>{'code': 'AUTH_REQUIRED'},
+              }),
+              401,
+            );
+          }
+          return _sessionResponse();
+        }),
+        authGateway: auth,
+        sessionStore: store,
+      );
 
-    await session.login('admin@example.test', 'password');
+      await session.login('admin@example.test', 'password');
 
-    expect(calls, 2);
-    expect(auth.refreshCalls, 1);
-    expect(store.value, 'refresh-refreshed');
-    expect(session.signedIn, isTrue);
-  });
+      expect(calls, 2);
+      expect(auth.refreshCalls, 1);
+      expect(store.value, 'refresh-refreshed');
+      expect(session.signedIn, isTrue);
+    },
+  );
 }
 
 MockClient _client({

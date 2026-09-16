@@ -20,6 +20,9 @@ dependencies:
   sqflite: ^2.3.2
   path_provider: ^2.1.2
   supabase_flutter: ^2.3.4
+  firebase_core: ^2.27.0
+  firebase_messaging: ^14.7.19
+  flutter_local_notifications: ^17.0.0
 
 dev_dependencies:
   flutter_test:

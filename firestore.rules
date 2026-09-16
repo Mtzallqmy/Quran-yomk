@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User account document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // User bookmarks / listening activity
+    match /users/{userId}/bookmarks/{bookmarkId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Public catalog (reciters, stations) - read-only for authenticated users
+    match /stations/{stationId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}

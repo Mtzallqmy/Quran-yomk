@@ -15,4 +15,8 @@
 .cxx
 local.properties
 .env
+.env.local
+.env.production
+*.service-account.json
+firebase-admin.json
 debug.keystore

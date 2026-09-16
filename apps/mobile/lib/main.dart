@@ -6,11 +6,18 @@ import 'core/services/app_services.dart';
 import 'core/theme/quran_yutla_theme.dart';
 import 'features/shell/presentation/root_shell.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Core App Services (Composition Root)
-  final appServices = await AppServices.init();
+  final appServices = await AppServices.init(
+    onNavigateToRoute: (route) {
+      debugPrint("Navigating to FCM target route: $route");
+      navigatorKey.currentState?.pushNamed(route);
+    },
+  );
 
   runApp(
     ProviderScope(
@@ -28,6 +35,7 @@ class QuranYutlaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: BrandConfig.nameAr,
       debugShowCheckedModeBanner: false,
       locale: const Locale('ar', 'SA'),

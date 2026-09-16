@@ -33,13 +33,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.*
+import com.example.repository.FirebaseAuthRepository
+import com.example.repository.FirestoreRepository
 import com.example.repository.QuranYutlaRepository
 import com.example.service.PlaybackMode
 import com.example.service.QuranYutlaAudioHandler
+import com.example.ui.auth.AuthScreen
 import com.example.ui.theme.*
 
 class MainActivity : ComponentActivity() {
   private val repository = QuranYutlaRepository()
+  private val authRepository = FirebaseAuthRepository()
+  private val firestoreRepository = FirestoreRepository()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -49,6 +54,8 @@ class MainActivity : ComponentActivity() {
       QuranYutlaTheme(darkTheme = isDark) {
         MainAppScreen(
           repository = repository,
+          authRepository = authRepository,
+          firestoreRepository = firestoreRepository,
           isDark = isDark,
           onToggleDark = { isDark = !isDark }
         )
@@ -203,6 +210,8 @@ data class SurahItem(
 @Composable
 fun MainAppScreen(
   repository: QuranYutlaRepository,
+  authRepository: FirebaseAuthRepository,
+  firestoreRepository: FirestoreRepository,
   isDark: Boolean,
   onToggleDark: () -> Unit
 ) {
@@ -293,6 +302,12 @@ fun MainAppScreen(
             icon = { Icon(Icons.Default.PlaylistPlay, contentDescription = null) },
             label = { Text("القوائم") }
           )
+          NavigationBarItem(
+            selected = selectedTab == 6,
+            onClick = { selectedTab = 6 },
+            icon = { Icon(Icons.Default.Person, contentDescription = null) },
+            label = { Text("الحساب") }
+          )
         }
       }
     }
@@ -343,6 +358,11 @@ fun MainAppScreen(
           playlists = playlists,
           onCreatePlaylist = { showNewPlaylistDialog = true },
           onDeletePlaylist = { id -> repository.deletePlaylist(id) }
+        )
+        6 -> AuthScreen(
+          authRepository = authRepository,
+          firestoreRepository = firestoreRepository,
+          onAuthSuccess = { selectedTab = 0 }
         )
       }
     }

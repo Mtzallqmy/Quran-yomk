@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "239423034",
+    "project_id": "gen-lang-client-0239423034",
+    "storage_bucket": "gen-lang-client-0239423034.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:239423034:android:qyranyotla00000000",
+        "android_client_info": {
+          "package_name": "app.quranyutla"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSy_Placeholder_Key_For_Gen_Lang_Client"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

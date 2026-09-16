@@ -8,19 +8,34 @@ class TarteelPushNotificationService extends PushNotificationService {
     required SharedPreferences preferences,
     required LocalNotificationService localNotifications,
     required this.onLocalConsentGranted,
-  }) : super(
-          preferences: preferences,
-          localNotifications: localNotifications,
-        );
+  }) : _localNotifications = localNotifications,
+       super(
+         preferences: preferences,
+         localNotifications: localNotifications,
+       );
 
+  final LocalNotificationService _localNotifications;
   final Future<void> Function() onLocalConsentGranted;
 
   @override
   Future<bool> setEnabled(bool value) async {
-    final accepted = await super.setEnabled(value);
-    if (accepted && value) {
-      await onLocalConsentGranted();
+    if (!value) {
+      // Remote/admin push can be disabled without touching local prayer,
+      // adhkar or personal reminders.
+      return super.setEnabled(false);
     }
-    return accepted;
+
+    var localAccepted = false;
+    try {
+      localAccepted = await _localNotifications.requestPermission();
+      if (localAccepted) await onLocalConsentGranted();
+    } catch (_) {
+      localAccepted = false;
+    }
+
+    final remoteAccepted = await super.setEnabled(true);
+    // The user's local alarm/reminder consent must remain useful even when
+    // Firebase or the backend is temporarily unavailable.
+    return localAccepted || remoteAccepted;
   }
 }

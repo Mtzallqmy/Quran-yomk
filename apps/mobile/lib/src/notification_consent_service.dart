@@ -28,9 +28,19 @@ class TarteelPushNotificationService extends PushNotificationService {
     var localAccepted = false;
     try {
       localAccepted = await _localNotifications.requestPermission();
-      if (localAccepted) await onLocalConsentGranted();
+      if (localAccepted) {
+        await onLocalConsentGranted();
+        // Prayer alerts are alarm-clock functionality. Android 12+ controls
+        // exact scheduling separately from POST_NOTIFICATIONS, so request that
+        // access once local reminders have been explicitly accepted. The
+        // native engine still has an inexact fallback if the user declines.
+        if (!await _localNotifications.exactSchedulingAvailable()) {
+          await _localNotifications.requestExactSchedulingPermission();
+        }
+      }
     } catch (_) {
-      localAccepted = false;
+      // Local notification permission remains independent from Firebase. A
+      // settings activity or OEM exception must not prevent remote consent.
     }
 
     final remoteAccepted = await super.setEnabled(true);

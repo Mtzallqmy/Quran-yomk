@@ -173,10 +173,8 @@ class PrayerTimesService {
         'longitude': settings.longitude,
       });
       if (value != null) return value.toDouble();
-    } on MissingPluginException {
-      // Unit tests / non-Android targets use the Dart MIT fallback below.
-    } on PlatformException {
-      // Preserve functionality if the native engine cannot initialize.
+    } catch (error) {
+      debugPrint('ADHAN_QIBLA_FALLBACK:${error.runtimeType}');
     }
     return adhan.Qibla.qibla(
       adhan.Coordinates(settings.latitude, settings.longitude),
@@ -216,10 +214,8 @@ class PrayerTimesService {
         );
       }
       return result;
-    } on MissingPluginException {
-      return null;
-    } on PlatformException catch (error) {
-      debugPrint('ADHAN_KOTLIN_FALLBACK:${error.code}');
+    } catch (error) {
+      debugPrint('ADHAN_KOTLIN_FALLBACK:${error.runtimeType}');
       return null;
     }
   }

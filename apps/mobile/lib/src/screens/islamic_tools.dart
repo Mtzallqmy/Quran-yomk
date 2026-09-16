@@ -226,7 +226,7 @@ class _HijriCalendarPageState extends State<HijriCalendarPage> {
                 children: <Widget>[
                   if (hijri != null)
                     Text(
-                      '${hijri.hd} ${_months[(hijri.hm - 1).clamp(0, 11)]} ${hijri.hy} هـ',
+                      '${hijri.hd} ${_months[(hijri.hm - 1).clamp(0, 11).toInt()]} ${hijri.hy} هـ',
                       style: Theme.of(context).textTheme.headlineSmall,
                       textAlign: TextAlign.center,
                     )

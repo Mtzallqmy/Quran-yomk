@@ -18,7 +18,7 @@ permissions:
 
 concurrency:
   group: islamic-suite-arm64-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   verify-build-publish:

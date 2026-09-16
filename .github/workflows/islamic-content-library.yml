@@ -72,12 +72,19 @@ jobs:
             fi
             for scope in $scopes; do
               echo "Syncing allowlisted source: $scope"
-              curl --fail --silent --show-error --retry 2 --retry-delay 2 \
+              response="$RUNNER_TEMP/islamic-content-evidence/responses/$scope.json"
+              http_code="$(curl --silent --show-error \
+                -o "$response" \
+                -w '%{http_code}' \
                 -X POST "$SUPABASE_PROJECT_URL/functions/v1/islamic-library-sync" \
                 -H "apikey: $TARTEEL_PUBLISHABLE_KEY" \
                 -H 'content-type: application/json' \
-                --data "{\"scope\":\"$scope\"}" \
-                > "$RUNNER_TEMP/islamic-content-evidence/responses/$scope.json"
+                --data "{\"scope\":\"$scope\"}")"
+              if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+                echo "Sync failed for $scope with HTTP $http_code" >&2
+                cat "$response" >&2 || true
+                exit 1
+              fi
             done
             python3 - "$REPORT" "$RUNNER_TEMP/islamic-content-evidence/responses" <<'PY'
           import json, pathlib, sys
@@ -132,6 +139,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: islamic-content-import-${{ github.run_number }}
-          path: ${{ runner.temp }}/islamic-content-evidence/import-report.json
+          path: |
+            ${{ runner.temp }}/islamic-content-evidence/import-report.json
+            ${{ runner.temp }}/islamic-content-evidence/responses/*.json
           if-no-files-found: warn
           retention-days: 30

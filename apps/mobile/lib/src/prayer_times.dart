@@ -64,8 +64,8 @@ class PrayerTimesService {
   Future<void>? _initialization;
 
   Future<void> initialize() => _initialization ??= Future<void>(() {
-    tz_data.initializeTimeZones();
-  });
+        tz_data.initializeTimeZones();
+      });
 
   Future<PrayerDay> dayFor({
     required DateTime date,
@@ -178,9 +178,9 @@ class PrayerTimesService {
     } on PlatformException {
       // Preserve functionality if the native engine cannot initialize.
     }
-    return adhan.Qibla(
+    return adhan.Qibla.qibla(
       adhan.Coordinates(settings.latitude, settings.longitude),
-    ).direction;
+    );
   }
 
   Future<Map<PrayerKind, DateTime>?> _nativeTimes(

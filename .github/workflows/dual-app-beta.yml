@@ -1,13 +1,15 @@
-name: Tarteel User and Admin Beta
+name: Tarteel Islamic Suite ARM64 Release
 
 on:
   push:
     branches:
-      - release/dual-app-beta-71
+      - release/islamic-suite-72
     paths:
       - 'apps/mobile/**'
       - 'apps/admin_mobile/**'
       - 'supabase/**'
+      - 'docs/ISLAMIC_SUITE_INTEGRATION.md'
+      - 'THIRD_PARTY_NOTICES.md'
       - '.github/workflows/dual-app-beta.yml'
   workflow_dispatch:
 
@@ -15,13 +17,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: dual-app-beta-${{ github.ref }}
-  cancel-in-progress: true
+  group: islamic-suite-arm64-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   verify-build-publish:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 100
     steps:
       - uses: actions/checkout@v4
 
@@ -53,19 +55,6 @@ jobs:
           flutter pub get
           dart format lib test
 
-      - name: Persist formatter output and admin lockfile
-        run: |
-          set -euo pipefail
-          git add apps/mobile/lib apps/mobile/test \
-            apps/admin_mobile/lib apps/admin_mobile/test \
-            apps/admin_mobile/pubspec.lock
-          if ! git diff --cached --quiet; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git commit -m 'style: apply Dart formatter and lock admin dependencies'
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
-
       - name: Verify user application
         working-directory: apps/mobile
         run: |
@@ -80,95 +69,108 @@ jobs:
           flutter analyze --no-fatal-infos
           flutter test
 
-      - name: Verify client configuration
+      - name: Verify Android 8+ client configuration
         run: |
           set -euo pipefail
           grep -q 'applicationId = "app.tarteel.tarteel"' apps/mobile/android/app/build.gradle.kts
+          grep -q 'minSdk = 26' apps/mobile/android/app/build.gradle.kts
           grep -q '"package_name": "app.tarteel.tarteel"' apps/mobile/android/app/google-services.json
           grep -q '"project_id": "tarteel-b755d"' apps/mobile/android/app/google-services.json
           grep -q 'applicationId = "app.tarteel.admin"' apps/admin_mobile/android/app/build.gradle.kts
+          grep -q 'minSdk = 26' apps/admin_mobile/android/app/build.gradle.kts
           test ! -e apps/admin_mobile/android/app/google-services.json
 
-      - name: Build user beta APK
+      - name: Build user ARM64 APK
         working-directory: apps/mobile
         run: >-
-          flutter build apk --release
+          flutter build apk --release --target-platform android-arm64
           --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
 
-      - name: Build admin beta APK
+      - name: Build admin ARM64 APK
         working-directory: apps/admin_mobile
-        run: flutter build apk --release
+        run: flutter build apk --release --target-platform android-arm64
 
-      - name: Collect and inspect beta APKs
+      - name: Collect and inspect ARM64 APKs
         run: |
           set -euo pipefail
-          mkdir -p release/beta
-          cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk release/beta/tarteel-user-0.7.1.apk
-          cp apps/admin_mobile/build/app/outputs/flutter-apk/app-release.apk release/beta/tarteel-admin-0.2.1.apk
+          mkdir -p release/arm64
+          cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk release/arm64/tarteel-user-0.8.0-arm64.apk
+          cp apps/admin_mobile/build/app/outputs/flutter-apk/app-release.apk release/arm64/tarteel-admin-0.3.0-arm64.apk
 
           AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)
-          "$AAPT" dump badging release/beta/tarteel-user-0.7.1.apk > release/beta/user-badging.txt
-          "$AAPT" dump badging release/beta/tarteel-admin-0.2.1.apk > release/beta/admin-badging.txt
-          grep -q "package: name='app.tarteel.tarteel'" release/beta/user-badging.txt
-          grep -q "versionName='0.7.1'" release/beta/user-badging.txt
-          grep -q "package: name='app.tarteel.admin'" release/beta/admin-badging.txt
-          grep -q "versionName='0.2.1'" release/beta/admin-badging.txt
+          "$AAPT" dump badging release/arm64/tarteel-user-0.8.0-arm64.apk > release/arm64/user-badging.txt
+          "$AAPT" dump badging release/arm64/tarteel-admin-0.3.0-arm64.apk > release/arm64/admin-badging.txt
+          grep -q "package: name='app.tarteel.tarteel'" release/arm64/user-badging.txt
+          grep -q "versionName='0.8.0'" release/arm64/user-badging.txt
+          grep -q "sdkVersion:'26'" release/arm64/user-badging.txt
+          grep -q "native-code: 'arm64-v8a'" release/arm64/user-badging.txt
+          grep -q "package: name='app.tarteel.admin'" release/arm64/admin-badging.txt
+          grep -q "versionName='0.3.0'" release/arm64/admin-badging.txt
+          grep -q "sdkVersion:'26'" release/arm64/admin-badging.txt
+          grep -q "native-code: 'arm64-v8a'" release/arm64/admin-badging.txt
 
-          for apk in release/beta/*.apk; do
+          for apk in release/arm64/*.apk; do
             if strings "$apk" | grep -Ei '(BEGIN (RSA )?PRIVATE KEY|FIREBASE_SERVICE_ACCOUNT_JSON|SUPABASE_SERVICE_ROLE_KEY|sb_secret_[A-Za-z0-9_-]{12,})'; then
               echo "Privileged credential material was found in $apk" >&2
               exit 1
             fi
           done
 
-          sha256sum release/beta/*.apk > release/beta/SHA256SUMS.txt
+          sha256sum release/arm64/*.apk > release/arm64/SHA256SUMS.txt
           {
-            echo '## Tarteel dual-app beta'
+            echo '## Tarteel Islamic Suite ARM64'
             echo
-            echo '- User: `app.tarteel.tarteel` (`0.7.1+71`)'
-            echo '- Admin: `app.tarteel.admin` (`0.2.1+3`)'
-            echo '- Signing: internal beta/debug signing; not Play Store production signing'
-            echo '- Physical-device notification test: **NOT VERIFIED**'
+            echo '- User: `app.tarteel.tarteel` (`0.8.0+80`)'
+            echo '- Admin: `app.tarteel.admin` (`0.3.0+4`)'
+            echo '- ABI: `arm64-v8a`'
+            echo '- Minimum Android: 8.0 / API 26'
+            echo '- Signing: internal/debug signing; not Play Store production signing'
+            echo '- Physical-device exact-alarm/FCM test: **requires final device acceptance**'
             echo
             echo '```text'
-            cat release/beta/SHA256SUMS.txt
+            cat release/arm64/SHA256SUMS.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: tarteel-dual-app-beta-${{ github.run_number }}
-          path: release/beta
+          name: tarteel-islamic-suite-arm64-${{ github.run_number }}
+          path: release/arm64
           if-no-files-found: error
           retention-days: 30
 
       - name: Publish GitHub prerelease
-        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='v0.7.1-beta.71'
+          TAG='v0.8.0-beta.80'
           NOTES=$(mktemp)
           cat > "$NOTES" <<'EOF'
-          ## ترتيل — نسخة اختبار شاملة
+          ## ترتيل — Islamic Suite ARM64 Beta 80
 
-          تتضمن هذه النسخة تطبيق المستخدم وتطبيق الإدارة المنفصل، مع تحسينات الإشعارات، تشخيص الجهاز، وصول الإدارة، Feature Flags، وضع الصيانة، وسياسة التحديث.
+          تطبيق المستخدم يتضمن محرك **Adhan Kotlin** (MIT) على Android لمواقيت الصلاة والقبلة، أم القرى لمكة/السعودية، طرق حساب متعددة، تعديلات دقائق لكل صلاة، تذكيرات محلية للصلاة والأذكار والصلاة على النبي ﷺ والورد والقرآن، إعادة جدولة دورية، قبلة وتقويم هجري، واستمرار البنية الحالية للقرآن والتفسير والحديث والتنزيل والعمل دون إنترنت.
 
-          - `tarteel-user-0.7.1.apk`: تطبيق المستخدم مع صلاة وأذكار Offline-first.
-          - `tarteel-admin-0.2.1.apk`: تطبيق الإدارة مع حفظ الجلسة وتحسين إدارة الإشعارات.
+          لم يتم نسخ كود أو ملفات صوتية من Hidaya (GPL-3.0). استُخدم كمرجع معماري فقط. الأذان المدمج الحالي موثق CC0، ولا تُضاف تسجيلات مؤذنين أخرى قبل توثيق حقوق كل ملف.
+
+          - `tarteel-user-0.8.0-arm64.apk`: تطبيق المستخدم، Android 8+، ARM64.
+          - `tarteel-admin-0.3.0-arm64.apk`: تطبيق الإدارة، Android 8+، ARM64.
           - `SHA256SUMS.txt`: بصمات التحقق.
 
-          التوقيع الحالي للاختبار الداخلي فقط وليس توقيع متجر Google Play. اختبار FCM والإشعارات على جهاز فعلي يجب تنفيذه بعد التثبيت.
+          التوقيع الحالي للاختبار الداخلي وليس توقيع Google Play النهائي. يلزم اختبار جهاز فعلي لصلاحية Exact Alarms وسياسات توفير البطارية وFCM قبل اعتماد إنتاج المتجر.
           EOF
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release already exists; refusing to overwrite published artifacts" >&2
-            exit 1
+            gh release upload "$TAG" release/arm64/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --target "$(git rev-parse HEAD)" \
+              --title 'ترتيل 0.8.0 — Islamic Suite ARM64 Beta 80' \
+              --notes-file "$NOTES" \
+              --prerelease
           else
-            gh release create "$TAG" release/beta/* \
+            gh release create "$TAG" release/arm64/* \
               --repo "$GITHUB_REPOSITORY" \
               --target "$(git rev-parse HEAD)" \
-              --title 'ترتيل 0.7.1 — Beta 71' \
+              --title 'ترتيل 0.8.0 — Islamic Suite ARM64 Beta 80' \
               --notes-file "$NOTES" \
               --prerelease
           fi

@@ -59,6 +59,7 @@ object PrayerAlarmEngine {
 
     fun disable(context: Context) {
         cancelAll(context)
+        context.stopService(Intent(context, PrayerAlarmService::class.java))
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .remove(CONFIG)
@@ -76,21 +77,26 @@ object PrayerAlarmEngine {
 
     fun scheduleTest(context: Context, playAdhan: Boolean): Map<String, Any> {
         val whenMillis = System.currentTimeMillis() + 10_000L
-        val pending = prayerPendingIntent(
+        val pending = alarmPendingIntent(
             context = context,
             id = TEST_ID,
             title = "اختبار منبه الصلاة",
-            body = if (playAdhan) "سيعمل صوت الأذان التجريبي الآن" else "منبه الصلاة المحلي يعمل على هذا الجهاز",
+            body = if (playAdhan) {
+                "سيعمل صوت الأذان التجريبي الآن"
+            } else {
+                "منبه الصلاة المحلي يعمل على هذا الجهاز"
+            },
             prayer = "test",
             mode = if (playAdhan) "adhan" else "notificationOnly",
             soundPath = null,
+            audioKind = "adhan",
         )
         scheduleAlarm(context, TEST_ID, whenMillis, pending, showAsAlarmClock = true)
         return mapOf("scheduled" to true, "exact" to canScheduleExact(context))
     }
 
     fun reschedule(context: Context): Int {
-        cancelScheduledPrayerAlarms(context)
+        cancelScheduledAlarms(context)
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val raw = prefs.getString(CONFIG, null) ?: return 0
         val config = try {
@@ -111,9 +117,14 @@ object PrayerAlarmEngine {
 
         val modes = config.optJSONObject("modes") ?: JSONObject()
         val manual = config.optJSONObject("manualTimes") ?: JSONObject()
-        val rawSoundPath = config.optString("soundPath", "")
-        val soundPath = rawSoundPath.takeIf { it.isNotBlank() }
-        val now = Instant.now()
+        val adhanPath = config.optString("soundPath", "").takeIf { it.isNotBlank() }
+        val iqamah = config.optJSONObject("iqamah") ?: JSONObject()
+        val iqamahEnabled = iqamah.optBoolean("enabled", false)
+        val iqamahOffsetMinutes = iqamah.optInt("offsetMinutes", 10).coerceIn(1, 120)
+        val iqamahPath = iqamah.optString("soundPath", "")
+            .takeIf { it.isNotBlank() && File(it).isFile }
+
+        val now = Instant.now().toEpochMilli()
         val today = LocalDate.now(zone)
         val ids = mutableSetOf<String>()
         var scheduled = 0
@@ -124,7 +135,8 @@ object PrayerAlarmEngine {
             prayerNames.forEachIndexed { index, prayer ->
                 val mode = modes.optString(prayer, "disabled")
                 if (mode == "disabled") return@forEachIndexed
-                val trigger = if (manual.has(prayer)) {
+
+                val prayerTrigger = if (manual.has(prayer)) {
                     val minutes = manual.optInt(prayer, -1)
                     if (minutes !in 0 until 1440) return@forEachIndexed
                     date.atTime(LocalTime.of(minutes / 60, minutes % 60))
@@ -134,27 +146,53 @@ object PrayerAlarmEngine {
                 } else {
                     calculated[prayer] ?: return@forEachIndexed
                 }
-                if (trigger <= now.toEpochMilli() + 2_000L) return@forEachIndexed
 
-                val id = requestCode(date, index)
-                val title = "ترتيل"
-                val body = if (mode == "adhan") {
-                    "حان موعد أذان صلاة ${prayerArabic(prayer)}"
-                } else {
-                    "حان موعد صلاة ${prayerArabic(prayer)}"
+                if (prayerTrigger > now + 2_000L) {
+                    val id = requestCode(date, index, iqamah = false)
+                    val pending = alarmPendingIntent(
+                        context = context,
+                        id = id,
+                        title = "ترتيل",
+                        body = if (mode == "adhan") {
+                            "حان موعد أذان صلاة ${prayerArabic(prayer)}"
+                        } else {
+                            "حان موعد صلاة ${prayerArabic(prayer)}"
+                        },
+                        prayer = prayer,
+                        mode = mode,
+                        soundPath = adhanPath,
+                        audioKind = "adhan",
+                    )
+                    scheduleAlarm(context, id, prayerTrigger, pending, showAsAlarmClock = true)
+                    ids.add(id.toString())
+                    scheduled++
                 }
-                val pending = prayerPendingIntent(
-                    context = context,
-                    id = id,
-                    title = title,
-                    body = body,
-                    prayer = prayer,
-                    mode = mode,
-                    soundPath = soundPath,
-                )
-                scheduleAlarm(context, id, trigger, pending, showAsAlarmClock = true)
-                ids.add(id.toString())
-                scheduled++
+
+                if (iqamahEnabled && iqamahPath != null) {
+                    val iqamahTrigger = prayerTrigger + iqamahOffsetMinutes * 60_000L
+                    if (iqamahTrigger > now + 2_000L) {
+                        val iqamahId = requestCode(date, index, iqamah = true)
+                        val pending = alarmPendingIntent(
+                            context = context,
+                            id = iqamahId,
+                            title = "ترتيل • الإقامة",
+                            body = "حان وقت إقامة صلاة ${prayerArabic(prayer)}",
+                            prayer = prayer,
+                            mode = "iqamah",
+                            soundPath = iqamahPath,
+                            audioKind = "iqamah",
+                        )
+                        scheduleAlarm(
+                            context,
+                            iqamahId,
+                            iqamahTrigger,
+                            pending,
+                            showAsAlarmClock = true,
+                        )
+                        ids.add(iqamahId.toString())
+                        scheduled++
+                    }
+                }
             }
         }
 
@@ -170,7 +208,11 @@ object PrayerAlarmEngine {
         longitude: Double,
     ): Map<String, Long> {
         val method = calculationMethod(config.optString("method", "muslimWorldLeague"))
-        val madhab = if (config.optString("madhab", "shafi") == "hanafi") Madhab.HANAFI else Madhab.SHAFI
+        val madhab = if (config.optString("madhab", "shafi") == "hanafi") {
+            Madhab.HANAFI
+        } else {
+            Madhab.SHAFI
+        }
         val offsets = config.optJSONObject("offsets") ?: JSONObject()
         fun adjustment(name: String): Int = offsets.optInt(name, 0).coerceIn(-60, 60)
         val parameters = method.parameters.copy(
@@ -199,18 +241,18 @@ object PrayerAlarmEngine {
     }
 
     private fun scheduleRefresh(context: Context, zone: ZoneId) {
-        val tomorrow = LocalDate.now(zone).plusDays(1)
+        val tomorrow = LocalDate.now(zone)
+            .plusDays(1)
             .atTime(0, 10)
             .atZone(zone)
             .toInstant()
             .toEpochMilli()
-        val intent = Intent(context, PrayerScheduleReceiver::class.java).apply {
-            action = ACTION_REFRESH
-        }
         val pending = PendingIntent.getBroadcast(
             context,
             REFRESH_ID,
-            intent,
+            Intent(context, PrayerScheduleReceiver::class.java).apply {
+                action = ACTION_REFRESH
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         scheduleAlarm(context, REFRESH_ID, tomorrow, pending, showAsAlarmClock = false)
@@ -234,12 +276,23 @@ object PrayerAlarmEngine {
                     launch,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 )
-                manager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent), operation)
+                manager.setAlarmClock(
+                    AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent),
+                    operation,
+                )
             } else {
-                manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, operation)
+                manager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerAtMillis,
+                    operation,
+                )
             }
         } else {
-            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, operation)
+            manager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAtMillis,
+                operation,
+            )
         }
     }
 
@@ -248,19 +301,18 @@ object PrayerAlarmEngine {
         return context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
     }
 
-    private fun cancelScheduledPrayerAlarms(context: Context) {
+    private fun cancelScheduledAlarms(context: Context) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val ids = prefs.getStringSet(IDS, emptySet())?.toSet() ?: emptySet()
         val manager = context.getSystemService(AlarmManager::class.java)
         for (value in ids) {
             val id = value.toIntOrNull() ?: continue
-            val intent = Intent(context, PrayerAlarmReceiver::class.java).apply {
-                action = ACTION_PRAYER
-            }
             val pending = PendingIntent.getBroadcast(
                 context,
                 id,
-                intent,
+                Intent(context, PrayerAlarmReceiver::class.java).apply {
+                    action = ACTION_PRAYER
+                },
                 PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
             )
             if (pending != null) manager.cancel(pending)
@@ -269,18 +321,20 @@ object PrayerAlarmEngine {
     }
 
     private fun cancelAll(context: Context) {
-        cancelScheduledPrayerAlarms(context)
+        cancelScheduledAlarms(context)
         val manager = context.getSystemService(AlarmManager::class.java)
         val refresh = PendingIntent.getBroadcast(
             context,
             REFRESH_ID,
-            Intent(context, PrayerScheduleReceiver::class.java).apply { action = ACTION_REFRESH },
+            Intent(context, PrayerScheduleReceiver::class.java).apply {
+                action = ACTION_REFRESH
+            },
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
         )
         if (refresh != null) manager.cancel(refresh)
     }
 
-    private fun prayerPendingIntent(
+    private fun alarmPendingIntent(
         context: Context,
         id: Int,
         title: String,
@@ -288,6 +342,7 @@ object PrayerAlarmEngine {
         prayer: String,
         mode: String,
         soundPath: String?,
+        audioKind: String,
     ): PendingIntent {
         val intent = Intent(context, PrayerAlarmReceiver::class.java).apply {
             action = ACTION_PRAYER
@@ -297,6 +352,7 @@ object PrayerAlarmEngine {
             putExtra("prayer", prayer)
             putExtra("mode", mode)
             putExtra("sound_path", soundPath)
+            putExtra("audio_kind", audioKind)
         }
         return PendingIntent.getBroadcast(
             context,
@@ -306,9 +362,9 @@ object PrayerAlarmEngine {
         )
     }
 
-    private fun requestCode(date: LocalDate, prayerIndex: Int): Int {
+    private fun requestCode(date: LocalDate, prayerIndex: Int, iqamah: Boolean): Int {
         val day = (date.toEpochDay() % 100_000L).toInt()
-        return 2_000_000 + day * 10 + prayerIndex
+        return 2_000_000 + day * 20 + prayerIndex * 2 + if (iqamah) 1 else 0
     }
 
     private fun prayerArabic(name: String): String = when (name) {
@@ -354,26 +410,27 @@ object PrayerAlarmEngine {
 class PrayerAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != PrayerAlarmEngine.ACTION_PRAYER) return
-        val mode = intent.getStringExtra("mode") ?: "notificationOnly"
-        if (mode == "adhan") {
-            val service = Intent(context, PrayerAlarmService::class.java).apply {
-                putExtras(intent)
+        when (intent.getStringExtra("mode") ?: "notificationOnly") {
+            "adhan", "iqamah" -> {
+                val service = Intent(context, PrayerAlarmService::class.java).apply {
+                    putExtras(intent)
+                }
+                context.startForegroundService(service)
             }
-            context.startForegroundService(service)
-        } else {
-            PrayerAlarmNotifications.show(context, intent, silent = mode == "silent")
+            "silent" -> PrayerAlarmNotifications.show(context, intent, silent = true)
+            else -> PrayerAlarmNotifications.show(context, intent, silent = false)
         }
     }
 }
 
 class PrayerScheduleReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val pending = goAsync()
+        val pendingResult = goAsync()
         Thread {
             try {
                 PrayerAlarmEngine.reschedule(context.applicationContext)
             } finally {
-                pending.finish()
+                pendingResult.finish()
             }
         }.start()
     }
@@ -388,7 +445,7 @@ class PrayerAlarmStopReceiver : BroadcastReceiver() {
 private object PrayerAlarmNotifications {
     private const val NORMAL_CHANNEL = "tarteel_prayer_alarm_v2"
     private const val SILENT_CHANNEL = "tarteel_prayer_silent_v2"
-    private const val ADHAN_CHANNEL = "tarteel_adhan_playback_v2"
+    private const val AUDIO_CHANNEL = "tarteel_prayer_audio_v3"
 
     fun ensureChannels(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -396,55 +453,52 @@ private object PrayerAlarmNotifications {
             .setUsage(AudioAttributes.USAGE_ALARM)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
-        val normal = NotificationChannel(
-            NORMAL_CHANNEL,
-            "منبهات الصلاة",
-            NotificationManager.IMPORTANCE_HIGH,
-        ).apply {
-            description = "تنبيهات مواقيت الصلاة اليومية"
-            enableVibration(true)
-            setSound(Settings.System.DEFAULT_NOTIFICATION_URI, alarmAttributes)
-        }
-        val silent = NotificationChannel(
-            SILENT_CHANNEL,
-            "منبهات الصلاة الصامتة",
-            NotificationManager.IMPORTANCE_HIGH,
-        ).apply {
-            description = "تنبيهات الصلاة الصامتة"
-            enableVibration(false)
-            setSound(null, null)
-        }
-        val adhan = NotificationChannel(
-            ADHAN_CHANNEL,
-            "الأذان الجاري",
-            NotificationManager.IMPORTANCE_HIGH,
-        ).apply {
-            description = "تشغيل الأذان في موعد الصلاة"
-            enableVibration(true)
-            setSound(null, null)
-        }
-        manager.createNotificationChannel(normal)
-        manager.createNotificationChannel(silent)
-        manager.createNotificationChannel(adhan)
+        manager.createNotificationChannel(
+            NotificationChannel(
+                NORMAL_CHANNEL,
+                "منبهات الصلاة",
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = "تنبيهات مواقيت الصلاة اليومية"
+                enableVibration(true)
+                setSound(Settings.System.DEFAULT_NOTIFICATION_URI, alarmAttributes)
+            },
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                SILENT_CHANNEL,
+                "منبهات الصلاة الصامتة",
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = "تنبيهات الصلاة الصامتة"
+                enableVibration(false)
+                setSound(null, null)
+            },
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                AUDIO_CHANNEL,
+                "الأذان والإقامة",
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = "تشغيل الأذان والإقامة من الملفات المحلية المعتمدة"
+                enableVibration(true)
+                setSound(null, null)
+            },
+        )
     }
 
     fun show(context: Context, intent: Intent, silent: Boolean) {
         ensureChannels(context)
         val id = intent.getIntExtra("alarm_id", 4_100)
-        val open = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            ?: Intent(context, MainActivity::class.java)
-        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        val openPending = PendingIntent.getActivity(
+        val notification = Notification.Builder(
             context,
-            id,
-            open,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            if (silent) SILENT_CHANNEL else NORMAL_CHANNEL,
         )
-        val notification = Notification.Builder(context, if (silent) SILENT_CHANNEL else NORMAL_CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_tarteel)
             .setContentTitle(intent.getStringExtra("title") ?: "ترتيل")
             .setContentText(intent.getStringExtra("body") ?: "حان موعد الصلاة")
-            .setContentIntent(openPending)
+            .setContentIntent(openPendingIntent(context, id))
             .setAutoCancel(true)
             .setCategory(Notification.CATEGORY_ALARM)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
@@ -452,34 +506,37 @@ private object PrayerAlarmNotifications {
         context.getSystemService(NotificationManager::class.java).notify(id, notification)
     }
 
-    fun adhanNotification(context: Context, intent: Intent): Notification {
+    fun audioNotification(context: Context, intent: Intent): Notification {
         ensureChannels(context)
         val id = intent.getIntExtra("alarm_id", 4_100)
-        val open = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            ?: Intent(context, MainActivity::class.java)
-        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        val openPending = PendingIntent.getActivity(
-            context,
-            id,
-            open,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
         val stopPending = PendingIntent.getBroadcast(
             context,
             id,
             Intent(context, PrayerAlarmStopReceiver::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        return Notification.Builder(context, ADHAN_CHANNEL)
+        return Notification.Builder(context, AUDIO_CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_tarteel)
             .setContentTitle(intent.getStringExtra("title") ?: "ترتيل")
             .setContentText(intent.getStringExtra("body") ?: "حان موعد الصلاة")
-            .setContentIntent(openPending)
+            .setContentIntent(openPendingIntent(context, id))
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_ALARM)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-            .addAction(android.R.drawable.ic_media_pause, "إيقاف الأذان", stopPending)
+            .addAction(android.R.drawable.ic_media_pause, "إيقاف الصوت", stopPending)
             .build()
+    }
+
+    private fun openPendingIntent(context: Context, id: Int): PendingIntent {
+        val open = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?: Intent(context, MainActivity::class.java)
+        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        return PendingIntent.getActivity(
+            context,
+            id,
+            open,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 }
 
@@ -492,17 +549,19 @@ class PrayerAlarmService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null) return START_NOT_STICKY
-        if (intent.action == PrayerAlarmEngine.ACTION_STOP) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
         val notificationId = intent.getIntExtra("alarm_id", 4_100)
-        startForeground(notificationId, PrayerAlarmNotifications.adhanNotification(this, intent))
-        play(intent.getStringExtra("sound_path"))
+        startForeground(
+            notificationId,
+            PrayerAlarmNotifications.audioNotification(this, intent),
+        )
+        play(
+            soundPath = intent.getStringExtra("sound_path"),
+            audioKind = intent.getStringExtra("audio_kind") ?: "adhan",
+        )
         return START_NOT_STICKY
     }
 
-    private fun play(soundPath: String?) {
+    private fun play(soundPath: String?, audioKind: String) {
         stopPlayback()
         try {
             val attributes = AudioAttributes.Builder()
@@ -519,12 +578,19 @@ class PrayerAlarmService : Service() {
             val media = MediaPlayer().apply {
                 setAudioAttributes(attributes)
                 setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
-                if (!soundPath.isNullOrBlank() && File(soundPath).isFile) {
-                    setDataSource(soundPath)
-                } else {
+                val localFile = soundPath?.let(::File)?.takeIf { it.isFile }
+                if (localFile != null) {
+                    setDataSource(localFile.absolutePath)
+                } else if (audioKind == "adhan") {
                     val descriptor = resources.openRawResourceFd(R.raw.adhan)
-                    setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+                    setDataSource(
+                        descriptor.fileDescriptor,
+                        descriptor.startOffset,
+                        descriptor.length,
+                    )
                     descriptor.close()
+                } else {
+                    throw IllegalStateException("IQAMAH_AUDIO_MISSING")
                 }
                 setOnCompletionListener { stopSelf() }
                 setOnErrorListener { _, _, _ ->
@@ -550,8 +616,7 @@ class PrayerAlarmService : Service() {
         } catch (_: Throwable) {
         }
         player = null
-        val request = focusRequest
-        if (request != null) {
+        focusRequest?.let { request ->
             try {
                 audioManager?.abandonAudioFocusRequest(request)
             } catch (_: Throwable) {

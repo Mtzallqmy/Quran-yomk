@@ -9,11 +9,12 @@ enum PrayerCalculationMethod { muslimWorldLeague, egyptian, ummAlQura }
 
 enum PrayerAsrMethod { shafi, hanafi }
 
-enum PrayerReminderMode { disabled, notificationOnly, adhan }
+enum PrayerReminderMode { disabled, silent, notificationOnly, adhan }
 
 extension PrayerReminderModeLabel on PrayerReminderMode {
   String get nameAr => switch (this) {
     PrayerReminderMode.disabled => 'متوقف',
+    PrayerReminderMode.silent => 'إشعار صامت',
     PrayerReminderMode.notificationOnly => 'إشعار فقط',
     PrayerReminderMode.adhan => 'إشعار وأذان',
   };

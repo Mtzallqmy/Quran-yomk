@@ -192,6 +192,7 @@ class PrayerReminderController {
             channel: mode == PrayerReminderMode.adhan
                 ? LocalNotificationChannel.adhan
                 : LocalNotificationChannel.prayerReminder,
+            playSound: mode != PrayerReminderMode.silent,
           ),
         );
         if (mode == PrayerReminderMode.adhan) {

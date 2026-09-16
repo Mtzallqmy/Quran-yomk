@@ -6,6 +6,7 @@ import '../feature_manager.dart';
 import '../l10n.dart';
 import '../services.dart';
 import 'about.dart';
+import 'islamic_tools.dart';
 import 'notification_settings.dart';
 import 'prayer_times.dart';
 import 'saved_clips.dart';
@@ -88,12 +89,12 @@ class SettingsPage extends ConsumerWidget {
               ListTile(
                 leading: const Icon(Icons.access_time),
                 title: const Text('مواقيت الصلاة'),
-                subtitle: const Text('تعز • حساب محلي وتنبيهات دون إنترنت'),
+                subtitle: Text(
+                  '${services.prayerSettings.value.locationName} • حساب محلي وتنبيهات دون إنترنت',
+                ),
                 trailing: const Icon(Icons.chevron_left),
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const PrayerTimesPage(),
-                  ),
+                  MaterialPageRoute<void>(builder: (_) => const PrayerTimesPage()),
                 ),
               ),
               ListTile(
@@ -103,6 +104,17 @@ class SettingsPage extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const PrayerSettingsPage(),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.explore_outlined),
+                title: const Text('القبلة والتقويم الهجري'),
+                subtitle: const Text('أدوات محلية تعمل دون إنترنت'),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const IslamicToolsPage(),
                   ),
                 ),
               ),

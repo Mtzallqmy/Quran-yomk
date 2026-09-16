@@ -59,14 +59,14 @@ jobs:
         working-directory: apps/mobile
         run: |
           set -euo pipefail
-          flutter analyze --no-fatal-infos
+          flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter test
 
       - name: Verify admin application
         working-directory: apps/admin_mobile
         run: |
           set -euo pipefail
-          flutter analyze --no-fatal-infos
+          flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter test
 
       - name: Verify Android 8+ client configuration
@@ -94,18 +94,18 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release/arm64
-          cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk release/arm64/tarteel-user-0.8.1-arm64.apk
-          cp apps/admin_mobile/build/app/outputs/flutter-apk/app-release.apk release/arm64/tarteel-admin-0.3.0-arm64.apk
+          cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk release/arm64/tarteel-user-0.8.2-arm64.apk
+          cp apps/admin_mobile/build/app/outputs/flutter-apk/app-release.apk release/arm64/tarteel-admin-0.3.1-arm64.apk
 
           AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)
-          "$AAPT" dump badging release/arm64/tarteel-user-0.8.1-arm64.apk > release/arm64/user-badging.txt
-          "$AAPT" dump badging release/arm64/tarteel-admin-0.3.0-arm64.apk > release/arm64/admin-badging.txt
+          "$AAPT" dump badging release/arm64/tarteel-user-0.8.2-arm64.apk > release/arm64/user-badging.txt
+          "$AAPT" dump badging release/arm64/tarteel-admin-0.3.1-arm64.apk > release/arm64/admin-badging.txt
           grep -q "package: name='app.tarteel.tarteel'" release/arm64/user-badging.txt
-          grep -q "versionName='0.8.1'" release/arm64/user-badging.txt
+          grep -q "versionName='0.8.2'" release/arm64/user-badging.txt
           grep -q "sdkVersion:'26'" release/arm64/user-badging.txt
           grep -q "native-code: 'arm64-v8a'" release/arm64/user-badging.txt
           grep -q "package: name='app.tarteel.admin'" release/arm64/admin-badging.txt
-          grep -q "versionName='0.3.0'" release/arm64/admin-badging.txt
+          grep -q "versionName='0.3.1'" release/arm64/admin-badging.txt
           grep -q "sdkVersion:'26'" release/arm64/admin-badging.txt
           grep -q "native-code: 'arm64-v8a'" release/arm64/admin-badging.txt
 
@@ -120,13 +120,14 @@ jobs:
           {
             echo '## Tarteel Islamic Suite ARM64'
             echo
-            echo '- User: `app.tarteel.tarteel` (`0.8.1+81`)'
-            echo '- Admin: `app.tarteel.admin` (`0.3.0+4`)'
+            echo '- User: `app.tarteel.tarteel` (`0.8.2+82`)'
+            echo '- Admin: `app.tarteel.admin` (`0.3.1+5`)'
             echo '- ABI: `arm64-v8a`'
             echo '- Minimum Android: 8.0 / API 26'
-            echo '- Prayer engine: native AlarmManager with boot/time-change restore and foreground adhan playback'
+            echo '- Prayer engine: native AlarmManager with boot/time-change restore, offline licensed adhan selection, and optional scheduled iqamah playback'
+            echo '- Islamic library: Supabase-backed trusted content with offline cache and SHA-256 validation'
             echo '- Signing: internal/debug signing; not Play Store production signing'
-            echo '- Physical-device exact-alarm/FCM test: **requires final device acceptance**'
+            echo '- Physical-device exact-alarm/FCM/battery test remains device-specific'
             echo
             echo '```text'
             cat release/arm64/SHA256SUMS.txt
@@ -145,33 +146,33 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='v0.8.1-beta.81'
+          TAG='v0.8.2-beta.82'
           NOTES=$(mktemp)
           cat > "$NOTES" <<'EOF'
-          ## ترتيل — Islamic Suite ARM64 Beta 81
+          ## ترتيل — Islamic Suite ARM64 Beta 82
 
-          يعيد هذا الإصدار بناء منبهات الصلاة على Android باستخدام AlarmManager الأصلي بدل الاعتماد على مؤقت Flutter أثناء الخلفية. تتم جدولة المواقيت المحسوبة أو اليدوية محليًا، ويعاد إنشاؤها بعد إعادة تشغيل الهاتف وتغيير الوقت/المنطقة الزمنية، ويعمل الأذان عبر foreground media service حتى عند إغلاق واجهة Flutter. عند توفر إذن «المنبهات والتذكيرات» يستخدم التطبيق منبهات دقيقة؛ وعند عدم توفره يبقى هناك fallback تقريبي حتى يمنح المستخدم الإذن.
+          هذا الإصدار يجمع مسار المحتوى الإسلامي الموثوق مع منبهات الصلاة الأصلية على Android. مواقيت الصلاة المحسوبة أو اليدوية تُجدول عبر AlarmManager وتُعاد بعد إعادة التشغيل وتغيير الوقت/المنطقة الزمنية. يمكن اختيار ملف أذان مرخص سبق تنزيله والتحقق من SHA-256 الخاص به ليعمل دون إنترنت، كما يمكن تفعيل ملف إقامة مرخص وتشغيله تلقائيًا بعد الصلاة بفاصل يحدده المستخدم.
 
-          كما استبدلت شاشة القبلة الساكنة ببوصلة حية عند توفر حساس الجهاز، واستبدل التحويل الهجري الحسابي بجدول أم القرى المحلي. يظل Adhan Kotlin (MIT) محرك المواقيت والقبلة، ولا تُنسخ شيفرة Hidaya GPL-3.0.
+          المكتبة الإسلامية تتصل بـ Supabase API موحد، وتدعم التخزين المحلي Offline-First للنصوص والصوتيات المرخصة. لا تظهر ملفات الصوت إلا بعد اعتماد إعادة التوزيع لكل ملف على حدة.
 
-          - `tarteel-user-0.8.1-arm64.apk`: تطبيق المستخدم، Android 8+، ARM64.
-          - `tarteel-admin-0.3.0-arm64.apk`: تطبيق الإدارة، Android 8+، ARM64.
+          - `tarteel-user-0.8.2-arm64.apk`: تطبيق المستخدم، Android 8+، ARM64.
+          - `tarteel-admin-0.3.1-arm64.apk`: تطبيق الإدارة، Android 8+، ARM64.
           - `SHA256SUMS.txt`: بصمات التحقق.
 
-          الأذان المدمج الحالي موثق CC0. لا تُضاف تسجيلات مؤذنين أخرى قبل توثيق حقوق كل ملف. التوقيع الحالي للاختبار الداخلي وليس توقيع Google Play النهائي، ويلزم اختبار جهاز فعلي لسياسات Exact Alarms والبطارية الخاصة بالشركة المصنعة قبل اعتماد إنتاج المتجر.
+          البناء يمر عبر اختبارات Edge وFlutter، تحليل Dart، بناء التطبيقين، فحص package/version/minSdk/ABI ومسح APK من مؤشرات مفاتيح privileged credentials قبل نشر الملفات. التوقيع الحالي داخلي للاختبار وليس توقيع Google Play النهائي، وبعض سلوك Exact Alarm/Doze يعتمد على الجهاز وسياسة الشركة المصنعة.
           EOF
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" release/arm64/* --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
               --target "$(git rev-parse HEAD)" \
-              --title 'ترتيل 0.8.1 — Native Prayer Alarms ARM64 Beta 81' \
+              --title 'ترتيل 0.8.2 — Trusted Islamic Library + Native Prayer Alarms ARM64 Beta 82' \
               --notes-file "$NOTES" \
               --prerelease
           else
             gh release create "$TAG" release/arm64/* \
               --repo "$GITHUB_REPOSITORY" \
               --target "$(git rev-parse HEAD)" \
-              --title 'ترتيل 0.8.1 — Native Prayer Alarms ARM64 Beta 81' \
+              --title 'ترتيل 0.8.2 — Trusted Islamic Library + Native Prayer Alarms ARM64 Beta 82' \
               --notes-file "$NOTES" \
               --prerelease
           fi

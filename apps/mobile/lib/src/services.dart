@@ -22,6 +22,8 @@ import 'push_notifications.dart';
 import 'remote_config.dart';
 import 'repository.dart';
 import 'storage.dart';
+import 'trusted_islamic_library.dart';
+import 'trusted_islamic_schedules.dart';
 
 /// Compatibility helper for Riverpod releases where AsyncValue.valueOrNull
 /// is not part of the public API. Keeps call sites concise without reading a
@@ -38,6 +40,8 @@ class AppServices {
     required this.mushaf,
     required this.mushafPages,
     required this.islamicContent,
+    required this.trustedIslamicLibrary,
+    required this.trustedIslamicSchedules,
     required this.offlineClips,
     required this.playback,
     required this.quranAudio,
@@ -65,6 +69,8 @@ class AppServices {
   final MushafStore mushaf;
   final MushafPageRepository mushafPages;
   final IslamicContentRepository islamicContent;
+  final TrustedIslamicLibraryRepository trustedIslamicLibrary;
+  final TrustedIslamicScheduleController trustedIslamicSchedules;
   final OfflineClipService offlineClips;
   final PlaybackPort playback;
   final QuranAudioRepository quranAudio;

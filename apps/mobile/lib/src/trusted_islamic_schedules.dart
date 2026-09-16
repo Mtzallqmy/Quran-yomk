@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 import 'local_notifications.dart';
 import 'prayer_settings.dart';
@@ -85,22 +86,27 @@ class TrustedIslamicScheduleController extends ChangeNotifier {
     _lastError = null;
     if (!await notifications.permissionGranted()) return;
 
-    final now = _clock();
     final settings = prayerSettings.value;
+    final location = tz.getLocation(settings.timezone);
+    final now = tz.TZDateTime.from(_clock(), location);
     for (final template in templates) {
       if (!enabledFor(template)) continue;
       for (var offset = 0; offset < scheduleDays; offset++) {
-        final date = DateTime(now.year, now.month, now.day).add(
-          Duration(days: offset),
+        final date = tz.TZDateTime(
+          location,
+          now.year,
+          now.month,
+          now.day + offset,
         );
         try {
           final trigger = await _triggerFor(template, date, settings);
-          if (trigger == null || !trigger.isAfter(now.add(const Duration(seconds: 5)))) {
+          if (trigger == null ||
+              !trigger.isAfter(now.add(const Duration(seconds: 5)))) {
             continue;
           }
           await notifications.reschedule(
             LocalNotificationRequest(
-              id: _notificationId(template.slug, trigger),
+              id: _notificationId(template.slug, date),
               title: 'ترتيل',
               body: template.titleAr,
               scheduledAt: trigger,
@@ -114,7 +120,9 @@ class TrustedIslamicScheduleController extends ChangeNotifier {
           _scheduledCount++;
         } catch (error) {
           _lastError = 'SCHEDULE_${template.slug}_${error.runtimeType}';
-          debugPrint('TRUSTED_ISLAMIC_SCHEDULE_FAILED:${template.slug}:${error.runtimeType}');
+          debugPrint(
+            'TRUSTED_ISLAMIC_SCHEDULE_FAILED:${template.slug}:${error.runtimeType}',
+          );
         }
       }
     }
@@ -129,20 +137,26 @@ class TrustedIslamicScheduleController extends ChangeNotifier {
       case 'fixed_local_time':
         final raw = template.fixedLocalTime;
         if (raw == null) return null;
-        final match = RegExp(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?').firstMatch(raw);
+        final match = RegExp(
+          r'^(\d{1,2}):(\d{2})(?::(\d{2}))?',
+        ).firstMatch(raw);
         if (match == null) return null;
         final hour = int.tryParse(match.group(1) ?? '');
         final minute = int.tryParse(match.group(2) ?? '');
         final second = int.tryParse(match.group(3) ?? '0') ?? 0;
-        if (hour == null || minute == null || hour > 23 || minute > 59 || second > 59) {
+        if (hour == null ||
+            minute == null ||
+            hour > 23 ||
+            minute > 59 ||
+            second > 59) {
           return null;
         }
-        final day = await prayerTimes.dayFor(date: date, settings: settings);
-        final localDate = day.date;
-        return DateTime(
-          localDate.year,
-          localDate.month,
-          localDate.day,
+        final location = tz.getLocation(settings.timezone);
+        return tz.TZDateTime(
+          location,
+          date.year,
+          date.month,
+          date.day,
           hour,
           minute,
           second,
@@ -161,7 +175,9 @@ class TrustedIslamicScheduleController extends ChangeNotifier {
         final prayer = _prayerFromName(template.prayer);
         if (prayer == null) return null;
         final day = await prayerTimes.dayFor(date: date, settings: settings);
-        return day.timeFor(prayer).add(Duration(minutes: template.offsetMinutes));
+        return day.timeFor(prayer).add(
+          Duration(minutes: template.offsetMinutes),
+        );
       default:
         return null;
     }
@@ -174,12 +190,19 @@ class TrustedIslamicScheduleController extends ChangeNotifier {
     return null;
   }
 
-  Future<void> _cancelWindow(List<TrustedIslamicScheduleTemplate> templates) async {
-    final now = _clock();
+  Future<void> _cancelWindow(
+    List<TrustedIslamicScheduleTemplate> templates,
+  ) async {
+    final settings = prayerSettings.value;
+    final location = tz.getLocation(settings.timezone);
+    final now = tz.TZDateTime.from(_clock(), location);
     for (final template in templates) {
       for (var offset = -1; offset <= scheduleDays + 1; offset++) {
-        final date = DateTime(now.year, now.month, now.day).add(
-          Duration(days: offset),
+        final date = tz.TZDateTime(
+          location,
+          now.year,
+          now.month,
+          now.day + offset,
         );
         await notifications.cancel(_notificationId(template.slug, date));
       }

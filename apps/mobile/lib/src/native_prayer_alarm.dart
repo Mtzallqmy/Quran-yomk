@@ -40,6 +40,12 @@ class NativePrayerAlarmBridge {
           'timezone': settings.timezone,
           'method': settings.calculationMethod.name,
           'madhab': settings.asrMethod.name,
+          'soundPath': settings.adhanAudioPath,
+          'iqamah': <String, dynamic>{
+            'enabled': settings.iqamahEnabled,
+            'offsetMinutes': settings.iqamahOffsetMinutes,
+            'soundPath': settings.iqamahAudioPath,
+          },
           'offsets': <String, int>{
             for (final prayer in PrayerKind.values)
               prayer.name: settings.offsetFor(prayer),

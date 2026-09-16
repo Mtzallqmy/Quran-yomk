@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common.dart';
 import '../feature_manager.dart';
 import '../l10n.dart';
+import '../personal_reminders.dart';
 import '../services.dart';
 import 'about.dart';
 import 'islamic_tools.dart';
@@ -108,6 +109,22 @@ class SettingsPage extends ConsumerWidget {
                 ),
               ),
               ListTile(
+                leading: const Icon(Icons.alarm_add_outlined),
+                title: const Text('تذكيراتي اليومية'),
+                subtitle: const Text(
+                  'الصلاة على النبي ﷺ • ورد الأذكار • ورد القرآن',
+                ),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => PersonalRemindersPage(
+                      store: services.personalReminderStore,
+                      controller: services.personalReminders,
+                    ),
+                  ),
+                ),
+              ),
+              ListTile(
                 leading: const Icon(Icons.explore_outlined),
                 title: const Text('القبلة والتقويم الهجري'),
                 subtitle: const Text('أدوات محلية تعمل دون إنترنت'),
@@ -122,7 +139,9 @@ class SettingsPage extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.mark_email_unread_outlined),
               title: const Text('إشعارات ترتيل'),
-              subtitle: const Text('تفضيلات الإشعارات عن بُعد'),
+              subtitle: const Text(
+                'رسائل الإدارة والتحديثات عن بُعد — مستقلة عن تذكيراتك المحلية',
+              ),
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(

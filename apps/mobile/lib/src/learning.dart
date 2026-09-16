@@ -406,12 +406,43 @@ class LearningStore extends ChangeNotifier {
     return total == 0 ? 0 : completed / total;
   }
 
+  AdhkarReminderMode reminderMode(String category) {
+    final stored = _preferences.getString('$_reminderPrefix$category:mode');
+    if (stored != null) {
+      return AdhkarReminderMode.values.firstWhere(
+        (value) => value.name == stored,
+        orElse: () => AdhkarReminderMode.disabled,
+      );
+    }
+    // Migrate the previous boolean preference without enabling new behavior.
+    return (_preferences.getBool('$_reminderPrefix$category') ?? false)
+        ? AdhkarReminderMode.tone
+        : AdhkarReminderMode.disabled;
+  }
+
   bool reminderEnabled(String category) =>
-      _preferences.getBool('$_reminderPrefix$category') ?? false;
+      reminderMode(category) != AdhkarReminderMode.disabled;
+
+  Future<void> setReminderMode(
+    String category,
+    AdhkarReminderMode mode,
+  ) async {
+    await _preferences.setString(
+      '$_reminderPrefix$category:mode',
+      mode.name,
+    );
+    await _preferences.setBool(
+      '$_reminderPrefix$category',
+      mode != AdhkarReminderMode.disabled,
+    );
+    notifyListeners();
+  }
 
   Future<void> setReminderEnabled(String category, bool enabled) async {
-    await _preferences.setBool('$_reminderPrefix$category', enabled);
-    notifyListeners();
+    await setReminderMode(
+      category,
+      enabled ? AdhkarReminderMode.tone : AdhkarReminderMode.disabled,
+    );
   }
 
   void _loadDailyAdhkar(DateTime now) {
@@ -445,6 +476,16 @@ class LearningStore extends ChangeNotifier {
       _preferences.setString(_adhkarCountsKey, jsonEncode(_adhkarCounts));
 }
 
+enum AdhkarReminderMode { disabled, silent, tone }
+
+extension AdhkarReminderModeLabel on AdhkarReminderMode {
+  String get nameAr => switch (this) {
+    AdhkarReminderMode.disabled => 'متوقف',
+    AdhkarReminderMode.silent => 'إشعار صامت',
+    AdhkarReminderMode.tone => 'إشعار مع نغمة',
+  };
+}
+
 class AdhkarReminderController {
   AdhkarReminderController({required this.notifications, required this.store});
 
@@ -473,6 +514,7 @@ class AdhkarReminderController {
     String category, {
     required int hour,
     required int minute,
+    AdhkarReminderMode? mode,
     bool requestPermission = false,
     DateTime? now,
   }) async {
@@ -506,7 +548,10 @@ class AdhkarReminderController {
         timezone: 'Asia/Aden',
         payload: '/adhkar',
         channel: LocalNotificationChannel.prayerReminder,
+        playSound:
+            (mode ?? store.reminderMode(category)) == AdhkarReminderMode.tone,
         preferExact: false,
+        repeatDaily: true,
       ),
     );
     return true;

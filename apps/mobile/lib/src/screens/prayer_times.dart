@@ -279,6 +279,101 @@ class PrayerSettingsPage extends ConsumerStatefulWidget {
 class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
   PrayerKind? _changingPrayer;
 
+  Future<void> _editCalculation(PrayerSettings current) async {
+    var city = _prayerCities.firstWhere(
+      (value) => value.name == current.locationName,
+      orElse: () => _prayerCities.first,
+    );
+    var calculation = current.calculationMethod;
+    var asr = current.asrMethod;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('الموقع وطريقة الحساب'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                DropdownButtonFormField<_PrayerCity>(
+                  initialValue: city,
+                  decoration: const InputDecoration(labelText: 'المدينة'),
+                  items: <DropdownMenuItem<_PrayerCity>>[
+                    for (final value in _prayerCities)
+                      DropdownMenuItem(value: value, child: Text(value.name)),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => city = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<PrayerCalculationMethod>(
+                  initialValue: calculation,
+                  decoration: const InputDecoration(
+                    labelText: 'طريقة الحساب',
+                  ),
+                  items: <DropdownMenuItem<PrayerCalculationMethod>>[
+                    for (final value in PrayerCalculationMethod.values)
+                      DropdownMenuItem(
+                        value: value,
+                        child: Text(_methodName(value)),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => calculation = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<PrayerAsrMethod>(
+                  initialValue: asr,
+                  decoration: const InputDecoration(labelText: 'حساب العصر'),
+                  items: <DropdownMenuItem<PrayerAsrMethod>>[
+                    for (final value in PrayerAsrMethod.values)
+                      DropdownMenuItem(
+                        value: value,
+                        child: Text(_asrName(value)),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => asr = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'تُحفظ هذه البيانات على جهازك وتُحسب المواقيت محليًا دون إرسال موقعك إلى الخادم.',
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('حفظ وإعادة الجدولة'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true || !mounted) return;
+    final store = ref.read(servicesProvider).prayerSettings;
+    await store.updateLocation(
+      current.copyWith(
+        locationName: city.name,
+        latitude: city.latitude,
+        longitude: city.longitude,
+        timezone: city.timezone,
+        calculationMethod: calculation,
+        asrMethod: asr,
+      ),
+    );
+  }
+
   Future<void> _setMode(PrayerKind prayer, PrayerReminderMode mode) async {
     if (_changingPrayer != null) return;
     final services = ref.read(servicesProvider);
@@ -351,6 +446,8 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                 subtitle: Text(
                   '${settings.timezone} • ${settings.latitude.toStringAsFixed(4)}, ${settings.longitude.toStringAsFixed(4)}',
                 ),
+                trailing: const Icon(Icons.edit_location_alt_outlined),
+                onTap: () => _editCalculation(settings),
               ),
               ListTile(
                 leading: const Icon(Icons.calculate_outlined),
@@ -446,6 +543,25 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
     );
   }
 }
+
+class _PrayerCity {
+  const _PrayerCity(this.name, this.latitude, this.longitude, this.timezone);
+  final String name;
+  final double latitude;
+  final double longitude;
+  final String timezone;
+}
+
+const _prayerCities = <_PrayerCity>[
+  _PrayerCity('تعز', 13.5795, 44.0209, 'Asia/Aden'),
+  _PrayerCity('صنعاء', 15.3694, 44.1910, 'Asia/Aden'),
+  _PrayerCity('عدن', 12.7855, 45.0187, 'Asia/Aden'),
+  _PrayerCity('إب', 13.9667, 44.1833, 'Asia/Aden'),
+  _PrayerCity('الحديدة', 14.7978, 42.9545, 'Asia/Aden'),
+  _PrayerCity('المكلا', 14.5425, 49.1242, 'Asia/Aden'),
+  _PrayerCity('سيئون', 15.9433, 48.7873, 'Asia/Aden'),
+  _PrayerCity('مأرب', 15.4625, 45.3258, 'Asia/Aden'),
+];
 
 String _time(DateTime value) =>
     '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';

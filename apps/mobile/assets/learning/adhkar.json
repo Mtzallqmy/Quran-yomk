@@ -2,11 +2,23 @@
   "schema": 1,
   "items": [
     {"id":"morning_1","category":"morning","text":"اللهم بك أصبحنا وبك أمسينا وبك نحيا وبك نموت وإليك النشور","count":1,"source":"سنن الترمذي","reference":"3391","authenticity":"حسن"},
+    {"id":"morning_ikhlas","category":"morning","text":"قُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُنْ لَهُ كُفُوًا أَحَدٌ","count":3,"source":"القرآن الكريم","reference":"سورة الإخلاص","authenticity":"قرآن"},
+    {"id":"morning_falaq","category":"morning","text":"قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ۝ مِنْ شَرِّ مَا خَلَقَ ۝ وَمِنْ شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝ وَمِنْ شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ۝ وَمِنْ شَرِّ حَاسِدٍ إِذَا حَسَدَ","count":3,"source":"القرآن الكريم","reference":"سورة الفلق","authenticity":"قرآن"},
+    {"id":"morning_nas","category":"morning","text":"قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَهِ النَّاسِ ۝ مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ۝ مِنَ الْجِنَّةِ وَالنَّاسِ","count":3,"source":"القرآن الكريم","reference":"سورة الناس","authenticity":"قرآن"},
+    {"id":"morning_sayyid_istighfar","category":"morning","text":"اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك، وأنا على عهدك ووعدك ما استطعت، أعوذ بك من شر ما صنعت، أبوء لك بنعمتك علي، وأبوء بذنبي، فاغفر لي، فإنه لا يغفر الذنوب إلا أنت","count":1,"source":"صحيح البخاري","reference":"6306","authenticity":"صحيح"},
     {"id":"evening_1","category":"evening","text":"اللهم بك أمسينا وبك أصبحنا وبك نحيا وبك نموت وإليك المصير","count":1,"source":"سنن الترمذي","reference":"3391","authenticity":"حسن"},
+    {"id":"evening_ikhlas","category":"evening","text":"قُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُنْ لَهُ كُفُوًا أَحَدٌ","count":3,"source":"القرآن الكريم","reference":"سورة الإخلاص","authenticity":"قرآن"},
+    {"id":"evening_falaq","category":"evening","text":"قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ۝ مِنْ شَرِّ مَا خَلَقَ ۝ وَمِنْ شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝ وَمِنْ شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ۝ وَمِنْ شَرِّ حَاسِدٍ إِذَا حَسَدَ","count":3,"source":"القرآن الكريم","reference":"سورة الفلق","authenticity":"قرآن"},
+    {"id":"evening_nas","category":"evening","text":"قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَهِ النَّاسِ ۝ مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ۝ مِنَ الْجِنَّةِ وَالنَّاسِ","count":3,"source":"القرآن الكريم","reference":"سورة الناس","authenticity":"قرآن"},
+    {"id":"evening_sayyid_istighfar","category":"evening","text":"اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك، وأنا على عهدك ووعدك ما استطعت، أعوذ بك من شر ما صنعت، أبوء لك بنعمتك علي، وأبوء بذنبي، فاغفر لي، فإنه لا يغفر الذنوب إلا أنت","count":1,"source":"صحيح البخاري","reference":"6306","authenticity":"صحيح"},
     {"id":"after_prayer_1","category":"after_prayer","text":"سبحان الله","count":33,"source":"صحيح مسلم","reference":"597","authenticity":"صحيح"},
     {"id":"after_prayer_2","category":"after_prayer","text":"الحمد لله","count":33,"source":"صحيح مسلم","reference":"597","authenticity":"صحيح"},
     {"id":"after_prayer_3","category":"after_prayer","text":"الله أكبر","count":33,"source":"صحيح مسلم","reference":"597","authenticity":"صحيح"},
+    {"id":"after_prayer_tawhid","category":"after_prayer","text":"لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير، اللهم لا مانع لما أعطيت، ولا معطي لما منعت، ولا ينفع ذا الجد منك الجد","count":1,"source":"صحيح مسلم","reference":"593","authenticity":"صحيح"},
     {"id":"sleep_1","category":"sleep","text":"باسمك اللهم أموت وأحيا","count":1,"source":"صحيح البخاري","reference":"6324","authenticity":"صحيح"},
+    {"id":"sleep_tasbih","category":"sleep","text":"سبحان الله","count":33,"source":"صحيح البخاري","reference":"6318","authenticity":"صحيح"},
+    {"id":"sleep_tahmid","category":"sleep","text":"الحمد لله","count":33,"source":"صحيح البخاري","reference":"6318","authenticity":"صحيح"},
+    {"id":"sleep_takbir","category":"sleep","text":"الله أكبر","count":34,"source":"صحيح البخاري","reference":"6318","authenticity":"صحيح"},
     {"id":"waking_1","category":"waking","text":"الحمد لله الذي أحيانا بعد ما أماتنا وإليه النشور","count":1,"source":"صحيح البخاري","reference":"6312","authenticity":"صحيح"},
     {"id":"general_1","category":"general","text":"سبحان الله وبحمده","count":100,"source":"صحيح مسلم","reference":"2692","authenticity":"صحيح"}
   ]

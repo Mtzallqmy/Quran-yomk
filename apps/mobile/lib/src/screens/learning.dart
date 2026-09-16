@@ -1022,42 +1022,58 @@ class _AdhkarPageState extends ConsumerState<AdhkarPage> {
                   'evening',
                   'sleep',
                 }.contains(_category))
-                  SwitchListTile(
-                    value: store.reminderEnabled(_category),
-                    title: const Text('تذكير محلي'),
-                    subtitle: const Text(
-                      'يعمل فقط عند سماح Android بالإشعارات',
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: DropdownButtonFormField<AdhkarReminderMode>(
+                        initialValue: store.reminderMode(_category),
+                        decoration: const InputDecoration(
+                          labelText: 'تذكير الأذكار اليومي',
+                          helperText:
+                              'لن يصدر أي صوت إلا إذا اخترت النغمة بنفسك',
+                        ),
+                        items: <DropdownMenuItem<AdhkarReminderMode>>[
+                          for (final mode in AdhkarReminderMode.values)
+                            DropdownMenuItem(
+                              value: mode,
+                              child: Text(mode.nameAr),
+                            ),
+                        ],
+                        onChanged: (mode) async {
+                          if (mode == null) return;
+                          final controller = ref
+                              .read(servicesProvider)
+                              .adhkarReminders;
+                          var applied = true;
+                          if (mode != AdhkarReminderMode.disabled) {
+                            applied = await controller.schedule(
+                              _category,
+                              hour: _category == 'morning'
+                                  ? 6
+                                  : _category == 'evening'
+                                  ? 18
+                                  : 22,
+                              minute: 0,
+                              mode: mode,
+                              requestPermission: true,
+                            );
+                          } else {
+                            await controller.cancel(_category);
+                          }
+                          await store.setReminderMode(
+                            _category,
+                            applied ? mode : AdhkarReminderMode.disabled,
+                          );
+                          if (!applied && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('فعّل إذن الإشعارات أولًا'),
+                              ),
+                            );
+                          }
+                        },
+                      ),
                     ),
-                    onChanged: (enabled) async {
-                      final controller = ref
-                          .read(servicesProvider)
-                          .adhkarReminders;
-                      var applied = true;
-                      if (enabled) {
-                        applied = await controller.schedule(
-                          _category,
-                          hour: _category == 'morning'
-                              ? 6
-                              : _category == 'evening'
-                              ? 18
-                              : 22,
-                          minute: 0,
-                          requestPermission: true,
-                        );
-                      } else {
-                        await controller.cancel(_category);
-                      }
-                      await store.setReminderEnabled(
-                        _category,
-                        enabled && applied,
-                      );
-                      if (!applied && context.mounted)
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('فعّل إذن الإشعارات أولًا'),
-                          ),
-                        );
-                    },
                   ),
               ],
             );

@@ -20,6 +20,7 @@ class LocalNotificationRequest {
     this.channel = LocalNotificationChannel.prayerReminder,
     this.playSound = true,
     this.preferExact = true,
+    this.repeatDaily = false,
   });
 
   final int id;
@@ -31,6 +32,7 @@ class LocalNotificationRequest {
   final LocalNotificationChannel channel;
   final bool playSound;
   final bool preferExact;
+  final bool repeatDaily;
 }
 
 abstract class LocalNotificationGateway {
@@ -306,6 +308,9 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
     androidScheduleMode: exact
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle,
+    matchDateTimeComponents: request.repeatDaily
+        ? DateTimeComponents.time
+        : null,
     payload: request.payload,
   );
 

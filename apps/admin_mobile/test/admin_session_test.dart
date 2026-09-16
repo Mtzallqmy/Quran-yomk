@@ -185,6 +185,35 @@ void main() {
       expect(session.signedIn, isTrue);
     },
   );
+
+  test('expired access token is refreshed once and request is retried', () async {
+    var calls = 0;
+    final auth = _AuthGateway();
+    final store = _SessionStore();
+    final session = MobileAdminSession(
+      client: MockClient((request) async {
+        calls++;
+        if (calls == 1) {
+          return http.Response(
+            jsonEncode(<String, dynamic>{
+              'error': <String, dynamic>{'code': 'AUTH_REQUIRED'},
+            }),
+            401,
+          );
+        }
+        return _sessionResponse();
+      }),
+      authGateway: auth,
+      sessionStore: store,
+    );
+
+    await session.login('admin@example.test', 'password');
+
+    expect(calls, 2);
+    expect(auth.refreshCalls, 1);
+    expect(store.value, 'refresh-refreshed');
+    expect(session.signedIn, isTrue);
+  });
 }
 
 MockClient _client({
@@ -242,6 +271,7 @@ class _AuthGateway implements AdminAuthGateway {
   String? signedInEmail;
   String? restoredRefreshToken;
   int signOutCalls = 0;
+  int refreshCalls = 0;
 
   @override
   AdminAuthSession? get currentSession => _session;
@@ -261,6 +291,15 @@ class _AuthGateway implements AdminAuthGateway {
     _session = const AdminAuthSession(
       accessToken: 'access-current',
       refreshToken: 'refresh-current',
+    );
+  }
+
+  @override
+  Future<void> refreshSession() async {
+    refreshCalls++;
+    _session = const AdminAuthSession(
+      accessToken: 'access-refreshed',
+      refreshToken: 'refresh-refreshed',
     );
   }
 

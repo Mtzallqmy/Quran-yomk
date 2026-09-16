@@ -191,6 +191,7 @@ void main() {
       expect(gateway.pending.keys, <int>[
         AdhkarReminderController.ids['morning']!,
       ]);
+      expect(gateway.pending.values.single.repeatDaily, isTrue);
       expect(gateway.permissionRequests, 1);
       await controller.cancel('morning');
       expect(gateway.pending, isEmpty);

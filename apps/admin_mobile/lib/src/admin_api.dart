@@ -30,6 +30,7 @@ abstract class AdminAuthGateway {
   AdminAuthSession? get currentSession;
   Future<void> signInWithPassword(String email, String password);
   Future<void> restoreSession(String refreshToken);
+  Future<void> refreshSession();
   Future<void> signOut();
 }
 
@@ -64,10 +65,21 @@ class SupabaseAdminAuthGateway implements AdminAuthGateway {
   }
 
   @override
+  Future<void> refreshSession() async {
+    await _client.auth.refreshSession();
+  }
+
+  @override
   Future<void> signOut() => _client.auth.signOut(scope: SignOutScope.local);
 }
 
-enum AdminSessionState { signedOut, authenticating, authorizing, signedIn }
+enum AdminSessionState {
+  restoring,
+  signedOut,
+  authenticating,
+  authorizing,
+  signedIn,
+}
 
 abstract class AdminSessionStore {
   Future<String?> readRefreshToken();
@@ -105,7 +117,7 @@ class MobileAdminSession extends ChangeNotifier {
   final AdminSessionStore _sessionStore;
   final Future<void> Function(String? token)? onAuthenticationChanged;
   String? _accessToken;
-  AdminSessionState _state = AdminSessionState.signedOut;
+  AdminSessionState _state = AdminSessionState.restoring;
   Set<String> _roles = <String>{};
   Set<String> _permissions = <String>{};
   Map<String, dynamic>? _overview;
@@ -113,6 +125,7 @@ class MobileAdminSession extends ChangeNotifier {
   bool get signedIn =>
       _state == AdminSessionState.signedIn && _accessToken != null;
   bool get checking =>
+      _state == AdminSessionState.restoring ||
       _state == AdminSessionState.authenticating ||
       _state == AdminSessionState.authorizing;
   AdminSessionState get state => _state;
@@ -168,7 +181,7 @@ class MobileAdminSession extends ChangeNotifier {
     };
   }
 
-  Future<Map<String, dynamic>> _request(
+  Future<http.Response> _send(
     String path, {
     String method = 'GET',
     Map<String, dynamic>? body,
@@ -196,7 +209,55 @@ class MobileAdminSession extends ChangeNotifier {
       _debug('edge_network_failure');
       throw const AdminApiException('BACKEND_UNAVAILABLE');
     }
-    final bytes = await response.stream.toBytes();
+    return http.Response.bytes(
+      await response.stream.toBytes(),
+      response.statusCode,
+      headers: response.headers,
+      request: request,
+    );
+  }
+
+  Future<bool> _refreshCredentials() async {
+    try {
+      _debug('session_refresh_started');
+      await _authGateway.refreshSession();
+      final refreshed = _authGateway.currentSession;
+      if (refreshed == null || refreshed.accessToken.isEmpty) return false;
+      _accessToken = refreshed.accessToken;
+      await _sessionStore.writeRefreshToken(refreshed.refreshToken);
+      _debug('session_refresh_succeeded');
+      unawaited(_notifyAuthenticationChanged(refreshed.accessToken));
+      return true;
+    } catch (error) {
+      _debug('session_refresh_failed', code: _authErrorCode(error));
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> _request(
+    String path, {
+    String method = 'GET',
+    Map<String, dynamic>? body,
+    String? idempotencyKey,
+    bool auth = true,
+  }) async {
+    var response = await _send(
+      path,
+      method: method,
+      body: body,
+      idempotencyKey: idempotencyKey,
+      auth: auth,
+    );
+    if (auth && response.statusCode == 401 && await _refreshCredentials()) {
+      response = await _send(
+        path,
+        method: method,
+        body: body,
+        idempotencyKey: idempotencyKey,
+        auth: auth,
+      );
+    }
+    final bytes = response.bodyBytes;
     Map<String, dynamic> decoded = <String, dynamic>{};
     try {
       final value = jsonDecode(utf8.decode(bytes));
@@ -235,7 +296,12 @@ class MobileAdminSession extends ChangeNotifier {
 
   Future<void> restore() async {
     final saved = await _sessionStore.readRefreshToken();
-    if (saved == null || saved.isEmpty || signedIn) return;
+    if (saved == null || saved.isEmpty) {
+      _state = AdminSessionState.signedOut;
+      notifyListeners();
+      return;
+    }
+    if (signedIn) return;
     _state = AdminSessionState.authenticating;
     notifyListeners();
     _debug('session_restore_started');
@@ -269,11 +335,16 @@ class MobileAdminSession extends ChangeNotifier {
           !_permissions.contains('dashboard.read')) {
         throw const AdminApiException('FORBIDDEN');
       }
-      await _sessionStore.writeRefreshToken(session.refreshToken);
+      // The authorization request may have refreshed an expired access token.
+      // Persist the newest refresh token instead of overwriting it with the
+      // value captured before the request.
+      final activeSession = _authGateway.currentSession ?? session;
+      _accessToken = activeSession.accessToken;
+      await _sessionStore.writeRefreshToken(activeSession.refreshToken);
       _state = AdminSessionState.signedIn;
       _debug('admin_authorization_succeeded');
       notifyListeners();
-      unawaited(_notifyAuthenticationChanged(session.accessToken));
+      unawaited(_notifyAuthenticationChanged(activeSession.accessToken));
     } catch (error) {
       _debug(
         'admin_authorization_failed',
@@ -392,7 +463,10 @@ class MobileAdminSession extends ChangeNotifier {
     await _edge('announcements', method: 'POST', body: value);
   }
 
-  Future<void> updateAnnouncement(String id, Map<String, dynamic> value) async {
+  Future<void> updateAnnouncement(
+    String id,
+    Map<String, dynamic> value,
+  ) async {
     await _edge('announcements/$id', method: 'PUT', body: value);
   }
 

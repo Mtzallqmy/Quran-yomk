@@ -103,16 +103,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release/beta
-          cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk release/beta/tarteel-user-0.6.0.apk
-          cp apps/admin_mobile/build/app/outputs/flutter-apk/app-release.apk release/beta/tarteel-admin-0.1.0.apk
+          cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk release/beta/tarteel-user-0.7.0.apk
+          cp apps/admin_mobile/build/app/outputs/flutter-apk/app-release.apk release/beta/tarteel-admin-0.2.0.apk
 
           AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)
           "$AAPT" dump badging release/beta/tarteel-user-0.6.0.apk > release/beta/user-badging.txt
           "$AAPT" dump badging release/beta/tarteel-admin-0.1.0.apk > release/beta/admin-badging.txt
           grep -q "package: name='app.tarteel.tarteel'" release/beta/user-badging.txt
-          grep -q "versionName='0.6.0'" release/beta/user-badging.txt
+          grep -q "versionName='0.7.0'" release/beta/user-badging.txt
           grep -q "package: name='app.tarteel.admin'" release/beta/admin-badging.txt
-          grep -q "versionName='0.1.0'" release/beta/admin-badging.txt
+          grep -q "versionName='0.2.0'" release/beta/admin-badging.txt
 
           for apk in release/beta/*.apk; do
             if strings "$apk" | grep -Ei '(BEGIN (RSA )?PRIVATE KEY|FIREBASE_SERVICE_ACCOUNT_JSON|SUPABASE_SERVICE_ROLE_KEY|sb_secret_[A-Za-z0-9_-]{12,})'; then
@@ -125,8 +125,8 @@ jobs:
           {
             echo '## Tarteel dual-app beta'
             echo
-            echo '- User: `app.tarteel.tarteel` (`0.6.0+60`)'
-            echo '- Admin: `app.tarteel.admin` (`0.1.0+1`)'
+            echo '- User: `app.tarteel.tarteel` (`0.7.0+70`)'
+            echo '- Admin: `app.tarteel.admin` (`0.2.0+2`)'
             echo '- Signing: internal beta/debug signing; not Play Store production signing'
             echo '- Physical-device notification test: **NOT VERIFIED**'
             echo
@@ -148,15 +148,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='v0.6.0-beta.60'
+          TAG='v0.7.0-beta.70'
           NOTES=$(mktemp)
           cat > "$NOTES" <<'EOF'
           ## ترتيل — نسخة اختبار شاملة
 
           تتضمن هذه النسخة تطبيق المستخدم وتطبيق الإدارة المنفصل، مع تحسينات الإشعارات، تشخيص الجهاز، وصول الإدارة، Feature Flags، وضع الصيانة، وسياسة التحديث.
 
-          - `tarteel-user-0.6.0.apk`: تطبيق المستخدم.
-          - `tarteel-admin-0.1.0.apk`: تطبيق الإدارة المستقل.
+          - `tarteel-user-0.7.0.apk`: تطبيق المستخدم مع صلاة وأذكار Offline-first.
+          - `tarteel-admin-0.2.0.apk`: تطبيق الإدارة مع حفظ الجلسة وتحسين إدارة الإشعارات.
           - `SHA256SUMS.txt`: بصمات التحقق.
 
           التوقيع الحالي للاختبار الداخلي فقط وليس توقيع متجر Google Play. اختبار FCM والإشعارات على جهاز فعلي يجب تنفيذه بعد التثبيت.
@@ -168,7 +168,7 @@ jobs:
             gh release create "$TAG" release/beta/* \
               --repo "$GITHUB_REPOSITORY" \
               --target "$(git rev-parse HEAD)" \
-              --title 'ترتيل 0.6.0 — Beta 60' \
+              --title 'ترتيل 0.7.0 — Beta 70' \
               --notes-file "$NOTES" \
               --prerelease
           fi

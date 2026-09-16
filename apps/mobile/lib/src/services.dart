@@ -9,6 +9,7 @@ import 'learning.dart';
 import 'mushaf_pages.dart';
 import 'mushaf_store.dart';
 import 'offline_clip_service.dart';
+import 'personal_reminders.dart';
 import 'playback.dart';
 import 'quran_audio.dart';
 import 'quran_download_service.dart';
@@ -54,6 +55,8 @@ class AppServices {
     required this.pushNotifications,
     required this.learning,
     required this.adhkarReminders,
+    required this.personalReminderStore,
+    required this.personalReminders,
   });
 
   final TarteelRepository repository;
@@ -79,6 +82,8 @@ class AppServices {
   final PushNotificationService pushNotifications;
   final LearningStore learning;
   final AdhkarReminderController adhkarReminders;
+  final PersonalReminderStore personalReminderStore;
+  final PersonalReminderController personalReminders;
 }
 
 final servicesProvider = Provider<AppServices>(

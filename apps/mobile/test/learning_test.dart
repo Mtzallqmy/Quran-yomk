@@ -12,6 +12,27 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   tz_data.initializeTimeZones();
 
+  test('custom adhkar time persists across restart without enabling sound', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final preferences = await SharedPreferences.getInstance();
+    final store = LearningStore(preferences)..load();
+    await store.setReminderMinutes('morning', 407);
+    expect(store.reminderEnabled('morning'), isFalse);
+    await store.setReminderMode('morning', AdhkarReminderMode.silent);
+    final restored = LearningStore(preferences)..load();
+    expect(restored.reminderMinutes('morning'), 407);
+    final gateway = _NotificationGateway()..allowed = true;
+    await AdhkarReminderController(
+      notifications: LocalNotificationService(gateway: gateway), store: restored,
+    ).start();
+    final reminder = gateway.pending.values.single;
+    expect(reminder.scheduledAt.toUtc().hour, 3);
+    expect(reminder.scheduledAt.minute, 47);
+    expect(reminder.playSound, isFalse);
+    expect(reminder.repeatDaily, isTrue);
+    expect(gateway.permissionRequests, 0);
+  });
+
   test(
     'canonical Quran snapshot checksum and verse count remain unchanged',
     () {

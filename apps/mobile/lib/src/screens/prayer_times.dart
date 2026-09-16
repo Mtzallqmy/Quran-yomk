@@ -143,6 +143,41 @@ class PrayerTimesView extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
+                      SwitchListTile(
+                        title: const Text('توقيت يدوي ثابت يوميًا'),
+                        subtitle: const Text('عند إيقافه تُستخدم المواقيت المحسوبة حسب التاريخ والموقع. الوقت اليدوي لا يتغير مع الفصول.'),
+                        value: settings.manualTimes.containsKey(prayer),
+                        onChanged: (enabled) async {
+                          if (!enabled) {
+                            await store.setManualTime(prayer, null);
+                            return;
+                          }
+                          final chosen = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+                          if (chosen != null) {
+                            await store.setManualTime(prayer, chosen.hour * 60 + chosen.minute);
+                          }
+                        },
+                      ),
+                      if (settings.manualTimes.containsKey(prayer))
+                        ListTile(
+                          title: const Text('موعد الصلاة اليدوي'),
+                          subtitle: Text(TimeOfDay(
+                            hour: settings.manualTimes[prayer]! ~/ 60,
+                            minute: settings.manualTimes[prayer]! % 60,
+                          ).format(context)),
+                          trailing: const Icon(Icons.schedule),
+                          onTap: () async {
+                            final minutes = settings.manualTimes[prayer]!;
+                            final chosen = await showTimePicker(context: context,
+                              initialTime: TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60));
+                            if (chosen != null) {
+                              await store.setManualTime(prayer, chosen.hour * 60 + chosen.minute);
+                            }
+                          },
+                        ),
                       Icon(Icons.location_on_outlined, color: scheme.primary),
                       const SizedBox(width: 6),
                       Text(
@@ -309,7 +344,9 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<PrayerCalculationMethod>(
                   initialValue: calculation,
-                  decoration: const InputDecoration(labelText: 'طريقة الحساب'),
+                  decoration: const InputDecoration(
+                    labelText: 'طريقة الحساب',
+                  ),
                   items: <DropdownMenuItem<PrayerCalculationMethod>>[
                     for (final value in PrayerCalculationMethod.values)
                       DropdownMenuItem(
@@ -527,7 +564,7 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                               child: Text(_offsetLabel(value)),
                             ),
                         ],
-                        onChanged: (value) {
+                        onChanged: settings.manualTimes.containsKey(prayer) ? null : (value) {
                           if (value != null) store.setOffset(prayer, value);
                         },
                       ),

@@ -6,11 +6,18 @@ void main() {
   final service = PrayerTimesService();
 
   test('manual times persist and use Aden wall time without offsets', () async {
-    final settings = PrayerSettings.fromJson(PrayerSettings.taiz().copyWith(
-      manualTimes: {PrayerKind.fajr: 315},
-      offsets: {PrayerKind.fajr: 20},
-    ).toJson());
-    final day = await service.dayFor(date: DateTime(2026, 9, 16), settings: settings);
+    final settings = PrayerSettings.fromJson(
+      PrayerSettings.taiz()
+          .copyWith(
+            manualTimes: {PrayerKind.fajr: 315},
+            offsets: {PrayerKind.fajr: 20},
+          )
+          .toJson(),
+    );
+    final day = await service.dayFor(
+      date: DateTime(2026, 9, 16),
+      settings: settings,
+    );
     final fajr = day.timeFor(PrayerKind.fajr);
     expect(fajr.hour, 5);
     expect(fajr.minute, 15);
@@ -25,12 +32,22 @@ void main() {
   });
 
   test('next prayer follows actual manual time order', () async {
-    final day = await service.dayFor(date: DateTime(2026, 9, 16),
-      settings: PrayerSettings.taiz().copyWith(manualTimes: {
-        PrayerKind.fajr: 720, PrayerKind.dhuhr: 600,
-        PrayerKind.asr: 900, PrayerKind.maghrib: 1080, PrayerKind.isha: 1200,
-      }));
-    expect(day.nextOnDay(DateTime.utc(2026, 9, 16, 6))!.prayer, PrayerKind.dhuhr);
+    final day = await service.dayFor(
+      date: DateTime(2026, 9, 16),
+      settings: PrayerSettings.taiz().copyWith(
+        manualTimes: {
+          PrayerKind.fajr: 720,
+          PrayerKind.dhuhr: 600,
+          PrayerKind.asr: 900,
+          PrayerKind.maghrib: 1080,
+          PrayerKind.isha: 1200,
+        },
+      ),
+    );
+    expect(
+      day.nextOnDay(DateTime.utc(2026, 9, 16, 6))!.prayer,
+      PrayerKind.dhuhr,
+    );
   });
 
   test('known Taiz day is ordered and timezone independent', () async {

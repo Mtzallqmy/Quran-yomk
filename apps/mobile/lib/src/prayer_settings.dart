@@ -146,6 +146,7 @@ class PrayerSettings {
   final Map<PrayerKind, int> offsets;
   final bool remindersEnabled;
   final Map<PrayerKind, PrayerReminderMode> reminderModes;
+
   /// Minutes after midnight in the configured timezone; absent = calculated.
   final Map<PrayerKind, int> manualTimes;
 
@@ -184,7 +185,9 @@ class PrayerSettings {
     reminderModes: Map<PrayerKind, PrayerReminderMode>.unmodifiable(
       reminderModes ?? this.reminderModes,
     ),
-    manualTimes: Map<PrayerKind, int>.unmodifiable(manualTimes ?? this.manualTimes),
+    manualTimes: Map<PrayerKind, int>.unmodifiable(
+      manualTimes ?? this.manualTimes,
+    ),
   );
 
   Map<String, dynamic> toJson() => <String, dynamic>{

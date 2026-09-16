@@ -1026,7 +1026,9 @@ class _AdhkarPageState extends ConsumerState<AdhkarPage> {
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: DropdownButtonFormField<AdhkarReminderMode>(
-                        key: ValueKey('adhkar-$_category-${store.reminderMode(_category).name}'),
+                        key: ValueKey(
+                          'adhkar-$_category-${store.reminderMode(_category).name}',
+                        ),
                         initialValue: store.reminderMode(_category),
                         decoration: const InputDecoration(
                           labelText: 'تذكير الأذكار اليومي',
@@ -1075,19 +1077,37 @@ class _AdhkarPageState extends ConsumerState<AdhkarPage> {
                 if (const {'morning', 'evening', 'sleep'}.contains(_category))
                   ListTile(
                     title: const Text('موعد التذكير اليومي'),
-                    subtitle: Text(TimeOfDay(hour: store.reminderMinutes(_category) ~/ 60,
-                      minute: store.reminderMinutes(_category) % 60).format(context)),
+                    subtitle: Text(
+                      TimeOfDay(
+                        hour: store.reminderMinutes(_category) ~/ 60,
+                        minute: store.reminderMinutes(_category) % 60,
+                      ).format(context),
+                    ),
                     trailing: const Icon(Icons.schedule),
                     onTap: () async {
                       final category = _category;
                       final minutes = store.reminderMinutes(category);
-                      final time = await showTimePicker(context: context,
-                        initialTime: TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60));
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay(
+                          hour: minutes ~/ 60,
+                          minute: minutes % 60,
+                        ),
+                      );
                       if (time == null || !context.mounted) return;
-                      await store.setReminderMinutes(category, time.hour * 60 + time.minute);
+                      await store.setReminderMinutes(
+                        category,
+                        time.hour * 60 + time.minute,
+                      );
                       if (store.reminderEnabled(category)) {
-                        await ref.read(servicesProvider).adhkarReminders.schedule(category,
-                          hour: time.hour, minute: time.minute);
+                        await ref
+                            .read(servicesProvider)
+                            .adhkarReminders
+                            .schedule(
+                              category,
+                              hour: time.hour,
+                              minute: time.minute,
+                            );
                       }
                     },
                   ),

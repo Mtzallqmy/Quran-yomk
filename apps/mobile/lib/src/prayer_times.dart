@@ -27,10 +27,13 @@ class PrayerDay {
 
   DateTime timeFor(PrayerKind prayer) => times[prayer]!;
 
-  List<PrayerOccurrence> get ordered => PrayerKind.values
-      .map((prayer) => PrayerOccurrence(prayer: prayer, time: timeFor(prayer)))
-      .toList(growable: false)
-    ..sort((left, right) => left.time.compareTo(right.time));
+  List<PrayerOccurrence> get ordered =>
+      PrayerKind.values
+          .map(
+            (prayer) => PrayerOccurrence(prayer: prayer, time: timeFor(prayer)),
+          )
+          .toList(growable: false)
+        ..sort((left, right) => left.time.compareTo(right.time));
 
   List<PrayerOccurrence> get requiredPrayers => ordered
       .where((occurrence) => occurrence.prayer.isRequiredPrayer)
@@ -80,12 +83,21 @@ class PrayerTimesService {
       // Manual time is the final user-selected time: do not add the
       // astronomical correction offset a second time.
       if (manual != null && manual >= 0 && manual < 1440) {
-        return tz.TZDateTime(location, date.year, date.month, date.day,
-            manual ~/ 60, manual % 60);
+        return tz.TZDateTime(
+          location,
+          date.year,
+          date.month,
+          date.day,
+          manual ~/ 60,
+          manual % 60,
+        );
       }
-      return tz.TZDateTime.from(value, location)
-          .add(Duration(minutes: settings.offsetFor(prayer)));
+      return tz.TZDateTime.from(
+        value,
+        location,
+      ).add(Duration(minutes: settings.offsetFor(prayer)));
     }
+
     return PrayerDay(
       date: localDate,
       timezone: location.name,
@@ -112,7 +124,12 @@ class PrayerTimesService {
     if (nextToday != null) {
       return PrayerSnapshot(today: today, next: nextToday);
     }
-    final tomorrowDate = tz.TZDateTime(location, localNow.year, localNow.month, localNow.day + 1);
+    final tomorrowDate = tz.TZDateTime(
+      location,
+      localNow.year,
+      localNow.month,
+      localNow.day + 1,
+    );
     final tomorrow = await dayFor(date: tomorrowDate, settings: settings);
     return PrayerSnapshot(today: today, next: tomorrow.requiredPrayers.first);
   }

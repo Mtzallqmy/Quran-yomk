@@ -426,7 +426,12 @@ class LearningStore extends ChangeNotifier {
   int reminderMinutes(String category) {
     final saved = _preferences.getInt('$_reminderPrefix$category:minutes');
     if (saved != null && saved >= 0 && saved < 1440) return saved;
-    return (category == 'morning' ? 6 : category == 'evening' ? 18 : 22) * 60;
+    return (category == 'morning'
+            ? 6
+            : category == 'evening'
+            ? 18
+            : 22) *
+        60;
   }
 
   Future<void> setReminderMinutes(String category, int minutes) async {
@@ -435,14 +440,8 @@ class LearningStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setReminderMode(
-    String category,
-    AdhkarReminderMode mode,
-  ) async {
-    await _preferences.setString(
-      '$_reminderPrefix$category:mode',
-      mode.name,
-    );
+  Future<void> setReminderMode(String category, AdhkarReminderMode mode) async {
+    await _preferences.setString('$_reminderPrefix$category:mode', mode.name);
     await _preferences.setBool(
       '$_reminderPrefix$category',
       mode != AdhkarReminderMode.disabled,
@@ -534,7 +533,8 @@ class AdhkarReminderController {
     DateTime? now,
   }) async {
     final id = ids[category];
-    if (id == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) return false;
+    if (id == null || hour < 0 || hour > 23 || minute < 0 || minute > 59)
+      return false;
     final permitted = requestPermission
         ? await notifications.requestPermission()
         : await notifications.permissionGranted();

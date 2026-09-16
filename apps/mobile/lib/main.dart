@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'src/adaptive_adhkar_reminders.dart';
 import 'src/api.dart';
 import 'src/adhan_audio.dart';
 import 'src/announcements.dart';
 import 'src/app.dart';
+import 'src/background_reminders.dart';
 import 'src/feature_manager.dart';
 import 'src/islamic_content.dart';
 import 'src/local_notifications.dart';
@@ -15,6 +17,7 @@ import 'src/learning.dart';
 import 'src/mushaf_pages.dart';
 import 'src/mushaf_store.dart';
 import 'src/offline_clip_service.dart';
+import 'src/personal_reminders.dart';
 import 'src/playback.dart';
 import 'src/quran_audio.dart';
 import 'src/quran_download_service.dart';
@@ -75,14 +78,22 @@ Future<void> main() async {
     config: remoteConfig,
     installedVersion: packageInfo.version,
   );
+
   final localNotifications = LocalNotificationService();
-  final learning = LearningStore(preferences)..load();
-  final adhkarReminders = AdhkarReminderController(
-    notifications: localNotifications,
-    store: learning,
-  );
   final prayerSettings = PrayerSettingsStore(preferences)..load();
   final prayerTimes = PrayerTimesService();
+  final learning = LearningStore(preferences)..load();
+  final adhkarReminders = AdaptiveAdhkarReminderController(
+    notifications: localNotifications,
+    store: learning,
+    prayerSettings: prayerSettings,
+  );
+  final personalReminderStore = PersonalReminderStore(preferences)..load();
+  final personalReminders = PersonalReminderController(
+    notifications: localNotifications,
+    store: personalReminderStore,
+    prayerSettings: prayerSettings,
+  );
   final adhanAudio = AdhanAudioService(playback: playback);
   final prayerReminders = PrayerReminderController(
     notifications: localNotifications,
@@ -94,6 +105,7 @@ Future<void> main() async {
     preferences: preferences,
     localNotifications: localNotifications,
   );
+
   final services = AppServices(
     repository: repository,
     favorites: favorites,
@@ -118,7 +130,11 @@ Future<void> main() async {
     pushNotifications: pushNotifications,
     learning: learning,
     adhkarReminders: adhkarReminders,
+    personalReminderStore: personalReminderStore,
+    personalReminders: personalReminders,
   );
+
+  await initializeReminderBackgroundWork();
 
   runApp(
     ProviderScope(
@@ -126,6 +142,7 @@ Future<void> main() async {
       child: const TarteelApp(),
     ),
   );
+
   initializeAfterFirstFrame(<String, Future<void> Function()>{
     'offline_clips': offlineClips.initialize,
     'quran_downloads': quranDownloads.initialize,
@@ -142,6 +159,7 @@ Future<void> main() async {
       } else {
         await adhkarReminders.suspend();
       }
+      await personalReminders.start();
     },
     'push_notifications': pushNotifications.initialize,
     'announcements': announcements.refresh,

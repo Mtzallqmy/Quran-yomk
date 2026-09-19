@@ -51,7 +51,13 @@ class JustAudioAdhanPlayerGateway implements AdhanPlayerGateway {
       if (!await session.setActive(true)) {
         throw StateError('ADHAN_AUDIO_FOCUS_DENIED');
       }
-      await _player.setAsset(assetPath);
+      if (assetPath.startsWith('/') || assetPath.startsWith('file://')) {
+        await _player.setFilePath(
+          assetPath.startsWith('file://') ? assetPath.substring(7) : assetPath,
+        );
+      } else {
+        await _player.setAsset(assetPath);
+      }
       await _player.play();
     } finally {
       await _player.stop();
@@ -79,7 +85,7 @@ class AdhanAudioService extends ChangeNotifier {
 
   final AdhanPlaybackGateway _playback;
   final AdhanPlayerGateway _player;
-  final String assetPath;
+  String assetPath;
   Future<void>? _active;
   bool _isPlaying = false;
   String? _lastError;
@@ -87,6 +93,10 @@ class AdhanAudioService extends ChangeNotifier {
   bool get isPlaying => _isPlaying;
   String? get lastError => _lastError;
   Future<void> get completion => _active ?? Future<void>.value();
+
+  void setAudioPath(String path) {
+    if (path.trim().isNotEmpty) assetPath = path;
+  }
 
   Future<bool> play() async {
     if (_active != null) return false;

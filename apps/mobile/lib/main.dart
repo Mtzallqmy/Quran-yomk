@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'src/api.dart';
 import 'src/adhan_audio.dart';
+import 'src/adhan_library.dart';
 import 'src/announcements.dart';
 import 'src/app.dart';
 import 'src/feature_manager.dart';
@@ -83,7 +84,15 @@ Future<void> main() async {
   );
   final prayerSettings = PrayerSettingsStore(preferences)..load();
   final prayerTimes = PrayerTimesService();
-  final adhanAudio = AdhanAudioService(playback: playback);
+  final adhanLibrary = AdhanLibraryStore(preferences)..load();
+  final adhanAudio = AdhanAudioService(
+    playback: playback,
+    assetPath: adhanLibrary.selectedPath ?? 'assets/audio/adhan.ogg',
+  );
+  adhanLibrary.addListener(() {
+    final path = adhanLibrary.selectedPath;
+    if (path != null) adhanAudio.setAudioPath(path);
+  });
   final prayerReminders = PrayerReminderController(
     notifications: localNotifications,
     prayerTimes: prayerTimes,
@@ -115,6 +124,7 @@ Future<void> main() async {
     prayerTimes: prayerTimes,
     prayerReminders: prayerReminders,
     adhanAudio: adhanAudio,
+    adhanLibrary: adhanLibrary,
     pushNotifications: pushNotifications,
     learning: learning,
     adhkarReminders: adhkarReminders,

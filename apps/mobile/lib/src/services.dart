@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'adhan_audio.dart';
+import 'adhan_library.dart';
 import 'announcements.dart';
 import 'feature_manager.dart';
 import 'islamic_content.dart';
@@ -51,6 +52,7 @@ class AppServices {
     required this.prayerTimes,
     required this.prayerReminders,
     required this.adhanAudio,
+    required this.adhanLibrary,
     required this.pushNotifications,
     required this.learning,
     required this.adhkarReminders,
@@ -76,6 +78,7 @@ class AppServices {
   final PrayerTimesService prayerTimes;
   final PrayerReminderController prayerReminders;
   final AdhanAudioService adhanAudio;
+  final AdhanLibraryStore adhanLibrary;
   final PushNotificationService pushNotifications;
   final LearningStore learning;
   final AdhkarReminderController adhkarReminders;

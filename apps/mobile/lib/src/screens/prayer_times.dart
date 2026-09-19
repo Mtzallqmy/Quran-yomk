@@ -8,6 +8,7 @@ import '../prayer_settings.dart';
 import '../prayer_times.dart';
 import '../services.dart';
 import '../theme.dart';
+import 'adhan_library.dart';
 
 class PrayerTimesPage extends ConsumerStatefulWidget {
   const PrayerTimesPage({super.key});
@@ -459,6 +460,17 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                 padding: EdgeInsetsDirectional.fromSTEB(16, 0, 16, 8),
                 child: Text(
                   'اختر لكل صلاة إشعارًا نصيًا أو أذانًا محليًا. يعمل إشعار الأذان كبديل آمن عندما يكون التطبيق في الخلفية.',
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.library_music_outlined),
+                title: const Text('اختيار صوت الأذان'),
+                subtitle: const Text('تنزيل أول مرة وتشغيل محلي دون إنترنت'),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AdhanLibraryPage(),
+                  ),
                 ),
               ),
               for (final prayer in PrayerKind.values.where(

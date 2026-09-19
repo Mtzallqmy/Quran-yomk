@@ -18,22 +18,16 @@ android {
 
     defaultConfig {
         applicationId = "app.tarteel.tarteel"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // Android 8.0 (API 26) and newer.
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
-        // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
-        // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
-        // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
-        // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
     buildTypes {
         release {
-            // Current milestone: an installable test APK, not a Play Store upload.
-            // Store signing is deliberately out of scope for this release target.
+            // Installable internal release APK. Play Store signing is intentionally separate.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -41,6 +35,8 @@ android {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // MIT licensed, high-precision offline prayer/Qibla engine.
+    implementation("com.batoulapps.adhan:adhan2:0.0.7")
 }
 
 kotlin {

@@ -1,0 +1,146 @@
+name: Tarteel Islamic Content Library
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Import scope
+        required: true
+        default: all
+        type: choice
+        options: [all, seen, fitrahive, hisn, tanzil, audio, verify]
+  push:
+    branches: [release/islamic-suite-72]
+    paths:
+      - '.github/workflows/islamic-content-library.yml'
+      - 'apps/mobile/tool/import_islamic_content.py'
+      - 'supabase/migrations/20260916153430_islamic_content_library_v1.sql'
+      - 'supabase/functions/islamic-library/**'
+      - 'supabase/functions/islamic-library-sync/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: islamic-content-library-production
+  cancel-in-progress: false
+
+env:
+  SUPABASE_PROJECT_URL: https://qkroecnecdxghcqvvoxn.supabase.co
+  TARTEEL_PUBLISHABLE_KEY: sb_publishable_dLYCid35ZkeIE95xqiyHoQ_bEhWWISK
+
+jobs:
+  validate-import:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate importer syntax
+        run: |
+          set -euo pipefail
+          python3 -m py_compile apps/mobile/tool/import_islamic_content.py
+
+      - name: Import reviewed texts and independently licensed audio
+        env:
+          SUPABASE_SERVER_KEY: ${{ secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          IMPORT_SCOPE: ${{ github.event.inputs.scope || 'all' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/islamic-content-evidence/responses"
+          REPORT="$RUNNER_TEMP/islamic-content-evidence/import-report.json"
+
+          if [ "$IMPORT_SCOPE" = verify ]; then
+            curl --fail --silent --show-error \
+              "$SUPABASE_PROJECT_URL/functions/v1/islamic-library/health" \
+              -H "apikey: $TARTEEL_PUBLISHABLE_KEY" \
+              > "$RUNNER_TEMP/islamic-content-evidence/responses/verify.json"
+            python3 - "$REPORT" "$RUNNER_TEMP/islamic-content-evidence/responses/verify.json" <<'PY'
+          import json, sys
+          health = json.load(open(sys.argv[2], encoding='utf-8'))
+          json.dump({'status':'PASS','verification':health.get('data',{})}, open(sys.argv[1],'w',encoding='utf-8'), ensure_ascii=False, indent=2)
+          PY
+          elif [ -n "$SUPABASE_SERVER_KEY" ]; then
+            python3 apps/mobile/tool/import_islamic_content.py \
+              --scope "$IMPORT_SCOPE" \
+              --report "$REPORT"
+          else
+            if [ "$IMPORT_SCOPE" = all ]; then
+              scopes='seen fitrahive hisn tanzil audio'
+            else
+              scopes="$IMPORT_SCOPE"
+            fi
+            for scope in $scopes; do
+              echo "Syncing allowlisted source: $scope"
+              response="$RUNNER_TEMP/islamic-content-evidence/responses/$scope.json"
+              http_code="$(curl --silent --show-error \
+                -o "$response" \
+                -w '%{http_code}' \
+                -X POST "$SUPABASE_PROJECT_URL/functions/v1/islamic-library-sync" \
+                -H "apikey: $TARTEEL_PUBLISHABLE_KEY" \
+                -H 'content-type: application/json' \
+                --data "{\"scope\":\"$scope\"}")"
+              if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+                echo "Sync failed for $scope with HTTP $http_code" >&2
+                cat "$response" >&2 || true
+                exit 1
+              fi
+            done
+            python3 - "$REPORT" "$RUNNER_TEMP/islamic-content-evidence/responses" <<'PY'
+          import json, pathlib, sys
+          root = pathlib.Path(sys.argv[2])
+          sources = {}
+          for path in sorted(root.glob('*.json')):
+              payload = json.load(open(path, encoding='utf-8'))
+              if 'error' in payload:
+                  raise SystemExit(f'{path.name}: {payload["error"]}')
+              sources[path.stem] = payload.get('data', {})
+          json.dump({'status':'PASS','sources':sources}, open(sys.argv[1],'w',encoding='utf-8'), ensure_ascii=False, indent=2)
+          PY
+          fi
+
+      - name: Validate evidence policy
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/islamic-content-evidence/import-report.json" <<'PY'
+          import json, sys
+          report = json.load(open(sys.argv[1], encoding='utf-8'))
+          if report.get('status') != 'PASS':
+              raise SystemExit('import report did not pass')
+          audio = report.get('sources', {}).get('audio', {}).get('assets', [])
+          if audio:
+              if len(audio) != 4:
+                  raise SystemExit(f'expected exactly four allowlisted Wikimedia audio assets, got {len(audio)}')
+              for item in audio:
+                  if 'CC0' not in str(item.get('license', '')).upper():
+                      raise SystemExit(f'audio license is not CC0: {item}')
+          print(json.dumps({'status': 'PASS'}, ensure_ascii=False))
+          PY
+
+      - name: Verify public library API
+        run: |
+          set -euo pipefail
+          health="$(curl --fail --silent --show-error \
+            "$SUPABASE_PROJECT_URL/functions/v1/islamic-library/health" \
+            -H "apikey: $TARTEEL_PUBLISHABLE_KEY")"
+          python3 - "$health" <<'PY'
+          import json, sys
+          payload = json.loads(sys.argv[1])
+          data = payload.get('data', {})
+          if data.get('ready') is not True:
+              raise SystemExit('library API is not ready')
+          if data.get('schema_version') != 1:
+              raise SystemExit('unexpected library schema version')
+          print(json.dumps(data, ensure_ascii=False))
+          PY
+
+      - name: Upload import evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: islamic-content-import-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/islamic-content-evidence/import-report.json
+            ${{ runner.temp }}/islamic-content-evidence/responses/*.json
+          if-no-files-found: warn
+          retention-days: 30

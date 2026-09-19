@@ -2,6 +2,21 @@
 
 > اسم المشروع والخدمات الجديدة: **ترتيل (Tarteel)**؛ يستخدم `tarteel` للمعرّفات التقنية دون إعادة تسمية مكونات قائمة بصورة كاسرة.
 
+## 1. Current production topology (repository reality)
+
+This document distinguishes the target operating topology from components that are actually present in this repository. The currently implemented service roots are:
+
+```text
+services/
+├── audio-worker
+├── radio-engine
+└── tarteel-api-elysia
+```
+
+Provider synchronization, stream-health checks, and radio readiness responsibilities are currently distributed between Supabase Edge Functions and the existing API/radio components. The separate `services/api`, `services/playout-adapter`, `services/watchdog`, `services/metrics-collector`, `services/provider-sync`, and `services/stream-health-worker` directories described by the original blueprint are not currently implemented as standalone services.
+
+The topology below is therefore a **target deployment model**, not a claim that every box is already deployed.
+
 ## 1. Topology النهائية
 
 ```mermaid

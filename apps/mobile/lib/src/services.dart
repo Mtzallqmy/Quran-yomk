@@ -9,6 +9,7 @@ import 'learning.dart';
 import 'mushaf_pages.dart';
 import 'mushaf_store.dart';
 import 'offline_clip_service.dart';
+import 'personal_reminders.dart';
 import 'playback.dart';
 import 'quran_audio.dart';
 import 'quran_download_service.dart';
@@ -21,6 +22,8 @@ import 'push_notifications.dart';
 import 'remote_config.dart';
 import 'repository.dart';
 import 'storage.dart';
+import 'trusted_islamic_library.dart';
+import 'trusted_islamic_schedules.dart';
 
 /// Compatibility helper for Riverpod releases where AsyncValue.valueOrNull
 /// is not part of the public API. Keeps call sites concise without reading a
@@ -37,6 +40,8 @@ class AppServices {
     required this.mushaf,
     required this.mushafPages,
     required this.islamicContent,
+    required this.trustedIslamicLibrary,
+    required this.trustedIslamicSchedules,
     required this.offlineClips,
     required this.playback,
     required this.quranAudio,
@@ -54,6 +59,8 @@ class AppServices {
     required this.pushNotifications,
     required this.learning,
     required this.adhkarReminders,
+    required this.personalReminderStore,
+    required this.personalReminders,
   });
 
   final TarteelRepository repository;
@@ -62,6 +69,8 @@ class AppServices {
   final MushafStore mushaf;
   final MushafPageRepository mushafPages;
   final IslamicContentRepository islamicContent;
+  final TrustedIslamicLibraryRepository trustedIslamicLibrary;
+  final TrustedIslamicScheduleController trustedIslamicSchedules;
   final OfflineClipService offlineClips;
   final PlaybackPort playback;
   final QuranAudioRepository quranAudio;
@@ -79,6 +88,8 @@ class AppServices {
   final PushNotificationService pushNotifications;
   final LearningStore learning;
   final AdhkarReminderController adhkarReminders;
+  final PersonalReminderStore personalReminderStore;
+  final PersonalReminderController personalReminders;
 }
 
 final servicesProvider = Provider<AppServices>(

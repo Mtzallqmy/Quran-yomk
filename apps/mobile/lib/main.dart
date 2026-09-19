@@ -4,17 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'src/adaptive_adhkar_reminders.dart';
 import 'src/api.dart';
 import 'src/adhan_audio.dart';
 import 'src/announcements.dart';
 import 'src/app.dart';
+import 'src/background_reminders.dart';
 import 'src/feature_manager.dart';
 import 'src/islamic_content.dart';
 import 'src/local_notifications.dart';
 import 'src/learning.dart';
 import 'src/mushaf_pages.dart';
 import 'src/mushaf_store.dart';
+import 'src/notification_consent_service.dart';
 import 'src/offline_clip_service.dart';
+import 'src/personal_reminders.dart';
 import 'src/playback.dart';
 import 'src/quran_audio.dart';
 import 'src/quran_download_service.dart';
@@ -23,12 +27,13 @@ import 'src/quran_playlist_store.dart';
 import 'src/prayer_reminders.dart';
 import 'src/prayer_settings.dart';
 import 'src/prayer_times.dart';
-import 'src/push_notifications.dart';
 import 'src/remote_config.dart';
 import 'src/repository.dart';
 import 'src/services.dart';
 import 'src/storage.dart';
 import 'src/startup.dart';
+import 'src/trusted_islamic_library.dart';
+import 'src/trusted_islamic_schedules.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +59,7 @@ Future<void> main() async {
   final mushaf = MushafStore(preferences)..load();
   final mushafPages = MushafPageRepository();
   final islamicContent = IslamicContentRepository();
+  final trustedIslamicLibrary = TrustedIslamicLibraryRepository();
   final offlineClips = createOfflineClipService(preferences);
   final quranDownloads = createQuranDownloadService(preferences);
   final quranAudio = QuranAudioRepository(
@@ -75,14 +81,29 @@ Future<void> main() async {
     config: remoteConfig,
     installedVersion: packageInfo.version,
   );
+
   final localNotifications = LocalNotificationService();
-  final learning = LearningStore(preferences)..load();
-  final adhkarReminders = AdhkarReminderController(
-    notifications: localNotifications,
-    store: learning,
-  );
   final prayerSettings = PrayerSettingsStore(preferences)..load();
   final prayerTimes = PrayerTimesService();
+  final trustedIslamicSchedules = TrustedIslamicScheduleController(
+    preferences: preferences,
+    library: trustedIslamicLibrary,
+    notifications: localNotifications,
+    prayerTimes: prayerTimes,
+    prayerSettings: prayerSettings,
+  );
+  final learning = LearningStore(preferences)..load();
+  final adhkarReminders = AdaptiveAdhkarReminderController(
+    notifications: localNotifications,
+    store: learning,
+    prayerSettings: prayerSettings,
+  );
+  final personalReminderStore = PersonalReminderStore(preferences)..load();
+  final personalReminders = PersonalReminderController(
+    notifications: localNotifications,
+    store: personalReminderStore,
+    prayerSettings: prayerSettings,
+  );
   final adhanAudio = AdhanAudioService(playback: playback);
   final prayerReminders = PrayerReminderController(
     notifications: localNotifications,
@@ -90,10 +111,28 @@ Future<void> main() async {
     settings: prayerSettings,
     adhanAudio: adhanAudio,
   );
-  final pushNotifications = PushNotificationService(
+
+  Future<void> enableLocalDefaults() async {
+    if (preferences.getBool('local:defaults_activated:v1') == true) return;
+    await prayerSettings.setRemindersEnabled(true);
+    for (final category in const <String>['morning', 'evening', 'sleep']) {
+      await learning.setReminderMode(category, AdhkarReminderMode.tone);
+    }
+    for (final key in const <String>['salawat', 'daily_wird', 'daily_quran']) {
+      await personalReminderStore.setEnabled(key, true);
+    }
+    await Future<void>.sync(prayerReminders.reconcile);
+    await adhkarReminders.start();
+    await personalReminders.reconcile();
+    await preferences.setBool('local:defaults_activated:v1', true);
+  }
+
+  final pushNotifications = TarteelPushNotificationService(
     preferences: preferences,
     localNotifications: localNotifications,
+    onLocalConsentGranted: enableLocalDefaults,
   );
+
   final services = AppServices(
     repository: repository,
     favorites: favorites,
@@ -101,6 +140,8 @@ Future<void> main() async {
     mushaf: mushaf,
     mushafPages: mushafPages,
     islamicContent: islamicContent,
+    trustedIslamicLibrary: trustedIslamicLibrary,
+    trustedIslamicSchedules: trustedIslamicSchedules,
     offlineClips: offlineClips,
     playback: playback,
     quranAudio: quranAudio,
@@ -118,6 +159,8 @@ Future<void> main() async {
     pushNotifications: pushNotifications,
     learning: learning,
     adhkarReminders: adhkarReminders,
+    personalReminderStore: personalReminderStore,
+    personalReminders: personalReminders,
   );
 
   runApp(
@@ -126,10 +169,16 @@ Future<void> main() async {
       child: const TarteelApp(),
     ),
   );
+
   initializeAfterFirstFrame(<String, Future<void> Function()>{
     'offline_clips': offlineClips.initialize,
     'quran_downloads': quranDownloads.initialize,
-    'islamic_content': islamicContent.synchronizeInBackground,
+    'legacy_islamic_content': islamicContent.synchronizeInBackground,
+    'trusted_islamic_content': () async {
+      await trustedIslamicLibrary.synchronizeInBackground();
+      await trustedIslamicSchedules.start();
+    },
+    'background_reminders': initializeReminderBackgroundWork,
     'runtime_config_and_reminders': () async {
       await remoteConfig.refresh();
       if (features.enabled(TarteelFeature.prayer)) {
@@ -142,6 +191,7 @@ Future<void> main() async {
       } else {
         await adhkarReminders.suspend();
       }
+      await personalReminders.start();
     },
     'push_notifications': pushNotifications.initialize,
     'announcements': announcements.refresh,

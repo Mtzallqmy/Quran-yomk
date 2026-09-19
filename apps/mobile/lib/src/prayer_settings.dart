@@ -5,7 +5,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 enum PrayerKind { fajr, sunrise, dhuhr, asr, maghrib, isha }
 
-enum PrayerCalculationMethod { muslimWorldLeague, egyptian, ummAlQura }
+enum PrayerCalculationMethod {
+  muslimWorldLeague,
+  egyptian,
+  karachi,
+  ummAlQura,
+  dubai,
+  qatar,
+  kuwait,
+  moonSightingCommittee,
+  singapore,
+  northAmerica,
+  turkey,
+}
 
 enum PrayerAsrMethod { shafi, hanafi }
 
@@ -46,18 +58,38 @@ class PrayerSettings {
     required this.remindersEnabled,
     this.reminderModes = const <PrayerKind, PrayerReminderMode>{},
     this.manualTimes = const <PrayerKind, int>{},
+    this.adhanAudioSlug,
+    this.adhanAudioSha256,
+    this.adhanAudioPath,
+    this.iqamahEnabled = false,
+    this.iqamahOffsetMinutes = 10,
+    this.iqamahAudioSlug,
+    this.iqamahAudioSha256,
+    this.iqamahAudioPath,
   });
 
-  factory PrayerSettings.taiz() => PrayerSettings(
+  factory PrayerSettings.taiz() => const PrayerSettings(
     locationName: 'تعز',
     latitude: 13.5795,
     longitude: 44.0209,
     timezone: 'Asia/Aden',
     calculationMethod: PrayerCalculationMethod.muslimWorldLeague,
     asrMethod: PrayerAsrMethod.shafi,
-    offsets: const <PrayerKind, int>{},
+    offsets: <PrayerKind, int>{},
     remindersEnabled: false,
-    reminderModes: const <PrayerKind, PrayerReminderMode>{},
+    reminderModes: <PrayerKind, PrayerReminderMode>{},
+  );
+
+  factory PrayerSettings.makkah() => const PrayerSettings(
+    locationName: 'مكة المكرمة',
+    latitude: 21.4225,
+    longitude: 39.8262,
+    timezone: 'Asia/Riyadh',
+    calculationMethod: PrayerCalculationMethod.ummAlQura,
+    asrMethod: PrayerAsrMethod.shafi,
+    offsets: <PrayerKind, int>{},
+    remindersEnabled: false,
+    reminderModes: <PrayerKind, PrayerReminderMode>{},
   );
 
   factory PrayerSettings.fromJson(Map<String, dynamic> json) {
@@ -108,14 +140,19 @@ class PrayerSettings {
         modes[prayer] = PrayerReminderMode.notificationOnly;
       }
     }
+    final rawMethod = json['calculation_method'];
+    final recommended = timezone == 'Asia/Riyadh'
+        ? PrayerCalculationMethod.ummAlQura
+        : PrayerCalculationMethod.muslimWorldLeague;
+    final iqamahOffset = (json['iqamah_offset_minutes'] as num?)?.toInt() ?? 10;
     return PrayerSettings(
       locationName: locationName.trim(),
       latitude: latitude.toDouble(),
       longitude: longitude.toDouble(),
       timezone: timezone,
       calculationMethod: PrayerCalculationMethod.values.firstWhere(
-        (value) => value.name == json['calculation_method'],
-        orElse: () => PrayerCalculationMethod.muslimWorldLeague,
+        (value) => value.name == rawMethod,
+        orElse: () => recommended,
       ),
       asrMethod: PrayerAsrMethod.values.firstWhere(
         (value) => value.name == json['asr_method'],
@@ -134,6 +171,14 @@ class PrayerSettings {
               ((json['manual_times'] as Map)[prayer.name] as int) < 1440)
             prayer: (json['manual_times'] as Map)[prayer.name] as int,
       }),
+      adhanAudioSlug: _nullableString(json['adhan_audio_slug']),
+      adhanAudioSha256: _nullableDigest(json['adhan_audio_sha256']),
+      adhanAudioPath: _nullableString(json['adhan_audio_path']),
+      iqamahEnabled: json['iqamah_enabled'] == true,
+      iqamahOffsetMinutes: iqamahOffset.clamp(1, 120).toInt(),
+      iqamahAudioSlug: _nullableString(json['iqamah_audio_slug']),
+      iqamahAudioSha256: _nullableDigest(json['iqamah_audio_sha256']),
+      iqamahAudioPath: _nullableString(json['iqamah_audio_path']),
     );
   }
 
@@ -149,6 +194,18 @@ class PrayerSettings {
 
   /// Minutes after midnight in the configured timezone; absent = calculated.
   final Map<PrayerKind, int> manualTimes;
+
+  /// Verified offline file selected from the licensed Islamic library.
+  final String? adhanAudioSlug;
+  final String? adhanAudioSha256;
+  final String? adhanAudioPath;
+
+  /// Optional iqamah playback after each enabled prayer alarm on Android.
+  final bool iqamahEnabled;
+  final int iqamahOffsetMinutes;
+  final String? iqamahAudioSlug;
+  final String? iqamahAudioSha256;
+  final String? iqamahAudioPath;
 
   int offsetFor(PrayerKind prayer) => offsets[prayer] ?? 0;
 
@@ -173,6 +230,16 @@ class PrayerSettings {
     bool? remindersEnabled,
     Map<PrayerKind, PrayerReminderMode>? reminderModes,
     Map<PrayerKind, int>? manualTimes,
+    String? adhanAudioSlug,
+    String? adhanAudioSha256,
+    String? adhanAudioPath,
+    bool clearAdhanAudio = false,
+    bool? iqamahEnabled,
+    int? iqamahOffsetMinutes,
+    String? iqamahAudioSlug,
+    String? iqamahAudioSha256,
+    String? iqamahAudioPath,
+    bool clearIqamahAudio = false,
   }) => PrayerSettings(
     locationName: locationName ?? this.locationName,
     latitude: latitude ?? this.latitude,
@@ -188,6 +255,28 @@ class PrayerSettings {
     manualTimes: Map<PrayerKind, int>.unmodifiable(
       manualTimes ?? this.manualTimes,
     ),
+    adhanAudioSlug: clearAdhanAudio
+        ? null
+        : adhanAudioSlug ?? this.adhanAudioSlug,
+    adhanAudioSha256: clearAdhanAudio
+        ? null
+        : adhanAudioSha256 ?? this.adhanAudioSha256,
+    adhanAudioPath: clearAdhanAudio
+        ? null
+        : adhanAudioPath ?? this.adhanAudioPath,
+    iqamahEnabled: iqamahEnabled ?? this.iqamahEnabled,
+    iqamahOffsetMinutes: (iqamahOffsetMinutes ?? this.iqamahOffsetMinutes)
+        .clamp(1, 120)
+        .toInt(),
+    iqamahAudioSlug: clearIqamahAudio
+        ? null
+        : iqamahAudioSlug ?? this.iqamahAudioSlug,
+    iqamahAudioSha256: clearIqamahAudio
+        ? null
+        : iqamahAudioSha256 ?? this.iqamahAudioSha256,
+    iqamahAudioPath: clearIqamahAudio
+        ? null
+        : iqamahAudioPath ?? this.iqamahAudioPath,
   );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -210,6 +299,14 @@ class PrayerSettings {
       ))
         prayer.name: reminderModeFor(prayer).name,
     },
+    'adhan_audio_slug': adhanAudioSlug,
+    'adhan_audio_sha256': adhanAudioSha256,
+    'adhan_audio_path': adhanAudioPath,
+    'iqamah_enabled': iqamahEnabled,
+    'iqamah_offset_minutes': iqamahOffsetMinutes,
+    'iqamah_audio_slug': iqamahAudioSlug,
+    'iqamah_audio_sha256': iqamahAudioSha256,
+    'iqamah_audio_path': iqamahAudioPath,
   };
 }
 
@@ -285,9 +382,59 @@ class PrayerSettingsStore extends ChangeNotifier {
     await _save(value.copyWith(manualTimes: times));
   }
 
+  Future<void> setAdhanAudio({
+    required String slug,
+    required String sha256,
+    required String path,
+  }) => _save(
+    value.copyWith(
+      adhanAudioSlug: slug,
+      adhanAudioSha256: sha256,
+      adhanAudioPath: path,
+    ),
+  );
+
+  Future<void> clearAdhanAudio() => _save(value.copyWith(clearAdhanAudio: true));
+
+  Future<void> setIqamahAudio({
+    required String slug,
+    required String sha256,
+    required String path,
+  }) => _save(
+    value.copyWith(
+      iqamahAudioSlug: slug,
+      iqamahAudioSha256: sha256,
+      iqamahAudioPath: path,
+    ),
+  );
+
+  Future<void> setIqamahEnabled(bool enabled) =>
+      _save(value.copyWith(iqamahEnabled: enabled));
+
+  Future<void> setIqamahOffset(int minutes) => _save(
+    value.copyWith(iqamahOffsetMinutes: minutes.clamp(1, 120).toInt()),
+  );
+
+  Future<void> clearIqamahAudio() => _save(
+    value.copyWith(clearIqamahAudio: true, iqamahEnabled: false),
+  );
+
   Future<void> _save(PrayerSettings next) async {
     value = next;
     await _preferences.setString(_storageKey, jsonEncode(next.toJson()));
     notifyListeners();
   }
+}
+
+String? _nullableString(Object? value) {
+  if (value is! String || value.trim().isEmpty) return null;
+  return value.trim();
+}
+
+String? _nullableDigest(Object? value) {
+  final normalized = _nullableString(value);
+  if (normalized == null || !RegExp(r'^[0-9a-f]{64}$').hasMatch(normalized)) {
+    return null;
+  }
+  return normalized;
 }

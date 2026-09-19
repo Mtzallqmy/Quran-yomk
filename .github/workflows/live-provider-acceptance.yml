@@ -34,15 +34,35 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Validate live Islamic Library Data bytes
+        id: islamic-library
+        continue-on-error: true
         run: |
           python3 -m py_compile tool/islamic_content_acceptance.py
           python3 tool/islamic_content_acceptance.py assets/islamic_content_manifest.json --live
 
       - name: Validate deployed Mushaf API
+        id: mushaf-api
+        continue-on-error: true
         run: python3 tool/quran_ci.py
 
       - name: Validate live Quran audio providers
+        id: quran-audio
+        continue-on-error: true
         run: python3 tool/quran_audio_ci.py
+
+      - name: Summarize live provider acceptance
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "Islamic library: ${{ steps.islamic-library.outcome }}"
+          echo "Mushaf API: ${{ steps.mushaf-api.outcome }}"
+          echo "Quran audio: ${{ steps.quran-audio.outcome }}"
+          if [ "${{ steps.islamic-library.outcome }}" != "success" ] || \
+             [ "${{ steps.mushaf-api.outcome }}" != "success" ] || \
+             [ "${{ steps.quran-audio.outcome }}" != "success" ]; then
+            echo 'One or more live provider checks failed.' >&2
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()

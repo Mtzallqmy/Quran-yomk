@@ -38,7 +38,8 @@ const adhanRecordings = <AdhanRecording>[
     nameAr: 'أذان الحرم المكي — العصر',
     nameEn: 'Makkah Haram — Asr',
     placeAr: 'مكة المكرمة',
-    sourceUrl: 'https://archive.org/download/AsrAzanFromMakkah/AsrAzanFromMakkah.ogv',
+    sourceUrl:
+        'https://archive.org/download/AsrAzanFromMakkah/AsrAzanFromMakkah.ogv',
     licenseUrl: 'https://archive.org/details/AsrAzanFromMakkah',
     licenseLabel: 'ملكية عامة (Internet Archive)',
     fileExtension: 'ogv',
@@ -48,7 +49,8 @@ const adhanRecordings = <AdhanRecording>[
     nameAr: 'أذان مكة — نسخة متوافقة',
     nameEn: 'Makkah — Compatible audio copy',
     placeAr: 'مكة المكرمة',
-    sourceUrl: 'https://archive.org/download/AsrAzanFromMakkah/AsrAzanFromMakkah_512kb.mp4',
+    sourceUrl:
+        'https://archive.org/download/AsrAzanFromMakkah/AsrAzanFromMakkah_512kb.mp4',
     licenseUrl: 'https://archive.org/details/AsrAzanFromMakkah',
     licenseLabel: 'ملكية عامة (Internet Archive)',
     fileExtension: 'mp4',
@@ -79,7 +81,9 @@ class AdhanLibraryStore extends ChangeNotifier {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is Map<String, dynamic>) {
-        _files.addAll(decoded.map((key, value) => MapEntry(key, value.toString())));
+        _files.addAll(
+          decoded.map((key, value) => MapEntry(key, value.toString())),
+        );
       }
     } catch (_) {
       _files.clear();
@@ -87,7 +91,8 @@ class AdhanLibraryStore extends ChangeNotifier {
     _removeMissing();
   }
 
-  bool isDownloaded(String id) => _files.containsKey(id) && File(_files[id]!).existsSync();
+  bool isDownloaded(String id) =>
+      _files.containsKey(id) && File(_files[id]!).existsSync();
 
   Future<bool> download(AdhanRecording recording) async {
     if (isDownloaded(recording.id)) {
@@ -97,11 +102,14 @@ class AdhanLibraryStore extends ChangeNotifier {
     _busy = true;
     _error = null;
     notifyListeners();
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15);
     File? part;
     try {
       final directory = await getApplicationSupportDirectory();
-      final target = File('${directory.path}/adhan_${recording.id}.${recording.fileExtension}');
+      final target = File(
+        '${directory.path}/adhan_${recording.id}.${recording.fileExtension}',
+      );
       part = File('${target.path}.part');
       if (await part.exists()) await part.delete();
       final request = await client.getUrl(Uri.parse(recording.sourceUrl));
@@ -109,7 +117,9 @@ class AdhanLibraryStore extends ChangeNotifier {
       // The URL is from the built-in, reviewed catalog and is capped.
       request.followRedirects = true;
       request.maxRedirects = 3;
-      final response = await request.close().timeout(const Duration(seconds: 20));
+      final response = await request.close().timeout(
+        const Duration(seconds: 20),
+      );
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw StateError('ADHAN_DOWNLOAD_HTTP_${response.statusCode}');
       }
@@ -117,7 +127,8 @@ class AdhanLibraryStore extends ChangeNotifier {
       final output = part.openWrite();
       await for (final chunk in response.timeout(const Duration(seconds: 20))) {
         total += chunk.length;
-        if (total > 80 * 1024 * 1024) throw StateError('ADHAN_DOWNLOAD_TOO_LARGE');
+        if (total > 80 * 1024 * 1024)
+          throw StateError('ADHAN_DOWNLOAD_TOO_LARGE');
         output.add(chunk);
       }
       await output.close();
@@ -169,8 +180,10 @@ class AdhanLibraryStore extends ChangeNotifier {
 
   void _removeMissing() {
     _files.removeWhere((_, path) => !File(path).existsSync());
-    if (_selectedId != null && !_files.containsKey(_selectedId)) _selectedId = null;
+    if (_selectedId != null && !_files.containsKey(_selectedId))
+      _selectedId = null;
   }
 
-  Future<void> _persist() => _preferences.setString(_filesKey, jsonEncode(_files));
+  Future<void> _persist() =>
+      _preferences.setString(_filesKey, jsonEncode(_files));
 }

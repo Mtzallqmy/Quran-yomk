@@ -42,7 +42,9 @@ class AdhanLibraryPage extends ConsumerWidget {
                         : Icons.volume_up_outlined,
                   ),
                   title: Text(recording.nameAr),
-                  subtitle: Text('${recording.placeAr}\n${recording.licenseLabel}'),
+                  subtitle: Text(
+                    '${recording.placeAr}\n${recording.licenseLabel}',
+                  ),
                   isThreeLine: true,
                   trailing: store.busy
                       ? const SizedBox.square(
@@ -53,7 +55,9 @@ class AdhanLibraryPage extends ConsumerWidget {
                       ? FilledButton(
                           onPressed: () => store.select(recording.id),
                           child: Text(
-                            store.selectedId == recording.id ? 'محدد' : 'اختيار',
+                            store.selectedId == recording.id
+                                ? 'محدد'
+                                : 'اختيار',
                           ),
                         )
                       : OutlinedButton(
@@ -61,7 +65,9 @@ class AdhanLibraryPage extends ConsumerWidget {
                             final ok = await store.download(recording);
                             if (context.mounted && !ok) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('فشل تنزيل ملف الأذان')),
+                                const SnackBar(
+                                  content: Text('فشل تنزيل ملف الأذان'),
+                                ),
                               );
                             }
                           },
@@ -91,7 +97,10 @@ class AdhanLibraryPage extends ConsumerWidget {
           'المكان: ${recording.placeAr}\n\nالحقوق: ${recording.licenseLabel}\n\nالمصدر: ${recording.licenseUrl}',
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
         ],
       ),
     );

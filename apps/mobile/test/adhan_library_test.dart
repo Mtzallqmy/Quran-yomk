@@ -19,7 +19,8 @@ void main() {
       'adhan:selected:v1': 'missing',
       'adhan:files:v1': '{"missing":"/tmp/adhan-does-not-exist.ogg"}',
     });
-    final store = AdhanLibraryStore(await SharedPreferences.getInstance())..load();
+    final store = AdhanLibraryStore(await SharedPreferences.getInstance())
+      ..load();
     expect(store.selectedId, isNull);
     expect(store.selectedPath, isNull);
     expect(store.isDownloaded('missing'), isFalse);

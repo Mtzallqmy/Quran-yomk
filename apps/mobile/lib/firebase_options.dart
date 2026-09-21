@@ -36,37 +36,37 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: String.fromEnvironment('FIREBASE_API_KEY', defaultValue: 'AIzaSy_Placeholder_Key_For_Gen_Lang_Client'),
-    appId: String.fromEnvironment('FIREBASE_WEB_APP_ID', defaultValue: '1:239423034:web:qyranyotla00000000'),
-    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '239423034'),
-    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'gen-lang-client-0239423034'),
-    authDomain: String.fromEnvironment('FIREBASE_AUTH_DOMAIN', defaultValue: 'gen-lang-client-0239423034.firebaseapp.com'),
-    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: 'gen-lang-client-0239423034.appspot.com'),
+    apiKey: String.fromEnvironment('FIREBASE_API_KEY', defaultValue: ''),
+    appId: String.fromEnvironment('FIREBASE_WEB_APP_ID', defaultValue: ''),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: ''),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: ''),
+    authDomain: String.fromEnvironment('FIREBASE_AUTH_DOMAIN', defaultValue: ''),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: ''),
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: String.fromEnvironment('FIREBASE_API_KEY', defaultValue: 'AIzaSy_Placeholder_Key_For_Gen_Lang_Client'),
-    appId: String.fromEnvironment('FIREBASE_ANDROID_APP_ID', defaultValue: '1:239423034:android:qyranyotla00000000'),
-    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '239423034'),
-    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'gen-lang-client-0239423034'),
-    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: 'gen-lang-client-0239423034.appspot.com'),
+    apiKey: String.fromEnvironment('FIREBASE_API_KEY', defaultValue: ''),
+    appId: String.fromEnvironment('FIREBASE_ANDROID_APP_ID', defaultValue: ''),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: ''),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: ''),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: ''),
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: String.fromEnvironment('FIREBASE_API_KEY', defaultValue: 'AIzaSy_Placeholder_Key_For_Gen_Lang_Client'),
-    appId: String.fromEnvironment('FIREBASE_IOS_APP_ID', defaultValue: '1:239423034:ios:qyranyotla00000000'),
-    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '239423034'),
-    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'gen-lang-client-0239423034'),
-    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: 'gen-lang-client-0239423034.appspot.com'),
+    apiKey: String.fromEnvironment('FIREBASE_API_KEY', defaultValue: ''),
+    appId: String.fromEnvironment('FIREBASE_IOS_APP_ID', defaultValue: ''),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: ''),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: ''),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: ''),
     iosBundleId: String.fromEnvironment('IOS_BUNDLE_ID', defaultValue: 'app.quranyutla'),
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: String.fromEnvironment('FIREBASE_API_KEY', defaultValue: 'AIzaSy_Placeholder_Key_For_Gen_Lang_Client'),
-    appId: String.fromEnvironment('FIREBASE_IOS_APP_ID', defaultValue: '1:239423034:ios:qyranyotla00000000'),
-    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '239423034'),
-    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'gen-lang-client-0239423034'),
-    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: 'gen-lang-client-0239423034.appspot.com'),
+    apiKey: String.fromEnvironment('FIREBASE_API_KEY', defaultValue: ''),
+    appId: String.fromEnvironment('FIREBASE_IOS_APP_ID', defaultValue: ''),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: ''),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: ''),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET', defaultValue: ''),
     iosBundleId: String.fromEnvironment('IOS_BUNDLE_ID', defaultValue: 'app.quranyutla'),
   );
 }

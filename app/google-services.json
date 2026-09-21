@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "239423034",
-    "project_id": "gen-lang-client-0239423034",
-    "storage_bucket": "gen-lang-client-0239423034.appspot.com"
+    "project_number": "429259454563",
+    "project_id": "tarteel-b755d",
+    "storage_bucket": "tarteel-b755d.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:239423034:android:qyranyotla00000000",
+        "mobilesdk_app_id": "1:429259454563:android:16db7f116d6a7fcb65a056",
         "android_client_info": {
           "package_name": "app.quranyutla"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSy_Placeholder_Key_For_Gen_Lang_Client"
+          "current_key": "YOUR_FIREBASE_API_KEY"
         }
       ],
       "services": {

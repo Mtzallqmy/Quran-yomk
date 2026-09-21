@@ -8,8 +8,10 @@ on:
 
 jobs:
   build-android-release:
-    name: Build Android APK
+    name: Build Android APK & Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -25,6 +27,7 @@ jobs:
 
       - name: Build Release APK
         run: |
+          chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
         env:
           SIGNING_KEY_STORE: ${{ secrets.ANDROID_SIGNING_KEYSTORE }}
@@ -36,3 +39,14 @@ jobs:
         with:
           name: quranyutla-release-apk
           path: app/build/outputs/apk/release/*.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: Release ${{ github.ref_name }} — قرآن يتلى (Quran Yutla)
+          files: |
+            app/build/outputs/apk/release/*.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false

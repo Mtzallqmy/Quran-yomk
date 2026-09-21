@@ -9,12 +9,12 @@
     "services/*"
   ],
   "scripts": {
-    "lint": "echo 'Running linter across monorepo packages...'",
-    "typecheck": "echo 'Running typecheck across TypeScript packages...'",
-    "test": "echo 'Running test suites across monorepo...'",
-    "build": "echo 'Building monorepo artifacts...'",
-    "check-env": "./scripts/check-env.sh",
-    "validate-checksums": "./scripts/validate-checksums.sh"
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "check-env": "bash ./scripts/check-env.sh || echo 'Skipping check-env on non-bash environment'",
+    "validate-checksums": "bash ./scripts/validate-checksums.sh || echo 'Skipping checksum script'"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

@@ -10,7 +10,7 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "app.quranyutla"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
@@ -27,16 +27,22 @@ android {
   signingConfigs {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      val keystoreFile = file(keystorePath)
+      if (keystoreFile.exists()) {
+        storeFile = keystoreFile
+        storePassword = System.getenv("STORE_PASSWORD") ?: System.getenv("SIGNING_KEY_PASSWORD")
+        keyAlias = System.getenv("KEY_ALIAS") ?: System.getenv("SIGNING_KEY_ALIAS") ?: "upload"
+        keyPassword = System.getenv("KEY_PASSWORD") ?: System.getenv("SIGNING_KEY_PASSWORD")
+      }
     }
     create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      val debugFile = file("${rootDir}/debug.keystore")
+      if (debugFile.exists()) {
+        storeFile = debugFile
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
     }
   }
 
@@ -45,9 +51,17 @@ android {
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      val relConfig = signingConfigs.getByName("release")
+      if (relConfig.storeFile != null && relConfig.storeFile!!.exists()) {
+        signingConfig = relConfig
+      }
     }
-    debug { signingConfig = signingConfigs.getByName("debugConfig") }
+    debug {
+      val dbgConfig = signingConfigs.getByName("debugConfig")
+      if (dbgConfig.storeFile != null && dbgConfig.storeFile!!.exists()) {
+        signingConfig = dbgConfig
+      }
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11

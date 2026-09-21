@@ -1,21 +1,47 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# =============================================================================
+# Quran Yutla (قرآن يتلى) — Production ProGuard & R8 Optimization Rules
+# =============================================================================
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# --- Android Architecture & Core ---
+-keepattributes SourceFile,LineNumberTable,*Annotation*,Signature,InnerClasses,EnclosingMethod
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# --- Quran Yutla Domain Models ---
+-keep class app.quranyutla.model.** { *; }
+-keepclassmembers class app.quranyutla.model.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# --- Firebase Services & Common ---
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+-keepattributes *Annotation*
+-keepclassmembers class * {
+    @com.google.firebase.firestore.PropertyName <fields>;
+    @com.google.firebase.firestore.PropertyName <methods>;
+}
+
+# --- Kotlin Coroutines & StateFlow ---
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keepclassmembernames class kotlinx.coroutines.** {
+    volatile <fields>;
+}
+-dontwarn kotlinx.coroutines.**
+
+# --- Jetpack Compose ---
+-keep class androidx.compose.runtime.** { *; }
+-dontwarn androidx.compose.**
+
+# --- Moshi & JSON Parsing ---
+-keepclasseswithmembers class * {
+    @com.squareup.moshi.* <methods>;
+}
+-keep @com.squareup.moshi.JsonQualifier interface *
+-keepclassmembers class * {
+    @com.squareup.moshi.Json <fields>;
+}
+
+# --- OkHttp & Retrofit ---
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn retrofit2.**
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }

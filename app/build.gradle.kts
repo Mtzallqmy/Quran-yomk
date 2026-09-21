@@ -16,10 +16,14 @@ android {
   defaultConfig {
     // Default safe namespace as requested; configurable before production publishing
     applicationId = "app.quranyutla"
-    minSdk = 24
+    minSdk = 26
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 2
+    versionName = "1.0.1"
+
+    ndk {
+      abiFilters.addAll(listOf("arm64-v8a", "x86_64"))
+    }
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

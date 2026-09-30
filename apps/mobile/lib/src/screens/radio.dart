@@ -709,7 +709,7 @@ class _CompactStationCard extends ConsumerWidget {
       child: Card(
         margin: EdgeInsets.zero,
         child: InkWell(
-          onTap: playable ? onPlay : null,
+          onTap: null,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -787,7 +787,7 @@ class _StationCard extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
       child: InkWell(
-        onTap: playable ? onPlay : null,
+        onTap: null,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),

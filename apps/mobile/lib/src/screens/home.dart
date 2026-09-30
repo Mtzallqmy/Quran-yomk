@@ -215,7 +215,7 @@ class _DashboardPrayerTimesState extends ConsumerState<DashboardPrayerTimes> {
     _refresh();
     ref.read(servicesProvider).prayerSettings.addListener(_refresh);
     _timer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) setState(_refresh);
+      if (mounted) _refresh();
     });
   }
 

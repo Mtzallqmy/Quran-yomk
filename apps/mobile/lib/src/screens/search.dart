@@ -5,6 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
 import '../models.dart';
+import '../navigation.dart';
+import '../feature_manager.dart';
+import '../quran_models.dart';
+import 'reciters.dart';
 import '../quran_audio.dart';
 import '../services.dart';
 import 'legacy_reciter_detail.dart';
@@ -31,6 +35,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   List<QuranAudioCatalogReciter> audioReciters =
       const <QuranAudioCatalogReciter>[];
   List<Surah> localSurahs = const <Surah>[];
+  int _request = 0;
+  int _filter = 0;
   bool loading = false;
   Object? error;
   String? pendingStationId;
@@ -53,8 +59,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Future<void> runSearch(String query) async {
+    final request = ++_request;
     final trimmed = query.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.isEmpty) {
       if (!mounted) return;
       setState(() {
         result = const SearchBundle(
@@ -99,9 +106,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           .toList(growable: false);
       final matchedSurahs = surahs
           .where((surah) {
-            return _normalize(
-              '${surah.nameAr} ${surah.nameEn} ${surah.number}',
-            ).contains(normalized);
+            return _normalize('${surah.nameAr} ${surah.nameEn} ${surah.number}')
+                .contains(normalized);
           })
           .toList(growable: false);
       final byIdentity = <String, QuranAudioCatalogReciter>{};
@@ -113,7 +119,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           byIdentity.putIfAbsent(reciter.identityKey, () => reciter);
         }
       }
-      if (mounted) {
+      if (mounted && request == _request) {
         setState(() {
           result = next;
           categoryResults = matchedCategories;
@@ -122,9 +128,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => error = e);
+      if (mounted && request == _request) setState(() => error = e);
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted && request == _request) setState(() => loading = false);
     }
   }
 
@@ -202,9 +208,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         },
                         icon: const Icon(Icons.close),
                       ),
-                hintText: 'محطة، قارئ، سورة، تفسير، أذكار…',
+                hintText: 'سورة، قارئ، إذاعة…',
               ),
               onChanged: (value) {
+                _request++; // Invalidate old results as soon as input changes.
                 setState(() {});
                 debounce?.cancel();
                 debounce = Timer(
@@ -215,6 +222,27 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               onSubmitted: runSearch,
             ),
           ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final (index, label) in [
+                  'الكل',
+                  'القرآن',
+                  'القراء',
+                  'الإذاعات',
+                ].indexed)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(start: 8),
+                    child: ChoiceChip(
+                      label: Text(label),
+                      selected: _filter == index,
+                      onSelected: (_) => setState(() => _filter = index),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           if (error != null)
             Expanded(
               child: ErrorPane(
@@ -222,9 +250,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 onRetry: () => runSearch(controller.text),
               ),
             )
-          else if (controller.text.trim().length < 2)
+          else if (controller.text.trim().isEmpty)
             const Expanded(
-              child: EmptyPane(message: 'اكتب حرفين على الأقل للبحث'),
+              child: EmptyPane(message: 'ابحث عن سورة أو قارئ أو إذاعة'),
             )
           else if (!loading && total == 0)
             const Expanded(child: EmptyPane(message: 'لا توجد نتائج'))
@@ -234,7 +262,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 children: <Widget>[
-                  if (categoryResults.isNotEmpty) ...<Widget>[
+                  if ((_filter == 0 || _filter == 3) &&
+                      services.features.enabled(TarteelFeature.radio) &&
+                      categoryResults.isNotEmpty) ...<Widget>[
                     const SectionHeader('الأقسام'),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -262,7 +292,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       ),
                     ),
                   ],
-                  if (result.stations.isNotEmpty) ...<Widget>[
+                  if ((_filter == 0 || _filter == 3) &&
+                      services.features.enabled(TarteelFeature.radio) &&
+                      result.stations.isNotEmpty) ...<Widget>[
                     const SectionHeader('الإذاعات'),
                     for (final station in result.stations)
                       AnimatedBuilder(
@@ -274,9 +306,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          onTap: _canPlay(station)
-                              ? () => _playStation(station)
-                              : null,
+
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
@@ -314,12 +344,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       ),
                   ],
-                  if (audioReciters.isNotEmpty) ...<Widget>[
+                  if ((_filter == 0 || _filter == 2) &&
+                      audioReciters.isNotEmpty) ...<Widget>[
                     const SectionHeader('قراء التلاوات'),
                     for (final reciter in audioReciters)
                       ListTile(
                         leading: const CircleAvatar(
                           child: Icon(Icons.record_voice_over_outlined),
+                        ),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                QuranAudioReciterDetailPage(reciter: reciter),
+                          ),
                         ),
                         title: Text(reciter.nameAr),
                         subtitle: Text(
@@ -334,7 +372,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       ),
                   ],
-                  if (result.reciters.isNotEmpty) ...<Widget>[
+                  if ((_filter == 0 || _filter == 2) &&
+                      result.reciters.isNotEmpty) ...<Widget>[
                     const SectionHeader('القراء المفهرسون'),
                     for (final reciter in result.reciters)
                       ListTile(
@@ -354,10 +393,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ),
                       ),
                   ],
-                  if ({
-                    ...result.surahs,
-                    ...localSurahs,
-                  }.isNotEmpty) ...<Widget>[
+                  if ((_filter == 0 || _filter == 1) &&
+                      {
+                        ...result.surahs,
+                        ...localSurahs,
+                      }.isNotEmpty) ...<Widget>[
                     const SectionHeader('السور'),
                     for (final surah in <int, Surah>{
                       for (final value in [...result.surahs, ...localSurahs])
@@ -370,6 +410,29 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           '${surah.nameEn} • ${surah.ayahCount} آية',
                         ),
                         trailing: const Icon(Icons.menu_book_outlined),
+                        onTap: () async {
+                          try {
+                            final passage = await services.repository
+                                .quranPassage(
+                                  QuranBrowseMode.surah,
+                                  surah.number,
+                                );
+                            if (!context.mounted || passage.verses.isEmpty)
+                              return;
+                            await Navigator.pushNamed(
+                              context,
+                              MobileRoutes.reader,
+                              arguments: passage.verses.first.pageNumber,
+                            );
+                          } catch (_) {
+                            if (context.mounted)
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('تعذر فتح السورة'),
+                                ),
+                              );
+                          }
+                        },
                       ),
                   ],
                   const SizedBox(height: 24),

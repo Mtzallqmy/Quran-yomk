@@ -1,3 +1,4 @@
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,7 +29,7 @@ class AboutPage extends ConsumerWidget {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 6),
-          Text(l10n.versionLabel('0.3.0 (3)'), textAlign: TextAlign.center),
+          const _InstalledVersion(),
           const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -134,4 +135,26 @@ class _LegalTile extends StatelessWidget {
       enabled: false,
     );
   }
+}
+
+class _InstalledVersion extends StatefulWidget {
+  const _InstalledVersion();
+  @override
+  State<_InstalledVersion> createState() => _InstalledVersionState();
+}
+
+class _InstalledVersionState extends State<_InstalledVersion> {
+  late final Future<PackageInfo> info = PackageInfo.fromPlatform();
+  @override
+  Widget build(BuildContext context) => FutureBuilder<PackageInfo>(
+    future: info,
+    builder: (context, snapshot) {
+      final value = snapshot.data;
+      if (value == null) return const SizedBox.shrink();
+      return Text(
+        context.l10n.versionLabel('${value.version} (${value.buildNumber})'),
+        textAlign: TextAlign.center,
+      );
+    },
+  );
 }

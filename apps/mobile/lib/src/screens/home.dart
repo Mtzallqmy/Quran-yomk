@@ -1,561 +1,294 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../branding.dart';
-import '../common.dart';
+import '../feature_manager.dart';
 import '../models.dart';
-import '../repository.dart';
+import '../navigation.dart';
+import '../playback_ui.dart';
+import '../prayer_settings.dart';
+import '../prayer_times.dart';
 import '../services.dart';
-import '../theme.dart';
-import 'legacy_reciter_detail.dart';
-import 'learning.dart';
 import 'prayer_times.dart';
-import 'quran_offline.dart';
-import 'radio.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
-
   @override
   ConsumerState<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  static const _defaultSections = <String>[
-    'featured',
-    'stations',
-    'reciters',
-    'offline',
-    'categories',
-  ];
-  static const _allowedSections = <String>{
-    'featured',
-    'stations',
-    'reciters',
-    'offline',
-    'categories',
-  };
-
-  late Future<HomeData> future;
-  String? pendingStationId;
-  bool openingFeatured = false;
-  bool openingPrayerTimes = false;
-  bool openingLearning = false;
-
+  late Future<List<Station>> _stations;
+  bool _busy = false;
   @override
   void initState() {
     super.initState();
-    future = ref.read(servicesProvider).repository.home();
+    _stations = ref.read(servicesProvider).repository.stations();
   }
 
-  Future<void> refresh() async {
-    final services = ref.read(servicesProvider);
-    setState(() => future = services.repository.home(refresh: true));
-    await Future.wait<void>([
-      future.then((_) {}),
-      services.remoteConfig.refresh(),
-    ]);
-  }
-
-  Future<void> _playStation(Station station) async {
-    if (pendingStationId != null) return;
-    final url = station.playbackUrl;
-    if (!station.isPlayable ||
-        url == null ||
-        Uri.tryParse(url)?.scheme.toLowerCase() != 'https') {
-      _playbackError(station);
-      return;
-    }
-    setState(() => pendingStationId = station.id);
+  Future<void> _action(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() => _busy = true);
     try {
-      await ref.read(servicesProvider).playback.playStation(station);
-    } catch (error) {
-      debugPrint('Tarteel home playback error: $error');
-      _playbackError(station);
-    } finally {
-      if (mounted && pendingStationId == station.id) {
-        setState(() => pendingStationId = null);
-      }
-    }
-  }
-
-  Future<void> _playFeatured(FeaturedItem item) async {
-    if (openingFeatured || item.slug == null) return;
-    setState(() => openingFeatured = true);
-    try {
-      final station = await ref
-          .read(servicesProvider)
-          .repository
-          .api
-          .station(item.slug!);
-      await _playStation(station);
+      await action();
     } catch (_) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذر فتح المحتوى المختار حاليًا.')),
+          const SnackBar(
+            content: Text('تعذر تشغيل المحتوى حاليًا. حاول مرة أخرى.'),
+          ),
         );
-      }
     } finally {
-      if (mounted) setState(() => openingFeatured = false);
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  void _playbackError(Station station) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تعذر تشغيل ${station.nameAr}.'),
-        action: SnackBarAction(
-          label: 'إعادة المحاولة',
-          onPressed: () => _playStation(station),
-        ),
+  @override
+  Widget build(BuildContext context) {
+    final services = ref.watch(servicesProvider);
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        services.mushaf,
+        services.quranPlayback,
+        services.features,
+      ]),
+      builder: (context, _) => ListView(
+        key: const PageStorageKey('home-dashboard'),
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text(
+            'مرحبًا بك في ترتيل',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'وردك من القرآن',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  if (services.mushaf.lastPosition case final last?) ...[
+                    Text(
+                      'السورة ${last.surahNumber ?? last.number}${last.pageNumber == null ? '' : ' • الصفحة ${last.pageNumber}'}${last.ayahNumber == null ? '' : ' • الآية ${last.ayahNumber}'}',
+                    ),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.menu_book),
+                      label: const Text('متابعة القراءة'),
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        MobileRoutes.reader,
+                        arguments: last.pageNumber,
+                      ),
+                    ),
+                  ] else ...[
+                    const Text('ابدأ القراءة واحفظ موضعك للعودة إليه.'),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.menu_book),
+                      label: const Text('افتح المصحف'),
+                      onPressed: () =>
+                          Navigator.pushNamed(context, MobileRoutes.quran),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (services.features.enabled(TarteelFeature.prayer))
+            const DashboardPrayerTimes(),
+          if (services.quranPlayback.last case final session?)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.headphones),
+                title: const Text('استكمل الاستماع'),
+                subtitle: Text(
+                  'السورة ${session.surahNumber} • ${session.reciterName}\n${session.position.inMinutes}:${(session.position.inSeconds % 60).toString().padLeft(2, '0')}',
+                ),
+                trailing: IconButton(
+                  tooltip: 'استكمال التشغيل',
+                  icon: const Icon(Icons.play_arrow),
+                  onPressed: _busy
+                      ? null
+                      : () => _action(
+                          () => resumeQuranListening(services, session),
+                        ),
+                ),
+              ),
+            ),
+          if (services.features.enabled(TarteelFeature.radio))
+            FutureBuilder<List<Station>>(
+              future: _stations,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData)
+                  return snapshot.hasError
+                      ? Card(
+                          child: ListTile(
+                            title: const Text('البث غير متاح حاليًا'),
+                            trailing: IconButton(
+                              tooltip: 'إعادة المحاولة',
+                              icon: const Icon(Icons.refresh),
+                              onPressed: () => setState(() {
+                                _stations = services.repository.stations(
+                                  refresh: true,
+                                );
+                              }),
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink();
+                final values = snapshot.data!.where(
+                  (station) => station.isPlayable,
+                );
+                if (values.isEmpty) return const SizedBox.shrink();
+                final featured = values.where((station) => station.isFeatured);
+                final station = featured.isEmpty
+                    ? values.first
+                    : featured.first;
+                return Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.radio),
+                    title: Text(station.nameAr),
+                    subtitle: const Text('بث مباشر • LIVE'),
+                    trailing: IconButton(
+                      tooltip: 'تشغيل المحطة',
+                      icon: const Icon(Icons.play_arrow),
+                      onPressed: _busy
+                          ? null
+                          : () => _action(
+                              () => services.playback.playStation(station),
+                            ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _shortcut('المصحف', Icons.menu_book, MobileRoutes.quran),
+              _shortcut('القراء', Icons.headphones, MobileRoutes.reciters),
+              if (services.features.enabled(TarteelFeature.offlineDownloads))
+                _shortcut(
+                  'التنزيلات',
+                  Icons.download_outlined,
+                  MobileRoutes.downloads,
+                ),
+              _shortcut(
+                'المفضلة',
+                Icons.favorite_border,
+                MobileRoutes.favorites,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _openPrayerTimes() async {
-    if (openingPrayerTimes) return;
-    openingPrayerTimes = true;
-    try {
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute<void>(builder: (_) => const PrayerTimesPage()));
-    } finally {
-      openingPrayerTimes = false;
-    }
+  Widget _shortcut(String label, IconData icon, String route) => ActionChip(
+    avatar: Icon(icon),
+    label: Text(label),
+    onPressed: () => Navigator.pushNamed(context, route),
+  );
+}
+
+class DashboardPrayerTimes extends ConsumerStatefulWidget {
+  const DashboardPrayerTimes({super.key});
+  @override
+  ConsumerState<DashboardPrayerTimes> createState() =>
+      _DashboardPrayerTimesState();
+}
+
+class _DashboardPrayerTimesState extends ConsumerState<DashboardPrayerTimes> {
+  late Future<PrayerSnapshot> _snapshot;
+  Timer? _timer;
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+    ref.read(servicesProvider).prayerSettings.addListener(_refresh);
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(_refresh);
+    });
   }
 
-  Future<void> _openLearning() async {
-    if (openingLearning) return;
-    openingLearning = true;
-    try {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const LearningCenterPage()),
-      );
-    } finally {
-      openingLearning = false;
-    }
-  }
-
-  List<String> _sectionOrder() {
-    final configured = ref
-        .read(servicesProvider)
-        .remoteConfig
-        .stringListValue('home_sections', fallback: _defaultSections);
-    final safe = <String>[];
-    for (final value in configured) {
-      if (_allowedSections.contains(value) && !safe.contains(value))
-        safe.add(value);
-    }
-    for (final fallback in _defaultSections) {
-      if (!safe.contains(fallback)) safe.add(fallback);
-    }
-    return safe;
+  void _refresh() {
+    final services = ref.read(servicesProvider);
+    _snapshot = services.prayerTimes.snapshot(
+      settings: services.prayerSettings.value,
+    );
+    if (mounted) setState(() {});
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<HomeData>(
-    future: future,
+  void dispose() {
+    _timer?.cancel();
+    ref.read(servicesProvider).prayerSettings.removeListener(_refresh);
+    super.dispose();
+  }
+
+  String _time(DateTime value) =>
+      '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+  @override
+  Widget build(BuildContext context) => FutureBuilder<PrayerSnapshot>(
+    future: _snapshot,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done &&
-          !snapshot.hasData) {
-        return const LoadingPane();
-      }
-      if (snapshot.hasError && !snapshot.hasData) {
-        return ErrorPane(error: snapshot.error!, onRetry: refresh);
-      }
       final data = snapshot.data;
-      if (data == null) return const EmptyPane();
-      final services = ref.watch(servicesProvider);
-      return AnimatedBuilder(
-        animation: services.remoteConfig,
-        builder: (context, _) => RefreshIndicator(
-          onRefresh: refresh,
-          child: ListView(
-            padding: const EdgeInsets.only(top: TarteelTokens.spaceSm),
-            children: <Widget>[
-              if (data.featured.isNotEmpty)
-                _HomeHero(
-                  item: data.featured.first,
-                  loading: openingFeatured,
-                  onPlay: () => _playFeatured(data.featured.first),
-                ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.access_time)),
-                    title: const Text('مواقيت الصلاة'),
-                    subtitle: const Text('تعز • تعمل دون إنترنت'),
-                    trailing: const Icon(Icons.chevron_left),
-                    onTap: openingPrayerTimes ? null : _openPrayerTimes,
-                  ),
+      if (data == null) return const SizedBox.shrink();
+      final remaining = data.next.time.difference(DateTime.now());
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${data.next.prayer.nameAr} القادمة • متبقي ${remaining.inHours}:${(remaining.inMinutes % 60).clamp(0, 59).toString().padLeft(2, '0')}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Text(
+                ref.read(servicesProvider).prayerSettings.value.locationName,
+              ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final prayer in data.today.requiredPrayers)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          end: 24,
+                          top: 8,
+                        ),
+                        child: Column(
+                          children: [
+                            Text(prayer.prayer.nameAr),
+                            Text(_time(prayer.time)),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.school_outlined),
-                    ),
-                    title: const Text('الحفظ والمراجعة'),
-                    subtitle: Text(
-                      services.learning.dueReviews(DateTime.now()).isEmpty
-                          ? 'ابدأ حفظًا جديدًا أو أكمل أذكارك'
-                          : 'لديك مراجعة مستحقة اليوم',
-                    ),
-                    trailing: const Icon(Icons.chevron_left),
-                    onTap: openingLearning ? null : _openLearning,
+              TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PrayerTimesPage(),
                   ),
                 ),
+                child: const Text('مواقيت الصلاة'),
               ),
-              for (final section in _sectionOrder())
-                ..._section(section, data, services),
-              const SizedBox(height: 24),
             ],
           ),
         ),
       );
     },
   );
-
-  List<Widget> _section(String id, HomeData data, AppServices services) {
-    switch (id) {
-      case 'featured':
-        final featured = data.featured.skip(1).toList(growable: false);
-        if (featured.isEmpty) return const <Widget>[];
-        return <Widget>[
-          const SectionHeader('مختارات ترتيل'),
-          SizedBox(
-            height: 144,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              scrollDirection: Axis.horizontal,
-              itemCount: featured.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                final item = featured[index];
-                return SizedBox(
-                  width: 250,
-                  child: Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: item.slug == null || openingFeatured
-                          ? null
-                          : () => _playFeatured(item),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
-                          children: <Widget>[
-                            Artwork(url: item.logoUrl, size: 72),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                item.nameAr,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                            ),
-                            Icon(
-                              Icons.play_circle_fill,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ];
-      case 'stations':
-        if (!services.remoteConfig.radioEnabled) return const <Widget>[];
-        final playable = data.stations
-            .where((station) {
-              final url = station.playbackUrl;
-              return station.isPlayable &&
-                  url != null &&
-                  Uri.tryParse(url)?.scheme.toLowerCase() == 'https';
-            })
-            .take(10)
-            .toList(growable: false);
-        return <Widget>[
-          const SectionHeader('إذاعات القرآن'),
-          SizedBox(
-            height: 142,
-            child: playable.isEmpty
-                ? const EmptyPane(message: 'لا توجد إذاعات متاحة حاليًا')
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: playable.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 10),
-                    itemBuilder: (context, index) {
-                      final station = playable[index];
-                      return SizedBox(
-                        width: 220,
-                        child: Card(
-                          clipBehavior: Clip.antiAlias,
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              children: <Widget>[
-                                Artwork(url: station.logoUrl, size: 54),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    station.nameAr,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: <Widget>[
-                                    AnimatedBuilder(
-                                      animation: services.favorites,
-                                      builder: (context, _) => IconButton(
-                                        tooltip: 'المفضلة',
-                                        visualDensity: VisualDensity.compact,
-                                        onPressed: () => services.favorites
-                                            .toggleStation(station.id),
-                                        icon: Icon(
-                                          services.favorites.isStation(
-                                                station.id,
-                                              )
-                                              ? Icons.favorite
-                                              : Icons.favorite_border,
-                                        ),
-                                      ),
-                                    ),
-                                    pendingStationId == station.id
-                                        ? const SizedBox(
-                                            width: 22,
-                                            height: 22,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : IconButton.filled(
-                                            tooltip: 'تشغيل',
-                                            visualDensity:
-                                                VisualDensity.compact,
-                                            onPressed: () =>
-                                                _playStation(station),
-                                            icon: const Icon(Icons.play_arrow),
-                                          ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ];
-      case 'reciters':
-        return <Widget>[
-          const SectionHeader('القراء'),
-          if (data.reciters.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text('لا توجد تلاوات قارئ مفهرسة حاليًا.'),
-            )
-          else
-            SizedBox(
-              height: 112,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                itemCount: data.reciters.take(8).length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final reciter = data.reciters[index];
-                  return SizedBox(
-                    width: 210,
-                    child: Card(
-                      child: ListTile(
-                        leading: Artwork(
-                          url: reciter.imageUrl,
-                          size: 46,
-                          icon: Icons.person_outline,
-                        ),
-                        title: Text(
-                          reciter.nameAr,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: reciter.rewaya == null
-                            ? null
-                            : Text(reciter.rewaya!),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => ReciterDetailPage(reciter: reciter),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-        ];
-      case 'offline':
-        if (!services.remoteConfig.offlineDownloadsEnabled)
-          return const <Widget>[];
-        final tasks = services.quranDownloads.tasks;
-        final completed = tasks
-            .where((task) => task.state.name == 'completed')
-            .length;
-        return <Widget>[
-          const SectionHeader('الاستماع بدون إنترنت'),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Card(
-              child: ListTile(
-                leading: const CircleAvatar(
-                  child: Icon(Icons.download_for_offline_outlined),
-                ),
-                title: const Text('التنزيلات'),
-                subtitle: Text('$completed سورة جاهزة بدون إنترنت'),
-                trailing: const Icon(Icons.chevron_left),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const QuranOfflinePage(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ];
-      case 'categories':
-        if (!services.remoteConfig.radioEnabled) return const <Widget>[];
-        return <Widget>[
-          const SectionHeader('التصنيفات'),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: data.categories
-                  .map(
-                    (category) => ActionChip(
-                      avatar: const Icon(Icons.grid_view_outlined, size: 18),
-                      label: Text(category.nameAr),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              RadioPage(initialCategory: category.slug),
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-          ),
-        ];
-      default:
-        return const <Widget>[];
-    }
-  }
-}
-
-class _HomeHero extends StatelessWidget {
-  const _HomeHero({
-    required this.item,
-    required this.loading,
-    required this.onPlay,
-  });
-
-  final FeaturedItem item;
-  final bool loading;
-  final VoidCallback onPlay;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Semantics(
-      container: true,
-      label: 'مختار ترتيل: ${item.nameAr}',
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: AlignmentDirectional.topStart,
-            end: AlignmentDirectional.bottomEnd,
-            colors: <Color>[
-              scheme.primaryContainer,
-              scheme.surfaceContainerLow,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(TarteelTokens.radiusLg),
-          border: Border.all(color: scheme.outlineVariant),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: TarteelTheme.deepGreen.withValues(alpha: 0.08),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          children: <Widget>[
-            Artwork(url: item.logoUrl, size: 76, icon: Icons.graphic_eq),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      const TarteelBrandMark(size: 24, radio: true),
-                      const SizedBox(width: 8),
-                      Text(
-                        'مختار لك',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.labelLarge?.copyWith(color: scheme.primary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    item.nameAr,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  if (item.nameEn != null)
-                    Text(
-                      item.nameEn!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: loading || item.slug == null ? null : onPlay,
-                    icon: loading
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.play_arrow),
-                    label: const Text('استمع الآن'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

@@ -1,129 +1,100 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../common.dart';
-import '../models.dart';
+import '../feature_manager.dart';
+import '../navigation.dart';
 import '../services.dart';
-import 'radio.dart';
-import 'search.dart';
+import 'islamic_library.dart';
+import 'learning.dart';
+import 'saved_clips.dart';
 
-class LibraryPage extends ConsumerStatefulWidget {
+class LibraryPage extends ConsumerWidget {
   const LibraryPage({super.key});
   @override
-  ConsumerState<LibraryPage> createState() => _LibraryPageState();
-}
-
-class _LibraryData {
-  const _LibraryData(this.categories, this.surahs);
-  final List<Category> categories;
-  final List<Surah> surahs;
-}
-
-class _LibraryPageState extends ConsumerState<LibraryPage> {
-  late Future<_LibraryData> future;
-
-  @override
-  void initState() {
-    super.initState();
-    future = load();
-  }
-
-  Future<_LibraryData> load({bool refresh = false}) async {
-    final repo = ref.read(servicesProvider).repository;
-    final values = await Future.wait<dynamic>([
-      repo.categories(refresh: refresh),
-      repo.surahs(refresh: refresh),
-    ]);
-    return _LibraryData(values[0] as List<Category>, values[1] as List<Surah>);
-  }
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<_LibraryData>(
-    future: future,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done &&
-          !snapshot.hasData) {
-        return const LoadingPane();
-      }
-      if (snapshot.hasError && !snapshot.hasData) {
-        return ErrorPane(
-          error: snapshot.error!,
-          onRetry: () => setState(() => future = load(refresh: true)),
-        );
-      }
-      final data = snapshot.data;
-      if (data == null) return const EmptyPane();
-      return RefreshIndicator(
-        onRefresh: () async {
-          setState(() => future = load(refresh: true));
-          await future;
-        },
-        child: ListView(
-          children: <Widget>[
-            const SectionHeader('تصفح حسب القسم'),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 2.7,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: data.categories.length,
-                itemBuilder: (context, index) {
-                  final category = data.categories[index];
-                  return Card(
-                    margin: EdgeInsets.zero,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              RadioPage(initialCategory: category.slug),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Row(
-                          children: <Widget>[
-                            const Icon(Icons.folder_open_outlined),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                category.nameAr,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const Icon(Icons.chevron_left, size: 18),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
+  Widget build(BuildContext context, WidgetRef ref) {
+    final features = ref.watch(servicesProvider).features;
+    return AnimatedBuilder(
+      animation: features,
+      builder: (_, _) => ListView(
+        key: const PageStorageKey('my-library'),
+        padding: const EdgeInsets.all(16),
+        children: [
+          _entry(
+            context,
+            'المفضلة',
+            Icons.favorite_border,
+            MobileRoutes.favorites,
+          ),
+          if (features.enabled(TarteelFeature.offlineDownloads))
+            _entry(
+              context,
+              'التنزيلات',
+              Icons.download_outlined,
+              MobileRoutes.downloads,
+            ),
+          _entry(
+            context,
+            'قوائم التشغيل',
+            Icons.queue_music,
+            MobileRoutes.playlists,
+          ),
+          _entry(
+            context,
+            'العلامات المرجعية',
+            Icons.bookmark_border,
+            MobileRoutes.quran,
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.mic_none),
+            title: const Text('التسجيلات المحفوظة'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const SavedClipsPage()),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.school_outlined),
+            title: const Text('الحفظ والمراجعة'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => const LearningCenterPage(),
               ),
             ),
-            SectionHeader('سور القرآن — ${data.surahs.length} سورة'),
-            for (final surah in data.surahs)
-              ListTile(
-                leading: CircleAvatar(child: Text('${surah.number}')),
-                title: Text(surah.nameAr),
-                subtitle: Text('${surah.nameEn} • ${surah.ayahCount} آية'),
-                trailing: const Icon(Icons.chevron_left),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => SearchPage(initialQuery: surah.nameAr),
-                  ),
-                ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.local_library_outlined),
+            title: const Text('المكتبة الإسلامية'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => const IslamicLibraryPage(),
               ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      );
-    },
+            ),
+          ),
+          _entry(
+            context,
+            'الإعدادات',
+            Icons.settings_outlined,
+            MobileRoutes.settings,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _entry(
+    BuildContext context,
+    String title,
+    IconData icon,
+    String route,
+  ) => Card(
+    child: ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      trailing: const Icon(Icons.chevron_left),
+      onTap: () => Navigator.pushNamed(context, route),
+    ),
   );
 }

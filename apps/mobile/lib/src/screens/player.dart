@@ -48,82 +48,93 @@ class MiniPlayerBar extends ConsumerWidget {
                 onTap: () => Navigator.pushNamed(context, MobileRoutes.player),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 64),
-                  child: Row(
-                    children: <Widget>[
-                      const SizedBox(width: 8),
-                      Artwork(url: item.artUri?.toString(), size: 46),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              item.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                            if (item.artist != null)
-                              Text(
-                                item.artist!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                          ],
-                        ),
-                      ),
-                      StreamBuilder<PlaybackState>(
-                        stream: playback.playbackStateStream,
-                        builder: (context, state) {
-                          final playing = state.data?.playing == true;
-                          final processing = state.data?.processingState;
-                          final loading =
-                              processing == AudioProcessingState.loading ||
-                              processing == AudioProcessingState.buffering;
-                          final virtual =
-                              item.extras?['kind'] == 'virtual_radio';
-                          return IconButton.filled(
-                            tooltip: loading
-                                ? 'جارٍ التحميل'
-                                : playing
-                                ? context.l10n.pause
-                                : context.l10n.play,
-                            onPressed: loading
-                                ? null
-                                : () => virtual
-                                      ? playing
-                                            ? ref
-                                                  .read(
-                                                    virtualRadioProvider
-                                                        .notifier,
-                                                  )
-                                                  .pause()
-                                            : ref
-                                                  .read(
-                                                    virtualRadioProvider
-                                                        .notifier,
-                                                  )
-                                                  .resume()
-                                      : playing
-                                      ? playback.pause()
-                                      : playback.play(),
-                            icon: loading
-                                ? const SizedBox.square(
-                                    dimension: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Icon(
-                                    playing ? Icons.pause : Icons.play_arrow,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: <Widget>[
+                          const SizedBox(width: 8),
+                          Artwork(url: item.artUri?.toString(), size: 46),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  item.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                if (item.artist != null)
+                                  Text(
+                                    item.artist!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
                                   ),
-                          );
-                        },
+                              ],
+                            ),
+                          ),
+                          StreamBuilder<PlaybackState>(
+                            stream: playback.playbackStateStream,
+                            builder: (context, state) {
+                              final playing = state.data?.playing == true;
+                              final processing = state.data?.processingState;
+                              final loading =
+                                  processing == AudioProcessingState.loading ||
+                                  processing == AudioProcessingState.buffering;
+                              final virtual =
+                                  item.extras?['kind'] == 'virtual_radio';
+                              return IconButton.filled(
+                                tooltip: loading
+                                    ? 'جارٍ التحميل'
+                                    : playing
+                                    ? context.l10n.pause
+                                    : context.l10n.play,
+                                onPressed: loading
+                                    ? null
+                                    : () => virtual
+                                          ? playing
+                                                ? ref
+                                                      .read(
+                                                        virtualRadioProvider
+                                                            .notifier,
+                                                      )
+                                                      .pause()
+                                                : ref
+                                                      .read(
+                                                        virtualRadioProvider
+                                                            .notifier,
+                                                      )
+                                                      .resume()
+                                          : playing
+                                          ? playback.pause()
+                                          : playback.play(),
+                                icon: loading
+                                    ? const SizedBox.square(
+                                        dimension: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Icon(
+                                        playing
+                                            ? Icons.pause
+                                            : Icons.play_arrow,
+                                      ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 6),
+                        ],
                       ),
-                      const SizedBox(width: 6),
+                      if (item.isLive != true)
+                        _MiniProgress(playback: playback),
                     ],
                   ),
                 ),
@@ -134,6 +145,26 @@ class MiniPlayerBar extends ConsumerWidget {
       },
     );
   }
+}
+
+class _MiniProgress extends StatelessWidget {
+  const _MiniProgress({required this.playback});
+  final PlaybackPort playback;
+  @override
+  Widget build(BuildContext context) => StreamBuilder<Duration?>(
+    stream: playback.durationStream,
+    builder: (context, duration) {
+      final total = duration.data?.inMilliseconds ?? 0;
+      if (total <= 0) return const SizedBox.shrink();
+      return StreamBuilder<Duration>(
+        stream: playback.positionStream,
+        builder: (context, position) => LinearProgressIndicator(
+          minHeight: 2,
+          value: ((position.data?.inMilliseconds ?? 0) / total).clamp(0.0, 1.0),
+        ),
+      );
+    },
+  );
 }
 
 class FullPlayerPage extends ConsumerStatefulWidget {

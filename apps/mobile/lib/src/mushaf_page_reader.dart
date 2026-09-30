@@ -226,6 +226,23 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     );
   }
 
+  Future<void> _toggleReadingBookmark() async {
+    final position = widget.store.lastPosition;
+    final key =
+        _selected?.verseKey ??
+        (position?.pageNumber == _page ? position?.verseKey : null);
+    if (key == null) return;
+    try {
+      final verse = await widget.resolveVerse(_page, key);
+      if (verse != null) await widget.store.toggleBookmark(verse);
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر حفظ العلامة حاليًا')),
+        );
+    }
+  }
+
   Future<void> _jumpToPage() async {
     _controlsTimer?.cancel();
     final input = TextEditingController(text: '$_page');
@@ -434,6 +451,19 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                           ),
                         ],
                       ),
+                      if (widget.store.lastPosition?.pageNumber == _page)
+                        Text(
+                          [
+                            if (widget.store.lastPosition?.surahNameAr != null)
+                              widget.store.lastPosition!.surahNameAr!,
+                            if (widget.store.lastPosition?.juzNumber != null)
+                              'الجزء ${widget.store.lastPosition!.juzNumber}',
+                            if (widget.store.lastPosition?.hizbNumber != null)
+                              'الحزب ${widget.store.lastPosition!.hizbNumber}',
+                          ].join(' • '),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       Row(
                         children: [
                           IconButton(
@@ -447,6 +477,26 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                                 : 'تشغيل ${_selected!.verseKey}',
                             onPressed: _selected == null ? null : _playSelected,
                             icon: const Icon(Icons.play_circle_fill),
+                          ),
+                          IconButton(
+                            tooltip: 'حفظ علامة مرجعية',
+                            onPressed:
+                                _selected != null ||
+                                    (widget.store.lastPosition?.pageNumber ==
+                                            _page &&
+                                        widget.store.lastPosition?.verseKey !=
+                                            null)
+                                ? _toggleReadingBookmark
+                                : null,
+                            icon: Icon(
+                              widget.store.isBookmarked(
+                                    _selected?.verseKey ??
+                                        widget.store.lastPosition?.verseKey ??
+                                        '',
+                                  )
+                                  ? Icons.bookmark
+                                  : Icons.bookmark_border,
+                            ),
                           ),
                           IconButton(
                             tooltip: 'إجراءات الآية',

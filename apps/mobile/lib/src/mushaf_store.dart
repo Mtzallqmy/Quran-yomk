@@ -17,6 +17,7 @@ class MushafPosition {
     this.pageNumber,
     this.surahNameAr,
     this.juzNumber,
+    this.hizbNumber,
     this.readAt,
   });
 
@@ -28,6 +29,7 @@ class MushafPosition {
   final int? pageNumber;
   final String? surahNameAr;
   final int? juzNumber;
+  final int? hizbNumber;
   final DateTime? readAt;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -39,6 +41,7 @@ class MushafPosition {
     'page_number': pageNumber,
     'surah_name_ar': surahNameAr,
     'juz_number': juzNumber,
+    'hizb_number': hizbNumber,
     'read_at': readAt?.toIso8601String(),
   };
 
@@ -54,6 +57,7 @@ class MushafPosition {
     pageNumber: (json['page_number'] as num?)?.toInt(),
     surahNameAr: json['surah_name_ar'] as String?,
     juzNumber: (json['juz_number'] as num?)?.toInt(),
+    hizbNumber: (json['hizb_number'] as num?)?.toInt(),
     readAt: DateTime.tryParse(json['read_at'] as String? ?? ''),
   );
 }

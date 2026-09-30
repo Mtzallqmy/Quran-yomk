@@ -6,6 +6,7 @@ import 'package:tarteel/src/app.dart';
 import 'package:tarteel/src/navigation.dart';
 import 'package:tarteel/src/screens/quran_index.dart';
 import 'package:tarteel/src/services.dart';
+import 'package:tarteel/src/quran_audio.dart';
 import 'ui_fixture.dart';
 
 Future<UiServices> uiServices({bool radioEnabled = true}) async {
@@ -119,6 +120,71 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.byType(NavigationBar), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('central search finds Arabic Quran and opens reciter details', (
+    tester,
+  ) async {
+    final services = await uiServices();
+    const reciter = QuranAudioCatalogReciter(
+      id: 'alquran:ar.alafasy',
+      provider: QuranAudioProviderKind.alQuranCloud,
+      edition: 'ar.alafasy',
+      nameAr: 'مشاري العفاسي',
+      nameEn: 'Mishary Alafasy',
+      availableSurahs: {1, 2},
+      bitrates: {128},
+    );
+    (services.quranAudio as UiAudio).values = [reciter];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [servicesProvider.overrideWithValue(services)],
+        child: const TarteelApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.search).first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'الفَاتِحَة');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(find.text('الفاتحة'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'العفاسي');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('مشاري العفاسي'));
+    await tester.pumpAndSettle();
+    expect(find.text('Al Quran Cloud'), findsOneWidget);
+    expect(find.text('الفاتحة'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('disabling radio at runtime preserves Library identity', (
+    tester,
+  ) async {
+    final services = await uiServices();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [servicesProvider.overrideWithValue(services)],
+        child: const TarteelApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('destination-library')));
+    await tester.pumpAndSettle();
+    services.repository.config = {
+      'radio_enabled': false,
+      'prayer_features_enabled': false,
+    };
+    await services.remoteConfig.refresh();
+    await tester.pumpAndSettle();
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      3,
+    );
+    expect(find.text('التسجيلات المحفوظة'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

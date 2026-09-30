@@ -104,6 +104,12 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           pageNumber: verse.pageNumber,
           surahNameAr: verse.surahNameAr,
           juzNumber: verse.juzNumber,
+          hizbNumber:
+              verse.hizbQuarter == null ||
+                  verse.hizbQuarter! < 1 ||
+                  verse.hizbQuarter! > 240
+              ? null
+              : (verse.hizbQuarter! - 1) ~/ 4 + 1,
           readAt: DateTime.now(),
         ),
       );

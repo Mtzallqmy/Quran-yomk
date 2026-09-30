@@ -74,6 +74,9 @@ class UiServices implements AppServices {
 
 class UiRepository implements TarteelRepository {
   final openedPages = <int>[];
+  JsonMap config = {'radio_enabled': true, 'prayer_features_enabled': false};
+  @override
+  Future<JsonMap> appConfig({bool refresh = false}) async => config;
   @override
   Future<List<Surah>> surahs({bool refresh = false}) async => const [
     Surah(
@@ -126,11 +129,12 @@ class UiRepository implements TarteelRepository {
 }
 
 class UiAudio implements QuranAudioRepository {
+  List<QuranAudioCatalogReciter> values = [];
   @override
   Future<List<QuranAudioCatalogReciter>> reciters({
     int? surahNumber,
     bool refresh = false,
-  }) async => [];
+  }) async => values;
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

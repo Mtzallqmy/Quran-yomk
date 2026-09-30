@@ -8,6 +8,11 @@ import '../common.dart';
 import '../l10n.dart';
 import '../models.dart';
 import '../navigation.dart';
+import '../playback_ui.dart';
+import '../playback.dart';
+import '../quran_playback_store.dart';
+import '../feature_manager.dart';
+import 'package:share_plus/share_plus.dart';
 import '../offline_clip_service.dart';
 import '../services.dart';
 import '../theme.dart';
@@ -143,6 +148,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
   Timer? _nowPlayingTimer;
   MediaItem? _latest;
   bool _repeatOne = false;
+  bool _downloadBusy = false;
 
   @override
   void initState() {
@@ -158,6 +164,39 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
       const Duration(seconds: 5),
       (_) => unawaited(_refreshNowPlaying()),
     );
+  }
+
+  Future<void> _downloadCurrent(MediaItem item) async {
+    if (_downloadBusy) return;
+    setState(() => _downloadBusy = true);
+    try {
+      final extras = item.extras ?? {};
+      final session = QuranPlaybackSnapshot(
+        provider: extras['provider'] as String? ?? '',
+        reciterId: extras['reciter_id'] as String? ?? '',
+        edition: extras['edition'] as String? ?? '',
+        reciterName: item.artist ?? '',
+        bitrateKbps: extras['bitrate_kbps'] as int? ?? -1,
+        surahNumber: extras['surah_number'] as int? ?? 0,
+        ayahNumber: extras['ayah_number'] as int?,
+        position: Duration.zero,
+        playedAt: DateTime.now(),
+      );
+      final services = ref.read(servicesProvider);
+      final media = await resolveQuranListening(services, session);
+      await services.quranDownloads.download(media);
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('أضيفت التلاوة إلى التنزيلات')),
+        );
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('التنزيل غير متاح لهذه التلاوة حاليًا')),
+        );
+    } finally {
+      if (mounted) setState(() => _downloadBusy = false);
+    }
   }
 
   Future<void> _refreshNowPlaying() async {
@@ -303,7 +342,9 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                 runSpacing: 8,
                 children: <Widget>[
                   if (entityId != null &&
-                      (kind == 'station' || kind == 'track'))
+                      (kind == 'station' ||
+                          kind == 'track' ||
+                          kind == 'quran_audio'))
                     AnimatedBuilder(
                       animation: services.favorites,
                       builder: (context, _) {
@@ -326,6 +367,29 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                     onPressed: () => _showSleepTimer(context, playback, kind),
                     icon: const Icon(Icons.bedtime_outlined),
                   ),
+                  if (kind == 'quran_audio' &&
+                      services.features.enabled(
+                        TarteelFeature.offlineDownloads,
+                      ))
+                    IconButton.filledTonal(
+                      tooltip: 'تنزيل التلاوة',
+                      icon: const Icon(Icons.download_outlined),
+                      onPressed: _downloadBusy
+                          ? null
+                          : () => _downloadCurrent(item),
+                    ),
+                  if (live &&
+                      Uri.tryParse(
+                            item.extras?['url'] as String? ?? '',
+                          )?.scheme ==
+                          'https')
+                    IconButton.filledTonal(
+                      tooltip: 'مشاركة رابط البث',
+                      icon: const Icon(Icons.share_outlined),
+                      onPressed: () => SharePlus.instance.share(
+                        ShareParams(text: item.extras!['url'] as String),
+                      ),
+                    ),
                   if (kind == 'station') _OfflineClipAction(item: item),
                   if (services.offlineClips.supported)
                     IconButton.filledTonal(
@@ -353,7 +417,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                         PopupMenuItem(value: 2.0, child: Text('2×')),
                       ],
                     ),
-                  if (kind == 'track')
+                  if (kind == 'track' || kind == 'quran_audio')
                     IconButton.filledTonal(
                       tooltip: l10n.repeatSurah,
                       onPressed: () async {
@@ -622,11 +686,11 @@ class _ClipAvailability {
 class _VolumeControl extends StatelessWidget {
   const _VolumeControl({required this.playback});
 
-  final dynamic playback;
+  final PlaybackPort playback;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<double>(
-    stream: playback.volumeStream as Stream<double>,
+    stream: playback.volumeStream,
     initialData: 1.0,
     builder: (context, snapshot) {
       final volume = (snapshot.data ?? 1.0).clamp(0.0, 1.0);
@@ -674,15 +738,15 @@ class _TranscriptionStatus extends ConsumerWidget {
 class _SeekBar extends StatelessWidget {
   const _SeekBar({required this.playback});
 
-  final dynamic playback;
+  final PlaybackPort playback;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<Duration?>(
-    stream: playback.durationStream as Stream<Duration?>,
+    stream: playback.durationStream,
     builder: (context, durationSnapshot) {
       final duration = durationSnapshot.data ?? Duration.zero;
       return StreamBuilder<Duration>(
-        stream: playback.positionStream as Stream<Duration>,
+        stream: playback.positionStream,
         builder: (context, positionSnapshot) {
           final position = positionSnapshot.data ?? Duration.zero;
           final max = duration.inMilliseconds <= 0

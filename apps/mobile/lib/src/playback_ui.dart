@@ -5,7 +5,7 @@ import 'services.dart';
 
 /// Resolve persisted identity through the existing catalog. Never choose a
 /// different reciter as a fallback when the requested edition is unavailable.
-Future<void> resumeQuranListening(
+Future<QuranAudioMedia> resolveQuranListening(
   AppServices services,
   QuranPlaybackSnapshot session,
 ) async {
@@ -43,6 +43,14 @@ Future<void> resumeQuranListening(
       ayahInSurah: session.ayahNumber,
     ),
   );
+  return media;
+}
+
+Future<void> resumeQuranListening(
+  AppServices services,
+  QuranPlaybackSnapshot session,
+) async {
+  final media = await resolveQuranListening(services, session);
   await services.playback.playQuranAudio([media], 0);
   await services.playback.seek(session.position);
   await services.playback.setSpeed(services.settings.playbackSpeed);

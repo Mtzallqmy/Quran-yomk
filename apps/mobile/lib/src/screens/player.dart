@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common.dart';
 import '../l10n.dart';
 import '../models.dart';
+import '../navigation.dart';
 import '../offline_clip_service.dart';
 import '../services.dart';
 import '../theme.dart';
@@ -39,13 +40,9 @@ class MiniPlayerBar extends ConsumerWidget {
               ),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const FullPlayerPage(),
-                  ),
-                ),
-                child: SizedBox(
-                  height: 62,
+                onTap: () => Navigator.pushNamed(context, MobileRoutes.player),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 64),
                   child: Row(
                     children: <Widget>[
                       const SizedBox(width: 8),
@@ -53,6 +50,7 @@ class MiniPlayerBar extends ConsumerWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
@@ -441,9 +439,8 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
     }
     playback.cancelSleepTimer();
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.timerCancelled)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.timerCancelled)));
     }
   }
 }
@@ -581,14 +578,12 @@ class _OfflineClipActionState extends ConsumerState<_OfflineClipAction> {
         maxDuration: choice == 0 ? null : Duration(minutes: choice),
       );
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.clipSavingStarted)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.clipSavingStarted)));
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.clipSavingFailed)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.clipSavingFailed)));
     }
   }
 
@@ -606,9 +601,8 @@ class _OfflineClipActionState extends ConsumerState<_OfflineClipAction> {
       );
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.clipSavingFailed)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.clipSavingFailed)));
     }
   }
 }

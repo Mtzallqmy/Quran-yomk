@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
 
 abstract final class TarteelTokens {
-  static const double spaceXs = 6;
-  static const double spaceSm = 10;
+  static const double spaceXs = 4;
+  static const double spaceSm = 8;
+  static const double spaceMs = 12;
   static const double spaceMd = 16;
+  static const double spaceXl = 32;
+  static const double radiusMedium = 12;
+  static const double radiusCardLarge = 24;
   static const double spaceLg = 24;
-  static const double radiusSm = 12;
-  static const double radiusMd = 18;
-  static const double radiusLg = 26;
+  static const double radiusSm = 8;
+  static const double radiusMd = 16;
+  static const double radiusLg = 28;
 }
 
 class TarteelTheme {
-  static const Color primary = Color(0xFF0F5C4D);
-  static const Color deepGreen = Color(0xFF073D35);
-  static const Color emerald = Color(0xFF167563);
-  static const Color secondary = Color(0xFFD6B25E);
-  static const Color ivory = Color(0xFFFBF8F0);
-  static const Color night = Color(0xFF071A17);
+  static const Color primary = Color(0xFF243B6B);
+  static const Color deepGreen = Color(0xFF162746);
+  static const Color emerald = Color(0xFF2E9E9E);
+  static const Color secondary = Color(0xFFC77955);
+  static const Color ivory = Color(0xFFF8F6F1);
+  static const Color night = Color(0xFF0E1726);
 
   static ThemeData light() => _build(Brightness.light);
   static ThemeData dark() => _build(Brightness.dark);
@@ -28,43 +32,10 @@ class TarteelTheme {
           seedColor: primary,
           brightness: brightness,
         ).copyWith(
-          primary: dark ? const Color(0xFF63CDB1) : primary,
-          onPrimary: dark ? deepGreen : Colors.white,
-          primaryContainer: dark
-              ? const Color(0xFF124A40)
-              : const Color(0xFFD9EEE7),
-          onPrimaryContainer: dark ? const Color(0xFFDFF8F0) : deepGreen,
-          secondary: dark ? const Color(0xFFE7C978) : secondary,
-          onSecondary: const Color(0xFF342A0C),
-          secondaryContainer: dark
-              ? const Color(0xFF51441F)
-              : const Color(0xFFFFEFC1),
-          onSecondaryContainer: dark
-              ? const Color(0xFFFFF2C9)
-              : const Color(0xFF3D310D),
-          tertiary: dark ? const Color(0xFFE7C978) : secondary,
-          onTertiary: const Color(0xFF342A0C),
-          tertiaryContainer: dark
-              ? const Color(0xFF51441F)
-              : const Color(0xFFFFEFC1),
-          onTertiaryContainer: dark
-              ? const Color(0xFFFFF2C9)
-              : const Color(0xFF3D310D),
-          surface: dark ? const Color(0xFF0C2420) : ivory,
-          surfaceContainerLowest: dark ? night : Colors.white,
-          surfaceContainerLow: dark
-              ? const Color(0xFF102C27)
-              : const Color(0xFFF7F3E9),
-          surfaceContainer: dark
-              ? const Color(0xFF14342E)
-              : const Color(0xFFF2EEE4),
-          surfaceContainerHigh: dark
-              ? const Color(0xFF193E36)
-              : const Color(0xFFEAE5D9),
-          outline: dark ? const Color(0xFF6C8A82) : const Color(0xFF71837D),
-          outlineVariant: dark
-              ? const Color(0xFF324D47)
-              : const Color(0xFFD4DDD8),
+          primary: dark ? const Color(0xFFB4C6F0) : primary,
+          secondary: dark ? const Color(0xFF83D6D4) : emerald,
+          tertiary: dark ? const Color(0xFFFFB693) : secondary,
+          surface: dark ? night : ivory,
         );
     final base = ThemeData(useMaterial3: true, brightness: brightness);
     final appliedTypography = base.textTheme.apply(
@@ -77,6 +48,22 @@ class TarteelTheme {
       displayColor: scheme.onSurface,
     );
     final typography = appliedTypography.copyWith(
+      displaySmall: appliedTypography.displaySmall?.copyWith(
+        height: 1.35,
+        letterSpacing: 0,
+      ),
+      bodySmall: appliedTypography.bodySmall?.copyWith(
+        height: 1.5,
+        letterSpacing: 0,
+      ),
+      labelMedium: appliedTypography.labelMedium?.copyWith(
+        height: 1.35,
+        letterSpacing: 0,
+      ),
+      labelSmall: appliedTypography.labelSmall?.copyWith(
+        height: 1.35,
+        letterSpacing: 0,
+      ),
       headlineSmall: appliedTypography.headlineSmall?.copyWith(
         fontWeight: FontWeight.w700,
         height: 1.35,
@@ -199,7 +186,7 @@ class TarteelTheme {
       navigationBarTheme: NavigationBarThemeData(
         height: 68,
         elevation: 0,
-        backgroundColor: dark ? const Color(0xFF0A211D) : Colors.white,
+        backgroundColor: scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         indicatorColor: scheme.secondaryContainer,
         indicatorShape: RoundedRectangleBorder(
@@ -223,13 +210,11 @@ class TarteelTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         elevation: 2,
-        backgroundColor: dark ? const Color(0xFFDBEDE7) : deepGreen,
+        backgroundColor: scheme.inverseSurface,
         contentTextStyle: typography.bodyMedium?.copyWith(
-          color: dark ? deepGreen : Colors.white,
+          color: scheme.onInverseSurface,
         ),
-        actionTextColor: dark
-            ? const Color(0xFF755E18)
-            : const Color(0xFFFFD86F),
+        actionTextColor: scheme.inversePrimary,
         shape: medium,
       ),
       listTileTheme: ListTileThemeData(
@@ -274,6 +259,7 @@ class TarteelPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
     final curved = CurvedAnimation(
       parent: animation,
       curve: const Interval(0, 0.72, curve: Curves.easeOutCubic),

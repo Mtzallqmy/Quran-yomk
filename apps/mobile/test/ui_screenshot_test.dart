@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,8 +38,10 @@ void main() {
     'reader_offline',
     'listen',
     'radio',
+    'radio_active',
     'library',
     'player_idle',
+    'player_active',
     'settings',
   ];
   for (final profile in profiles.entries) {
@@ -54,6 +57,33 @@ void main() {
           'tarteel_remote_config:v1': '{"prayer_features_enabled":false}',
         });
         final services = UiServices(await SharedPreferences.getInstance());
+        if (scene == 'player_active') {
+          services.playback.item = const MediaItem(
+            id: 'test-only-session',
+            title: 'الفاتحة',
+            artist: 'قارئ من بيانات الاختبار',
+            duration: Duration(minutes: 20),
+            isLive: false,
+            extras: {'kind': 'track', 'entity_id': 'test-only-track'},
+          );
+          services.playback.position = const Duration(seconds: 73);
+          services.playback.playing = true;
+        }
+        if (scene == 'radio_active') {
+          tester.platformDispatcher.accessibilityFeaturesTestValue =
+              const FakeAccessibilityFeatures(disableAnimations: true);
+          addTearDown(
+            tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+          );
+          services.repository.stationValues = [uiRadioStation];
+          services.playback.item = const MediaItem(
+            id: 'station:test-station',
+            title: 'إذاعة الحرم للاختبار',
+            isLive: true,
+            extras: {'kind': 'station', 'entity_id': 'test-station'},
+          );
+          services.playback.playing = true;
+        }
         final dark = scene == 'home_dark';
         await services.settings.setThemeMode(
           dark ? ThemeMode.dark : ThemeMode.light,
@@ -65,15 +95,18 @@ void main() {
           'quran',
           'listen',
           'radio',
+          'radio_active',
           'library',
         ].contains(scene)) {
           services.settings.mobileDestination = switch (scene) {
             'home_light' || 'home_dark' => 'home',
+            'radio_active' => 'radio',
             _ => scene,
           };
           child = const TarteelApp();
         } else {
           child = MaterialApp(
+            debugShowCheckedModeBanner: false,
             locale: const Locale('ar'),
             supportedLocales: AppLocalizations.supportedLocales,
             localizationsDelegates: AppLocalizations.localizationsDelegates,

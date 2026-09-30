@@ -60,9 +60,8 @@ Controls adapt to small screens and large font settings. Page jump is a bottom
 sheet. Immersive mode requests Android system UI changes and restores edge to
 edge on exit. Unsupported OS-enforced system-bar behavior needs device QA.
 
-Listen exposes readers, mushafs and surahs. The Mushafs tab currently provides
-access through the existing catalog's reader/edition details, rather than a
-new distinct catalog. History resolves the saved provider/reader/edition/ayah
+Listen exposes readers, mushafs and surahs. The Mushafs tab now has its own lazy edition browser, labeled by actual
+riwayah/edition and reciter/provider, using the same existing catalog and detail route. History resolves the saved provider/reader/edition/ayah
 identity; it never silently substitutes another reader.
 
 Search normalizes Arabic and digits, ignores stale asynchronous results, keeps
@@ -104,8 +103,7 @@ Arabic locale drives Directionality; Mushaf paging explicitly uses RTL.
 Use directional padding, localized/Arabic labels and stable keys. Lists use
 Lazy/Sliver builders. Quran ayah hit targets are preserved.
 Named routes fade over 200ms; theme transitions are slight fades/slides.
-MediaQuery.disableAnimations suppresses named/theme transitions. Existing
-control fades/page swipes are not completely suppressed yet.
+MediaQuery.disableAnimations suppresses named/theme transitions. Reader overlay fades and previous/next page button motion also honor disableAnimations. Native swipe gestures remain direct manipulation.
 
 LIVE has a visible text label, not only a colored dot. Play, favorites, page
 navigation and player controls have tooltips/semantic labels. Font scaling and
@@ -128,8 +126,33 @@ Flutter unit/widget/golden tests are the canonical UI tests. Roborazzi and
 Compose instrumentation belong to the unrelated `main` scaffold and cannot
 validate this verified Flutter APK. The Stage 0 workflow builds only a debug
 APK, runs Android lint and uploads evidence; it never publishes a release.
-Goldens include light/dark Home, index, offline reader, Listen, Radio, Library,
-idle Full Player and Settings on 360x740, 412x915 and 1.6 font scale. Offline and
+Goldens include light/dark Home, index, offline reader, Listen, idle/active Radio, Library,
+idle/active Full Player and Settings on 360x740, 412x915 and 1.6 font scale. Offline and
 idle goldens do not prove live provider availability or downloaded page visual
 fidelity. Android API 26 and modern-device playback/permission checks remain
 explicit acceptance gates before Stage 0 can be called stable.
+
+## Completed UI follow-up
+
+Settings now groups Appearance, Language, Sound, Downloads/actual storage,
+Notifications, Saved recordings, Privacy/consent, Sources/licenses and About.
+Wi-Fi-only and global quality controls are not invented: the existing download
+service has no network-policy setting, and edition quality remains selected
+in the existing reciter detail UI. About includes GIT_SHA when supplied by CI.
+Release notification settings hide developer diagnostics; consent and user
+notification preferences retain their previous behavior.
+
+Radio is a keyed lazy list with explicit playback/favorite actions, truthful
+health labels, provider categories plus Haramain/Quran/Other/Favorites filters.
+The on-air card reads the actual station, MediaItem and nowPlaying response.
+Unknown programs/bitrates remain unavailable/absent. Lightweight decorative
+activity exists only during playback, pauses with TickerMode and honors reduced
+motion. The existing virtual-radio card remains available.
+
+Large-font bottom navigation shows only the selected label while preserving
+all destination labels for tooltips and semantics. Canonical and legacy reciter
+favorites are recognized consistently in catalog and details.
+
+Native CI adds actual APK install/start/crash-log/screenshot smoke checks on
+API 26 and API 35. These checks do not certify live background audio, TalkBack,
+permission interactions, or downloaded-page fidelity.

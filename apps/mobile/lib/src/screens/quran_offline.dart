@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../quran_audio.dart';
+import '../common.dart';
 import '../quran_download_contract.dart';
 import '../services.dart';
 import '../navigation.dart';
@@ -37,36 +38,15 @@ class QuranOfflinePage extends ConsumerWidget {
               ),
             );
           if (values.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    const Icon(Icons.download_for_offline_outlined, size: 54),
-                    const SizedBox(height: 12),
-                    Text(
-                      english ? 'No downloads' : 'لا توجد تنزيلات',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      english
-                          ? 'Downloaded surahs will appear here grouped by the exact reciter.'
-                          : 'ستظهر السور المحملة هنا مرتبة حسب القارئ نفسه.',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: () =>
-                          Navigator.pushNamed(context, MobileRoutes.reciters),
-                      child: Text(
-                        english ? 'Browse reciters' : 'استعرض القراء',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            return EmptyPane(
+              icon: Icons.download_for_offline_outlined,
+              message: english ? 'No downloads' : 'لا توجد تنزيلات',
+              description: english
+                  ? 'Downloaded surahs will appear here for offline listening.'
+                  : 'السور التي تقوم بتنزيلها ستظهر هنا للاستماع دون اتصال.',
+              actionLabel: english ? 'Browse reciters' : 'استعرض القراء',
+              onAction: () =>
+                  Navigator.pushNamed(context, MobileRoutes.reciters),
             );
           }
           final completed = allTasks

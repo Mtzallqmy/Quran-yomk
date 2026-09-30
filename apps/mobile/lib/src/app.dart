@@ -440,6 +440,9 @@ class _RootShellState extends ConsumerState<RootShell>
         children: [
           const MiniPlayerBar(),
           NavigationBar(
+            labelBehavior: MediaQuery.textScalerOf(context).scale(12) > 16
+                ? NavigationDestinationLabelBehavior.onlyShowSelected
+                : NavigationDestinationLabelBehavior.alwaysShow,
             selectedIndex: destinations.indexOf(effective),
             onDestinationSelected: (value) => _select(destinations[value]),
             destinations: [

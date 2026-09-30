@@ -11,8 +11,9 @@ import '../quran_download_contract.dart';
 import '../services.dart';
 
 class RecitersPage extends ConsumerStatefulWidget {
-  const RecitersPage({super.key, this.surahNumber});
+  const RecitersPage({super.key, this.surahNumber, this.editionsView = false});
   final int? surahNumber;
+  final bool editionsView;
 
   @override
   ConsumerState<RecitersPage> createState() => _RecitersPageState();
@@ -130,7 +131,9 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
               Expanded(
                 child: Text(
                   english
-                      ? '${values.length} available reciter editions'
+                      ? '${values.length} available editions'
+                      : widget.editionsView
+                      ? '${values.length} مصحف صوتي متاح'
                       : '${values.length} قارئ/رواية متاحة',
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
@@ -156,10 +159,18 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
                   onRefresh: () => _load(refresh: true),
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(8, 4, 8, 120),
+                    key: PageStorageKey(
+                      widget.editionsView
+                          ? 'audio-editions'
+                          : 'reciter-catalog',
+                    ),
                     itemCount: values.length,
                     separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (_, index) =>
-                        _ReciterTile(reciter: values[index], english: english),
+                    itemBuilder: (_, index) => _ReciterTile(
+                      reciter: values[index],
+                      english: english,
+                      editionsView: widget.editionsView,
+                    ),
                   ),
                 ),
         ),
@@ -169,10 +180,15 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
 }
 
 class _ReciterTile extends ConsumerWidget {
-  const _ReciterTile({required this.reciter, required this.english});
+  const _ReciterTile({
+    required this.reciter,
+    required this.english,
+    required this.editionsView,
+  });
 
   final QuranAudioCatalogReciter reciter;
   final bool english;
+  final bool editionsView;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -200,13 +216,19 @@ class _ReciterTile extends ConsumerWidget {
           ),
           leading: CircleAvatar(child: Text(initial)),
           title: Text(
-            displayName,
-            maxLines: 1,
+            editionsView
+                ? (reciter.riwayah?.isNotEmpty == true
+                      ? reciter.riwayah!
+                      : reciter.edition)
+                : displayName,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
             [
-              if (reciter.riwayah?.isNotEmpty == true) reciter.riwayah!,
+              if (editionsView) displayName,
+              if (!editionsView && reciter.riwayah?.isNotEmpty == true)
+                reciter.riwayah!,
               reciter.provider == QuranAudioProviderKind.mp3Quran
                   ? 'MP3Quran'
                   : 'Al Quran Cloud',
@@ -222,12 +244,11 @@ class _ReciterTile extends ConsumerWidget {
           trailing: IconButton(
             tooltip: 'إضافة القارئ إلى المفضلة',
             icon: Icon(
-              services.favorites.isReciter(reciter.identityKey)
+              _isCatalogFavorite(services, reciter)
                   ? Icons.favorite
                   : Icons.favorite_border,
             ),
-            onPressed: () =>
-                services.favorites.toggleReciter(reciter.identityKey),
+            onPressed: () => _toggleCatalogFavorite(services, reciter),
           ),
           onTap: () => Navigator.pushNamed(
             context,
@@ -362,10 +383,9 @@ class _QuranAudioReciterDetailPageState
             animation: services.favorites,
             builder: (_, _) => IconButton(
               tooltip: english ? 'Favorite' : 'المفضلة',
-              onPressed: () =>
-                  services.favorites.toggleReciter(widget.reciter.id),
+              onPressed: () => _toggleCatalogFavorite(services, widget.reciter),
               icon: Icon(
-                services.favorites.isReciter(widget.reciter.id)
+                _isCatalogFavorite(services, widget.reciter)
                     ? Icons.favorite
                     : Icons.favorite_border,
               ),
@@ -531,5 +551,25 @@ class _DownloadStatus extends StatelessWidget {
       QuranDownloadState.cancelled => english ? 'Cancelled' : 'تم الإلغاء',
     };
     return Text(text);
+  }
+}
+
+bool _isCatalogFavorite(
+  AppServices services,
+  QuranAudioCatalogReciter reciter,
+) =>
+    services.favorites.isReciter(reciter.identityKey) ||
+    services.favorites.isReciter(reciter.id);
+Future<void> _toggleCatalogFavorite(
+  AppServices services,
+  QuranAudioCatalogReciter reciter,
+) async {
+  final canonical = services.favorites.isReciter(reciter.identityKey);
+  final legacy = services.favorites.isReciter(reciter.id);
+  if (canonical || legacy) {
+    if (canonical) await services.favorites.toggleReciter(reciter.identityKey);
+    if (legacy) await services.favorites.toggleReciter(reciter.id);
+  } else {
+    await services.favorites.toggleReciter(reciter.identityKey);
   }
 }

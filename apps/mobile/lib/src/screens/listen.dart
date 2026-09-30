@@ -52,17 +52,14 @@ class _ListenPageState extends State<ListenPage> {
           ],
         ),
       ),
-      if (_section == 1)
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'اختر قارئًا لعرض المصحف والرواية والسور المتاحة من مصدره.',
-          ),
-        ),
       Expanded(
         child: IndexedStack(
-          index: _section == 2 ? 1 : 0,
-          children: const [RecitersPage(), _AudioSurahs()],
+          index: _section,
+          children: const [
+            RecitersPage(),
+            RecitersPage(editionsView: true),
+            _AudioSurahs(),
+          ],
         ),
       ),
     ],

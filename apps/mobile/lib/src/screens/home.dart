@@ -10,6 +10,7 @@ import '../playback_ui.dart';
 import '../prayer_settings.dart';
 import '../prayer_times.dart';
 import '../services.dart';
+import '../reading_card.dart';
 import 'prayer_times.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -62,42 +63,16 @@ class _HomePageState extends ConsumerState<HomePage> {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'وردك من القرآن',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  if (services.mushaf.lastPosition case final last?) ...[
-                    Text(
-                      'السورة ${last.surahNumber ?? last.number}${last.pageNumber == null ? '' : ' • الصفحة ${last.pageNumber}'}${last.ayahNumber == null ? '' : ' • الآية ${last.ayahNumber}'}',
-                    ),
-                    FilledButton.icon(
-                      icon: const Icon(Icons.menu_book),
-                      label: const Text('متابعة القراءة'),
-                      onPressed: () => Navigator.pushNamed(
-                        context,
-                        MobileRoutes.reader,
-                        arguments: last.pageNumber,
-                      ),
-                    ),
-                  ] else ...[
-                    const Text('ابدأ القراءة واحفظ موضعك للعودة إليه.'),
-                    FilledButton.icon(
-                      icon: const Icon(Icons.menu_book),
-                      label: const Text('افتح المصحف'),
-                      onPressed: () =>
-                          Navigator.pushNamed(context, MobileRoutes.quran),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+          ContinueReadingCard(
+            position: services.mushaf.lastPosition,
+            onOpen: () {
+              final last = services.mushaf.lastPosition;
+              Navigator.pushNamed(
+                context,
+                last == null ? MobileRoutes.quran : MobileRoutes.reader,
+                arguments: last?.pageNumber,
+              );
+            },
           ),
           if (services.features.enabled(TarteelFeature.prayer))
             const DashboardPrayerTimes(),
@@ -209,11 +184,13 @@ class DashboardPrayerTimes extends ConsumerStatefulWidget {
 class _DashboardPrayerTimesState extends ConsumerState<DashboardPrayerTimes> {
   late Future<PrayerSnapshot> _snapshot;
   Timer? _timer;
+  late final PrayerSettingsStore _settings;
   @override
   void initState() {
     super.initState();
     _refresh();
-    ref.read(servicesProvider).prayerSettings.addListener(_refresh);
+    _settings = ref.read(servicesProvider).prayerSettings;
+    _settings.addListener(_refresh);
     _timer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) _refresh();
     });
@@ -230,7 +207,7 @@ class _DashboardPrayerTimesState extends ConsumerState<DashboardPrayerTimes> {
   @override
   void dispose() {
     _timer?.cancel();
-    ref.read(servicesProvider).prayerSettings.removeListener(_refresh);
+    _settings.removeListener(_refresh);
     super.dispose();
   }
 

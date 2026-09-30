@@ -51,6 +51,15 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     }
     _surahsFuture = services.repository.surahs();
     _passageFuture = services.repository.quranPassage(_mode, _number);
+    // Persist the verified initial page as well as pages reached by swiping.
+    final initialPage = _number;
+    _passageFuture
+        .then((passage) {
+          if (mounted && _number == initialPage && passage.verses.isNotEmpty) {
+            return _remember(passage.verses.first);
+          }
+        })
+        .catchError((Object _) {});
   }
 
   int _maxFor(QuranBrowseMode mode) => switch (mode) {
@@ -93,6 +102,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           surahNumber: verse.surahNumber,
           ayahNumber: verse.ayahNumber,
           pageNumber: verse.pageNumber,
+          surahNameAr: verse.surahNameAr,
+          juzNumber: verse.juzNumber,
+          readAt: DateTime.now(),
         ),
       );
 
@@ -121,8 +133,15 @@ class _MushafPageState extends ConsumerState<MushafPage> {
         .read(servicesProvider)
         .repository
         .quranPassage(QuranBrowseMode.page, page);
-    final passage = await _passageFuture;
-    if (passage.verses.isNotEmpty) await _remember(passage.verses.first);
+    try {
+      final passage = await _passageFuture;
+      if (mounted && _number == page && passage.verses.isNotEmpty) {
+        await _remember(passage.verses.first);
+      }
+    } catch (_) {
+      // Page assets may remain available offline. Do not fabricate a verse
+      // position when textual metadata cannot be resolved.
+    }
   }
 
   Future<void> _chooseReciter(int surahNumber) async {
@@ -223,8 +242,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
       await services.playback.playQuranAudio(<QuranAudioMedia>[media], 0);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.noAudioForSurah)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.noAudioForSurah)));
     } finally {
       if (mounted) setState(() => _audioBusy = false);
     }
@@ -258,8 +278,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
       await _remember(verse);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(context.l10n.noAudioForSurah)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.noAudioForSurah)));
     } finally {
       if (mounted) setState(() => _audioBusy = false);
     }
@@ -288,8 +309,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('تعذر بدء تنزيل السورة')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تعذر بدء تنزيل السورة')));
     }
   }
 
@@ -786,9 +808,9 @@ class _QuranText extends StatelessWidget {
                                       '  ﴿${arabicIndicNumber(verse.ayahNumber)}﴾',
                                   style: base.copyWith(
                                     fontSize: 20 * store.fontScale,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                 ),
                               ],

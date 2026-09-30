@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'feature_manager.dart';
 import 'services.dart';
+import 'quran_audio.dart';
+import 'screens/listening_history.dart';
 import 'screens/favorites.dart';
 import 'screens/library.dart';
 import 'screens/listen.dart';
@@ -32,6 +36,9 @@ abstract final class MobileRoutes {
   static const reader = '/quran/reader';
   static const listen = '/listen';
   static const reciters = '/reciters';
+  static const reciter = '/reciter';
+  static const history = '/listening-history';
+  static const bookmarks = '/quran/bookmarks';
   static const radio = '/radio';
   static const library = '/my-library';
   static const downloads = '/downloads';
@@ -41,12 +48,26 @@ abstract final class MobileRoutes {
   static const search = '/search';
   static const player = '/player';
 
-  static Route<void>? generate(RouteSettings settings) {
-    final page = switch (settings.name) {
+  static Route<void>? generate(RouteSettings routeSettings) {
+    final page = switch (routeSettings.name) {
       quran => const _Secondary(title: 'المصحف', child: QuranIndexPage()),
-      reader => _ReaderRoute(page: settings.arguments as int?),
+      reader => _ReaderRoute(page: routeSettings.arguments as int?),
+      bookmarks => const _Secondary(
+        title: 'العلامات المرجعية',
+        child: QuranIndexPage(initialSection: 3),
+      ),
+      history => const ListeningHistoryPage(),
+      reciter =>
+        routeSettings.arguments is QuranAudioCatalogReciter
+            ? QuranAudioReciterDetailPage(
+                reciter: routeSettings.arguments! as QuranAudioCatalogReciter,
+              )
+            : null,
       listen => const _Secondary(title: 'الاستماع', child: ListenPage()),
-      reciters => const _Secondary(title: 'القراء', child: RecitersPage()),
+      reciters => _Secondary(
+        title: 'القراء',
+        child: RecitersPage(surahNumber: routeSettings.arguments as int?),
+      ),
       radio => const _FeatureRoute(
         feature: TarteelFeature.radio,
         child: _Secondary(title: 'الإذاعات', child: RadioPage()),
@@ -65,7 +86,7 @@ abstract final class MobileRoutes {
     };
     if (page == null) return null;
     return PageRouteBuilder<void>(
-      settings: settings,
+      settings: routeSettings,
       transitionDuration: const Duration(milliseconds: 200),
       reverseTransitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (_, _, _) => page,
@@ -98,12 +119,28 @@ class _ReaderRoute extends StatefulWidget {
 class _ReaderRouteState extends State<_ReaderRoute> {
   bool immersive = false;
   @override
+  void dispose() {
+    unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => Scaffold(
     appBar: immersive ? null : AppBar(title: const Text('المصحف')),
     body: MushafPage(
       initialPage: widget.page,
       onImmersiveChanged: (value) {
-        if (mounted && immersive != value) setState(() => immersive = value);
+        if (mounted && immersive != value) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() => immersive = value);
+            unawaited(
+              SystemChrome.setEnabledSystemUIMode(
+                value ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+              ),
+            );
+          });
+        }
       },
     ),
   );

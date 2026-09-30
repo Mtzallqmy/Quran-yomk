@@ -38,11 +38,12 @@ class LibraryPage extends ConsumerWidget {
             Icons.queue_music,
             MobileRoutes.playlists,
           ),
+          _entry(context, 'سجل الاستماع', Icons.history, MobileRoutes.history),
           _entry(
             context,
             'العلامات المرجعية',
             Icons.bookmark_border,
-            MobileRoutes.quran,
+            MobileRoutes.bookmarks,
           ),
           const Divider(),
           ListTile(

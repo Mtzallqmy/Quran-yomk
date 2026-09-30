@@ -6,9 +6,11 @@ import '../models.dart';
 import '../navigation.dart';
 import '../quran_models.dart';
 import '../services.dart';
+import '../reading_card.dart';
 
 class QuranIndexPage extends ConsumerStatefulWidget {
-  const QuranIndexPage({super.key});
+  const QuranIndexPage({super.key, this.initialSection = 0});
+  final int initialSection;
   @override
   ConsumerState<QuranIndexPage> createState() => _QuranIndexPageState();
 }
@@ -21,6 +23,7 @@ class _QuranIndexPageState extends ConsumerState<QuranIndexPage> {
   @override
   void initState() {
     super.initState();
+    _section = widget.initialSection.clamp(0, 3);
     _surahs = ref.read(servicesProvider).repository.surahs();
   }
 
@@ -76,17 +79,16 @@ class _QuranIndexPageState extends ConsumerState<QuranIndexPage> {
             ),
           ),
           if (store.lastPosition case final position?)
-            ListTile(
-              leading: const Icon(Icons.menu_book),
-              title: const Text('متابعة القراءة'),
-              subtitle: Text(
-                'السورة ${position.surahNumber ?? position.number}${position.pageNumber == null ? '' : ' • الصفحة ${position.pageNumber}'}',
-              ),
-              onTap: () => _open(
-                position.pageNumber == null
-                    ? position.mode
-                    : QuranBrowseMode.page,
-                position.pageNumber ?? position.number,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ContinueReadingCard(
+                position: position,
+                onOpen: () => _open(
+                  position.pageNumber == null
+                      ? position.mode
+                      : QuranBrowseMode.page,
+                  position.pageNumber ?? position.number,
+                ),
               ),
             ),
           SingleChildScrollView(

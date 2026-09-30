@@ -88,7 +88,9 @@ class SettingsPage extends ConsumerWidget {
               ListTile(
                 leading: const Icon(Icons.access_time),
                 title: const Text('مواقيت الصلاة'),
-                subtitle: const Text('تعز • حساب محلي وتنبيهات دون إنترنت'),
+                subtitle: Text(
+                  '${services.prayerSettings.value.locationName} • حساب محلي وتنبيهات دون إنترنت',
+                ),
                 trailing: const Icon(Icons.chevron_left),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(

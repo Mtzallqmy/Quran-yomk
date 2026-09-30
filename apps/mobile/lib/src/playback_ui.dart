@@ -45,4 +45,5 @@ Future<void> resumeQuranListening(
   );
   await services.playback.playQuranAudio([media], 0);
   await services.playback.seek(session.position);
+  await services.playback.setSpeed(services.settings.playbackSpeed);
 }

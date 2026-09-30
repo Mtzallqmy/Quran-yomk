@@ -15,6 +15,9 @@ class MushafPosition {
     this.surahNumber,
     this.ayahNumber,
     this.pageNumber,
+    this.surahNameAr,
+    this.juzNumber,
+    this.readAt,
   });
 
   final QuranBrowseMode mode;
@@ -23,6 +26,9 @@ class MushafPosition {
   final int? surahNumber;
   final int? ayahNumber;
   final int? pageNumber;
+  final String? surahNameAr;
+  final int? juzNumber;
+  final DateTime? readAt;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'mode': mode.name,
@@ -31,6 +37,9 @@ class MushafPosition {
     'surah_number': surahNumber,
     'ayah_number': ayahNumber,
     'page_number': pageNumber,
+    'surah_name_ar': surahNameAr,
+    'juz_number': juzNumber,
+    'read_at': readAt?.toIso8601String(),
   };
 
   factory MushafPosition.fromJson(Map<String, dynamic> json) => MushafPosition(
@@ -43,6 +52,9 @@ class MushafPosition {
     surahNumber: (json['surah_number'] as num?)?.toInt(),
     ayahNumber: (json['ayah_number'] as num?)?.toInt(),
     pageNumber: (json['page_number'] as num?)?.toInt(),
+    surahNameAr: json['surah_name_ar'] as String?,
+    juzNumber: (json['juz_number'] as num?)?.toInt(),
+    readAt: DateTime.tryParse(json['read_at'] as String? ?? ''),
   );
 }
 

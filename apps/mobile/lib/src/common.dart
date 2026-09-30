@@ -39,16 +39,18 @@ class EmptyPane extends StatelessWidget {
             ),
             child: Padding(
               padding: const EdgeInsets.all(TarteelTokens.spaceLg),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(Icons.inbox_outlined, size: 38, color: scheme.primary),
-                  const SizedBox(height: TarteelTokens.spaceSm),
-                  Text(
-                    message ?? context.l10n.noData,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.inbox_outlined, size: 38, color: scheme.primary),
+                    const SizedBox(height: TarteelTokens.spaceSm),
+                    Text(
+                      message ?? context.l10n.noData,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

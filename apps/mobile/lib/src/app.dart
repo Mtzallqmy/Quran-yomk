@@ -58,6 +58,7 @@ class RootShell extends ConsumerStatefulWidget {
 
 class _RootShellState extends ConsumerState<RootShell>
     with WidgetsBindingObserver {
+  late final FeatureManager _features;
   MobileDestination selected = MobileDestination.home;
   final Set<MobileDestination> _visited = {MobileDestination.home};
   bool _openingRoute = false;
@@ -74,7 +75,8 @@ class _RootShellState extends ConsumerState<RootShell>
       orElse: () => MobileDestination.home,
     );
     _visited.add(selected);
-    ref.read(servicesProvider).features.addListener(_featuresChanged);
+    _features = ref.read(servicesProvider).features;
+    _features.addListener(_featuresChanged);
     _notificationSubscription = ref
         .read(servicesProvider)
         .localNotifications
@@ -208,7 +210,7 @@ class _RootShellState extends ConsumerState<RootShell>
 
   @override
   void dispose() {
-    ref.read(servicesProvider).features.removeListener(_featuresChanged);
+    _features.removeListener(_featuresChanged);
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_notificationSubscription?.cancel());
     unawaited(_pushSubscription?.cancel());
@@ -246,8 +248,9 @@ class _RootShellState extends ConsumerState<RootShell>
     if (_openingRoute) return;
     _openingRoute = true;
     try {
-      await Navigator.of(context)
-          .push(MaterialPageRoute<void>(builder: (_) => page));
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => page));
     } finally {
       _openingRoute = false;
     }

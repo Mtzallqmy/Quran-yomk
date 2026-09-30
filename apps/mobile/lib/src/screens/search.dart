@@ -1,465 +1,347 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../common.dart';
+import '../feature_manager.dart';
 import '../models.dart';
 import '../navigation.dart';
-import '../feature_manager.dart';
-import '../quran_models.dart';
-import 'reciters.dart';
 import '../quran_audio.dart';
+import '../quran_models.dart';
+import '../quran_playlist_store.dart';
 import '../services.dart';
 import 'legacy_reciter_detail.dart';
-import 'radio.dart';
+import 'quran_index.dart';
+import 'quran_playlists.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key, this.initialQuery});
-
   final String? initialQuery;
-
   @override
   ConsumerState<SearchPage> createState() => _SearchPageState();
 }
 
 class _SearchPageState extends ConsumerState<SearchPage> {
-  final controller = TextEditingController();
-  Timer? debounce;
-  SearchBundle result = const SearchBundle(
-    stations: <Station>[],
-    reciters: <Reciter>[],
-    surahs: <Surah>[],
-  );
-  List<Category> categoryResults = const <Category>[];
-  List<QuranAudioCatalogReciter> audioReciters =
-      const <QuranAudioCatalogReciter>[];
-  List<Surah> localSurahs = const <Surah>[];
+  final _controller = TextEditingController();
+  Timer? _debounce;
   int _request = 0;
   int _filter = 0;
-  bool loading = false;
-  Object? error;
-  String? pendingStationId;
-
+  bool _loading = false;
+  bool _partialFailure = false;
+  List<Surah> _surahs = [];
+  List<Station> _stations = [];
+  List<Reciter> _legacy = [];
+  List<QuranAudioCatalogReciter> _reciters = [];
+  String? _pending;
   @override
   void initState() {
     super.initState();
-    final initial = widget.initialQuery?.trim() ?? '';
-    if (initial.isNotEmpty) {
-      controller.text = initial;
-      WidgetsBinding.instance.addPostFrameCallback((_) => runSearch(initial));
-    }
+    _controller.text = widget.initialQuery ?? '';
+    if (_controller.text.isNotEmpty)
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _search(_controller.text),
+      );
   }
 
   @override
   void dispose() {
-    debounce?.cancel();
-    controller.dispose();
+    _debounce?.cancel();
+    _controller.dispose();
     super.dispose();
   }
 
-  Future<void> runSearch(String query) async {
+  Future<void> _search(String query) async {
     final request = ++_request;
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) {
-      if (!mounted) return;
+    final normalized = normalizeQuranQuery(query);
+    if (normalized.isEmpty) {
       setState(() {
-        result = const SearchBundle(
-          stations: <Station>[],
-          reciters: <Reciter>[],
-          surahs: <Surah>[],
-        );
-        categoryResults = const <Category>[];
-        audioReciters = const <QuranAudioCatalogReciter>[];
-        localSurahs = const <Surah>[];
-        error = null;
-        loading = false;
+        _loading = false;
+        _partialFailure = false;
+        _surahs = [];
+        _stations = [];
+        _legacy = [];
+        _reciters = [];
       });
       return;
     }
+    setState(() => _loading = true);
+    final services = ref.read(servicesProvider);
+    var failed = false;
+    Future<T> safely<T>(Future<T> value, T fallback) async {
+      try {
+        return await value;
+      } catch (_) {
+        failed = true;
+        return fallback;
+      }
+    }
 
+    // A remote directory failure must not discard cached Quran or playlists.
+    final values = await Future.wait<Object>([
+      safely(
+        services.repository.search(query),
+        const SearchBundle(stations: [], reciters: [], surahs: []),
+      ),
+      safely(services.repository.surahs(), <Surah>[]),
+      safely(services.quranAudio.reciters(), <QuranAudioCatalogReciter>[]),
+    ]);
+    if (!mounted || request != _request) return;
+    final remote = values[0] as SearchBundle;
+    final surahs = values[1] as List<Surah>;
+    final catalog = values[2] as List<QuranAudioCatalogReciter>;
     setState(() {
-      loading = true;
-      error = null;
+      _partialFailure = failed;
+      _surahs = {
+        for (final surah in [...remote.surahs, ...surahs])
+          if (normalizeQuranQuery(
+            '${surah.nameAr} ${surah.nameEn} ${surah.number}',
+          ).contains(normalized))
+            surah.number: surah,
+      }.values.toList();
+      _stations = remote.stations;
+      _legacy = remote.reciters;
+      _reciters = {
+        for (final reciter in catalog)
+          if (normalizeQuranQuery(
+            '${reciter.nameAr} ${reciter.nameEn} ${reciter.riwayah ?? ''}',
+          ).contains(normalized))
+            reciter.identityKey: reciter,
+      }.values.toList();
+      _loading = false;
     });
+  }
+
+  Future<void> _openSurah(Surah surah) async {
     try {
-      final services = ref.read(servicesProvider);
-      final repo = services.repository;
-      final values = await Future.wait<dynamic>([
-        repo.search(trimmed),
-        repo.categories(),
-        repo.surahs(),
-        services.quranAudio.reciters(),
-      ]);
-      final next = values[0] as SearchBundle;
-      final categories = values[1] as List<Category>;
-      final surahs = values[2] as List<Surah>;
-      final catalog = values[3] as List<QuranAudioCatalogReciter>;
-      final normalized = _normalize(trimmed);
-      final matchedCategories = categories
-          .where((category) {
-            final haystack = _normalize(
-              '${category.nameAr} ${category.nameEn ?? ''} ${category.slug}',
-            );
-            return haystack.contains(normalized);
-          })
-          .toList(growable: false);
-      final matchedSurahs = surahs
-          .where((surah) {
-            return _normalize('${surah.nameAr} ${surah.nameEn} ${surah.number}')
-                .contains(normalized);
-          })
-          .toList(growable: false);
-      final byIdentity = <String, QuranAudioCatalogReciter>{};
-      for (final reciter in catalog) {
-        final haystack = _normalize(
-          '${reciter.nameAr} ${reciter.nameEn} ${reciter.riwayah ?? ''}',
-        );
-        if (haystack.contains(normalized)) {
-          byIdentity.putIfAbsent(reciter.identityKey, () => reciter);
-        }
-      }
-      if (mounted && request == _request) {
-        setState(() {
-          result = next;
-          categoryResults = matchedCategories;
-          audioReciters = byIdentity.values.take(30).toList(growable: false);
-          localSurahs = matchedSurahs;
-        });
-      }
-    } catch (e) {
-      if (mounted && request == _request) setState(() => error = e);
-    } finally {
-      if (mounted && request == _request) setState(() => loading = false);
+      final passage = await ref
+          .read(servicesProvider)
+          .repository
+          .quranPassage(QuranBrowseMode.surah, surah.number);
+      if (!mounted || passage.verses.isEmpty) return;
+      await Navigator.pushNamed(
+        context,
+        MobileRoutes.reader,
+        arguments: passage.verses.first.pageNumber,
+      );
+    } catch (_) {
+      _message('تعذر فتح السورة حاليًا');
     }
   }
 
-  Future<void> _playStation(Station station) async {
-    if (!_canPlay(station)) {
-      _playbackError(station);
-      return;
-    }
-    setState(() => pendingStationId = station.id);
+  void _message(String message) {
+    if (mounted)
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _play(Station station) async {
+    if (_pending != null) return;
+    setState(() => _pending = station.id);
     try {
       await ref.read(servicesProvider).playback.playStation(station);
-    } catch (e) {
-      debugPrint('Tarteel search playback error: $e');
-      _playbackError(station);
+    } catch (_) {
+      _message('تعذر تشغيل المحطة حاليًا');
     } finally {
-      if (mounted && pendingStationId == station.id) {
-        setState(() => pendingStationId = null);
-      }
+      if (mounted) setState(() => _pending = null);
     }
-  }
-
-  void _playbackError(Station station) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تعذر تشغيل ${station.nameAr}.'),
-        action: SnackBarAction(
-          label: 'إعادة المحاولة',
-          onPressed: () => _playStation(station),
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final services = ref.watch(servicesProvider);
-    final total =
-        result.stations.length +
-        result.reciters.length +
-        result.surahs.length +
-        categoryResults.length +
-        audioReciters.length +
-        localSurahs.length;
+    return AnimatedBuilder(
+      animation: Listenable.merge([services.features, services.quranPlaylists]),
+      builder: (context, _) {
+        final normalized = normalizeQuranQuery(_controller.text);
+        final rows = <Object>[];
+        void section(String title, Iterable<Object> values) {
+          if (values.isNotEmpty) {
+            rows.add(title);
+            rows.addAll(values);
+          }
+        }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('البحث في ترتيل')),
-      body: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              controller: controller,
-              autofocus: widget.initialQuery == null,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: loading
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : controller.text.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'مسح',
-                        onPressed: () {
-                          controller.clear();
-                          runSearch('');
-                          setState(() {});
-                        },
-                        icon: const Icon(Icons.close),
-                      ),
-                hintText: 'سورة، قارئ، إذاعة…',
-              ),
-              onChanged: (value) {
-                _request++; // Invalidate old results as soon as input changes.
-                setState(() {});
-                debounce?.cancel();
-                debounce = Timer(
-                  const Duration(milliseconds: 300),
-                  () => runSearch(value),
-                );
-              },
-              onSubmitted: runSearch,
+        if (_filter == 0 || _filter == 1) section('السور', _surahs);
+        if (_filter == 0 || _filter == 2) {
+          section('القراء والمصاحف الصوتية', _reciters);
+          section('القراء المفهرسون', _legacy);
+        }
+        if ((_filter == 0 || _filter == 3) &&
+            services.features.enabled(TarteelFeature.radio))
+          section('الإذاعات', _stations);
+        if (_filter == 0 && normalized.isNotEmpty)
+          section(
+            'قوائم التشغيل',
+            services.quranPlaylists.playlists.where(
+              (p) => normalizeQuranQuery(p.name).contains(normalized),
             ),
-          ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final (index, label) in [
-                  'الكل',
-                  'القرآن',
-                  'القراء',
-                  'الإذاعات',
-                ].indexed)
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(start: 8),
-                    child: ChoiceChip(
-                      label: Text(label),
-                      selected: _filter == index,
-                      onSelected: (_) => setState(() => _filter = index),
+          );
+        return Scaffold(
+          appBar: AppBar(title: const Text('البحث')),
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  controller: _controller,
+                  autofocus: widget.initialQuery == null,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: 'سورة، قارئ، إذاعة، قائمة تشغيل',
+                    suffixIcon: IconButton(
+                      tooltip: 'مسح البحث',
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        _controller.clear();
+                        _search('');
+                      },
                     ),
                   ),
-              ],
-            ),
-          ),
-          if (error != null)
-            Expanded(
-              child: ErrorPane(
-                error: error!,
-                onRetry: () => runSearch(controller.text),
+                  onSubmitted: _search,
+                  onChanged: (value) {
+                    ++_request;
+                    _debounce?.cancel();
+                    setState(() {
+                      _surahs = [];
+                      _stations = [];
+                      _legacy = [];
+                      _reciters = [];
+                    });
+                    _debounce = Timer(
+                      const Duration(milliseconds: 300),
+                      () => _search(value),
+                    );
+                  },
+                ),
               ),
-            )
-          else if (controller.text.trim().isEmpty)
-            const Expanded(
-              child: EmptyPane(message: 'ابحث عن سورة أو قارئ أو إذاعة'),
-            )
-          else if (!loading && total == 0)
-            const Expanded(child: EmptyPane(message: 'لا توجد نتائج'))
-          else
-            Expanded(
-              child: ListView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                children: <Widget>[
-                  if ((_filter == 0 || _filter == 3) &&
-                      services.features.enabled(TarteelFeature.radio) &&
-                      categoryResults.isNotEmpty) ...<Widget>[
-                    const SectionHeader('الأقسام'),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: categoryResults
-                            .map(
-                              (category) => ActionChip(
-                                avatar: const Icon(
-                                  Icons.grid_view_outlined,
-                                  size: 18,
-                                ),
-                                label: Text(category.nameAr),
-                                onPressed: () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => RadioPage(
-                                      initialCategory: category.slug,
-                                    ),
-                                  ),
-                                ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final (index, label) in [
+                      'الكل',
+                      'القرآن',
+                      'القراء',
+                      'الإذاعات',
+                    ].indexed)
+                      if (index != 3 ||
+                          services.features.enabled(TarteelFeature.radio))
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(start: 8),
+                          child: ChoiceChip(
+                            label: Text(label),
+                            selected: _filter == index,
+                            onSelected: (_) => setState(() => _filter = index),
+                          ),
+                        ),
+                  ],
+                ),
+              ),
+              if (_loading) const LinearProgressIndicator(),
+              if (_partialFailure)
+                const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text(
+                    'بعض المصادر غير متاحة حاليًا. نعرض النتائج المتاحة.',
+                  ),
+                ),
+              Expanded(
+                child: rows.isEmpty
+                    ? EmptyPane(
+                        message: normalized.isEmpty
+                            ? 'ابحث عن سورة أو قارئ أو إذاعة'
+                            : _loading
+                            ? 'جارٍ البحث'
+                            : 'لا توجد نتائج متاحة',
+                      )
+                    : ListView.builder(
+                        key: ValueKey('search-$_filter'),
+                        itemCount: rows.length,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        itemBuilder: (context, index) {
+                          final row = rows[index];
+                          if (row is String) return SectionHeader(row);
+                          if (row is Surah)
+                            return ListTile(
+                              key: ValueKey('surah-${row.number}'),
+                              leading: CircleAvatar(
+                                child: Text('${row.number}'),
                               ),
-                            )
-                            .toList(growable: false),
-                      ),
-                    ),
-                  ],
-                  if ((_filter == 0 || _filter == 3) &&
-                      services.features.enabled(TarteelFeature.radio) &&
-                      result.stations.isNotEmpty) ...<Widget>[
-                    const SectionHeader('الإذاعات'),
-                    for (final station in result.stations)
-                      AnimatedBuilder(
-                        animation: services.favorites,
-                        builder: (context, _) => ListTile(
-                          leading: Artwork(url: station.logoUrl),
-                          title: Text(
-                            station.nameAr,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              IconButton(
-                                tooltip: 'المفضلة',
-                                onPressed: () => services.favorites
-                                    .toggleStation(station.id),
-                                icon: Icon(
-                                  services.favorites.isStation(station.id)
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                ),
-                              ),
-                              if (pendingStationId == station.id)
-                                const Padding(
-                                  padding: EdgeInsets.all(10),
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                )
-                              else
-                                IconButton.filledTonal(
-                                  tooltip: 'تشغيل',
-                                  onPressed: _canPlay(station)
-                                      ? () => _playStation(station)
-                                      : null,
-                                  icon: const Icon(Icons.play_arrow),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                  if ((_filter == 0 || _filter == 2) &&
-                      audioReciters.isNotEmpty) ...<Widget>[
-                    const SectionHeader('قراء التلاوات'),
-                    for (final reciter in audioReciters)
-                      ListTile(
-                        leading: const CircleAvatar(
-                          child: Icon(Icons.record_voice_over_outlined),
-                        ),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                QuranAudioReciterDetailPage(reciter: reciter),
-                          ),
-                        ),
-                        title: Text(reciter.nameAr),
-                        subtitle: Text(
-                          <String>[
-                            if (reciter.nameEn.isNotEmpty) reciter.nameEn,
-                            if (reciter.riwayah?.isNotEmpty == true)
-                              reciter.riwayah!,
-                          ].join(' • '),
-                        ),
-                        trailing: Text(
-                          '${reciter.availableSurahs.length} سورة',
-                        ),
-                      ),
-                  ],
-                  if ((_filter == 0 || _filter == 2) &&
-                      result.reciters.isNotEmpty) ...<Widget>[
-                    const SectionHeader('القراء المفهرسون'),
-                    for (final reciter in result.reciters)
-                      ListTile(
-                        leading: Artwork(
-                          url: reciter.imageUrl,
-                          icon: Icons.person_outline,
-                        ),
-                        title: Text(reciter.nameAr),
-                        subtitle: reciter.rewaya == null
-                            ? null
-                            : Text(reciter.rewaya!),
-                        trailing: const Icon(Icons.chevron_left),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => ReciterDetailPage(reciter: reciter),
-                          ),
-                        ),
-                      ),
-                  ],
-                  if ((_filter == 0 || _filter == 1) &&
-                      {
-                        ...result.surahs,
-                        ...localSurahs,
-                      }.isNotEmpty) ...<Widget>[
-                    const SectionHeader('السور'),
-                    for (final surah in <int, Surah>{
-                      for (final value in [...result.surahs, ...localSurahs])
-                        value.number: value,
-                    }.values)
-                      ListTile(
-                        leading: CircleAvatar(child: Text('${surah.number}')),
-                        title: Text(surah.nameAr),
-                        subtitle: Text(
-                          '${surah.nameEn} • ${surah.ayahCount} آية',
-                        ),
-                        trailing: const Icon(Icons.menu_book_outlined),
-                        onTap: () async {
-                          try {
-                            final passage = await services.repository
-                                .quranPassage(
-                                  QuranBrowseMode.surah,
-                                  surah.number,
-                                );
-                            if (!context.mounted || passage.verses.isEmpty)
-                              return;
-                            await Navigator.pushNamed(
-                              context,
-                              MobileRoutes.reader,
-                              arguments: passage.verses.first.pageNumber,
+                              title: Text(row.nameAr),
+                              subtitle: Text('${row.ayahCount} آية'),
+                              onTap: () => _openSurah(row),
                             );
-                          } catch (_) {
-                            if (context.mounted)
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('تعذر فتح السورة'),
+                          if (row is QuranAudioCatalogReciter)
+                            return ListTile(
+                              key: ValueKey(row.identityKey),
+                              leading: const Icon(Icons.headphones),
+                              title: Text(row.nameAr),
+                              subtitle: Text(
+                                [
+                                  if (row.riwayah != null) row.riwayah!,
+                                  row.provider.name,
+                                ].join(' • '),
+                              ),
+                              onTap: () => Navigator.pushNamed(
+                                context,
+                                MobileRoutes.reciter,
+                                arguments: row,
+                              ),
+                            );
+                          if (row is Reciter)
+                            return ListTile(
+                              leading: Artwork(
+                                url: row.imageUrl,
+                                icon: Icons.person_outline,
+                              ),
+                              title: Text(row.nameAr),
+                              subtitle: row.rewaya == null
+                                  ? null
+                                  : Text(row.rewaya!),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute<void>(
+                                  builder: (_) =>
+                                      ReciterDetailPage(reciter: row),
                                 ),
-                              );
-                          }
+                              ),
+                            );
+                          if (row is Station)
+                            return ListTile(
+                              key: ValueKey('station-${row.id}'),
+                              leading: Artwork(url: row.logoUrl),
+                              title: Text(row.nameAr),
+                              trailing: IconButton(
+                                tooltip: 'تشغيل المحطة',
+                                icon: const Icon(Icons.play_arrow),
+                                onPressed: _pending == null && row.isPlayable
+                                    ? () => _play(row)
+                                    : null,
+                              ),
+                            );
+                          final playlist = row as QuranPlaylist;
+                          return ListTile(
+                            key: ValueKey(playlist.id),
+                            leading: const Icon(Icons.queue_music),
+                            title: Text(playlist.name),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => QuranPlaylistDetailPage(
+                                  playlistId: playlist.id,
+                                ),
+                              ),
+                            ),
+                          );
                         },
                       ),
-                  ],
-                  const SizedBox(height: 24),
-                ],
               ),
-            ),
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
-
-bool _canPlay(Station station) {
-  final url = station.playbackUrl;
-  return station.isPlayable &&
-      url != null &&
-      Uri.tryParse(url)?.scheme.toLowerCase() == 'https';
-}
-
-String _normalize(String value) => value
-    .toLowerCase()
-    .replaceAll(RegExp('[\u064B-\u065F\u0670]'), '')
-    .replaceAll('ـ', '')
-    .replaceAll(RegExp('[أإآٱ]'), 'ا')
-    .replaceAll('ى', 'ي')
-    .replaceAll('ؤ', 'و')
-    .replaceAll('ئ', 'ي')
-    .replaceAll('ة', 'ه')
-    .replaceAll(RegExp(r'\s+'), ' ')
-    .trim();

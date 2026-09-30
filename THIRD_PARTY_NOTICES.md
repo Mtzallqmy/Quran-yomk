@@ -19,3 +19,13 @@ This notice covers externally streamed Quran/Islamic audio content surfaced by T
 External streams connect the listener device directly to provider infrastructure. They are not relayed through the Tarteel internal radio engine, Liquidsoap, Icecast, or a Supabase continuous-audio proxy.
 
 `إذاعة ترتيل` in Phase 11 is a logical curated channel: Tarteel resolves a scheduled eligible source, while the device still connects directly to the selected external broadcaster/provider. This indexing/selection does not transfer ownership of the underlying audio to Tarteel.
+
+## Stage 0 user interface font
+
+Noto Sans Arabic is bundled solely as the UI font. Quran text/page fonts and
+content licensing are unchanged. Source:
+https://github.com/google/fonts/tree/main/ofl/notosansarabic
+SIL Open Font License 1.1 is included verbatim at
+`apps/mobile/assets/fonts/OFL-NotoSansArabic.txt` and registered in Android's
+Flutter license registry. Font SHA-256:
+`63111b5b2e074dd48cc67692e0a2726d86ee94c1c37fe8598257b7b4e87e869e`.

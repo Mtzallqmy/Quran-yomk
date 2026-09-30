@@ -12,9 +12,10 @@ import '../services.dart';
 import '../tajweed.dart';
 
 class MushafPage extends ConsumerStatefulWidget {
-  const MushafPage({super.key, this.onImmersiveChanged});
+  const MushafPage({super.key, this.onImmersiveChanged, this.initialPage});
 
   final ValueChanged<bool>? onImmersiveChanged;
+  final int? initialPage;
 
   @override
   ConsumerState<MushafPage> createState() => _MushafPageState();
@@ -44,8 +45,21 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     } else {
       _mode = QuranBrowseMode.page;
     }
+    if (widget.initialPage != null) {
+      _mode = QuranBrowseMode.page;
+      _number = _clampNumber(_mode, widget.initialPage!);
+    }
     _surahsFuture = services.repository.surahs();
     _passageFuture = services.repository.quranPassage(_mode, _number);
+    // Persist the verified initial page as well as pages reached by swiping.
+    final initialPage = _number;
+    _passageFuture
+        .then((passage) {
+          if (mounted && _number == initialPage && passage.verses.isNotEmpty) {
+            return _remember(passage.verses.first);
+          }
+        })
+        .catchError((Object _) {});
   }
 
   int _maxFor(QuranBrowseMode mode) => switch (mode) {
@@ -88,6 +102,15 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           surahNumber: verse.surahNumber,
           ayahNumber: verse.ayahNumber,
           pageNumber: verse.pageNumber,
+          surahNameAr: verse.surahNameAr,
+          juzNumber: verse.juzNumber,
+          hizbNumber:
+              verse.hizbQuarter == null ||
+                  verse.hizbQuarter! < 1 ||
+                  verse.hizbQuarter! > 240
+              ? null
+              : (verse.hizbQuarter! - 1) ~/ 4 + 1,
+          readAt: DateTime.now(),
         ),
       );
 
@@ -116,8 +139,15 @@ class _MushafPageState extends ConsumerState<MushafPage> {
         .read(servicesProvider)
         .repository
         .quranPassage(QuranBrowseMode.page, page);
-    final passage = await _passageFuture;
-    if (passage.verses.isNotEmpty) await _remember(passage.verses.first);
+    try {
+      final passage = await _passageFuture;
+      if (mounted && _number == page && passage.verses.isNotEmpty) {
+        await _remember(passage.verses.first);
+      }
+    } catch (_) {
+      // Page assets may remain available offline. Do not fabricate a verse
+      // position when textual metadata cannot be resolved.
+    }
   }
 
   Future<void> _chooseReciter(int surahNumber) async {

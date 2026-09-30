@@ -226,6 +226,75 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     );
   }
 
+  Future<void> _toggleReadingBookmark() async {
+    final position = widget.store.lastPosition;
+    final key =
+        _selected?.verseKey ??
+        (position?.pageNumber == _page ? position?.verseKey : null);
+    if (key == null) return;
+    try {
+      final verse = await widget.resolveVerse(_page, key);
+      if (verse != null) await widget.store.toggleBookmark(verse);
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر حفظ العلامة حاليًا')),
+        );
+    }
+  }
+
+  Future<void> _jumpToPage() async {
+    _controlsTimer?.cancel();
+    final input = TextEditingController(text: '$_page');
+    final page = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            MediaQuery.viewInsetsOf(context).bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'انتقال إلى صفحة',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: input,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'رقم الصفحة (1–604)',
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () {
+                  final number = int.tryParse(input.text);
+                  if (number != null &&
+                      number >= 1 &&
+                      number <= mushafPageCount)
+                    Navigator.pop(context, number);
+                },
+                child: const Text('انتقال'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    input.dispose();
+    if (!mounted) return;
+    if (page != null) _pages.jumpToPage(page - 1);
+    _scheduleControlsHide();
+  }
+
   Future<void> _offlinePack() async {
     if (!mounted) return;
     await showModalBottomSheet<void>(
@@ -238,7 +307,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
 
   @override
   Widget build(BuildContext context) => ColoredBox(
-    color: const Color(0xfffffaf2),
+    color: Theme.of(context).colorScheme.surface,
     child: Stack(
       fit: StackFit.expand,
       children: <Widget>[
@@ -291,49 +360,35 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                     ],
                   ),
                   child: Row(
-                    children: <Widget>[
+                    children: [
                       IconButton(
                         tooltip: 'عرض نصي',
                         onPressed: widget.onShowText,
                         icon: const Icon(Icons.text_fields),
                       ),
-                      IconButton(
-                        tooltip: widget.store.showThemes
-                            ? 'إيقاف ألوان الموضوعات'
-                            : 'تشغيل ألوان الموضوعات',
-                        onPressed: () => widget.store.setShowThemes(
-                          !widget.store.showThemes,
-                        ),
-                        icon: Icon(
-                          widget.store.showThemes
-                              ? Icons.palette
-                              : Icons.palette_outlined,
-                        ),
-                      ),
                       Expanded(
                         child: SegmentedButton<MushafPageEdition>(
                           showSelectedIcon: false,
-                          segments: MushafPageEdition.values
-                              .map(
-                                (edition) => ButtonSegment<MushafPageEdition>(
-                                  value: edition,
-                                  label: Text(
-                                    edition == MushafPageEdition.madinahHafsSvg
-                                        ? 'عادي'
-                                        : 'تجويد',
-                                  ),
+                          segments: [
+                            for (final edition in MushafPageEdition.values)
+                              ButtonSegment(
+                                value: edition,
+                                label: Text(
+                                  edition == MushafPageEdition.madinahHafsSvg
+                                      ? 'عادي'
+                                      : 'تجويد',
                                 ),
-                              )
-                              .toList(growable: false),
-                          selected: <MushafPageEdition>{_edition},
-                          onSelectionChanged: (values) =>
-                              _setEdition(values.first),
+                              ),
+                          ],
+                          selected: {_edition},
+                          onSelectionChanged: (value) =>
+                              _setEdition(value.first),
                         ),
                       ),
                       IconButton(
-                        tooltip: 'الحزمة دون إنترنت',
-                        onPressed: _offlinePack,
-                        icon: const Icon(Icons.download_for_offline_outlined),
+                        tooltip: 'انتقال إلى صفحة',
+                        onPressed: _jumpToPage,
+                        icon: const Icon(Icons.find_in_page_outlined),
                       ),
                     ],
                   ),
@@ -363,47 +418,143 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                       BoxShadow(color: Colors.black26, blurRadius: 12),
                     ],
                   ),
-                  child: Row(
-                    children: <Widget>[
-                      IconButton(
-                        tooltip: 'اختيار القارئ',
-                        onPressed: widget.onChooseReciter,
-                        icon: const Icon(Icons.record_voice_over_outlined),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          IconButton(
+                            tooltip: 'صفحة سابقة',
+                            onPressed: _page > 1
+                                ? () => _pages.previousPage(
+                                    duration: const Duration(milliseconds: 200),
+                                    curve: Curves.easeOut,
+                                  )
+                                : null,
+                            icon: const Icon(Icons.chevron_right),
+                          ),
+                          Expanded(
+                            child: Text(
+                              '$_page / $mushafPageCount',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'صفحة تالية',
+                            onPressed: _page < mushafPageCount
+                                ? () => _pages.nextPage(
+                                    duration: const Duration(milliseconds: 200),
+                                    curve: Curves.easeOut,
+                                  )
+                                : null,
+                            icon: const Icon(Icons.chevron_left),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        tooltip: _selected == null
-                            ? 'حدد آية من الصفحة'
-                            : 'تشغيل ${_selected!.verseKey}',
-                        onPressed: _selected == null ? null : _playSelected,
-                        icon: const Icon(Icons.play_circle_fill),
-                      ),
-                      IconButton(
-                        tooltip: 'إجراءات الآية',
-                        onPressed: _selected == null
-                            ? null
-                            : _showSelectedActions,
-                        icon: const Icon(Icons.more_horiz),
-                      ),
-                      IconButton(
-                        tooltip: 'تشغيل السورة',
-                        onPressed: widget.onPlaySurah,
-                        icon: const Icon(Icons.queue_music),
-                      ),
-                      IconButton(
-                        tooltip: 'تنزيل السورة',
-                        onPressed: widget.onDownloadSurah,
-                        icon: const Icon(Icons.download_outlined),
-                      ),
-                      Expanded(
-                        child: Text(
-                          _selected == null
-                              ? _edition.labelAr
-                              : 'الآية ${_selected!.verseKey}',
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
+                      if (widget.store.lastPosition?.pageNumber == _page)
+                        Text(
+                          [
+                            if (widget.store.lastPosition?.surahNameAr != null)
+                              widget.store.lastPosition!.surahNameAr!,
+                            if (widget.store.lastPosition?.juzNumber != null)
+                              'الجزء ${widget.store.lastPosition!.juzNumber}',
+                            if (widget.store.lastPosition?.hizbNumber != null)
+                              'الحزب ${widget.store.lastPosition!.hizbNumber}',
+                          ].join(' • '),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
+                      Row(
+                        children: [
+                          IconButton(
+                            tooltip: 'اختيار القارئ',
+                            onPressed: widget.onChooseReciter,
+                            icon: const Icon(Icons.record_voice_over_outlined),
+                          ),
+                          IconButton(
+                            tooltip: _selected == null
+                                ? 'حدد آية من الصفحة'
+                                : 'تشغيل ${_selected!.verseKey}',
+                            onPressed: _selected == null ? null : _playSelected,
+                            icon: const Icon(Icons.play_circle_fill),
+                          ),
+                          IconButton(
+                            tooltip: 'حفظ علامة مرجعية',
+                            onPressed:
+                                _selected != null ||
+                                    (widget.store.lastPosition?.pageNumber ==
+                                            _page &&
+                                        widget.store.lastPosition?.verseKey !=
+                                            null)
+                                ? _toggleReadingBookmark
+                                : null,
+                            icon: Icon(
+                              widget.store.isBookmarked(
+                                    _selected?.verseKey ??
+                                        widget.store.lastPosition?.verseKey ??
+                                        '',
+                                  )
+                                  ? Icons.bookmark
+                                  : Icons.bookmark_border,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'إجراءات الآية',
+                            onPressed: _selected == null
+                                ? null
+                                : _showSelectedActions,
+                            icon: const Icon(Icons.more_horiz),
+                          ),
+                          Expanded(
+                            child: Text(
+                              _selected == null
+                                  ? _edition.labelAr
+                                  : 'الآية ${_selected!.verseKey}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          PopupMenuButton<String>(
+                            tooltip: 'خيارات المصحف',
+                            onSelected: (action) {
+                              switch (action) {
+                                case 'surah':
+                                  widget.onPlaySurah();
+                                case 'download':
+                                  widget.onDownloadSurah();
+                                case 'pack':
+                                  _offlinePack();
+                                case 'themes':
+                                  widget.store.setShowThemes(
+                                    !widget.store.showThemes,
+                                  );
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              const PopupMenuItem(
+                                value: 'surah',
+                                child: Text('تشغيل السورة'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'download',
+                                child: Text('تنزيل السورة'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'pack',
+                                child: Text('تنزيل صفحات المصحف'),
+                              ),
+                              PopupMenuItem(
+                                value: 'themes',
+                                child: Text(
+                                  widget.store.showThemes
+                                      ? 'إيقاف ألوان الموضوعات'
+                                      : 'تشغيل ألوان الموضوعات',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      Text('$_page / $mushafPageCount'),
                     ],
                   ),
                 ),
@@ -577,7 +728,7 @@ class _PageSurfaceState extends State<_PageSurface> {
                       fit: StackFit.expand,
                       children: <Widget>[
                         ColoredBox(
-                          color: const Color(0xfffffaf2),
+                          color: Theme.of(context).colorScheme.surface,
                           child:
                               widget.edition == MushafPageEdition.madinahHafsSvg
                               ? SvgPicture.file(

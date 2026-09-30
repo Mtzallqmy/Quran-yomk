@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../quran_audio.dart';
 import '../quran_download_contract.dart';
 import '../services.dart';
+import '../navigation.dart';
 
 class QuranOfflinePage extends ConsumerWidget {
   const QuranOfflinePage({super.key});
@@ -45,10 +46,23 @@ class QuranOfflinePage extends ConsumerWidget {
                     const Icon(Icons.download_for_offline_outlined, size: 54),
                     const SizedBox(height: 12),
                     Text(
+                      english ? 'No downloads' : 'لا توجد تنزيلات',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
                       english
                           ? 'Downloaded surahs will appear here grouped by the exact reciter.'
                           : 'ستظهر السور المحملة هنا مرتبة حسب القارئ نفسه.',
                       textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, MobileRoutes.reciters),
+                      child: Text(
+                        english ? 'Browse reciters' : 'استعرض القراء',
+                      ),
                     ),
                   ],
                 ),

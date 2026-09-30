@@ -7,6 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common.dart';
 import '../l10n.dart';
 import '../models.dart';
+import '../navigation.dart';
+import '../playback_ui.dart';
+import '../playback.dart';
+import '../quran_playback_store.dart';
+import '../feature_manager.dart';
+import 'package:share_plus/share_plus.dart';
 import '../offline_clip_service.dart';
 import '../services.dart';
 import '../theme.dart';
@@ -39,88 +45,96 @@ class MiniPlayerBar extends ConsumerWidget {
               ),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const FullPlayerPage(),
-                  ),
-                ),
-                child: SizedBox(
-                  height: 62,
-                  child: Row(
-                    children: <Widget>[
-                      const SizedBox(width: 8),
-                      Artwork(url: item.artUri?.toString(), size: 46),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              item.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                            if (item.artist != null)
-                              Text(
-                                item.artist!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                          ],
-                        ),
-                      ),
-                      StreamBuilder<PlaybackState>(
-                        stream: playback.playbackStateStream,
-                        builder: (context, state) {
-                          final playing = state.data?.playing == true;
-                          final processing = state.data?.processingState;
-                          final loading =
-                              processing == AudioProcessingState.loading ||
-                              processing == AudioProcessingState.buffering;
-                          final virtual =
-                              item.extras?['kind'] == 'virtual_radio';
-                          return IconButton.filled(
-                            tooltip: loading
-                                ? 'جارٍ التحميل'
-                                : playing
-                                ? context.l10n.pause
-                                : context.l10n.play,
-                            onPressed: loading
-                                ? null
-                                : () => virtual
-                                      ? playing
-                                            ? ref
-                                                  .read(
-                                                    virtualRadioProvider
-                                                        .notifier,
-                                                  )
-                                                  .pause()
-                                            : ref
-                                                  .read(
-                                                    virtualRadioProvider
-                                                        .notifier,
-                                                  )
-                                                  .resume()
-                                      : playing
-                                      ? playback.pause()
-                                      : playback.play(),
-                            icon: loading
-                                ? const SizedBox.square(
-                                    dimension: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Icon(
-                                    playing ? Icons.pause : Icons.play_arrow,
+                onTap: () => Navigator.pushNamed(context, MobileRoutes.player),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 64),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: <Widget>[
+                          const SizedBox(width: 8),
+                          Artwork(url: item.artUri?.toString(), size: 46),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  item.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                if (item.artist != null)
+                                  Text(
+                                    item.artist!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
                                   ),
-                          );
-                        },
+                              ],
+                            ),
+                          ),
+                          StreamBuilder<PlaybackState>(
+                            stream: playback.playbackStateStream,
+                            builder: (context, state) {
+                              final playing = state.data?.playing == true;
+                              final processing = state.data?.processingState;
+                              final loading =
+                                  processing == AudioProcessingState.loading ||
+                                  processing == AudioProcessingState.buffering;
+                              final virtual =
+                                  item.extras?['kind'] == 'virtual_radio';
+                              return IconButton.filled(
+                                tooltip: loading
+                                    ? 'جارٍ التحميل'
+                                    : playing
+                                    ? context.l10n.pause
+                                    : context.l10n.play,
+                                onPressed: loading
+                                    ? null
+                                    : () => virtual
+                                          ? playing
+                                                ? ref
+                                                      .read(
+                                                        virtualRadioProvider
+                                                            .notifier,
+                                                      )
+                                                      .pause()
+                                                : ref
+                                                      .read(
+                                                        virtualRadioProvider
+                                                            .notifier,
+                                                      )
+                                                      .resume()
+                                          : playing
+                                          ? playback.pause()
+                                          : playback.play(),
+                                icon: loading
+                                    ? const SizedBox.square(
+                                        dimension: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Icon(
+                                        playing
+                                            ? Icons.pause
+                                            : Icons.play_arrow,
+                                      ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 6),
+                        ],
                       ),
-                      const SizedBox(width: 6),
+                      if (item.isLive != true)
+                        _MiniProgress(playback: playback),
                     ],
                   ),
                 ),
@@ -131,6 +145,26 @@ class MiniPlayerBar extends ConsumerWidget {
       },
     );
   }
+}
+
+class _MiniProgress extends StatelessWidget {
+  const _MiniProgress({required this.playback});
+  final PlaybackPort playback;
+  @override
+  Widget build(BuildContext context) => StreamBuilder<Duration?>(
+    stream: playback.durationStream,
+    builder: (context, duration) {
+      final total = duration.data?.inMilliseconds ?? 0;
+      if (total <= 0) return const SizedBox.shrink();
+      return StreamBuilder<Duration>(
+        stream: playback.positionStream,
+        builder: (context, position) => LinearProgressIndicator(
+          minHeight: 2,
+          value: ((position.data?.inMilliseconds ?? 0) / total).clamp(0.0, 1.0),
+        ),
+      );
+    },
+  );
 }
 
 class FullPlayerPage extends ConsumerStatefulWidget {
@@ -145,6 +179,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
   Timer? _nowPlayingTimer;
   MediaItem? _latest;
   bool _repeatOne = false;
+  bool _downloadBusy = false;
 
   @override
   void initState() {
@@ -160,6 +195,39 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
       const Duration(seconds: 5),
       (_) => unawaited(_refreshNowPlaying()),
     );
+  }
+
+  Future<void> _downloadCurrent(MediaItem item) async {
+    if (_downloadBusy) return;
+    setState(() => _downloadBusy = true);
+    try {
+      final extras = item.extras ?? {};
+      final session = QuranPlaybackSnapshot(
+        provider: extras['provider'] as String? ?? '',
+        reciterId: extras['reciter_id'] as String? ?? '',
+        edition: extras['edition'] as String? ?? '',
+        reciterName: item.artist ?? '',
+        bitrateKbps: extras['bitrate_kbps'] as int? ?? -1,
+        surahNumber: extras['surah_number'] as int? ?? 0,
+        ayahNumber: extras['ayah_number'] as int?,
+        position: Duration.zero,
+        playedAt: DateTime.now(),
+      );
+      final services = ref.read(servicesProvider);
+      final media = await resolveQuranListening(services, session);
+      await services.quranDownloads.download(media);
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('أضيفت التلاوة إلى التنزيلات')),
+        );
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('التنزيل غير متاح لهذه التلاوة حاليًا')),
+        );
+    } finally {
+      if (mounted) setState(() => _downloadBusy = false);
+    }
   }
 
   Future<void> _refreshNowPlaying() async {
@@ -305,7 +373,9 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                 runSpacing: 8,
                 children: <Widget>[
                   if (entityId != null &&
-                      (kind == 'station' || kind == 'track'))
+                      (kind == 'station' ||
+                          kind == 'track' ||
+                          kind == 'quran_audio'))
                     AnimatedBuilder(
                       animation: services.favorites,
                       builder: (context, _) {
@@ -328,6 +398,29 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                     onPressed: () => _showSleepTimer(context, playback, kind),
                     icon: const Icon(Icons.bedtime_outlined),
                   ),
+                  if (kind == 'quran_audio' &&
+                      services.features.enabled(
+                        TarteelFeature.offlineDownloads,
+                      ))
+                    IconButton.filledTonal(
+                      tooltip: 'تنزيل التلاوة',
+                      icon: const Icon(Icons.download_outlined),
+                      onPressed: _downloadBusy
+                          ? null
+                          : () => _downloadCurrent(item),
+                    ),
+                  if (live &&
+                      Uri.tryParse(
+                            item.extras?['url'] as String? ?? '',
+                          )?.scheme ==
+                          'https')
+                    IconButton.filledTonal(
+                      tooltip: 'مشاركة رابط البث',
+                      icon: const Icon(Icons.share_outlined),
+                      onPressed: () => SharePlus.instance.share(
+                        ShareParams(text: item.extras!['url'] as String),
+                      ),
+                    ),
                   if (kind == 'station') _OfflineClipAction(item: item),
                   if (services.offlineClips.supported)
                     IconButton.filledTonal(
@@ -355,7 +448,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                         PopupMenuItem(value: 2.0, child: Text('2×')),
                       ],
                     ),
-                  if (kind == 'track')
+                  if (kind == 'track' || kind == 'quran_audio')
                     IconButton.filledTonal(
                       tooltip: l10n.repeatSurah,
                       onPressed: () async {
@@ -624,11 +717,11 @@ class _ClipAvailability {
 class _VolumeControl extends StatelessWidget {
   const _VolumeControl({required this.playback});
 
-  final dynamic playback;
+  final PlaybackPort playback;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<double>(
-    stream: playback.volumeStream as Stream<double>,
+    stream: playback.volumeStream,
     initialData: 1.0,
     builder: (context, snapshot) {
       final volume = (snapshot.data ?? 1.0).clamp(0.0, 1.0);
@@ -676,15 +769,15 @@ class _TranscriptionStatus extends ConsumerWidget {
 class _SeekBar extends StatelessWidget {
   const _SeekBar({required this.playback});
 
-  final dynamic playback;
+  final PlaybackPort playback;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<Duration?>(
-    stream: playback.durationStream as Stream<Duration?>,
+    stream: playback.durationStream,
     builder: (context, durationSnapshot) {
       final duration = durationSnapshot.data ?? Duration.zero;
       return StreamBuilder<Duration>(
-        stream: playback.positionStream as Stream<Duration>,
+        stream: playback.positionStream,
         builder: (context, positionSnapshot) {
           final position = positionSnapshot.data ?? Duration.zero;
           final max = duration.inMilliseconds <= 0

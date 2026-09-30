@@ -7,18 +7,19 @@ import 'branding.dart';
 import 'feature_manager.dart';
 import 'l10n.dart';
 import 'push_notifications.dart';
-import 'screens/favorites.dart';
+import 'navigation.dart';
+import 'screens/library.dart';
+import 'screens/listen.dart';
+import 'screens/quran_index.dart';
 import 'screens/home.dart';
 import 'screens/islamic_library.dart';
 import 'screens/learning.dart';
-import 'screens/mushaf.dart';
 import 'screens/notification_settings.dart';
 import 'screens/player.dart';
 import 'screens/prayer_times.dart';
 import 'screens/quran_offline.dart';
 import 'screens/quran_playlists.dart';
 import 'screens/radio.dart';
-import 'screens/reciters.dart';
 import 'screens/search.dart';
 import 'screens/settings.dart';
 import 'services.dart';
@@ -41,6 +42,7 @@ class TarteelApp extends ConsumerWidget {
         theme: TarteelTheme.light(),
         darkTheme: TarteelTheme.dark(),
         themeMode: settings.themeMode,
+        onGenerateRoute: MobileRoutes.generate,
         home: const RootShell(),
       ),
     );
@@ -56,8 +58,9 @@ class RootShell extends ConsumerStatefulWidget {
 
 class _RootShellState extends ConsumerState<RootShell>
     with WidgetsBindingObserver {
-  int index = 0;
-  bool _mushafImmersive = false;
+  late final FeatureManager _features;
+  MobileDestination selected = MobileDestination.home;
+  final Set<MobileDestination> _visited = {MobileDestination.home};
   bool _openingRoute = false;
   StreamSubscription<String>? _notificationSubscription;
   StreamSubscription<String>? _pushSubscription;
@@ -66,6 +69,14 @@ class _RootShellState extends ConsumerState<RootShell>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    selected = MobileDestination.values.firstWhere(
+      (value) =>
+          value.name == ref.read(servicesProvider).settings.mobileDestination,
+      orElse: () => MobileDestination.home,
+    );
+    _visited.add(selected);
+    _features = ref.read(servicesProvider).features;
+    _features.addListener(_featuresChanged);
     _notificationSubscription = ref
         .read(servicesProvider)
         .localNotifications
@@ -179,13 +190,13 @@ class _RootShellState extends ConsumerState<RootShell>
     switch (normalized) {
       case '/':
       case '/home':
-        setState(() => index = 0);
+        _select(MobileDestination.home);
       case '/radio':
-        setState(() => index = features.enabled(TarteelFeature.radio) ? 1 : 0);
+        _select(MobileDestination.radio);
       case '/quran':
-        setState(() => index = features.enabled(TarteelFeature.radio) ? 2 : 1);
+        _select(MobileDestination.quran);
       case '/reciters':
-        setState(() => index = features.enabled(TarteelFeature.radio) ? 3 : 2);
+        _select(MobileDestination.listen);
       case '/prayer-times':
         unawaited(_open(const PrayerTimesPage()));
       case '/library':
@@ -199,14 +210,38 @@ class _RootShellState extends ConsumerState<RootShell>
 
   @override
   void dispose() {
+    _features.removeListener(_featuresChanged);
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_notificationSubscription?.cancel());
     unawaited(_pushSubscription?.cancel());
     super.dispose();
   }
 
-  void _setMushafImmersive(bool value) {
-    if (_mushafImmersive != value) setState(() => _mushafImmersive = value);
+  void _featuresChanged() {
+    if (!mounted) return;
+    if (selected == MobileDestination.radio &&
+        !ref.read(servicesProvider).features.enabled(TarteelFeature.radio)) {
+      _select(MobileDestination.home);
+    } else {
+      setState(() {});
+    }
+  }
+
+  void _select(MobileDestination destination) {
+    if (destination == MobileDestination.radio &&
+        !ref.read(servicesProvider).features.enabled(TarteelFeature.radio)) {
+      destination = MobileDestination.home;
+    }
+    setState(() {
+      selected = destination;
+      _visited.add(destination);
+    });
+    unawaited(
+      ref
+          .read(servicesProvider)
+          .settings
+          .setMobileDestination(destination.name),
+    );
   }
 
   Future<void> _open(Widget page) async {
@@ -238,107 +273,102 @@ class _RootShellState extends ConsumerState<RootShell>
       return _ForcedUpdateScreen(onRefresh: remoteConfig.refresh);
     }
     final radioEnabled = features.enabled(TarteelFeature.radio);
-    final titles = <String>[
-      s.home,
-      if (radioEnabled) s.radio,
-      s.mushaf,
-      s.reciters,
-      s.favorites,
-    ];
-    final mushafIndex = radioEnabled ? 2 : 1;
-    if (index >= titles.length) index = 0;
-    final immersive = index == mushafIndex && _mushafImmersive;
-    final pages = <Widget>[
-      const HomePage(),
-      if (radioEnabled) const RadioPage(),
-      MushafPage(onImmersiveChanged: _setMushafImmersive),
-      const RecitersPage(),
-      const FavoritesPage(),
+    final destinations = mobileDestinations(radioEnabled: radioEnabled);
+    final effective = destinations.contains(selected)
+        ? selected
+        : MobileDestination.home;
+    final titles = <MobileDestination, String>{
+      MobileDestination.home: s.home,
+      MobileDestination.quran: s.mushaf,
+      MobileDestination.listen: english ? 'Listen' : 'الاستماع',
+      MobileDestination.radio: s.radio,
+      MobileDestination.library: english ? 'My library' : 'مكتبتي',
+    };
+    const pages = <Widget>[
+      HomePage(),
+      QuranIndexPage(),
+      ListenPage(),
+      RadioPage(),
+      LibraryPage(),
     ];
     return Scaffold(
-      appBar: immersive
-          ? null
-          : AppBar(
-              titleSpacing: 12,
-              title: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  const TarteelBrandMark(size: 34),
-                  const SizedBox(width: 9),
-                  Flexible(
-                    child: Text(titles[index], overflow: TextOverflow.ellipsis),
-                  ),
-                ],
-              ),
-              actions: <Widget>[
-                IconButton(
-                  tooltip: s.search,
-                  onPressed: () => _open(const SearchPage()),
-                  icon: const Icon(Icons.search),
-                ),
-                PopupMenuButton<_RootAction>(
-                  tooltip: english ? 'More' : 'المزيد',
-                  onSelected: (action) => switch (action) {
-                    _RootAction.playlists => _open(const QuranPlaylistsPage()),
-                    _RootAction.offline => _open(const QuranOfflinePage()),
-                    _RootAction.library => _open(const IslamicLibraryPage()),
-                    _RootAction.learning => _open(const LearningCenterPage()),
-                    _RootAction.settings => _open(const SettingsPage()),
-                  },
-                  itemBuilder: (_) => <PopupMenuEntry<_RootAction>>[
-                    PopupMenuItem<_RootAction>(
-                      value: _RootAction.learning,
-                      child: ListTile(
-                        leading: const Icon(Icons.school_outlined),
-                        title: Text(
-                          english
-                              ? 'Memorization and review'
-                              : 'الحفظ والمراجعة',
-                        ),
-                      ),
-                    ),
-                    PopupMenuItem<_RootAction>(
-                      value: _RootAction.playlists,
-                      child: ListTile(
-                        leading: const Icon(Icons.queue_music_outlined),
-                        title: Text(
-                          english ? 'Quran playlists' : 'قوائم تشغيل القرآن',
-                        ),
-                      ),
-                    ),
-                    if (features.enabled(TarteelFeature.offlineDownloads))
-                      PopupMenuItem<_RootAction>(
-                        value: _RootAction.offline,
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.download_for_offline_outlined,
-                          ),
-                          title: Text(
-                            english ? 'Offline Quran' : 'الاستماع بدون إنترنت',
-                          ),
-                        ),
-                      ),
-                    PopupMenuItem<_RootAction>(
-                      value: _RootAction.library,
-                      child: ListTile(
-                        leading: const Icon(Icons.local_library_outlined),
-                        title: Text(
-                          english ? 'Islamic library' : 'المكتبة الإسلامية',
-                        ),
-                      ),
-                    ),
-                    PopupMenuItem<_RootAction>(
-                      value: _RootAction.settings,
-                      child: ListTile(
-                        leading: const Icon(Icons.settings_outlined),
-                        title: Text(s.settings),
-                      ),
-                    ),
-                  ],
-                  icon: const Icon(Icons.more_vert),
-                ),
-              ],
+      appBar: AppBar(
+        titleSpacing: 12,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const TarteelBrandMark(size: 34),
+            const SizedBox(width: 9),
+            Flexible(
+              child: Text(titles[effective]!, overflow: TextOverflow.ellipsis),
             ),
+          ],
+        ),
+        actions: <Widget>[
+          IconButton(
+            tooltip: s.search,
+            onPressed: () => _open(const SearchPage()),
+            icon: const Icon(Icons.search),
+          ),
+          PopupMenuButton<_RootAction>(
+            tooltip: english ? 'More' : 'المزيد',
+            onSelected: (action) => switch (action) {
+              _RootAction.playlists => _open(const QuranPlaylistsPage()),
+              _RootAction.offline => _open(const QuranOfflinePage()),
+              _RootAction.library => _open(const IslamicLibraryPage()),
+              _RootAction.learning => _open(const LearningCenterPage()),
+              _RootAction.settings => _open(const SettingsPage()),
+            },
+            itemBuilder: (_) => <PopupMenuEntry<_RootAction>>[
+              PopupMenuItem<_RootAction>(
+                value: _RootAction.learning,
+                child: ListTile(
+                  leading: const Icon(Icons.school_outlined),
+                  title: Text(
+                    english ? 'Memorization and review' : 'الحفظ والمراجعة',
+                  ),
+                ),
+              ),
+              PopupMenuItem<_RootAction>(
+                value: _RootAction.playlists,
+                child: ListTile(
+                  leading: const Icon(Icons.queue_music_outlined),
+                  title: Text(
+                    english ? 'Quran playlists' : 'قوائم تشغيل القرآن',
+                  ),
+                ),
+              ),
+              if (features.enabled(TarteelFeature.offlineDownloads))
+                PopupMenuItem<_RootAction>(
+                  value: _RootAction.offline,
+                  child: ListTile(
+                    leading: const Icon(Icons.download_for_offline_outlined),
+                    title: Text(
+                      english ? 'Offline Quran' : 'الاستماع بدون إنترنت',
+                    ),
+                  ),
+                ),
+              PopupMenuItem<_RootAction>(
+                value: _RootAction.library,
+                child: ListTile(
+                  leading: const Icon(Icons.local_library_outlined),
+                  title: Text(
+                    english ? 'Islamic library' : 'المكتبة الإسلامية',
+                  ),
+                ),
+              ),
+              PopupMenuItem<_RootAction>(
+                value: _RootAction.settings,
+                child: ListTile(
+                  leading: const Icon(Icons.settings_outlined),
+                  title: Text(s.settings),
+                ),
+              ),
+            ],
+            icon: const Icon(Icons.more_vert),
+          ),
+        ],
+      ),
       body: AnimatedBuilder(
         animation: Listenable.merge(<Listenable>[
           remoteConfig,
@@ -389,54 +419,47 @@ class _RootShellState extends ConsumerState<RootShell>
                 actions: const <Widget>[SizedBox.shrink()],
               ),
             Expanded(
-              child: IndexedStack(index: index, children: pages),
+              child: IndexedStack(
+                index: effective.index,
+                children: [
+                  for (final destination in MobileDestination.values)
+                    KeyedSubtree(
+                      key: ValueKey(destination),
+                      child: _visited.contains(destination)
+                          ? pages[destination.index]
+                          : const SizedBox.shrink(),
+                    ),
+                ],
+              ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: immersive
-          ? null
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const MiniPlayerBar(),
-                NavigationBar(
-                  selectedIndex: index,
-                  labelBehavior:
-                      NavigationDestinationLabelBehavior.onlyShowSelected,
-                  onDestinationSelected: (value) =>
-                      setState(() => index = value),
-                  destinations: <NavigationDestination>[
-                    NavigationDestination(
-                      icon: const Icon(Icons.home_outlined),
-                      selectedIcon: const Icon(Icons.home),
-                      label: s.home,
-                    ),
-                    if (radioEnabled)
-                      NavigationDestination(
-                        icon: const Icon(Icons.radio_outlined),
-                        selectedIcon: const Icon(Icons.radio),
-                        label: s.radio,
-                      ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.auto_stories_outlined),
-                      selectedIcon: const Icon(Icons.auto_stories),
-                      label: s.mushaf,
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.record_voice_over_outlined),
-                      selectedIcon: const Icon(Icons.record_voice_over),
-                      label: s.reciters,
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.favorite_border),
-                      selectedIcon: const Icon(Icons.favorite),
-                      label: s.favorites,
-                    ),
-                  ],
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const MiniPlayerBar(),
+          NavigationBar(
+            selectedIndex: destinations.indexOf(effective),
+            onDestinationSelected: (value) => _select(destinations[value]),
+            destinations: [
+              for (final destination in destinations)
+                NavigationDestination(
+                  key: ValueKey('destination-${destination.name}'),
+                  icon: Icon(switch (destination) {
+                    MobileDestination.home => Icons.home_outlined,
+                    MobileDestination.quran => Icons.auto_stories_outlined,
+                    MobileDestination.listen => Icons.headphones_outlined,
+                    MobileDestination.radio => Icons.radio_outlined,
+                    MobileDestination.library =>
+                      Icons.collections_bookmark_outlined,
+                  }),
+                  label: titles[destination]!,
                 ),
-              ],
-            ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

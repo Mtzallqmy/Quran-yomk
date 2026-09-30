@@ -82,6 +82,7 @@ class SettingsStore extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.system;
   Locale locale = const Locale('ar');
   double playbackSpeed = 1.0;
+  String mobileDestination = 'home';
 
   void load() {
     themeMode = switch (_prefs.getString('settings:theme')) {
@@ -90,7 +91,15 @@ class SettingsStore extends ChangeNotifier {
       _ => ThemeMode.system,
     };
     locale = Locale(_prefs.getString('settings:locale') == 'en' ? 'en' : 'ar');
+    mobileDestination =
+        _prefs.getString('settings:mobile-destination') ?? 'home';
     playbackSpeed = _prefs.getDouble('settings:speed') ?? 1.0;
+  }
+
+  Future<void> setMobileDestination(String value) async {
+    mobileDestination = value;
+    await _prefs.setString('settings:mobile-destination', value);
+    // RootShell owns selection; rebuilding MaterialApp here would be unnecessary.
   }
 
   Future<void> setThemeMode(ThemeMode value) async {

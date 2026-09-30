@@ -5,12 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
 import '../models.dart';
+import '../navigation.dart';
 import '../quran_audio.dart';
 import '../quran_download_contract.dart';
 import '../services.dart';
 
 class RecitersPage extends ConsumerStatefulWidget {
-  const RecitersPage({super.key});
+  const RecitersPage({super.key, this.surahNumber});
+  final int? surahNumber;
 
   @override
   ConsumerState<RecitersPage> createState() => _RecitersPageState();
@@ -38,7 +40,7 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
       final rows = await ref
           .read(servicesProvider)
           .quranAudio
-          .reciters(refresh: refresh);
+          .reciters(refresh: refresh, surahNumber: widget.surahNumber);
       final unique = <String, QuranAudioCatalogReciter>{};
       for (final row in rows) {
         unique[row.identityKey] = row;
@@ -176,7 +178,10 @@ class _ReciterTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final services = ref.watch(servicesProvider);
     return AnimatedBuilder(
-      animation: services.quranDownloads,
+      animation: Listenable.merge([
+        services.quranDownloads,
+        services.favorites,
+      ]),
       builder: (context, _) {
         final offlineCount = services.quranDownloads.tasks.where((task) {
           return task.state == QuranDownloadState.completed &&
@@ -202,6 +207,9 @@ class _ReciterTile extends ConsumerWidget {
           subtitle: Text(
             [
               if (reciter.riwayah?.isNotEmpty == true) reciter.riwayah!,
+              reciter.provider == QuranAudioProviderKind.mp3Quran
+                  ? 'MP3Quran'
+                  : 'Al Quran Cloud',
               english
                   ? '${reciter.availableSurahs.length} surahs'
                   : '${reciter.availableSurahs.length} سورة',
@@ -211,11 +219,20 @@ class _ReciterTile extends ConsumerWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => QuranAudioReciterDetailPage(reciter: reciter),
+          trailing: IconButton(
+            tooltip: 'إضافة القارئ إلى المفضلة',
+            icon: Icon(
+              services.favorites.isReciter(reciter.identityKey)
+                  ? Icons.favorite
+                  : Icons.favorite_border,
             ),
+            onPressed: () =>
+                services.favorites.toggleReciter(reciter.identityKey),
+          ),
+          onTap: () => Navigator.pushNamed(
+            context,
+            MobileRoutes.reciter,
+            arguments: reciter,
           ),
         );
       },
@@ -378,7 +395,10 @@ class _QuranAudioReciterDetailPageState
               )
               .toList(growable: false);
           return AnimatedBuilder(
-            animation: services.quranDownloads,
+            animation: Listenable.merge([
+              services.quranDownloads,
+              services.favorites,
+            ]),
             builder: (context, _) => CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
@@ -400,9 +420,28 @@ class _QuranAudioReciterDetailPageState
                             ],
                             const SizedBox(height: 8),
                             Text(
+                              widget.reciter.provider ==
+                                      QuranAudioProviderKind.mp3Quran
+                                  ? 'MP3Quran'
+                                  : 'Al Quran Cloud',
+                            ),
+                            IconButton(
+                              tooltip: 'مفضلة',
+                              icon: Icon(
+                                services.favorites.isReciter(
+                                      widget.reciter.identityKey,
+                                    )
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                              ),
+                              onPressed: () => services.favorites.toggleReciter(
+                                widget.reciter.identityKey,
+                              ),
+                            ),
+                            Text(
                               english
-                                  ? '${surahs.length} available surahs • downloads stay tied to this exact reciter'
-                                  : '${surahs.length} سورة متاحة • التنزيلات مرتبطة بهذا القارئ نفسه',
+                                  ? '${surahs.length} available surahs'
+                                  : '${surahs.length} سورة متاحة',
                             ),
                           ],
                         ),

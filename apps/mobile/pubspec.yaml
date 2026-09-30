@@ -42,7 +42,12 @@ dev_dependencies:
 flutter:
   generate: true
   uses-material-design: true
+  fonts:
+    - family: TarteelUI
+      fonts:
+        - asset: assets/fonts/NotoSansArabic.ttf
   assets:
+    - assets/fonts/OFL-NotoSansArabic.txt
     - assets/islamic_content_manifest.json
     - assets/audio/adhan.ogg
     - assets/learning/thematic_segments.json

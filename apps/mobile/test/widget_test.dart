@@ -4,13 +4,13 @@ import 'package:tarteel/src/common.dart';
 import 'package:tarteel/src/theme.dart';
 
 void main() {
-  test('brand themes keep the green and gold design system', () {
+  test('brand themes preserve distinct semantic accent colors', () {
     for (final theme in <ThemeData>[
       TarteelTheme.light(),
       TarteelTheme.dark(),
     ]) {
       expect(theme.colorScheme.primary, isNot(theme.colorScheme.secondary));
-      expect(theme.colorScheme.tertiary, theme.colorScheme.secondary);
+      expect(theme.colorScheme.tertiary, isNot(theme.colorScheme.secondary));
       expect(theme.cardTheme.shape, isA<RoundedRectangleBorder>());
       expect(
         theme.navigationBarTheme.indicatorColor,

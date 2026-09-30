@@ -39,6 +39,7 @@ class TarteelTheme {
         );
     final base = ThemeData(useMaterial3: true, brightness: brightness);
     final appliedTypography = base.textTheme.apply(
+      fontFamily: 'TarteelUI',
       fontFamilyFallback: const <String>[
         'Noto Sans Arabic',
         'Noto Sans',

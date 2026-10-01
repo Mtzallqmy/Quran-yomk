@@ -4,9 +4,10 @@ package=app.tarteel.tarteel
 output="native-evidence/api-${ANDROID_API_LEVEL}"
 mkdir -p "$output"
 adb install -r validation/build/app/outputs/flutter-apk/app-debug.apk
-adb logcat -c
 adb shell am start -W -n "$package/.MainActivity" | tee "$output/launch.txt"
 sleep 25
+# Cold JIT startup can outlast am's fixed wait; confirm the now-rendered activity.
+adb shell am start -W -n "$package/.MainActivity" | tee "$output/launch-confirmed.txt"
 app_pid="$(adb shell pidof "$package" | tr -d '\r')"
 test -n "$app_pid"
 adb logcat -d --pid="$app_pid" > "$output/logcat.txt"
@@ -17,7 +18,7 @@ python3 - "$output" <<'PY'
 from pathlib import Path
 import sys
 p=Path(sys.argv[1])
-launch=(p/'launch.txt').read_text()
+launch=(p/'launch-confirmed.txt').read_text()
 logs=(p/'logcat.txt').read_text()
 assert 'Status: ok' in launch, launch
 assert 'FATAL EXCEPTION' not in logs, logs

@@ -738,7 +738,11 @@ class _VolumeControl extends StatelessWidget {
               onChanged: (value) => playback.setVolume(value),
             ),
           ),
-          SizedBox(width: 48, child: Text('${(volume * 100).round()}%')),
+          Text(
+            '${(volume * 100).round()}%',
+            maxLines: 1,
+            textDirection: TextDirection.ltr,
+          ),
         ],
       );
     },

@@ -9,6 +9,7 @@ import '../quran_audio.dart';
 import '../quran_models.dart';
 import '../quran_playlist_store.dart';
 import '../services.dart';
+import '../storage.dart';
 import 'legacy_reciter_detail.dart';
 import 'quran_index.dart';
 import 'quran_playlists.dart';
@@ -35,6 +36,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   void initState() {
     super.initState();
+    _filter = SettingsStore.searchScopes.indexOf(
+      ref.read(servicesProvider).settings.searchScope,
+    );
+    if (_filter == 3 &&
+        !ref.read(servicesProvider).features.enabled(TarteelFeature.radio))
+      _filter = 0;
     _controller.text = widget.initialQuery ?? '';
     if (_controller.text.isNotEmpty)
       WidgetsBinding.instance.addPostFrameCallback(
@@ -232,7 +239,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           child: ChoiceChip(
                             label: Text(label),
                             selected: _filter == index,
-                            onSelected: (_) => setState(() => _filter = index),
+                            onSelected: (_) {
+                              setState(() => _filter = index);
+                              services.settings.setSearchScope(
+                                SettingsStore.searchScopes[index],
+                              );
+                            },
                           ),
                         ),
                   ],

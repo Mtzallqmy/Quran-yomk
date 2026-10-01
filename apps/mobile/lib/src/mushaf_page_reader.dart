@@ -342,7 +342,9 @@ class _MushafPageReaderState extends State<MushafPageReader> {
           ignoring: !_controlsVisible,
           child: AnimatedOpacity(
             opacity: _controlsVisible ? 1 : 0,
-            duration: const Duration(milliseconds: 180),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
             child: Align(
               alignment: Alignment.topCenter,
               child: SafeArea(
@@ -401,7 +403,9 @@ class _MushafPageReaderState extends State<MushafPageReader> {
           ignoring: !_controlsVisible,
           child: AnimatedOpacity(
             opacity: _controlsVisible ? 1 : 0,
-            duration: const Duration(milliseconds: 180),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
             child: Align(
               alignment: Alignment.bottomCenter,
               child: SafeArea(
@@ -427,7 +431,10 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                             tooltip: 'صفحة سابقة',
                             onPressed: _page > 1
                                 ? () => _pages.previousPage(
-                                    duration: const Duration(milliseconds: 200),
+                                    duration:
+                                        MediaQuery.disableAnimationsOf(context)
+                                        ? Duration.zero
+                                        : const Duration(milliseconds: 200),
                                     curve: Curves.easeOut,
                                   )
                                 : null,
@@ -443,7 +450,10 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                             tooltip: 'صفحة تالية',
                             onPressed: _page < mushafPageCount
                                 ? () => _pages.nextPage(
-                                    duration: const Duration(milliseconds: 200),
+                                    duration:
+                                        MediaQuery.disableAnimationsOf(context)
+                                        ? Duration.zero
+                                        : const Duration(milliseconds: 200),
                                     curve: Curves.easeOut,
                                   )
                                 : null,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -162,7 +163,7 @@ class PushNotificationSettingsPage extends ConsumerWidget {
                 ],
               ),
             ),
-            const _NotificationDiagnosticsCard(),
+            if (kDebugMode) const _NotificationDiagnosticsCard(),
             SwitchListTile(
               value: service.enabled,
               onChanged: service.busy

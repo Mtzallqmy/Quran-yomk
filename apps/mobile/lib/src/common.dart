@@ -19,9 +19,20 @@ class LoadingPane extends StatelessWidget {
 }
 
 class EmptyPane extends StatelessWidget {
-  const EmptyPane({super.key, this.message});
+  const EmptyPane({
+    super.key,
+    this.message,
+    this.description,
+    this.onAction,
+    this.actionLabel,
+    this.icon = Icons.inbox_outlined,
+  });
 
   final String? message;
+  final String? description;
+  final VoidCallback? onAction;
+  final String? actionLabel;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -43,12 +54,30 @@ class EmptyPane extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Icon(Icons.inbox_outlined, size: 38, color: scheme.primary),
+                    Icon(icon, size: 38, color: scheme.primary),
                     const SizedBox(height: TarteelTokens.spaceSm),
                     Text(
                       message ?? context.l10n.noData,
+                      style: description == null
+                          ? null
+                          : Theme.of(context).textTheme.titleMedium,
                       textAlign: TextAlign.center,
                     ),
+                    if (description != null) ...[
+                      const SizedBox(height: TarteelTokens.spaceSm),
+                      Text(
+                        description!,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                    if (onAction != null && actionLabel != null) ...[
+                      const SizedBox(height: TarteelTokens.spaceMd),
+                      FilledButton(
+                        onPressed: onAction,
+                        child: Text(actionLabel!),
+                      ),
+                    ],
                   ],
                 ),
               ),

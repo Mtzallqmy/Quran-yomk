@@ -281,7 +281,7 @@ class _RootShellState extends ConsumerState<RootShell>
       MobileDestination.home: s.home,
       MobileDestination.quran: s.mushaf,
       MobileDestination.listen: english ? 'Listen' : 'الاستماع',
-      MobileDestination.radio: s.radio,
+      MobileDestination.radio: english ? 'Radio' : 'الإذاعات',
       MobileDestination.library: english ? 'My library' : 'مكتبتي',
     };
     const pages = <Widget>[
@@ -440,6 +440,11 @@ class _RootShellState extends ConsumerState<RootShell>
         children: [
           const MiniPlayerBar(),
           NavigationBar(
+            labelBehavior:
+                MediaQuery.sizeOf(context).width < 360 ||
+                    MediaQuery.textScalerOf(context).scale(12) > 16
+                ? NavigationDestinationLabelBehavior.onlyShowSelected
+                : NavigationDestinationLabelBehavior.alwaysShow,
             selectedIndex: destinations.indexOf(effective),
             onDestinationSelected: (value) => _select(destinations[value]),
             destinations: [

@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../common.dart';
 import '../feature_manager.dart';
 import '../l10n.dart';
+import '../navigation.dart';
+import '../quran_download_contract.dart';
+import 'content_sources.dart';
 import '../services.dart';
 import 'about.dart';
 import 'notification_settings.dart';
@@ -18,8 +21,13 @@ class SettingsPage extends ConsumerWidget {
     final services = ref.watch(servicesProvider);
     final settings = services.settings;
     final l10n = context.l10n;
+    final english = settings.locale.languageCode == 'en';
     return AnimatedBuilder(
-      animation: settings,
+      animation: Listenable.merge([
+        settings,
+        services.features,
+        services.quranDownloads,
+      ]),
       builder: (context, _) => Scaffold(
         appBar: AppBar(title: Text(l10n.settings)),
         body: ListView(
@@ -83,8 +91,38 @@ class SettingsPage extends ConsumerWidget {
               title: Text(l10n.cancelSleepTimer),
               onTap: services.playback.cancelSleepTimer,
             ),
+            if (services.features.enabled(TarteelFeature.offlineDownloads)) ...[
+              SectionHeader(english ? 'Downloads' : 'التنزيلات'),
+              ListTile(
+                leading: const Icon(Icons.download_outlined),
+                title: Text(
+                  english
+                      ? 'Downloads and storage'
+                      : 'التنزيلات ومساحة التخزين',
+                ),
+                subtitle: Text(
+                  english
+                      ? 'Manage downloaded recitations and offline listening'
+                      : 'إدارة التلاوات المحملة والاستماع دون اتصال',
+                ),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () =>
+                    Navigator.pushNamed(context, MobileRoutes.downloads),
+              ),
+              ListTile(
+                leading: const Icon(Icons.storage_outlined),
+                title: Text(
+                  english
+                      ? 'Downloaded audio storage'
+                      : 'مساحة التلاوات المحملة',
+                ),
+                subtitle: Text(
+                  '${(services.quranDownloads.tasks.where((task) => task.state == QuranDownloadState.completed).fold<int>(0, (sum, task) => sum + (task.totalBytes ?? task.downloadedBytes)) / (1024 * 1024)).toStringAsFixed(1)} MB',
+                ),
+              ),
+            ],
+            SectionHeader(english ? 'Notifications' : 'الإشعارات'),
             if (services.features.enabled(TarteelFeature.prayer)) ...<Widget>[
-              const SectionHeader('الصلاة والتنبيهات'),
               ListTile(
                 leading: const Icon(Icons.access_time),
                 title: const Text('مواقيت الصلاة'),
@@ -120,6 +158,7 @@ class SettingsPage extends ConsumerWidget {
                 ),
               ),
             ),
+            SectionHeader(english ? 'Saved recordings' : 'التسجيلات المحفوظة'),
             ListTile(
               leading: const Icon(Icons.offline_pin_outlined),
               title: Text(l10n.savedClips),
@@ -127,6 +166,50 @@ class SettingsPage extends ConsumerWidget {
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const SavedClipsPage()),
+              ),
+            ),
+            SectionHeader(english ? 'Privacy' : 'الخصوصية'),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: Text(
+                english
+                    ? 'Notification privacy and consent'
+                    : 'خصوصية الإشعارات والموافقة',
+              ),
+              onTap: () => showNotificationPrivacyDetails(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.verified_user_outlined),
+              title: Text(
+                english ? 'Notification permissions' : 'صلاحيات الإشعارات',
+              ),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const PushNotificationSettingsPage(),
+                ),
+              ),
+            ),
+            SectionHeader(english ? 'Sources' : 'المصادر'),
+            ListTile(
+              leading: const Icon(Icons.source_outlined),
+              title: Text(l10n.thirdPartyRights),
+              subtitle: Text(l10n.contentSourcesSubtitle),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const ContentSourcesPage(),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: Text(
+                english ? 'Open source licenses' : 'تراخيص البرمجيات',
+              ),
+              onTap: () => showLicensePage(
+                context: context,
+                applicationName: english ? 'Tarteel' : 'ترتيل',
               ),
             ),
             SectionHeader(l10n.aboutSection),

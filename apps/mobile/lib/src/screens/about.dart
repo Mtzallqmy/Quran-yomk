@@ -151,9 +151,21 @@ class _InstalledVersionState extends State<_InstalledVersion> {
     builder: (context, snapshot) {
       final value = snapshot.data;
       if (value == null) return const SizedBox.shrink();
-      return Text(
-        context.l10n.versionLabel('${value.version} (${value.buildNumber})'),
-        textAlign: TextAlign.center,
+      const sha = String.fromEnvironment('GIT_SHA');
+      return Column(
+        children: [
+          Text(
+            context.l10n.versionLabel(
+              '${value.version} (${value.buildNumber})',
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (sha.isNotEmpty)
+            SelectableText(
+              'Git ${sha.length > 12 ? sha.substring(0, 12) : sha}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+        ],
       );
     },
   );

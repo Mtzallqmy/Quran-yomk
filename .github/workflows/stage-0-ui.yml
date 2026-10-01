@@ -33,15 +33,59 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze --no-pub --no-fatal-infos
       - run: flutter test --no-pub
-      - run: flutter build apk --debug --no-pub
+      - run: flutter build apk --debug --no-pub --dart-define=GIT_SHA=${{ github.event.pull_request.head.sha || github.sha }}
       - name: Android lint
         run: cd android && ./gradlew :app:lintDebug
+      - name: Build ARM64 preview APK
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: stage-0-validation
           path: |
             apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+            apps/mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
             apps/mobile/build/app/reports/lint-results-debug*
             apps/mobile/test/goldens
             apps/mobile/test/failures
+
+  android-smoke:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 35]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/download-artifact@v4
+        with:
+          name: stage-0-validation
+          path: validation
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install and launch the actual APK
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_API_LEVEL: ${{ matrix.api }}
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/stage-0-android-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stage-0-native-api-${{ matrix.api }}
+          path: native-evidence

@@ -281,7 +281,7 @@ class _RootShellState extends ConsumerState<RootShell>
       MobileDestination.home: s.home,
       MobileDestination.quran: s.mushaf,
       MobileDestination.listen: english ? 'Listen' : 'الاستماع',
-      MobileDestination.radio: s.radio,
+      MobileDestination.radio: english ? 'Radio' : 'الإذاعات',
       MobileDestination.library: english ? 'My library' : 'مكتبتي',
     };
     const pages = <Widget>[

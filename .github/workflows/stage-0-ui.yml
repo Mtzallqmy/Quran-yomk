@@ -36,12 +36,15 @@ jobs:
       - run: flutter build apk --debug --no-pub --dart-define=GIT_SHA=${{ github.event.pull_request.head.sha || github.sha }}
       - name: Android lint
         run: cd android && ./gradlew :app:lintDebug
+      - name: Build ARM64 preview APK
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: stage-0-validation
           path: |
             apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+            apps/mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
             apps/mobile/build/app/reports/lint-results-debug*
             apps/mobile/test/goldens
             apps/mobile/test/failures

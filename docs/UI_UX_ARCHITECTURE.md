@@ -124,8 +124,8 @@ URL is required for the share action.
 
 Flutter unit/widget/golden tests are the canonical UI tests. Roborazzi and
 Compose instrumentation belong to the unrelated `main` scaffold and cannot
-validate this verified Flutter APK. The Stage 0 workflow builds only a debug
-APK, runs Android lint and uploads evidence; it never publishes a release.
+validate this verified Flutter APK. The Stage 0 workflow builds a debug APK and an optimized ARM64 preview
+APK, runs Android lint and uploads evidence; it never publishes a production release.
 Goldens include light/dark Home, index, offline reader, Listen, idle/active Radio, Library,
 idle/active Full Player and Settings on 360x740, 412x915 and 1.6 font scale. Offline and
 idle goldens do not prove live provider availability or downloaded page visual

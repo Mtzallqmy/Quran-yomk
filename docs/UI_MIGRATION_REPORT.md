@@ -80,3 +80,17 @@ consistency, distinct edition navigation and large-font settings/downloads.
 Active-player and active-radio screenshot fixtures supplement the offline/idle
 coverage. The CI workflow now embeds source SHA and starts the actual debug
 APK on API 26/35 emulators; see the PR for final run results and artifact links.
+
+The UI update advances the application to 0.7.3+73. Search scope is now persisted
+in the existing SettingsStore with stable IDs and a disabled-radio fallback.
+
+## Signing / in-place update limitation
+
+The supplied baseline APK uses an Android Debug certificate, SHA256
+fe12985a559ebffd9719fc9c5f487600a54d58e1ab9f63228225a063d9e7c709.
+The existing Android release configuration uses each runner's debug signing
+key; no original keystore is version-controlled. A newly generated runner
+certificate does not permit an in-place update over that APK. Preserving
+installed user data requires the original private signing key, supplied through
+secure CI secrets, not a new key or an uninstall. This stage does not alter
+Android signing or claim that an unrelated certificate is upgrade-compatible.

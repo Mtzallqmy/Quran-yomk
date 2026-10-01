@@ -83,6 +83,8 @@ class SettingsStore extends ChangeNotifier {
   Locale locale = const Locale('ar');
   double playbackSpeed = 1.0;
   String mobileDestination = 'home';
+  static const searchScopes = ['all', 'quran', 'reciters', 'radio'];
+  String searchScope = 'all';
 
   void load() {
     themeMode = switch (_prefs.getString('settings:theme')) {
@@ -94,6 +96,15 @@ class SettingsStore extends ChangeNotifier {
     mobileDestination =
         _prefs.getString('settings:mobile-destination') ?? 'home';
     playbackSpeed = _prefs.getDouble('settings:speed') ?? 1.0;
+    final savedScope = _prefs.getString('settings:search-scope');
+    searchScope = searchScopes.contains(savedScope) ? savedScope! : 'all';
+  }
+
+  Future<void> setSearchScope(String value) async {
+    if (!searchScopes.contains(value))
+      throw ArgumentError.value(value, 'value');
+    searchScope = value;
+    await _prefs.setString('settings:search-scope', value);
   }
 
   Future<void> setMobileDestination(String value) async {

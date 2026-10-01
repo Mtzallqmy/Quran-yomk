@@ -64,6 +64,8 @@ void main() {
   testWidgets(
     'active radio pause reuses the playback session and honors reduced motion',
     (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.8;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       tester.platformDispatcher.accessibilityFeaturesTestValue =
           const FakeAccessibilityFeatures(disableAnimations: true);
       addTearDown(
@@ -114,6 +116,28 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
+  testWidgets('search scope restores after closing and reopening the screen', (
+    tester,
+  ) async {
+    final services = await uiServices();
+    await shell(tester, services);
+    await tester.tap(find.byIcon(Icons.search).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, 'القرآن'));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.search).first);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'القرآن'))
+          .selected,
+      isTrue,
+    );
+    expect(services.settings.searchScope, 'quran');
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets(
     'settings groups and downloads action remain usable with large text',
     (tester) async {

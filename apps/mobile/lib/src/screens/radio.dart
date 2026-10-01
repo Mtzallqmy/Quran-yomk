@@ -405,6 +405,18 @@ class _VirtualRadioCard extends ConsumerWidget {
             ],
           ),
           data: (resolution) {
+            if (!resolution.available)
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.radio_outlined),
+                title: const Text('إذاعة ترتيل غير متاحة الآن'),
+                trailing: IconButton(
+                  tooltip: 'إعادة المحاولة',
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () =>
+                      ref.read(virtualRadioProvider.notifier).retry(),
+                ),
+              );
             final program = resolution.program;
             return StreamBuilder<MediaItem?>(
               stream: playback.mediaItemStream,
@@ -447,7 +459,8 @@ class _VirtualRadioCard extends ConsumerWidget {
                                     ],
                                   ),
                                   Text(
-                                    program?.titleAr ?? 'بث مختار',
+                                    program?.titleAr ??
+                                        'تفاصيل البرنامج غير متاحة',
                                     style: Theme.of(
                                       context,
                                     ).textTheme.titleMedium,
@@ -759,11 +772,6 @@ class _OnAirCardState extends ConsumerState<_OnAirCard> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
-                const SizedBox(width: TarteelTokens.spaceSm),
-                const Chip(
-                  label: Text('LIVE'),
-                  avatar: Icon(Icons.sensors, size: 18),
-                ),
               ],
             ),
             FutureBuilder<NowPlaying>(
@@ -790,45 +798,66 @@ class _OnAirCardState extends ConsumerState<_OnAirCard> {
                     (state?.processingState == AudioProcessingState.loading ||
                         state?.processingState ==
                             AudioProcessingState.buffering);
-                return Row(
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (_playing) ...[
-                      const _PlaybackWave(),
-                      const SizedBox(width: TarteelTokens.spaceSm),
-                      const Expanded(child: Text('جارٍ التشغيل')),
-                    ] else
-                      const Spacer(),
-                    AnimatedBuilder(
-                      animation: services.favorites,
-                      builder: (context, _) => IconButton(
-                        tooltip: services.favorites.isStation(station.id)
-                            ? 'إزالة من المفضلة'
-                            : 'إضافة إلى المفضلة',
-                        onPressed: () =>
-                            services.favorites.toggleStation(station.id),
-                        icon: Icon(
-                          services.favorites.isStation(station.id)
-                              ? Icons.favorite
-                              : Icons.favorite_border,
+                    Wrap(
+                      spacing: TarteelTokens.spaceSm,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Chip(
+                          label: Text('LIVE'),
+                          avatar: Icon(Icons.sensors, size: 18),
                         ),
-                      ),
+                        if (_playing)
+                          const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _PlaybackWave(),
+                              SizedBox(width: TarteelTokens.spaceSm),
+                              Text('جارٍ التشغيل'),
+                            ],
+                          ),
+                      ],
                     ),
-                    FilledButton.icon(
-                      onPressed: busy
-                          ? null
-                          : () => widget.item == null
-                                ? widget.onPlay()
+                    const SizedBox(height: TarteelTokens.spaceSm),
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        AnimatedBuilder(
+                          animation: services.favorites,
+                          builder: (context, _) => IconButton(
+                            tooltip: services.favorites.isStation(station.id)
+                                ? 'إزالة من المفضلة'
+                                : 'إضافة إلى المفضلة',
+                            onPressed: () =>
+                                services.favorites.toggleStation(station.id),
+                            icon: Icon(
+                              services.favorites.isStation(station.id)
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                            ),
+                          ),
+                        ),
+                        FilledButton.icon(
+                          onPressed: busy
+                              ? null
+                              : () => widget.item == null
+                                    ? widget.onPlay()
+                                    : _playing
+                                    ? services.playback.pause()
+                                    : services.playback.play(),
+                          icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
+                          label: Text(
+                            busy
+                                ? 'جارٍ التحميل'
                                 : _playing
-                                ? services.playback.pause()
-                                : services.playback.play(),
-                      icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
-                      label: Text(
-                        busy
-                            ? 'جارٍ التحميل'
-                            : _playing
-                            ? 'إيقاف مؤقت'
-                            : 'تشغيل',
-                      ),
+                                ? 'إيقاف مؤقت'
+                                : 'تشغيل',
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 );

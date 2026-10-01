@@ -66,6 +66,17 @@ change or new religious-content feature is part of this UI stage.
 
 The current Surah contract lacks revelation type/start page/start juz for list
 rows; navigation resolves correct pages from existing passages without invented
-metadata. Mushaf catalog access still goes through canonical reader editions.
-Some pre-existing feature screens retain their prior layouts. Existing page
-control motion is not yet fully bound to reduced-motion settings.
+metadata. The listening edition browser, radio on-air/list/filter UI, settings groups,
+large-font navigation and reduced-motion reader buttons were completed in the
+follow-up. Some unrelated preserved feature screens retain their previous
+layouts. The existing download engine does not support a Wi-Fi-only setting,
+so the UI does not present a nonfunctional switch.
+
+## Follow-up validation
+
+Additional regression tests cover explicit radio actions and real metadata,
+active-radio pause using the existing engine, canonical/legacy favorite
+consistency, distinct edition navigation and large-font settings/downloads.
+Active-player and active-radio screenshot fixtures supplement the offline/idle
+coverage. The CI workflow now embeds source SHA and starts the actual debug
+APK on API 26/35 emulators; see the PR for final run results and artifact links.

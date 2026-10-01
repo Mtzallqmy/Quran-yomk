@@ -74,6 +74,14 @@ class UiServices implements AppServices {
 
 class UiRepository implements TarteelRepository {
   final openedPages = <int>[];
+  List<Station> stationValues = [];
+  @override
+  Future<NowPlaying> nowPlaying(String slug) async => NowPlaying(
+    stationId: stationValues.first.id,
+    stationSlug: slug,
+    isLive: true,
+    title: 'تلاوة من بيانات الاختبار',
+  );
   JsonMap config = {'radio_enabled': true, 'prayer_features_enabled': false};
   @override
   Future<JsonMap> appConfig({bool refresh = false}) async => config;
@@ -95,7 +103,7 @@ class UiRepository implements TarteelRepository {
     ),
   ];
   @override
-  Future<List<Station>> stations({bool refresh = false}) async => [];
+  Future<List<Station>> stations({bool refresh = false}) async => stationValues;
   @override
   Future<List<Reciter>> reciters({bool refresh = false}) async => [];
   @override
@@ -141,6 +149,8 @@ class UiAudio implements QuranAudioRepository {
 
 class UiDownloads extends ChangeNotifier implements QuranDownloadService {
   @override
+  bool get supported => true;
+  @override
   List<QuranDownloadTask> get tasks => [];
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -180,11 +190,35 @@ class UiPush implements PushNotificationService {
 class UiPlayback implements PlaybackPort {
   MediaItem? item;
   Duration position = Duration.zero;
+  bool playing = false;
+  int playCalls = 0;
+  int pauseCalls = 0;
+  final playedStations = <Station>[];
+  @override
+  Future<void> playStation(Station station) async {
+    playedStations.add(station);
+  }
+
+  @override
+  Future<void> play() async {
+    playCalls++;
+  }
+
+  @override
+  Future<void> pause() async {
+    pauseCalls++;
+  }
+
   @override
   Stream<MediaItem?> get mediaItemStream => Stream.value(item);
   @override
   Stream<PlaybackState> get playbackStateStream => Stream.value(
-    PlaybackState(playing: false, processingState: AudioProcessingState.idle),
+    PlaybackState(
+      playing: playing,
+      processingState: item == null
+          ? AudioProcessingState.idle
+          : AudioProcessingState.ready,
+    ),
   );
   @override
   Stream<Duration> get positionStream => Stream.value(position);
@@ -210,3 +244,15 @@ class UiClips extends ChangeNotifier implements OfflineClipService {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+const uiRadioStation = Station(
+  id: 'test-station',
+  slug: 'test-radio',
+  nameAr: 'إذاعة الحرم للاختبار',
+  source: 'EXTERNAL',
+  streamType: 'LIVE',
+  category: 'QURAN_GENERAL',
+  healthStatus: 'HEALTHY',
+  playbackUrl: 'https://example.invalid/test-only.mp3',
+  isFeatured: true,
+);

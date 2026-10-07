@@ -15,11 +15,11 @@ import java.io.File
 
 class RecitationRecorderService : Service() {
     companion object {
-        var active = false
+        @Volatile var active = false
             private set
-        var lastError: String? = null
+        @Volatile var lastError: String? = null
             private set
-        var elapsedStart = 0L
+        @Volatile var elapsedStart = 0L
             private set
         fun completed(context: android.content.Context): String = context
             .getSharedPreferences("recitation_recordings", MODE_PRIVATE).getString("completed", "[]") ?: "[]"

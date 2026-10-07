@@ -68,7 +68,7 @@ class OfflineAlarmTest {
         Thread.sleep(2500)
         context.startService(android.content.Intent(context, RecitationRecorderService::class.java).setAction("stop"))
         val stopDeadline = System.currentTimeMillis() + 5000
-        while (RecitationRecorderService.active && System.currentTimeMillis() < stopDeadline) Thread.sleep(100)
+        while (org.json.JSONArray(RecitationRecorderService.completed(context)).length() == 0 && System.currentTimeMillis() < stopDeadline) Thread.sleep(100)
         val rows = org.json.JSONArray(RecitationRecorderService.completed(context))
         assertEquals("Recording saved: ${RecitationRecorderService.lastError}", 1, rows.length())
         val file = java.io.File(rows.getJSONObject(0).getString("path"))

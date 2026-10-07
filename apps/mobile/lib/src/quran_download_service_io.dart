@@ -244,10 +244,12 @@ class _IoQuranDownloadService extends QuranDownloadService {
       );
       final done = Completer<void>();
       _activeDone = done;
-      unawaited(_activeSink!.done.catchError((Object error, StackTrace stack) {
-        _writeError = error;
-        if (!done.isCompleted) done.completeError(error, stack);
-      }));
+      unawaited(
+        _activeSink!.done.catchError((Object error, StackTrace stack) {
+          _writeError = error;
+          if (!done.isCompleted) done.completeError(error, stack);
+        }),
+      );
       final stream = response.timeout(_inactivityTimeout);
       _activeSubscription = stream.listen(
         (chunk) {
@@ -393,7 +395,9 @@ class _IoQuranDownloadService extends QuranDownloadService {
     try {
       await _activeSink?.flush();
       await _activeSink?.close();
-    } catch (error) { _writeError = error; }
+    } catch (error) {
+      _writeError = error;
+    }
     _activeSink = null;
   }
 

@@ -326,6 +326,7 @@ class _IoOfflineClipService extends OfflineClipService {
       'limitMs': maxDuration?.inMilliseconds ?? 0,
     });
     if (permitted != true) throw StateError('MICROPHONE_PERMISSION_REQUIRED');
+    _lastError = null;
     _micActive = true;
     _micElapsed = Duration.zero;
     _micTimer?.cancel();

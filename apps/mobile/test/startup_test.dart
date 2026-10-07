@@ -71,7 +71,11 @@ void main() {
     final deferred = source.split('  runApp(').last;
     expect(deferred, contains("'runtime_config': remoteConfig.refresh"));
     expect(deferred, contains("'local_reminders'"));
-    final reminders = deferred.split("'local_reminders'").last.split("'push_notifications'").first;
+    final reminders = deferred
+        .split("'local_reminders'")
+        .last
+        .split("'push_notifications'")
+        .first;
     expect(reminders, isNot(contains('remoteConfig.refresh')));
     expect(deferred, contains("'push_notifications'"));
     expect(deferred, contains("'announcements'"));

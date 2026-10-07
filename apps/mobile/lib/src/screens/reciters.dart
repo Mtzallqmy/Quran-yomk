@@ -9,6 +9,7 @@ import '../navigation.dart';
 import '../quran_audio.dart';
 import '../quran_download_contract.dart';
 import '../services.dart';
+import '../download_progress.dart';
 
 class RecitersPage extends ConsumerStatefulWidget {
   const RecitersPage({super.key, this.surahNumber, this.editionsView = false});
@@ -275,6 +276,7 @@ class _QuranAudioReciterDetailPageState
     extends ConsumerState<QuranAudioReciterDetailPage> {
   late Future<List<Surah>> _surahs;
   final Set<int> _busy = {};
+  bool _batchBusy = false;
 
   @override
   void initState() {
@@ -327,6 +329,28 @@ class _QuranAudioReciterDetailPageState
     } finally {
       if (mounted) setState(() => _busy.remove(surah.number));
     }
+  }
+
+  Future<void> _downloadAll(List<Surah> surahs) async {
+    final services = ref.read(servicesProvider);
+    if (_batchBusy || !services.remoteConfig.offlineDownloadsEnabled) return;
+    final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+      title: Text(_english ? 'Download audio mushaf?' : 'تنزيل المصحف الصوتي؟'),
+      content: Text('سيتم تنزيل ${surahs.length} سورة بصوت ${widget.reciter.nameAr}. قد تحتاج مساحة كبيرة واتصالًا بالإنترنت حتى يكتمل التنزيل.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('تنزيل'))],
+    ));
+    if (confirmed != true || !mounted) return;
+    setState(() => _batchBusy = true);
+    var queued = 0;
+    try {
+      for (final surah in surahs) {
+        final media = await _resolve(surah); _assertIdentity(media);
+        await services.quranDownloads.download(media); queued++;
+      }
+      if (mounted) { _message('أضيفت $queued سورة إلى التنزيلات'); Navigator.pushNamed(context, MobileRoutes.downloads); }
+    } catch (_) { if (mounted) _message('أضيفت $queued سورة. أعد المحاولة لاستكمال السور المتبقية.'); }
+    finally { if (mounted) setState(() => _batchBusy = false); }
   }
 
   bool get _english => Localizations.localeOf(context).languageCode == 'en';
@@ -458,6 +482,9 @@ class _QuranAudioReciterDetailPageState
                                 widget.reciter.identityKey,
                               ),
                             ),
+                            FilledButton.icon(onPressed: _batchBusy ? null : () => _downloadAll(surahs),
+                              icon: const Icon(Icons.download_for_offline),
+                              label: Text(_batchBusy ? 'إضافة السور...' : 'تنزيل المصحف الصوتي')),
                             Text(
                               english
                                   ? '${surahs.length} available surahs'
@@ -484,7 +511,7 @@ class _QuranAudioReciterDetailPageState
                                   ? '${surah.ayahCount} verses'
                                   : '${surah.ayahCount} آية',
                             )
-                          : _DownloadStatus(task: task, english: english),
+                          : DownloadProgress(task: task, english: english),
                       trailing: Wrap(
                         spacing: 0,
                         children: [
@@ -527,30 +554,6 @@ class _QuranAudioReciterDetailPageState
         },
       ),
     );
-  }
-}
-
-class _DownloadStatus extends StatelessWidget {
-  const _DownloadStatus({required this.task, required this.english});
-
-  final QuranDownloadTask task;
-  final bool english;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = switch (task.state) {
-      QuranDownloadState.queued => english ? 'Queued' : 'في قائمة التنزيل',
-      QuranDownloadState.downloading =>
-        task.progress == null
-            ? (english ? 'Downloading…' : 'جارٍ التنزيل…')
-            : '${(task.progress! * 100).round()}%',
-      QuranDownloadState.paused => english ? 'Paused' : 'متوقف مؤقتًا',
-      QuranDownloadState.completed =>
-        english ? 'Available offline' : 'متاحة بدون إنترنت',
-      QuranDownloadState.failed => english ? 'Download failed' : 'فشل التنزيل',
-      QuranDownloadState.cancelled => english ? 'Cancelled' : 'تم الإلغاء',
-    };
-    return Text(text);
   }
 }
 

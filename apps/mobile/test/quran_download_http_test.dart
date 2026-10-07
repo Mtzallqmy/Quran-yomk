@@ -43,7 +43,7 @@ void main() {
       body = StreamController<List<int>>(
         onListen: () {
           if (mode == 'success') {
-            body.add(List<int>.filled(4096, 1));
+            body.add([0x49, 0x44, 0x33, ...List<int>.filled(4093, 1)]);
             unawaited(body.close());
           } else if (mode == 'trickle') {
             timer = Timer.periodic(const Duration(milliseconds: 5), (_) {
@@ -92,10 +92,18 @@ void main() {
         expect(request.followRedirects, isFalse);
         expect(client.forcedClosed, isTrue);
         expect(client.requests, 1);
-        expect(await File('${result.localPath}.part').exists(), isFalse);
+        expect(await File('${result.localPath}.part').exists(), mode == 'success' || mode == 'redirect' ? isFalse : isTrue);
         if (mode == 'success') {
           expect(result.state, QuranDownloadState.completed);
           expect(await File(result.localPath!).length(), 4096);
+          final restarted = io.createQuranDownloadService(await SharedPreferences.getInstance());
+          final unavailable = _UnavailableProvider();
+          final repository = QuranAudioRepository(providers: [unavailable], localLookup: restarted);
+          final saved = await repository.resolve(QuranAudioRequest(surah: _media().surah, reciter: _media().reciter));
+          expect(saved.isLocal, isTrue);
+          expect(unavailable.calls, 0);
+          expect(restarted.tasks.single.state, QuranDownloadState.completed);
+          restarted.dispose();
         } else {
           expect(result.state, QuranDownloadState.failed);
           expect(await File(result.localPath!).exists(), isFalse);
@@ -110,6 +118,27 @@ void main() {
       }, createHttpClient: (_) => client);
     });
   }
+  test('HTTPS redirects complete a verified download and report progress', () async {
+    final redirect = _Request(_Response(const Stream.empty(), 302,
+      headerValues: {'location': 'https://cdn.example.test/final.mp3'}), stall: false);
+    final audio = _Request(_Response(Stream.value([0x49, 0x44, 0x33, ...List.filled(8190, 1)]), 200,
+      headerValues: {'etag': 'v1'}), stall: false);
+    final client = _Client(redirect, followups: [audio]);
+    await HttpOverrides.runZoned(() async {
+      final service = io.createQuranDownloadService(await SharedPreferences.getInstance());
+      final done = Completer<void>();
+      service.addListener(() {
+        if (service.tasks.any((task) => task.state == QuranDownloadState.completed) && !done.isCompleted) done.complete();
+      });
+      await service.download(_media());
+      await done.future.timeout(const Duration(seconds: 5));
+      expect(client.requests, 2);
+      expect(service.tasks.single.progress, 1);
+      expect(await File(service.tasks.single.localPath!).length(), 8193);
+      service.dispose();
+    }, createHttpClient: (_) => client);
+  });
+
 }
 
 QuranAudioMedia _media() => QuranAudioMedia(
@@ -139,6 +168,10 @@ QuranAudioMedia _media() => QuranAudioMedia(
 );
 
 class _Headers implements HttpHeaders {
+  _Headers([this.values = const {}]);
+  final Map<String, String> values;
+  @override
+  String? value(String name) => values[name];
   @override
   ContentType? get contentType => ContentType('audio', 'mpeg');
   @override
@@ -163,7 +196,8 @@ class _Request implements HttpClientRequest {
 }
 
 class _Client implements HttpClient {
-  _Client(this.request);
+  _Client(this.request, {this.followups = const []});
+  final List<HttpClientRequest> followups;
   final HttpClientRequest request;
   bool forcedClosed = false;
   int requests = 0;
@@ -172,7 +206,7 @@ class _Client implements HttpClient {
   @override
   Future<HttpClientRequest> getUrl(Uri url) async {
     requests++;
-    return request;
+    return requests == 1 ? request : followups[requests - 2];
   }
 
   @override
@@ -185,14 +219,15 @@ class _Client implements HttpClient {
 }
 
 class _Response extends Stream<List<int>> implements HttpClientResponse {
-  _Response(this.body, this.statusCode);
+  _Response(this.body, this.statusCode, {this.headerValues = const {}});
+  final Map<String, String> headerValues;
   final Stream<List<int>> body;
   @override
   final int statusCode;
   @override
   int get contentLength => -1;
   @override
-  HttpHeaders get headers => _Headers();
+  HttpHeaders get headers => _Headers(headerValues);
   @override
   StreamSubscription<List<int>> listen(
     void Function(List<int>)? onData, {
@@ -207,4 +242,14 @@ class _Response extends Stream<List<int>> implements HttpClientResponse {
   );
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UnavailableProvider implements QuranAudioProvider {
+  int calls = 0;
+  @override
+  QuranAudioProviderKind get kind => QuranAudioProviderKind.mp3Quran;
+  @override
+  Future<List<QuranAudioCatalogReciter>> reciters({int? surahNumber}) async { calls++; throw StateError('NO_NETWORK'); }
+  @override
+  Future<QuranAudioMedia?> resolve(QuranAudioRequest request) async { calls++; throw StateError('NO_NETWORK'); }
 }

@@ -274,6 +274,11 @@ abstract class QuranAudioLocalLookup {
   Future<QuranAudioMedia?> localMedia(QuranAudioMedia remote);
 }
 
+abstract class QuranAudioRequestLookup {
+  Future<QuranAudioMedia?> localRequest(QuranAudioRequest request) async => null;
+  List<QuranAudioCatalogReciter> get offlineReciters => const [];
+}
+
 class QuranAudioRepository {
   QuranAudioRepository({
     required List<QuranAudioProvider> providers,
@@ -303,8 +308,16 @@ class QuranAudioRepository {
         .expand((rows) => rows)
         .where((reciter) => reciter.hasValidIdentity)
         .toList(growable: false);
-    _catalogCache[key] = values;
-    return values;
+    final merged = <String, QuranAudioCatalogReciter>{
+      for (final reciter in (localLookup is QuranAudioRequestLookup
+          ? (localLookup as QuranAudioRequestLookup).offlineReciters
+          : <QuranAudioCatalogReciter>[]))
+        if (surahNumber == null || reciter.availableSurahs.contains(surahNumber))
+          reciter.identityKey: reciter,
+      for (final reciter in values) reciter.identityKey: reciter,
+    }.values.toList(growable: false);
+    _catalogCache[key] = merged;
+    return merged;
   }
 
   Future<QuranAudioMedia> resolve(QuranAudioRequest request) async {
@@ -314,6 +327,17 @@ class QuranAudioRepository {
     final explicitReciter = request.reciter;
     if (explicitReciter != null && !explicitReciter.hasValidIdentity) {
       throw StateError('QURAN_AUDIO_RECITER_IDENTITY_INVALID');
+    }
+    final saved = localLookup is QuranAudioRequestLookup
+        ? await (localLookup as QuranAudioRequestLookup).localRequest(request)
+        : null;
+    if (saved != null) {
+      if (!saved.isLocal || !saved.hasValidIdentity || saved.surah.number != request.surah.number ||
+          saved.ayahGlobalNumber != request.ayahGlobalNumber || saved.ayahInSurah != request.ayahInSurah ||
+          (explicitReciter != null && !saved.reciter.sameIdentity(explicitReciter))) {
+        throw StateError('QURAN_AUDIO_LOCAL_IDENTITY_MISMATCH');
+      }
+      return saved;
     }
     final ordered = explicitReciter == null
         ? _providers
@@ -428,8 +452,6 @@ class AlQuranCloudAudioProvider implements QuranAudioProvider {
         ? 'audio/$bitrate/${reciter.edition}/${request.ayahGlobalNumber}.mp3'
         : 'audio-surah/$bitrate/${reciter.edition}/${request.surah.number}.mp3';
     final uri = Uri.parse('$_cdn/$relative');
-    final size = await _probe(uri);
-    if (size == null) return null;
     return QuranAudioMedia(
       id: request.isAyah
           ? 'alquran:${reciter.edition}:ayah:${request.ayahGlobalNumber}:$bitrate'
@@ -442,25 +464,13 @@ class AlQuranCloudAudioProvider implements QuranAudioProvider {
       ayahInSurah: request.ayahInSurah,
       playbackUri: uri,
       downloadUri: uri,
-      expectedSize: size,
+      // Availability and size are checked by the actual GET. Some CDNs reject
+      // HEAD or return chunked audio without Content-Length.
       rehostingAllowed: false,
       rightsStatus: 'DOCUMENTED_DIRECT_EXTERNAL',
     );
   }
 
-  Future<int?> _probe(Uri uri) async {
-    final request = http.Request('HEAD', uri);
-    final response = await _client
-        .send(request)
-        .timeout(const Duration(seconds: 12));
-    if (response.statusCode < 200 || response.statusCode >= 400) return null;
-    final streamedLength = response.contentLength;
-    if (streamedLength != null && streamedLength > 0) return streamedLength;
-    final declaredLength = int.tryParse(
-      response.headers['content-length'] ?? '',
-    );
-    return declaredLength != null && declaredLength > 0 ? declaredLength : null;
-  }
 }
 
 class Mp3QuranAudioProvider implements QuranAudioProvider {

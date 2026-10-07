@@ -6,6 +6,7 @@ import '../common.dart';
 import '../quran_download_contract.dart';
 import '../services.dart';
 import '../navigation.dart';
+import '../download_progress.dart';
 
 class QuranOfflinePage extends ConsumerWidget {
   const QuranOfflinePage({super.key});
@@ -242,39 +243,14 @@ class _OfflineSurahTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final services = ref.watch(servicesProvider);
-    final progress = task.progress;
-    final status = switch (task.state) {
-      QuranDownloadState.queued => english ? 'Queued' : 'في قائمة التنزيل',
-      QuranDownloadState.downloading =>
-        progress == null
-            ? (english ? 'Downloading' : 'جارٍ التنزيل')
-            : '${(progress * 100).round()}%',
-      QuranDownloadState.paused => english ? 'Paused' : 'متوقف مؤقتًا',
-      QuranDownloadState.completed => english ? 'Offline' : 'محملة',
-      QuranDownloadState.failed => english ? 'Failed' : 'فشل التنزيل',
-      QuranDownloadState.cancelled => english ? 'Cancelled' : 'ملغاة',
-    };
     final surah = task.media.surah;
     final title = english && surah.nameEn.isNotEmpty
         ? surah.nameEn
         : surah.nameAr;
-    final size = task.totalBytes == null
-        ? null
-        : _formatBytes(task.totalBytes!);
     return ListTile(
       leading: CircleAvatar(child: Text('${surah.number}')),
       title: Text(title),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(size == null ? status : '$status • $size'),
-          if (task.state == QuranDownloadState.downloading && progress != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: LinearProgressIndicator(value: progress),
-            ),
-        ],
-      ),
+      subtitle: DownloadProgress(task: task, english: english),
       trailing: Wrap(
         spacing: 0,
         children: <Widget>[

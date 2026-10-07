@@ -1,0 +1,159 @@
+name: Offline repairs Android 8+ ARM64
+on:
+  push:
+    branches: [fix/offline-downloads-recording-alarms-2074]
+permissions:
+  contents: read
+concurrency:
+  group: offline-repairs-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - name: Resolve locked dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+      - name: Format source for review
+        working-directory: apps/mobile
+        run: dart format lib test
+      - name: Analyze
+        working-directory: apps/mobile
+        run: flutter analyze --no-pub --no-fatal-infos
+      - name: Regression tests
+        working-directory: apps/mobile
+        run: flutter test --no-pub --update-goldens
+      - name: Review source and visual changes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-review-${{ github.run_number }}
+          path: |
+            apps/mobile/lib
+            apps/mobile/test
+            apps/mobile/pubspec.lock
+            apps/mobile/assets/fonts
+      - name: Require all formatted source and goldens committed
+        run: git diff --exit-code
+      - name: Restore internal beta signing for future upgrades
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: tarteel-internal-beta-signing-v1
+      - name: Build debug APK and native tests
+        working-directory: apps/mobile
+        run: |
+          flutter build apk --debug --no-pub --dart-define=GIT_SHA=${{ github.sha }}
+          cd android
+          ./gradlew :app:assembleDebugAndroidTest :app:lintDebug
+      - name: Build ARM64 release APK
+        working-directory: apps/mobile
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
+      - name: Verify release identity and signature
+        working-directory: apps/mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release/offline
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release/offline/tarteel-0.7.4-2074-arm64-v8a.apk
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n1)
+          "$AAPT" dump badging release/offline/*.apk > release/offline/badging.txt
+          "$APKSIGNER" verify --verbose --print-certs release/offline/*.apk > release/offline/signature.txt
+          grep -q "sdkVersion:'26'" release/offline/badging.txt
+          grep -q "versionCode='2074'" release/offline/badging.txt
+          grep -q "versionName='0.7.4'" release/offline/badging.txt
+          test "$(unzip -Z1 release/offline/*.apk | sed -n 's#^lib/\([^/]*\)/.*\.so#\1#p' | sort -u)" = arm64-v8a
+          cd release/offline
+          sha256sum *.apk > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: offline-apk
+          path: apps/mobile/release/offline
+      - uses: actions/upload-artifact@v4
+        with:
+          name: offline-native-tests
+          path: |
+            apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+            apps/mobile/build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+
+  android-acceptance:
+    needs: verify-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 35]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: offline-native-tests
+          path: validation
+      - name: Enable acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            adb install -r $(find validation -name app-debug.apk)
+            adb install -r $(find validation -name app-debug-androidTest.apk)
+            adb shell pm grant app.tarteel.tarteel android.permission.RECORD_AUDIO
+            adb shell pm grant app.tarteel.tarteel android.permission.POST_NOTIFICATIONS || true
+            adb shell appops set app.tarteel.tarteel SCHEDULE_EXACT_ALARM allow || true
+            adb shell am start -W -n app.tarteel.tarteel/.MainActivity
+            adb shell am instrument -w app.tarteel.tarteel.test/androidx.test.runner.AndroidJUnitRunner | tee native-tests.txt
+            grep -q 'OK (' native-tests.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offline-native-api-${{ matrix.api }}
+          path: native-tests.txt
+
+  publish:
+    needs: [verify-build, android-acceptance]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: offline-apk
+          path: release
+      - name: Publish tested APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd release
+          sha256sum -c SHA256SUMS.txt
+          cat > notes.md <<'NOTES'
+          مبني على ترتيل 0.7.3 (2073) من مسار التطبيق الفعلي.
+          Android 8+ / minSdk 26 / arm64-v8a فقط. الإصدار 0.7.4 (2074).
+          إصلاح تحويلات روابط التنزيل واستكمال الملفات الجزئية وإظهار التقدم والحفظ.
+          تشغيل الملفات المحفوظة قبل أي اتصال بالشبكة وتنزيل المصحف الصوتي من صفحة القارئ.
+          اختيار صوت من الهاتف للأذان والمنبه الشخصي اليومي وتشغيله محليًا بالخلفية.
+          تسجيل التلاوة بالميكروفون وتسجيل البث المسموح وحفظه للاستماع لاحقًا.
+          اختبار آلي على محاكي Android 8 وAndroid 15. الاختبار الصوتي على هاتف حقيقي ما زال مطلوبًا.
+          توقيع تجريبي داخلي محفوظ للإصدارات التالية. توافق توقيعه مع APK 2073 غير مؤكد.
+          NOTES
+          gh release create v0.7.4-beta.2074 *.apk SHA256SUMS.txt badging.txt signature.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title 'ترتيل 0.7.4 — إصلاح التنزيل والتسجيل والتنبيه ARM64' --notes-file notes.md --prerelease

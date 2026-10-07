@@ -5,6 +5,7 @@ import '../common.dart';
 import '../l10n.dart';
 import '../offline_clip_service.dart';
 import '../services.dart';
+import '../native_audio.dart';
 
 class SavedClipsPage extends ConsumerWidget {
   const SavedClipsPage({super.key});
@@ -15,7 +16,10 @@ class SavedClipsPage extends ConsumerWidget {
     final services = ref.watch(servicesProvider);
     final clips = services.offlineClips;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.savedClips)),
+      appBar: AppBar(title: Text(l10n.savedClips), actions: [
+        if (NativeAudio.supported) IconButton(icon: const Icon(Icons.mic), tooltip: 'تسجيل تلاوتك',
+          onPressed: () => _record(context, services)),
+      ]),
       body: AnimatedBuilder(
         animation: clips,
         builder: (context, _) {
@@ -35,17 +39,17 @@ class SavedClipsPage extends ConsumerWidget {
                       height: 28,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    title: Text(l10n.savingClip),
+                    title: Text(clips.microphoneRecording ? 'جارٍ تسجيل تلاوتك' : l10n.savingClip),
                     subtitle: Text(
                       '${_duration(clips.activeElapsed)} • ${_bytes(clips.activeBytes)}',
                     ),
                     trailing: IconButton.filledTonal(
                       tooltip: l10n.stopSaving,
                       onPressed: () async {
-                        await clips.stop();
+                        final saved = await clips.stop();
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(l10n.clipSavingStopped)),
+                          SnackBar(content: Text(saved == null ? l10n.clipSavingFailed : l10n.clipSavingStopped)),
                         );
                       },
                       icon: const Icon(Icons.stop),
@@ -90,6 +94,24 @@ class SavedClipsPage extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<void> _record(BuildContext context, AppServices services) async {
+    if (services.offlineClips.activeStationId != null) return;
+    final choice = await showModalBottomSheet<int>(context: context, builder: (context) => SafeArea(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const ListTile(title: Text('تسجيل تلاوتك بالميكروفون')),
+        for (final minutes in [0, 5, 10, 15, 30]) ListTile(
+          title: Text(minutes == 0 ? 'حتى تضغط إيقاف' : '$minutes دقيقة'),
+          onTap: () => Navigator.pop(context, minutes)),
+      ])));
+    if (choice == null || !context.mounted) return;
+    try {
+      await services.playback.pause();
+      await services.offlineClips.startMicrophone(maxDuration: choice == 0 ? null : Duration(minutes: choice));
+    } catch (_) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر التسجيل. اسمح بالوصول إلى الميكروفون ثم أعد المحاولة.')));
+    }
   }
 
   Future<void> _play(

@@ -15,6 +15,7 @@ import '../feature_manager.dart';
 import 'package:share_plus/share_plus.dart';
 import '../offline_clip_service.dart';
 import '../services.dart';
+import '../download_progress.dart';
 import '../theme.dart';
 import '../transcription.dart';
 import '../virtual_radio.dart';
@@ -216,10 +217,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
       final services = ref.read(servicesProvider);
       final media = await resolveQuranListening(services, session);
       await services.quranDownloads.download(media);
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('أضيفت التلاوة إلى التنزيلات')),
-        );
+      if (mounted) await showDownloadProgress(context, services.quranDownloads, media);
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(

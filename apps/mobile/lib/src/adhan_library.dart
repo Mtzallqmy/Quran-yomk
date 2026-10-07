@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'native_audio.dart';
+
 @immutable
 class AdhanRecording {
   const AdhanRecording({
@@ -69,6 +71,23 @@ class AdhanLibraryStore extends ChangeNotifier {
   String? _error;
 
   bool get busy => _busy;
+  bool get hasLocalFile => isDownloaded('phone-audio');
+
+  Future<bool> importPhoneAudio() async {
+    final path = await NativeAudio.pickAudio();
+    if (path == null) return false;
+    _files['phone-audio'] = path;
+    await _persist();
+    await select('phone-audio');
+    return true;
+  }
+
+  Future<void> selectBuiltIn() async {
+    _selectedId = null;
+    await _preferences.remove(_selectedKey);
+    notifyListeners();
+  }
+
   String? get error => _error;
   String? get selectedId => _selectedId;
   AdhanRecording? get selected => _find(_selectedId);
@@ -172,6 +191,17 @@ class AdhanLibraryStore extends ChangeNotifier {
 
   AdhanRecording? _find(String? id) {
     if (id == null) return null;
+    if (id == 'phone-audio')
+      return const AdhanRecording(
+        id: 'phone-audio',
+        nameAr: 'صوت من الهاتف',
+        nameEn: 'Phone audio',
+        placeAr: 'ملف محلي',
+        sourceUrl: '',
+        licenseUrl: '',
+        licenseLabel: 'ملف اختاره المستخدم',
+        fileExtension: 'audio',
+      );
     for (final recording in adhanRecordings) {
       if (recording.id == id) return recording;
     }

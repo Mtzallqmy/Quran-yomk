@@ -96,16 +96,18 @@ Future<void> main() async {
     playback: playback,
     assetPath: adhanLibrary.selectedPath ?? 'assets/audio/adhan.ogg',
   );
-  adhanLibrary.addListener(() {
-    final path = adhanLibrary.selectedPath;
-    if (path != null) adhanAudio.setAudioPath(path);
-  });
   final prayerReminders = PrayerReminderController(
     notifications: localNotifications,
     prayerTimes: prayerTimes,
     settings: prayerSettings,
     adhanAudio: adhanAudio,
   );
+  adhanLibrary.addListener(() {
+    adhanAudio.setAudioPath(
+      adhanLibrary.selectedPath ?? 'assets/audio/adhan.ogg',
+    );
+    prayerReminders.reconcile();
+  });
   final pushNotifications = PushNotificationService(
     preferences: preferences,
     localNotifications: localNotifications,
@@ -147,8 +149,8 @@ Future<void> main() async {
     'offline_clips': offlineClips.initialize,
     'quran_downloads': quranDownloads.initialize,
     'islamic_content': islamicContent.synchronizeInBackground,
-    'runtime_config_and_reminders': () async {
-      await remoteConfig.refresh();
+    'runtime_config': remoteConfig.refresh,
+    'local_reminders': () async {
       if (features.enabled(TarteelFeature.prayer)) {
         await prayerReminders.start();
       } else {

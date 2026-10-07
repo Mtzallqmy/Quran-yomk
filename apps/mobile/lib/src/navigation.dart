@@ -19,6 +19,7 @@ import 'screens/radio.dart';
 import 'screens/reciters.dart';
 import 'screens/search.dart';
 import 'screens/settings.dart';
+import 'screens/personal_alarms.dart';
 
 /// Stable identities: hiding radio must never reinterpret a selected index.
 enum MobileDestination { home, quran, listen, radio, library }
@@ -45,6 +46,7 @@ abstract final class MobileRoutes {
   static const favorites = '/favorites';
   static const playlists = '/playlists';
   static const settings = '/settings';
+  static const personalAlarms = '/personal-alarms';
   static const search = '/search';
   static const player = '/player';
 
@@ -80,6 +82,7 @@ abstract final class MobileRoutes {
       favorites => const _Secondary(title: 'المفضلة', child: FavoritesPage()),
       playlists => const QuranPlaylistsPage(),
       settings => const SettingsPage(),
+      personalAlarms => const PersonalAlarmsPage(),
       search => const SearchPage(),
       player => const FullPlayerPage(),
       _ => null,

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'native_audio.dart';
+
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -21,6 +23,7 @@ class LocalNotificationRequest {
     this.playSound = true,
     this.preferExact = true,
     this.repeatDaily = false,
+    this.audioPath,
   });
 
   final int id;
@@ -33,6 +36,7 @@ class LocalNotificationRequest {
   final bool playSound;
   final bool preferExact;
   final bool repeatDaily;
+  final String? audioPath;
 }
 
 abstract class LocalNotificationGateway {
@@ -75,12 +79,13 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
 
   static const _silentPrayerDetails = NotificationDetails(
     android: AndroidNotificationDetails(
-      'tarteel_prayer_reminders',
-      'تذكيرات الصلاة',
-      channelDescription: 'تنبيهات مواقيت الصلاة في ترتيل',
-      importance: Importance.max,
-      priority: Priority.max,
+      'tarteel_prayer_silent_v2',
+      'تذكيرات صامتة',
+      channelDescription: 'تذكيرات دون صوت أو اهتزاز',
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
       playSound: false,
+      enableVibration: false,
       category: AndroidNotificationCategory.reminder,
     ),
     iOS: DarwinNotificationDetails(
@@ -296,26 +301,45 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
   Future<void> schedule(
     LocalNotificationRequest request, {
     required bool exact,
-  }) => _plugin.zonedSchedule(
-    id: request.id,
-    title: request.title,
-    body: request.body,
-    scheduledDate: tz.TZDateTime.from(
-      request.scheduledAt,
-      tz.getLocation(request.timezone),
-    ),
-    notificationDetails: _detailsFor(request),
-    androidScheduleMode: exact
-        ? AndroidScheduleMode.exactAllowWhileIdle
-        : AndroidScheduleMode.inexactAllowWhileIdle,
-    matchDateTimeComponents: request.repeatDaily
-        ? DateTimeComponents.time
-        : null,
-    payload: request.payload,
-  );
+  }) async {
+    if (request.playSound &&
+        (request.channel == LocalNotificationChannel.adhan ||
+            request.audioPath != null)) {
+      final native = await NativeAudio.call<bool>('scheduleAlarm', {
+        'id': request.id,
+        'title': request.title,
+        'body': request.body,
+        'time': request.scheduledAt.millisecondsSinceEpoch,
+        'timezone': request.timezone,
+        'repeatDaily': request.repeatDaily,
+        'path': request.audioPath ?? '',
+      });
+      if (native == true) return;
+    }
+    await _plugin.zonedSchedule(
+      id: request.id,
+      title: request.title,
+      body: request.body,
+      scheduledDate: tz.TZDateTime.from(
+        request.scheduledAt,
+        tz.getLocation(request.timezone),
+      ),
+      notificationDetails: _detailsFor(request),
+      androidScheduleMode: exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: request.repeatDaily
+          ? DateTimeComponents.time
+          : null,
+      payload: request.payload,
+    );
+  }
 
   @override
-  Future<void> cancel(int id) => _plugin.cancel(id: id);
+  Future<void> cancel(int id) async {
+    await NativeAudio.call<void>('cancelAlarm', {'id': id});
+    await _plugin.cancel(id: id);
+  }
 }
 
 class LocalNotificationService {
@@ -328,6 +352,8 @@ class LocalNotificationService {
   Future<void>? _initialization;
 
   Stream<String> get payloads => _payloads.stream;
+  bool get nativeAudioAlarms =>
+      NativeAudio.supported && _gateway is FlutterLocalNotificationGateway;
 
   Future<void> initialize() => _initialization ??= _initialize();
 

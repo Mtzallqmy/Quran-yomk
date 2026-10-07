@@ -10,6 +10,19 @@ Future<QuranAudioMedia> resolveQuranListening(
   QuranPlaybackSnapshot session,
 ) async {
   if (!session.hasValidIdentity) throw StateError('INVALID_PLAYBACK_IDENTITY');
+  await services.quranDownloads.initialize();
+  for (final task in services.quranDownloads.tasks) {
+    final media = task.media;
+    if (media.provider.name == session.provider &&
+        media.reciter.id == session.reciterId &&
+        media.reciter.edition == session.edition &&
+        media.surah.number == session.surahNumber &&
+        media.ayahInSurah == session.ayahNumber &&
+        media.bitrateKbps == session.bitrateKbps) {
+      final local = await services.quranDownloads.localMedia(media);
+      if (local != null) return local;
+    }
+  }
   final catalog = await services.quranAudio.reciters(
     surahNumber: session.surahNumber,
   );

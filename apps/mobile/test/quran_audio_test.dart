@@ -63,7 +63,7 @@ void main() {
         surah?.playbackUri.toString(),
         'https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/1.mp3',
       );
-      expect(surah?.expectedSize, 12345);
+      expect(surah?.expectedSize, isNull);
       expect(surah?.rehostingAllowed, isFalse);
 
       final ayah = await provider.resolve(

@@ -25,6 +25,42 @@ class AdhanLibraryPage extends ConsumerWidget {
                 ),
               ),
             ),
+            ListTile(
+              leading: const Icon(Icons.audio_file_outlined),
+              title: const Text('اختيار صوت من الهاتف'),
+              subtitle: const Text('يُحفظ داخل التطبيق ويعمل دون إنترنت'),
+              onTap: () async {
+                try {
+                  await store.importPhoneAudio();
+                } catch (_) {
+                  if (context.mounted)
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تعذر قراءة الملف الصوتي')),
+                    );
+                }
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                store.selectedId == null
+                    ? Icons.radio_button_checked
+                    : Icons.volume_up,
+              ),
+              title: const Text('الأذان المرفق بالتطبيق'),
+              subtitle: const Text('متاح دون تنزيل'),
+              onTap: store.selectBuiltIn,
+            ),
+            if (store.hasLocalFile)
+              ListTile(
+                title: const Text('الصوت المحفوظ من الهاتف'),
+                leading: const Icon(Icons.offline_pin),
+                onTap: () => store.select('phone-audio'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.play_circle_outline),
+              title: const Text('تجربة الصوت المحدد'),
+              onTap: () => ref.read(servicesProvider).adhanAudio.play(),
+            ),
             if (store.error != null)
               Card(
                 color: Theme.of(context).colorScheme.errorContainer,

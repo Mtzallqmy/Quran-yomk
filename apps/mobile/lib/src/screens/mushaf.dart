@@ -9,6 +9,7 @@ import '../mushaf_page_reader.dart';
 import '../quran_audio.dart';
 import '../quran_models.dart';
 import '../services.dart';
+import '../download_progress.dart';
 import '../tajweed.dart';
 
 class MushafPage extends ConsumerStatefulWidget {
@@ -310,9 +311,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
       );
       await services.quranDownloads.download(media);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('بدأ تنزيل السورة للتشغيل بدون إنترنت')),
-      );
+      await showDownloadProgress(context, services.quranDownloads, media);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(

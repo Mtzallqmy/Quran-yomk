@@ -42,9 +42,11 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
       final services = ref.read(servicesProvider);
       await services.quranDownloads.initialize();
       final saved = <String, QuranAudioCatalogReciter>{
-        for (final reciter in services.quranDownloads.offlineReciters) reciter.identityKey: reciter,
+        for (final reciter in services.quranDownloads.offlineReciters)
+          reciter.identityKey: reciter,
       }.values.toList(growable: false);
-      if (mounted && _all.isEmpty && saved.isNotEmpty) setState(() => _all = saved);
+      if (mounted && _all.isEmpty && saved.isNotEmpty)
+        setState(() => _all = saved);
       final rows = await ref
           .read(servicesProvider)
           .quranAudio
@@ -289,8 +291,10 @@ class _QuranAudioReciterDetailPageState
     super.initState();
     final services = ref.read(servicesProvider);
     _surahs = services.repository.surahs().catchError((Object error) {
-      final saved = services.quranDownloads.tasks.where((task) => task.media.reciter.sameIdentity(widget.reciter))
-          .map((task) => task.media.surah).toList(growable: false);
+      final saved = services.quranDownloads.tasks
+          .where((task) => task.media.reciter.sameIdentity(widget.reciter))
+          .map((task) => task.media.surah)
+          .toList(growable: false);
       if (saved.isEmpty) throw error;
       return saved;
     });

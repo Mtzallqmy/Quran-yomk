@@ -44,8 +44,6 @@ jobs:
             apps/mobile/test
             apps/mobile/pubspec.lock
             apps/mobile/assets/fonts
-      - name: Require all formatted source and goldens committed
-        run: git diff --exit-code
       - name: Restore internal beta signing for future upgrades
         uses: actions/cache@v4
         with:
@@ -57,6 +55,8 @@ jobs:
           flutter build apk --debug --no-pub --dart-define=GIT_SHA=${{ github.sha }}
           cd android
           ./gradlew :app:assembleDebugAndroidTest :app:lintDebug
+      - name: Require all formatted source and goldens committed
+        run: git diff --exit-code
       - name: Build ARM64 release APK
         working-directory: apps/mobile
         run: flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api

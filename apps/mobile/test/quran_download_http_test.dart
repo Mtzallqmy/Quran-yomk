@@ -139,6 +139,48 @@ void main() {
     }, createHttpClient: (_) => client);
   });
 
+  for (final mode in ['range', 'restart', 'invalid-range']) {
+    test('resume handles $mode without duplicating or corrupting audio', () async {
+      final bytes = [0x49, 0x44, 0x33, ...List<int>.filled(8189, 7)];
+      final partialBody = StreamController<List<int>>();
+      addTearDown(() => unawaited(partialBody.close()));
+      final first = _Request(_Response(partialBody.stream, 200, headerValues: {'etag': 'audio-v1'}, length: bytes.length), stall: false);
+      final second = _Request(_Response(Stream.value(mode == 'restart' ? bytes : bytes.sublist(2048)),
+        mode == 'restart' ? 200 : 206, length: mode == 'restart' ? bytes.length : bytes.length - 2048,
+        headerValues: {'content-range': 'bytes ${mode == 'invalid-range' ? 2049 : 2048}-8191/8192', 'etag': 'audio-v1'}), stall: false);
+      final client = _Client(first, followups: [second]);
+      await HttpOverrides.runZoned(() async {
+        final service = io.createQuranDownloadService(await SharedPreferences.getInstance());
+        final received = Completer<void>();
+        final finished = Completer<void>();
+        service.addListener(() {
+          if (service.tasks.isEmpty) return;
+          final task = service.tasks.single;
+          if (task.downloadedBytes >= 2048 && !received.isCompleted) received.complete();
+          if ([QuranDownloadState.completed, QuranDownloadState.failed].contains(task.state) && !finished.isCompleted) finished.complete();
+        });
+        final task = await service.download(_media());
+        partialBody.add(bytes.sublist(0, 2048));
+        await received.future.timeout(const Duration(seconds: 5));
+        await service.pause(task.id);
+        expect(await File('${task.localPath}.part').length(), 2048);
+        expect(service.tasks.single.state, QuranDownloadState.paused);
+        await service.resume(task.id);
+        await finished.future.timeout(const Duration(seconds: 5));
+        expect(second.headers.value('range'), 'bytes=2048-');
+        expect(second.headers.value('if-range'), 'audio-v1');
+        if (mode == 'invalid-range') {
+          expect(service.tasks.single.state, QuranDownloadState.failed);
+          expect(await File('${task.localPath}.part').exists(), isFalse);
+        } else {
+          expect(service.tasks.single.state, QuranDownloadState.completed);
+          expect(await File(task.localPath!).readAsBytes(), bytes);
+          expect(service.tasks.single.progress, 1);
+        }
+        service.dispose();
+      }, createHttpClient: (_) => client);
+    });
+  }
 }
 
 QuranAudioMedia _media() => QuranAudioMedia(
@@ -175,7 +217,7 @@ class _Headers implements HttpHeaders {
   @override
   ContentType? get contentType => ContentType('audio', 'mpeg');
   @override
-  void set(String name, Object value, {bool preserveHeaderCase = false}) {}
+  void set(String name, Object value, {bool preserveHeaderCase = false}) { values[name] = value.toString(); }
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -187,7 +229,7 @@ class _Request implements HttpClientRequest {
   @override
   bool followRedirects = true;
   @override
-  final HttpHeaders headers = _Headers();
+  final HttpHeaders headers = _Headers(<String, String>{});
   @override
   Future<HttpClientResponse> close() =>
       stall ? Completer<HttpClientResponse>().future : Future.value(response);
@@ -219,13 +261,14 @@ class _Client implements HttpClient {
 }
 
 class _Response extends Stream<List<int>> implements HttpClientResponse {
-  _Response(this.body, this.statusCode, {this.headerValues = const {}});
+  _Response(this.body, this.statusCode, {this.headerValues = const {}, this.length = -1});
+  final int length;
   final Map<String, String> headerValues;
   final Stream<List<int>> body;
   @override
   final int statusCode;
   @override
-  int get contentLength => -1;
+  int get contentLength => length;
   @override
   HttpHeaders get headers => _Headers(headerValues);
   @override

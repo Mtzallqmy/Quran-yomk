@@ -40,7 +40,7 @@ class DownloadProgress extends StatelessWidget {
           ),
         if (task.state == QuranDownloadState.failed && task.error != null)
           Text(
-            task.error!,
+            _failureMessage(task.error!, english),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall,
@@ -48,6 +48,19 @@ class DownloadProgress extends StatelessWidget {
       ],
     );
   }
+}
+
+String _failureMessage(String error, bool english) {
+  if (error.contains('TIMEOUT') || error.contains('SocketException')) {
+    return english ? 'Connection interrupted. Tap retry to continue.' : 'انقطع الاتصال. أعد المحاولة لاستكمال التنزيل.';
+  }
+  if (error.contains('FileSystemException')) {
+    return english ? 'Could not save the file. Check available storage.' : 'تعذر حفظ الملف. تحقق من المساحة المتاحة في الهاتف.';
+  }
+  if (error.contains('HTTP_404')) {
+    return english ? 'This recording is unavailable at the source.' : 'هذه التلاوة غير متاحة لدى المصدر حاليًا.';
+  }
+  return english ? 'Could not download a valid audio file. Please retry.' : 'تعذر تنزيل ملف صوتي صالح. أعد المحاولة.';
 }
 
 Future<void> showDownloadProgress(

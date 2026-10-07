@@ -37,7 +37,13 @@ class SavedClipsPage extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.only(bottom: 24),
             children: <Widget>[
-              if (clips.lastError != null) const Padding(padding: EdgeInsets.all(16), child: Text('تعذر إكمال التسجيل. تحقق من مساحة الهاتف وإذن الميكروفون ثم أعد المحاولة.')),
+              if (clips.lastError != null)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'تعذر إكمال التسجيل. تحقق من مساحة الهاتف وإذن الميكروفون ثم أعد المحاولة.',
+                  ),
+                ),
               if (clips.activeStationId != null)
                 Card(
                   margin: const EdgeInsets.all(12),

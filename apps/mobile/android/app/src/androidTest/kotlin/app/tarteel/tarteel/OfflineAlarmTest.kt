@@ -54,4 +54,30 @@ class OfflineAlarmTest {
         assertTrue(LocalAlarmScheduler.read(context, id)!!.getLong("time") > System.currentTimeMillis())
         LocalAlarmScheduler.cancel(context, id)
     }
+    @Test fun microphoneRecordingSavesPlayableAudioAfterBackgroundStop() {
+        context.startActivity(android.content.Intent(context, MainActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        Thread.sleep(1500)
+        context.getSharedPreferences("recitation_recordings", Context.MODE_PRIVATE).edit().clear().commit()
+        context.startForegroundService(android.content.Intent(context, RecitationRecorderService::class.java)
+            .putExtra("title", "اختبار التسجيل").putExtra("limitMs", 10000L))
+        val deadline = System.currentTimeMillis() + 10000
+        while (!RecitationRecorderService.active && System.currentTimeMillis() < deadline) Thread.sleep(100)
+        assertTrue("Microphone started: ${RecitationRecorderService.lastError}", RecitationRecorderService.active)
+        InstrumentationRegistry.getInstrumentation().uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+        Thread.sleep(2500)
+        context.startService(android.content.Intent(context, RecitationRecorderService::class.java).setAction("stop"))
+        val stopDeadline = System.currentTimeMillis() + 5000
+        while (RecitationRecorderService.active && System.currentTimeMillis() < stopDeadline) Thread.sleep(100)
+        val rows = org.json.JSONArray(RecitationRecorderService.completed(context))
+        assertEquals("Recording saved: ${RecitationRecorderService.lastError}", 1, rows.length())
+        val file = java.io.File(rows.getJSONObject(0).getString("path"))
+        assertTrue(file.isFile && file.length() > 1024)
+        val reader = android.media.MediaMetadataRetriever()
+        try {
+            reader.setDataSource(file.absolutePath)
+            assertTrue(reader.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)!!.toLong() > 1000)
+        } finally { reader.release(); file.delete() }
+        context.getSharedPreferences("recitation_recordings", Context.MODE_PRIVATE).edit().clear().commit()
+    }
 }

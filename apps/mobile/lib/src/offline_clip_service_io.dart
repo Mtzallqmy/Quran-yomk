@@ -51,7 +51,9 @@ class _IoOfflineClipService extends OfflineClipService {
   @override
   String? get activeStationId => _micActive ? 'microphone' : _station?.id;
   @override
-  Duration get activeElapsed => _micActive ? _micElapsed : _startedAt == null
+  Duration get activeElapsed => _micActive
+      ? _micElapsed
+      : _startedAt == null
       ? Duration.zero
       : DateTime.now().difference(_startedAt!);
   @override
@@ -66,7 +68,10 @@ class _IoOfflineClipService extends OfflineClipService {
 
   Future<void> _initialize() async {
     final raw = _preferences.getString(_metadataKey);
-    if (raw == null || raw.isEmpty) { await _syncMicrophone(); return; }
+    if (raw == null || raw.isEmpty) {
+      await _syncMicrophone();
+      return;
+    }
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! List) return;
@@ -91,8 +96,11 @@ class _IoOfflineClipService extends OfflineClipService {
     Duration? maxDuration,
   }) async {
     await initialize();
-    if (_station != null || _micActive) throw StateError('OFFLINE_CLIP_ALREADY_RECORDING');
-    if (!policy.allowed || !policy.supportedStream || policy.stationId != station.id) {
+    if (_station != null || _micActive)
+      throw StateError('OFFLINE_CLIP_ALREADY_RECORDING');
+    if (!policy.allowed ||
+        !policy.supportedStream ||
+        policy.stationId != station.id) {
       throw StateError('OFFLINE_CLIP_NOT_ALLOWED');
     }
     final catalogType = station.streamType.toUpperCase();
@@ -154,18 +162,20 @@ class _IoOfflineClipService extends OfflineClipService {
         });
       }
 
-      _subscription = response.timeout(const Duration(seconds: 20)).listen(
-        (chunk) {
-          _bytes += chunk.length;
-          _sink?.add(chunk);
-        },
-        onError: (Object error, StackTrace stack) {
-          _lastError = 'OFFLINE_CLIP_STREAM_INTERRUPTED';
-          unawaited(_finish(partial: true));
-        },
-        onDone: () => unawaited(_finish(partial: false)),
-        cancelOnError: true,
-      );
+      _subscription = response
+          .timeout(const Duration(seconds: 20))
+          .listen(
+            (chunk) {
+              _bytes += chunk.length;
+              _sink?.add(chunk);
+            },
+            onError: (Object error, StackTrace stack) {
+              _lastError = 'OFFLINE_CLIP_STREAM_INTERRUPTED';
+              unawaited(_finish(partial: true));
+            },
+            onDone: () => unawaited(_finish(partial: false)),
+            cancelOnError: true,
+          );
       notifyListeners();
     } catch (error) {
       _lastError = 'OFFLINE_CLIP_START_FAILED';
@@ -208,22 +218,24 @@ class _IoOfflineClipService extends OfflineClipService {
   }
 
   Future<OfflineClip?>? _finishOperation;
-  Future<OfflineClip?> _finish({required bool partial}) => _finishOperation ??=
-      _finalize(partial: partial).catchError((Object error) {
-        _lastError = 'OFFLINE_CLIP_FINALIZE_FAILED';
-        return null;
-      }).whenComplete(() => _finishOperation = null);
+  Future<OfflineClip?> _finish({required bool partial}) =>
+      _finishOperation ??= _finalize(partial: partial)
+          .catchError((Object error) {
+            _lastError = 'OFFLINE_CLIP_FINALIZE_FAILED';
+            return null;
+          })
+          .whenComplete(() => _finishOperation = null);
 
   Future<OfflineClip?> _finalize({required bool partial}) async {
-    if (_station == null ||
-        _startedAt == null ||
-        _filePath == null) {
+    if (_station == null || _startedAt == null || _filePath == null) {
       return null;
     }
     final station = _station!;
     final startedAt = _startedAt!;
     final partialPath = _filePath!;
-    final path = partialPath.endsWith('.part') ? partialPath.substring(0, partialPath.length - 5) : partialPath;
+    final path = partialPath.endsWith('.part')
+        ? partialPath.substring(0, partialPath.length - 5)
+        : partialPath;
     final format = _format ?? 'mp3';
     final duration = DateTime.now().difference(startedAt);
 
@@ -243,36 +255,35 @@ class _IoOfflineClipService extends OfflineClipService {
 
     OfflineClip? clip;
     try {
-    final file = File(partialPath);
-    final length = await file.exists() ? await file.length() : 0;
-    if (length >= _minimumUsefulBytes) {
-      if (partialPath != path) await file.rename(path);
-      clip = OfflineClip(
-        id: path.split(Platform.pathSeparator).last.split('.').first,
-        stationId: station.id,
-        stationNameAr: station.nameAr,
-        artworkUrl: station.logoUrl,
-        filePath: path,
-        createdAt: startedAt,
-        duration: duration,
-        sizeBytes: length,
-        format: format,
-        partial: partial,
-      );
-      _clips.insert(0, clip);
-      await _persist();
-    } else if (await file.exists()) {
-      await file.delete();
-    }
-
+      final file = File(partialPath);
+      final length = await file.exists() ? await file.length() : 0;
+      if (length >= _minimumUsefulBytes) {
+        if (partialPath != path) await file.rename(path);
+        clip = OfflineClip(
+          id: path.split(Platform.pathSeparator).last.split('.').first,
+          stationId: station.id,
+          stationNameAr: station.nameAr,
+          artworkUrl: station.logoUrl,
+          filePath: path,
+          createdAt: startedAt,
+          duration: duration,
+          sizeBytes: length,
+          format: format,
+          partial: partial,
+        );
+        _clips.insert(0, clip);
+        await _persist();
+      } else if (await file.exists()) {
+        await file.delete();
+      }
     } finally {
-    await NativeAudio.finishTask(recording: true);
-    _station = null;
-    _startedAt = null;
-    _filePath = null;
-    _format = null;
-    _bytes = 0;
-    notifyListeners();
+      await NativeAudio.finishTask(recording: true);
+      _station = null;
+      _startedAt = null;
+      _filePath = null;
+      _format = null;
+      _bytes = 0;
+      notifyListeners();
     }
     return clip;
   }
@@ -303,14 +314,25 @@ class _IoOfflineClipService extends OfflineClipService {
   }
 
   @override
-  Future<void> startMicrophone({String title = 'تسجيل تلاوتي', Duration? maxDuration}) async {
+  Future<void> startMicrophone({
+    String title = 'تسجيل تلاوتي',
+    Duration? maxDuration,
+  }) async {
     await initialize();
-    if (_station != null || _micActive) throw StateError('OFFLINE_CLIP_ALREADY_RECORDING');
-    final permitted = await NativeAudio.call<bool>('recordStart', {'title': title, 'limitMs': maxDuration?.inMilliseconds ?? 0});
+    if (_station != null || _micActive)
+      throw StateError('OFFLINE_CLIP_ALREADY_RECORDING');
+    final permitted = await NativeAudio.call<bool>('recordStart', {
+      'title': title,
+      'limitMs': maxDuration?.inMilliseconds ?? 0,
+    });
     if (permitted != true) throw StateError('MICROPHONE_PERMISSION_REQUIRED');
-    _micActive = true; _micElapsed = Duration.zero;
+    _micActive = true;
+    _micElapsed = Duration.zero;
     _micTimer?.cancel();
-    _micTimer = Timer.periodic(const Duration(seconds: 1), (_) => unawaited(_syncMicrophone()));
+    _micTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => unawaited(_syncMicrophone()),
+    );
     notifyListeners();
   }
 
@@ -319,29 +341,62 @@ class _IoOfflineClipService extends OfflineClipService {
     if (_syncingMic) return;
     _syncingMic = true;
     try {
-      final status = await NativeAudio.call<Map<dynamic, dynamic>>('recordStatus');
+      final status = await NativeAudio.call<Map<dynamic, dynamic>>(
+        'recordStatus',
+      );
       if (status == null) return;
       _micActive = status['active'] == true;
       if (status['error'] is String) _lastError = status['error'] as String;
-      _micElapsed = Duration(milliseconds: (status['elapsedMs'] as num?)?.toInt() ?? 0);
+      _micElapsed = Duration(
+        milliseconds: (status['elapsedMs'] as num?)?.toInt() ?? 0,
+      );
       final rows = jsonDecode(status['completed'] as String? ?? '[]') as List;
       final acknowledged = <String>[];
       for (final row in rows.whereType<Map<String, dynamic>>()) {
         final id = row['id'] as String;
         acknowledged.add(id);
-        if (_clips.any((value) => value.id == id) || !await File(row['path'] as String).exists()) continue;
-        _clips.insert(0, OfflineClip(id: id, stationId: 'microphone', stationNameAr: row['title'] as String,
-          filePath: row['path'] as String, createdAt: DateTime.fromMillisecondsSinceEpoch((row['startedAt'] as num).toInt()),
-          duration: Duration(milliseconds: (row['durationMs'] as num).toInt()), sizeBytes: (row['size'] as num).toInt(),
-          format: 'm4a', partial: false));
+        if (_clips.any((value) => value.id == id) ||
+            !await File(row['path'] as String).exists())
+          continue;
+        _clips.insert(
+          0,
+          OfflineClip(
+            id: id,
+            stationId: 'microphone',
+            stationNameAr: row['title'] as String,
+            filePath: row['path'] as String,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(
+              (row['startedAt'] as num).toInt(),
+            ),
+            duration: Duration(
+              milliseconds: (row['durationMs'] as num).toInt(),
+            ),
+            sizeBytes: (row['size'] as num).toInt(),
+            format: 'm4a',
+            partial: false,
+          ),
+        );
       }
       await _persist();
-      if (acknowledged.isNotEmpty) await NativeAudio.call<void>('recordAcknowledge', {'ids': acknowledged});
-      if (_micActive && _micTimer == null) _micTimer = Timer.periodic(const Duration(seconds: 1), (_) => unawaited(_syncMicrophone()));
-      if (!_micActive) { _micTimer?.cancel(); _micTimer = null; }
+      if (acknowledged.isNotEmpty)
+        await NativeAudio.call<void>('recordAcknowledge', {
+          'ids': acknowledged,
+        });
+      if (_micActive && _micTimer == null)
+        _micTimer = Timer.periodic(
+          const Duration(seconds: 1),
+          (_) => unawaited(_syncMicrophone()),
+        );
+      if (!_micActive) {
+        _micTimer?.cancel();
+        _micTimer = null;
+      }
       notifyListeners();
-    } catch (_) { _lastError = 'MICROPHONE_SYNC_FAILED'; }
-    finally { _syncingMic = false; }
+    } catch (_) {
+      _lastError = 'MICROPHONE_SYNC_FAILED';
+    } finally {
+      _syncingMic = false;
+    }
   }
 
   @override
@@ -366,5 +421,8 @@ class _IoOfflineClipService extends OfflineClipService {
 }
 
 extension<T> on Iterable<T> {
-  T? get firstOrNull { final it = iterator; return it.moveNext() ? it.current : null; }
+  T? get firstOrNull {
+    final it = iterator;
+    return it.moveNext() ? it.current : null;
+  }
 }

@@ -147,7 +147,9 @@ class UiAudio implements QuranAudioRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class UiDownloads extends ChangeNotifier implements QuranDownloadService {
+class UiDownloads extends QuranDownloadService {
+  @override
+  Future<void> initialize() async {}
   @override
   bool get supported => true;
   @override

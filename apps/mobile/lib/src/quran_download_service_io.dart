@@ -35,6 +35,7 @@ class _IoQuranDownloadService extends QuranDownloadService {
   StreamSubscription<List<int>>? _activeSubscription;
   Completer<void>? _activeDone;
   IOSink? _activeSink;
+  Object? _writeError;
   HttpClient? _activeClient;
   String? _activeId;
   bool _pumping = false;
@@ -237,11 +238,16 @@ class _IoQuranDownloadService extends QuranDownloadService {
         record.totalBytes = remaining > 0 ? offset + remaining : null;
       }
       record.downloadedBytes = offset;
+      _writeError = null;
       _activeSink = partial.openWrite(
         mode: offset > 0 ? FileMode.append : FileMode.writeOnly,
       );
       final done = Completer<void>();
       _activeDone = done;
+      unawaited(_activeSink!.done.catchError((Object error, StackTrace stack) {
+        _writeError = error;
+        if (!done.isCompleted) done.completeError(error, stack);
+      }));
       final stream = response.timeout(_inactivityTimeout);
       _activeSubscription = stream.listen(
         (chunk) {
@@ -270,6 +276,7 @@ class _IoQuranDownloadService extends QuranDownloadService {
       await done.future.timeout(remainingTime());
       await _closeActive();
       if (record.state != QuranDownloadState.downloading) return;
+      if (_writeError != null) throw _writeError!;
 
       final length = await partial.length();
       if (length < _minimumAudioBytes) {
@@ -386,7 +393,7 @@ class _IoQuranDownloadService extends QuranDownloadService {
     try {
       await _activeSink?.flush();
       await _activeSink?.close();
-    } catch (_) {}
+    } catch (error) { _writeError = error; }
     _activeSink = null;
   }
 

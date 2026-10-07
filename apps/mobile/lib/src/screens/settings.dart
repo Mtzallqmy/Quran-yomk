@@ -122,9 +122,13 @@ class SettingsPage extends ConsumerWidget {
               ),
             ],
             SectionHeader(english ? 'Notifications' : 'الإشعارات'),
-            ListTile(leading: const Icon(Icons.alarm_add), title: const Text('المنبه الشخصي بصوت من الهاتف'),
+            ListTile(
+              leading: const Icon(Icons.alarm_add),
+              title: const Text('المنبه الشخصي بصوت من الهاتف'),
               subtitle: const Text('أوقات تختارها وصوت محلي دون إنترنت'),
-              onTap: () => Navigator.pushNamed(context, MobileRoutes.personalAlarms)),
+              onTap: () =>
+                  Navigator.pushNamed(context, MobileRoutes.personalAlarms),
+            ),
             if (services.features.enabled(TarteelFeature.prayer)) ...<Widget>[
               ListTile(
                 leading: const Icon(Icons.access_time),

@@ -44,7 +44,8 @@ abstract class QuranDownloadService extends ChangeNotifier
   @override
   List<QuranAudioCatalogReciter> get offlineReciters => tasks
       .where((task) => task.state == QuranDownloadState.completed)
-      .map((task) => task.media.reciter).toList(growable: false);
+      .map((task) => task.media.reciter)
+      .toList(growable: false);
 
   @override
   Future<QuranAudioMedia?> localRequest(QuranAudioRequest request) async {
@@ -54,13 +55,17 @@ abstract class QuranDownloadService extends ChangeNotifier
           task.media.surah.number != request.surah.number ||
           task.media.ayahGlobalNumber != request.ayahGlobalNumber ||
           task.media.ayahInSurah != request.ayahInSurah ||
-          (request.reciter != null && !task.media.reciter.sameIdentity(request.reciter!)) ||
-          (task.media.provider != QuranAudioProviderKind.mp3Quran && task.media.bitrateKbps != request.bitrateKbps)) continue;
+          (request.reciter != null &&
+              !task.media.reciter.sameIdentity(request.reciter!)) ||
+          (task.media.provider != QuranAudioProviderKind.mp3Quran &&
+              task.media.bitrateKbps != request.bitrateKbps))
+        continue;
       final local = await localMedia(task.media);
       if (local != null) return local;
     }
     return null;
   }
+
   bool get supported;
   List<QuranDownloadTask> get tasks;
   Future<void> initialize();

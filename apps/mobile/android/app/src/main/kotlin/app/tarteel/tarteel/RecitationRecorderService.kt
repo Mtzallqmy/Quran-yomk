@@ -17,6 +17,8 @@ class RecitationRecorderService : Service() {
     companion object {
         var active = false
             private set
+        var lastError: String? = null
+            private set
         var elapsedStart = 0L
             private set
         fun completed(context: android.content.Context): String = context
@@ -31,11 +33,12 @@ class RecitationRecorderService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "stop") { finish(); stopSelf(); return START_NOT_STICKY }
         if (active) return START_NOT_STICKY
+        lastError = null
         title = intent?.getStringExtra("title") ?: title
         val notification = OfflineNotifications.build(this, OfflineNotifications.TASK_CHANNEL,
             "تسجيل التلاوة", title,
             stopIntent = Intent(this, RecitationRecorderService::class.java).setAction("stop"))
-        if (Build.VERSION.SDK_INT >= 29) startForeground(8103, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        if (Build.VERSION.SDK_INT >= 30) startForeground(8103, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         else startForeground(8103, notification)
         try {
             val directory = File(filesDir, "recordings").apply { mkdirs() }
@@ -56,7 +59,7 @@ class RecitationRecorderService : Service() {
             active = true; elapsedStart = SystemClock.elapsedRealtime()
             val limit = intent?.getLongExtra("limitMs", 0L) ?: 0L
             handler.postDelayed({ finish(); stopSelf() }, if (limit > 0L) limit else 2 * 60 * 60 * 1000L)
-        } catch (_: Exception) { recorder?.release(); recorder = null; partial?.delete(); active = false; stopSelf() }
+        } catch (_: Exception) { lastError = "MICROPHONE_START_FAILED"; recorder?.release(); recorder = null; partial?.delete(); active = false; stopSelf() }
         return START_NOT_STICKY
     }
     private fun finish() {
@@ -75,7 +78,7 @@ class RecitationRecorderService : Service() {
                 .put("path", target.absolutePath).put("startedAt", startedAt)
                 .put("durationMs", duration).put("size", target.length()))
             prefs.edit().putString("completed", rows.toString()).commit()
-        } else part.delete()
+        } else { lastError = "RECORDING_NOT_SAVED"; part.delete() }
         partial = null
     }
     override fun onDestroy() { finish(); stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy() }

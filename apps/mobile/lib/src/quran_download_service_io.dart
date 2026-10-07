@@ -189,7 +189,9 @@ class _IoQuranDownloadService extends QuranDownloadService {
     _activeId = record.id;
     record.state = QuranDownloadState.downloading;
     record.error = null;
-    await NativeAudio.task('تنزيل ${record.media.surah.nameAr} — ${record.media.reciter.nameAr}');
+    await NativeAudio.task(
+      'تنزيل ${record.media.surah.nameAr} — ${record.media.reciter.nameAr}',
+    );
     await _persistAndNotify();
     final partial = File('${record.localPath}.part');
     var offset = await partial.exists() ? await partial.length() : 0;
@@ -212,14 +214,16 @@ class _IoQuranDownloadService extends QuranDownloadService {
         offset = 0;
       }
       if (response.statusCode == HttpStatus.partialContent) {
-        final range = RegExp(r'^bytes ([0-9]+)-([0-9]+)/([0-9]+)$')
-            .firstMatch(response.headers.value(HttpHeaders.contentRangeHeader) ?? '');
+        final range = RegExp(r'^bytes ([0-9]+)-([0-9]+)/([0-9]+)$').firstMatch(
+          response.headers.value(HttpHeaders.contentRangeHeader) ?? '',
+        );
         if (range == null || int.parse(range.group(1)!) != offset) {
           throw StateError('QURAN_DOWNLOAD_INVALID_RANGE');
         }
         record.totalBytes = int.parse(range.group(3)!);
       }
-      record.validator = response.headers.value(HttpHeaders.etagHeader) ??
+      record.validator =
+          response.headers.value(HttpHeaders.etagHeader) ??
           response.headers.value(HttpHeaders.lastModifiedHeader);
       final contentType = response.headers.contentType?.mimeType.toLowerCase();
       if (contentType != null &&
@@ -247,10 +251,12 @@ class _IoQuranDownloadService extends QuranDownloadService {
           if (now.difference(_lastProgress).inMilliseconds >= 300) {
             _lastProgress = now;
             notifyListeners();
-            unawaited(NativeAudio.task(
-              'تنزيل ${record.media.surah.nameAr} — ${record.media.reciter.nameAr}',
-              progress: record.snapshot.progress,
-            ));
+            unawaited(
+              NativeAudio.task(
+                'تنزيل ${record.media.surah.nameAr} — ${record.media.reciter.nameAr}',
+                progress: record.snapshot.progress,
+              ),
+            );
           }
         },
         onError: (Object error, StackTrace stack) {
@@ -273,8 +279,14 @@ class _IoQuranDownloadService extends QuranDownloadService {
         throw StateError('QURAN_DOWNLOAD_SIZE_MISMATCH');
       }
       final header = await partial.openRead(0, 10).first;
-      final isMp3 = (header.length >= 3 && header[0] == 0x49 && header[1] == 0x44 && header[2] == 0x33) ||
-          (header.length >= 2 && header[0] == 0xff && (header[1] & 0xe0) == 0xe0);
+      final isMp3 =
+          (header.length >= 3 &&
+              header[0] == 0x49 &&
+              header[1] == 0x44 &&
+              header[2] == 0x33) ||
+          (header.length >= 2 &&
+              header[0] == 0xff &&
+              (header[1] & 0xe0) == 0xe0);
       if (!isMp3) throw StateError('QURAN_DOWNLOAD_INVALID_AUDIO');
       final digest = await sha256.bind(partial.openRead()).first;
       final checksum = digest.toString();
@@ -298,9 +310,13 @@ class _IoQuranDownloadService extends QuranDownloadService {
             ? 'QURAN_DOWNLOAD_TIMEOUT'
             : error.toString();
         // Keep a partial file for network interruption; discard corrupt audio.
-        final corrupt = error is StateError && error.message.toString().contains('QURAN_DOWNLOAD_');
+        final corrupt =
+            error is StateError &&
+            error.message.toString().contains('QURAN_DOWNLOAD_');
         if (corrupt && await partial.exists()) await partial.delete();
-        record.downloadedBytes = await partial.exists() ? await partial.length() : 0;
+        record.downloadedBytes = await partial.exists()
+            ? await partial.length()
+            : 0;
       }
     } finally {
       elapsed.stop();
@@ -311,11 +327,15 @@ class _IoQuranDownloadService extends QuranDownloadService {
   }
 
   Future<HttpClientResponse> _openResponse(
-    _TaskRecord record, int offset, Duration Function() remainingTime,
+    _TaskRecord record,
+    int offset,
+    Duration Function() remainingTime,
   ) async {
     var uri = record.media.downloadUri;
     for (var redirect = 0; redirect <= 5; redirect++) {
-      if (uri.scheme != 'https' || uri.host.isEmpty || uri.userInfo.isNotEmpty) {
+      if (uri.scheme != 'https' ||
+          uri.host.isEmpty ||
+          uri.userInfo.isNotEmpty) {
         throw StateError('QURAN_DOWNLOAD_INSECURE_REDIRECT');
       }
       final request = await _activeClient!.getUrl(uri).timeout(remainingTime());
@@ -324,18 +344,25 @@ class _IoQuranDownloadService extends QuranDownloadService {
       request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
       if (offset > 0) {
         request.headers.set(HttpHeaders.rangeHeader, 'bytes=$offset-');
-        if (record.validator != null) request.headers.set(HttpHeaders.ifRangeHeader, record.validator!);
+        if (record.validator != null)
+          request.headers.set(HttpHeaders.ifRangeHeader, record.validator!);
       }
       final budget = remainingTime();
-      final response = await request.close().timeout(budget < const Duration(seconds: 20) ? budget : const Duration(seconds: 20));
+      final response = await request.close().timeout(
+        budget < const Duration(seconds: 20)
+            ? budget
+            : const Duration(seconds: 20),
+      );
       if ([301, 302, 303, 307, 308].contains(response.statusCode)) {
         final location = response.headers.value(HttpHeaders.locationHeader);
-        if (location == null) throw StateError('QURAN_DOWNLOAD_REDIRECT_MISSING');
+        if (location == null)
+          throw StateError('QURAN_DOWNLOAD_REDIRECT_MISSING');
         uri = uri.resolve(location);
         await response.drain<void>().timeout(const Duration(seconds: 5));
         continue;
       }
-      if (response.statusCode != HttpStatus.ok && response.statusCode != HttpStatus.partialContent) {
+      if (response.statusCode != HttpStatus.ok &&
+          response.statusCode != HttpStatus.partialContent) {
         throw HttpException('HTTP_${response.statusCode}', uri: uri);
       }
       return response;
@@ -344,7 +371,8 @@ class _IoQuranDownloadService extends QuranDownloadService {
   }
 
   Future<void>? _closing;
-  Future<void> _closeActive() => _closing ??= _closeActiveInner().whenComplete(() => _closing = null);
+  Future<void> _closeActive() =>
+      _closing ??= _closeActiveInner().whenComplete(() => _closing = null);
 
   Future<void> _closeActiveInner() async {
     _activeClient?.close(force: true);
@@ -383,8 +411,11 @@ class _IoQuranDownloadService extends QuranDownloadService {
   Future<void> resume(String taskId) async {
     await initialize();
     final record = _find(taskId);
-    if (record == null || record.state == QuranDownloadState.completed ||
-        record.state == QuranDownloadState.downloading || record.state == QuranDownloadState.queued) return;
+    if (record == null ||
+        record.state == QuranDownloadState.completed ||
+        record.state == QuranDownloadState.downloading ||
+        record.state == QuranDownloadState.queued)
+      return;
     if (!record.media.hasValidIdentity) {
       record.state = QuranDownloadState.failed;
       record.error = 'QURAN_DOWNLOAD_IDENTITY_INVALID';

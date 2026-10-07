@@ -103,7 +103,9 @@ Future<void> main() async {
     adhanAudio: adhanAudio,
   );
   adhanLibrary.addListener(() {
-    adhanAudio.setAudioPath(adhanLibrary.selectedPath ?? 'assets/audio/adhan.ogg');
+    adhanAudio.setAudioPath(
+      adhanLibrary.selectedPath ?? 'assets/audio/adhan.ogg',
+    );
     prayerReminders.reconcile();
   });
   final pushNotifications = PushNotificationService(

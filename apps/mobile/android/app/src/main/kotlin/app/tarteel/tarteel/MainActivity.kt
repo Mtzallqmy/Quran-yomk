@@ -76,7 +76,7 @@ class MainActivity : AudioServiceActivity() {
                     }
                     "recordStatus" -> result.success(mapOf("active" to RecitationRecorderService.active,
                         "elapsedMs" to if (RecitationRecorderService.active) SystemClock.elapsedRealtime() - RecitationRecorderService.elapsedStart else 0L,
-                        "completed" to RecitationRecorderService.completed(this)))
+                        "completed" to RecitationRecorderService.completed(this), "error" to RecitationRecorderService.lastError))
                     else -> result.notImplemented()
                 }
             } catch (error: Exception) { result.error("OFFLINE_AUDIO_ERROR", error.message, null) }

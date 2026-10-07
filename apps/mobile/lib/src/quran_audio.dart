@@ -275,7 +275,8 @@ abstract class QuranAudioLocalLookup {
 }
 
 abstract class QuranAudioRequestLookup {
-  Future<QuranAudioMedia?> localRequest(QuranAudioRequest request) async => null;
+  Future<QuranAudioMedia?> localRequest(QuranAudioRequest request) async =>
+      null;
   List<QuranAudioCatalogReciter> get offlineReciters => const [];
 }
 
@@ -309,10 +310,12 @@ class QuranAudioRepository {
         .where((reciter) => reciter.hasValidIdentity)
         .toList(growable: false);
     final merged = <String, QuranAudioCatalogReciter>{
-      for (final reciter in (localLookup is QuranAudioRequestLookup
-          ? (localLookup as QuranAudioRequestLookup).offlineReciters
-          : <QuranAudioCatalogReciter>[]))
-        if (surahNumber == null || reciter.availableSurahs.contains(surahNumber))
+      for (final reciter
+          in (localLookup is QuranAudioRequestLookup
+              ? (localLookup as QuranAudioRequestLookup).offlineReciters
+              : <QuranAudioCatalogReciter>[]))
+        if (surahNumber == null ||
+            reciter.availableSurahs.contains(surahNumber))
           reciter.identityKey: reciter,
       for (final reciter in values) reciter.identityKey: reciter,
     }.values.toList(growable: false);
@@ -332,9 +335,13 @@ class QuranAudioRepository {
         ? await (localLookup as QuranAudioRequestLookup).localRequest(request)
         : null;
     if (saved != null) {
-      if (!saved.isLocal || !saved.hasValidIdentity || saved.surah.number != request.surah.number ||
-          saved.ayahGlobalNumber != request.ayahGlobalNumber || saved.ayahInSurah != request.ayahInSurah ||
-          (explicitReciter != null && !saved.reciter.sameIdentity(explicitReciter))) {
+      if (!saved.isLocal ||
+          !saved.hasValidIdentity ||
+          saved.surah.number != request.surah.number ||
+          saved.ayahGlobalNumber != request.ayahGlobalNumber ||
+          saved.ayahInSurah != request.ayahInSurah ||
+          (explicitReciter != null &&
+              !saved.reciter.sameIdentity(explicitReciter))) {
         throw StateError('QURAN_AUDIO_LOCAL_IDENTITY_MISMATCH');
       }
       return saved;
@@ -470,7 +477,6 @@ class AlQuranCloudAudioProvider implements QuranAudioProvider {
       rightsStatus: 'DOCUMENTED_DIRECT_EXTERNAL',
     );
   }
-
 }
 
 class Mp3QuranAudioProvider implements QuranAudioProvider {

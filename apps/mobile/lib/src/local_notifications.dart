@@ -302,34 +302,39 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
     LocalNotificationRequest request, {
     required bool exact,
   }) async {
-    if (request.playSound && (request.channel == LocalNotificationChannel.adhan || request.audioPath != null)) {
+    if (request.playSound &&
+        (request.channel == LocalNotificationChannel.adhan ||
+            request.audioPath != null)) {
       final native = await NativeAudio.call<bool>('scheduleAlarm', {
-        'id': request.id, 'title': request.title, 'body': request.body,
+        'id': request.id,
+        'title': request.title,
+        'body': request.body,
         'time': request.scheduledAt.millisecondsSinceEpoch,
-        'timezone': request.timezone, 'repeatDaily': request.repeatDaily,
+        'timezone': request.timezone,
+        'repeatDaily': request.repeatDaily,
         'path': request.audioPath ?? '',
       });
       if (native == true) return;
     }
     await _plugin.zonedSchedule(
-    id: request.id,
-    title: request.title,
-    body: request.body,
-    scheduledDate: tz.TZDateTime.from(
-      request.scheduledAt,
-      tz.getLocation(request.timezone),
-    ),
-    notificationDetails: _detailsFor(request),
-    androidScheduleMode: exact
-        ? AndroidScheduleMode.exactAllowWhileIdle
-        : AndroidScheduleMode.inexactAllowWhileIdle,
-    matchDateTimeComponents: request.repeatDaily
-        ? DateTimeComponents.time
-        : null,
-    payload: request.payload,
-  );
-
+      id: request.id,
+      title: request.title,
+      body: request.body,
+      scheduledDate: tz.TZDateTime.from(
+        request.scheduledAt,
+        tz.getLocation(request.timezone),
+      ),
+      notificationDetails: _detailsFor(request),
+      androidScheduleMode: exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: request.repeatDaily
+          ? DateTimeComponents.time
+          : null,
+      payload: request.payload,
+    );
   }
+
   @override
   Future<void> cancel(int id) async {
     await NativeAudio.call<void>('cancelAlarm', {'id': id});
@@ -347,7 +352,8 @@ class LocalNotificationService {
   Future<void>? _initialization;
 
   Stream<String> get payloads => _payloads.stream;
-  bool get nativeAudioAlarms => NativeAudio.supported && _gateway is FlutterLocalNotificationGateway;
+  bool get nativeAudioAlarms =>
+      NativeAudio.supported && _gateway is FlutterLocalNotificationGateway;
 
   Future<void> initialize() => _initialization ??= _initialize();
 

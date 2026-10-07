@@ -4,6 +4,8 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.Uri
+import android.media.AudioManager
+import android.media.AudioFocusRequest
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -19,6 +21,7 @@ import java.io.File
 /** Independent prayer/personal alarm subsystem; never fetches remote audio. */
 class LocalAlarmAudioService : Service() {
     private var player: ExoPlayer? = null
+    private var focus: AudioFocusRequest? = null
     private val handler = Handler(Looper.getMainLooper())
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -35,8 +38,15 @@ class LocalAlarmAudioService : Service() {
             val file = File(path)
             val uri = if (file.isFile && file.canonicalPath.startsWith(filesDir.canonicalPath + "/")) Uri.fromFile(file)
                 else Uri.parse("android.resource://$packageName/${R.raw.adhan}")
+            val manager = getSystemService(AudioManager::class.java)
+            focus?.let { manager.abandonAudioFocusRequest(it) }
+            focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                .setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                .setOnAudioFocusChangeListener { change -> if (change == AudioManager.AUDIOFOCUS_LOSS) stopSelf() }.build()
+            if (manager.requestAudioFocus(focus!!) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) { stopSelf(); return START_NOT_STICKY }
             player = ExoPlayer.Builder(this).build().apply {
-                setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_ALARM).setContentType(C.AUDIO_CONTENT_TYPE_SPEECH).build(), true)
+                setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_ALARM).setContentType(C.AUDIO_CONTENT_TYPE_SPEECH).build(), false)
                 setWakeMode(C.WAKE_MODE_LOCAL)
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(state: Int) {
@@ -55,6 +65,7 @@ class LocalAlarmAudioService : Service() {
     }
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null); player?.release(); player = null
+        focus?.let { getSystemService(AudioManager::class.java).abandonAudioFocusRequest(it) }; focus = null
         stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy()
     }
 }

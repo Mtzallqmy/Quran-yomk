@@ -87,6 +87,7 @@ class AdhanLibraryStore extends ChangeNotifier {
     await _preferences.remove(_selectedKey);
     notifyListeners();
   }
+
   String? get error => _error;
   String? get selectedId => _selectedId;
   AdhanRecording? get selected => _find(_selectedId);
@@ -190,11 +191,17 @@ class AdhanLibraryStore extends ChangeNotifier {
 
   AdhanRecording? _find(String? id) {
     if (id == null) return null;
-    if (id == 'phone-audio') return const AdhanRecording(
-      id: 'phone-audio', nameAr: 'صوت من الهاتف', nameEn: 'Phone audio',
-      placeAr: 'ملف محلي', sourceUrl: '', licenseUrl: '',
-      licenseLabel: 'ملف اختاره المستخدم', fileExtension: 'audio',
-    );
+    if (id == 'phone-audio')
+      return const AdhanRecording(
+        id: 'phone-audio',
+        nameAr: 'صوت من الهاتف',
+        nameEn: 'Phone audio',
+        placeAr: 'ملف محلي',
+        sourceUrl: '',
+        licenseUrl: '',
+        licenseLabel: 'ملف اختاره المستخدم',
+        fileExtension: 'audio',
+      );
     for (final recording in adhanRecordings) {
       if (recording.id == id) return recording;
     }

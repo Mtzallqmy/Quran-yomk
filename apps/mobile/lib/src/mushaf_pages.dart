@@ -168,11 +168,20 @@ class MushafPageRepository extends ChangeNotifier {
     super.notifyListeners();
     final value = offlineProgress;
     final now = DateTime.now();
-    if (_packActive && value != null && now.difference(_lastTaskUpdate).inMilliseconds >= 500) {
+    if (_packActive &&
+        value != null &&
+        now.difference(_lastTaskUpdate).inMilliseconds >= 500) {
       _lastTaskUpdate = now;
-      unawaited(NativeAudio.task("تنزيل صفحات المصحف", progress: value.progress, id: "mushaf"));
+      unawaited(
+        NativeAudio.task(
+          "تنزيل صفحات المصحف",
+          progress: value.progress,
+          id: "mushaf",
+        ),
+      );
     }
   }
+
   MushafOfflineProgress? offlineProgress;
 
   Future<void> initialize() async {
@@ -352,7 +361,9 @@ class MushafPageRepository extends ChangeNotifier {
     for (final url in _assetUrls(page, edition, metadata: metadata)) {
       final uri = Uri.parse(url);
       try {
-        final response = await _client.get(uri).timeout(const Duration(seconds: 20));
+        final response = await _client
+            .get(uri)
+            .timeout(const Duration(seconds: 20));
         if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
           lastError = HttpException(
             'Mushaf asset HTTP ${response.statusCode}',
@@ -414,7 +425,9 @@ class MushafPageRepository extends ChangeNotifier {
         ? '$normalPageBaseUrl/manifest.json'
         : '$tajweedPageBaseUrl/manifest.json';
     try {
-      final response = await _client.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+      final response = await _client
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 20));
       if (response.statusCode != 200 || response.bodyBytes.isEmpty) return null;
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
       if (decoded is! Map<String, dynamic> ||
@@ -495,7 +508,9 @@ class MushafPageRepository extends ChangeNotifier {
         if (existingBytes > 0) {
           request.headers['Range'] = 'bytes=$existingBytes-';
         }
-        final response = await _client.send(request).timeout(const Duration(seconds: 20));
+        final response = await _client
+            .send(request)
+            .timeout(const Duration(seconds: 20));
         if (response.statusCode != 200 && response.statusCode != 206) continue;
         if (response.statusCode == 200 && existingBytes > 0) {
           await temporary.writeAsBytes(const <int>[], flush: true);
@@ -505,23 +520,27 @@ class MushafPageRepository extends ChangeNotifier {
         final sink = temporary.openWrite(mode: FileMode.append);
         var received = resumedBytes;
         try {
-        await for (final chunk in response.stream.timeout(const Duration(seconds: 20))) {
-          if (_cancelRequested) {
-            await sink.close();
-            return false;
+          await for (final chunk in response.stream.timeout(
+            const Duration(seconds: 20),
+          )) {
+            if (_cancelRequested) {
+              await sink.close();
+              return false;
+            }
+            received += chunk.length;
+            sink.add(chunk);
+            offlineProgress = MushafOfflineProgress(
+              edition: edition,
+              completedPages: 0,
+              totalPages: mushafPageCount,
+              receivedBytes: received,
+              totalBytes: totalBytes,
+            );
+            notifyListeners();
           }
-          received += chunk.length;
-          sink.add(chunk);
-          offlineProgress = MushafOfflineProgress(
-            edition: edition,
-            completedPages: 0,
-            totalPages: mushafPageCount,
-            receivedBytes: received,
-            totalBytes: totalBytes,
-          );
-          notifyListeners();
+        } finally {
+          await sink.close();
         }
-        } finally { await sink.close(); }
         if (sha256Hex(await temporary.readAsBytes()) != expectedSha) {
           await temporary.delete();
           continue;
@@ -558,7 +577,9 @@ class MushafPageRepository extends ChangeNotifier {
         : 'madinah-tajweed-qcf-v4-pack.zip';
     for (final url in <String>[packChecksumsUrl, _githubPackChecksums]) {
       try {
-        final response = await _client.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+        final response = await _client
+            .get(Uri.parse(url))
+            .timeout(const Duration(seconds: 20));
         if (response.statusCode != 200) continue;
         for (final line in const LineSplitter().convert(response.body)) {
           if (line.trim().endsWith(filename)) {

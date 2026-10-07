@@ -92,7 +92,7 @@ void main() {
         expect(request.followRedirects, isFalse);
         expect(client.forcedClosed, isTrue);
         expect(client.requests, 1);
-        expect(await File('${result.localPath}.part').exists(), mode == 'success' || mode == 'redirect' ? isFalse : isTrue);
+        expect(await File('${result.localPath}.part').exists(), mode == 'success' || mode == 'redirect' || mode == 'headers' ? isFalse : isTrue);
         if (mode == 'success') {
           expect(result.state, QuranDownloadState.completed);
           expect(await File(result.localPath!).length(), 4096);

@@ -128,8 +128,10 @@ class PrayerReminderController {
         await reconcile();
         return false;
       }
-      if (mode == PrayerReminderMode.adhan && notifications.nativeAudioAlarms &&
-          !await notifications.exactSchedulingAvailable() && !await notifications.requestExactSchedulingPermission()) {
+      if (mode == PrayerReminderMode.adhan &&
+          notifications.nativeAudioAlarms &&
+          !await notifications.exactSchedulingAvailable() &&
+          !await notifications.requestExactSchedulingPermission()) {
         return false;
       }
       await settings.setReminderMode(prayer, mode);
@@ -197,7 +199,9 @@ class PrayerReminderController {
                 ? LocalNotificationChannel.adhan
                 : LocalNotificationChannel.prayerReminder,
             playSound: mode != PrayerReminderMode.silent,
-            audioPath: mode == PrayerReminderMode.adhan ? adhanAudio?.assetPath : null,
+            audioPath: mode == PrayerReminderMode.adhan
+                ? adhanAudio?.assetPath
+                : null,
           ),
         );
         if (mode == PrayerReminderMode.adhan) {
@@ -213,7 +217,10 @@ class PrayerReminderController {
     PrayerSettings current,
   ) {
     _adhanTimer?.cancel();
-    if (notifications.nativeAudioAlarms || adhanAudio == null || schedules.isEmpty) return;
+    if (notifications.nativeAudioAlarms ||
+        adhanAudio == null ||
+        schedules.isEmpty)
+      return;
     schedules.sort((left, right) => left.time.compareTo(right.time));
     final next = schedules.first;
     final delay = next.time.difference(_clock());
@@ -222,7 +229,9 @@ class PrayerReminderController {
       if (!_isForeground()) return;
       final id = PrayerReminderIds.forPrayer(next.prayer);
       try {
-        await notifications.cancel(PrayerReminderIds.forPrayerOnDate(next.prayer, next.time));
+        await notifications.cancel(
+          PrayerReminderIds.forPrayerOnDate(next.prayer, next.time),
+        );
         await notifications.show(
           LocalNotificationRequest(
             id: id,

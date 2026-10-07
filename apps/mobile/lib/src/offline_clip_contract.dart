@@ -88,9 +88,13 @@ class OfflineClip {
 abstract class OfflineClipService extends ChangeNotifier {
   bool get supported;
   bool get microphoneRecording => false;
-  Future<void> startMicrophone({String title = "تسجيل تلاوتي", Duration? maxDuration}) async {
+  Future<void> startMicrophone({
+    String title = "تسجيل تلاوتي",
+    Duration? maxDuration,
+  }) async {
     throw UnsupportedError("MICROPHONE_UNSUPPORTED");
   }
+
   List<OfflineClip> get clips;
   String? get activeStationId;
   Duration get activeElapsed;

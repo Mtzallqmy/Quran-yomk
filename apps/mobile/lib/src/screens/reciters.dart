@@ -39,6 +39,12 @@ class _RecitersPageState extends ConsumerState<RecitersPage> {
       _error = null;
     });
     try {
+      final services = ref.read(servicesProvider);
+      await services.quranDownloads.initialize();
+      final saved = <String, QuranAudioCatalogReciter>{
+        for (final reciter in services.quranDownloads.offlineReciters) reciter.identityKey: reciter,
+      }.values.toList(growable: false);
+      if (mounted && _all.isEmpty && saved.isNotEmpty) setState(() => _all = saved);
       final rows = await ref
           .read(servicesProvider)
           .quranAudio
@@ -281,7 +287,13 @@ class _QuranAudioReciterDetailPageState
   @override
   void initState() {
     super.initState();
-    _surahs = ref.read(servicesProvider).repository.surahs();
+    final services = ref.read(servicesProvider);
+    _surahs = services.repository.surahs().catchError((Object error) {
+      final saved = services.quranDownloads.tasks.where((task) => task.media.reciter.sameIdentity(widget.reciter))
+          .map((task) => task.media.surah).toList(growable: false);
+      if (saved.isEmpty) throw error;
+      return saved;
+    });
   }
 
   Future<QuranAudioMedia> _resolve(Surah surah) => ref
@@ -334,23 +346,47 @@ class _QuranAudioReciterDetailPageState
   Future<void> _downloadAll(List<Surah> surahs) async {
     final services = ref.read(servicesProvider);
     if (_batchBusy || !services.remoteConfig.offlineDownloadsEnabled) return;
-    final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
-      title: Text(_english ? 'Download audio mushaf?' : 'تنزيل المصحف الصوتي؟'),
-      content: Text('سيتم تنزيل ${surahs.length} سورة بصوت ${widget.reciter.nameAr}. قد تحتاج مساحة كبيرة واتصالًا بالإنترنت حتى يكتمل التنزيل.'),
-      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('تنزيل'))],
-    ));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          _english ? 'Download audio mushaf?' : 'تنزيل المصحف الصوتي؟',
+        ),
+        content: Text(
+          'سيتم تنزيل ${surahs.length} سورة بصوت ${widget.reciter.nameAr}. قد تحتاج مساحة كبيرة واتصالًا بالإنترنت حتى يكتمل التنزيل.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('تنزيل'),
+          ),
+        ],
+      ),
+    );
     if (confirmed != true || !mounted) return;
     setState(() => _batchBusy = true);
     var queued = 0;
     try {
       for (final surah in surahs) {
-        final media = await _resolve(surah); _assertIdentity(media);
-        await services.quranDownloads.download(media); queued++;
+        final media = await _resolve(surah);
+        _assertIdentity(media);
+        await services.quranDownloads.download(media);
+        queued++;
       }
-      if (mounted) { _message('أضيفت $queued سورة إلى التنزيلات'); Navigator.pushNamed(context, MobileRoutes.downloads); }
-    } catch (_) { if (mounted) _message('أضيفت $queued سورة. أعد المحاولة لاستكمال السور المتبقية.'); }
-    finally { if (mounted) setState(() => _batchBusy = false); }
+      if (mounted) {
+        _message('أضيفت $queued سورة إلى التنزيلات');
+        Navigator.pushNamed(context, MobileRoutes.downloads);
+      }
+    } catch (_) {
+      if (mounted)
+        _message('أضيفت $queued سورة. أعد المحاولة لاستكمال السور المتبقية.');
+    } finally {
+      if (mounted) setState(() => _batchBusy = false);
+    }
   }
 
   bool get _english => Localizations.localeOf(context).languageCode == 'en';
@@ -482,9 +518,17 @@ class _QuranAudioReciterDetailPageState
                                 widget.reciter.identityKey,
                               ),
                             ),
-                            FilledButton.icon(onPressed: _batchBusy ? null : () => _downloadAll(surahs),
+                            FilledButton.icon(
+                              onPressed: _batchBusy
+                                  ? null
+                                  : () => _downloadAll(surahs),
                               icon: const Icon(Icons.download_for_offline),
-                              label: Text(_batchBusy ? 'إضافة السور...' : 'تنزيل المصحف الصوتي')),
+                              label: Text(
+                                _batchBusy
+                                    ? 'إضافة السور...'
+                                    : 'تنزيل المصحف الصوتي',
+                              ),
+                            ),
                             Text(
                               english
                                   ? '${surahs.length} available surahs'

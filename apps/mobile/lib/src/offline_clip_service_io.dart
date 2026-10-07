@@ -37,7 +37,6 @@ class _IoOfflineClipService extends OfflineClipService {
   String? _filePath;
   String? _format;
   int _bytes = 0;
-  bool _finishing = false;
   String? _lastError;
   bool _micActive = false;
   Duration _micElapsed = Duration.zero;
@@ -208,14 +207,19 @@ class _IoOfflineClipService extends OfflineClipService {
     return _finish(partial: false);
   }
 
-  Future<OfflineClip?> _finish({required bool partial}) async {
-    if (_finishing ||
-        _station == null ||
+  Future<OfflineClip?>? _finishOperation;
+  Future<OfflineClip?> _finish({required bool partial}) => _finishOperation ??=
+      _finalize(partial: partial).catchError((Object error) {
+        _lastError = 'OFFLINE_CLIP_FINALIZE_FAILED';
+        return null;
+      }).whenComplete(() => _finishOperation = null);
+
+  Future<OfflineClip?> _finalize({required bool partial}) async {
+    if (_station == null ||
         _startedAt == null ||
         _filePath == null) {
       return null;
     }
-    _finishing = true;
     final station = _station!;
     final startedAt = _startedAt!;
     final partialPath = _filePath!;
@@ -238,6 +242,7 @@ class _IoOfflineClipService extends OfflineClipService {
     _client = null;
 
     OfflineClip? clip;
+    try {
     final file = File(partialPath);
     final length = await file.exists() ? await file.length() : 0;
     if (length >= _minimumUsefulBytes) {
@@ -260,14 +265,15 @@ class _IoOfflineClipService extends OfflineClipService {
       await file.delete();
     }
 
+    } finally {
     await NativeAudio.finishTask(recording: true);
     _station = null;
     _startedAt = null;
     _filePath = null;
     _format = null;
     _bytes = 0;
-    _finishing = false;
     notifyListeners();
+    }
     return clip;
   }
 
@@ -293,7 +299,6 @@ class _IoOfflineClipService extends OfflineClipService {
     _filePath = null;
     _format = null;
     _bytes = 0;
-    _finishing = false;
     notifyListeners();
   }
 
@@ -314,13 +319,14 @@ class _IoOfflineClipService extends OfflineClipService {
     if (_syncingMic) return;
     _syncingMic = true;
     try {
-      final status = await NativeAudio.call<Map>('recordStatus');
+      final status = await NativeAudio.call<Map<dynamic, dynamic>>('recordStatus');
       if (status == null) return;
       _micActive = status['active'] == true;
+      if (status['error'] is String) _lastError = status['error'] as String;
       _micElapsed = Duration(milliseconds: (status['elapsedMs'] as num?)?.toInt() ?? 0);
       final rows = jsonDecode(status['completed'] as String? ?? '[]') as List;
       final acknowledged = <String>[];
-      for (final row in rows.whereType<Map>()) {
+      for (final row in rows.whereType<Map<String, dynamic>>()) {
         final id = row['id'] as String;
         acknowledged.add(id);
         if (_clips.any((value) => value.id == id) || !await File(row['path'] as String).exists()) continue;

@@ -14,8 +14,10 @@ Future<QuranAudioMedia> resolveQuranListening(
   for (final task in services.quranDownloads.tasks) {
     final media = task.media;
     if (media.provider.name == session.provider &&
-        media.reciter.id == session.reciterId && media.reciter.edition == session.edition &&
-        media.surah.number == session.surahNumber && media.ayahInSurah == session.ayahNumber &&
+        media.reciter.id == session.reciterId &&
+        media.reciter.edition == session.edition &&
+        media.surah.number == session.surahNumber &&
+        media.ayahInSurah == session.ayahNumber &&
         media.bitrateKbps == session.bitrateKbps) {
       final local = await services.quranDownloads.localMedia(media);
       if (local != null) return local;

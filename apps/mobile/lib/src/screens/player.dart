@@ -217,7 +217,8 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
       final services = ref.read(servicesProvider);
       final media = await resolveQuranListening(services, session);
       await services.quranDownloads.download(media);
-      if (mounted) await showDownloadProgress(context, services.quranDownloads, media);
+      if (mounted)
+        await showDownloadProgress(context, services.quranDownloads, media);
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(

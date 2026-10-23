@@ -3,6 +3,18 @@ import { ApiError } from './handler.mjs';
 
 export class Database {
   constructor(pool) { this.pool=pool; }
+  async radioCatalog() {
+    const {rows}=await this.pool.query(`SELECT id,provider,provider_station_id,name_ar,
+      playback_url,category,source_url,attribution,checked_at
+      FROM tarteel_cloud.radio_supplements WHERE enabled ORDER BY name_ar LIMIT 500`);
+    return rows.map(row=>({id:row.id,slug:`neon-${row.provider}-${row.provider_station_id}`,
+      name_ar:row.name_ar,station_source:'EXTERNAL',stream_type:'SHOUTCAST',
+      playback_url:row.playback_url,category:row.category,provider:row.provider,
+      provider_name:'MP3Quran',integration_basis:'PUBLIC_API',attribution:row.attribution,
+      terms_url:row.source_url,availability_status:'PUBLIC_CATALOG',
+      // Availability is a point-in-time check, never a permanent guarantee.
+      last_checked_at:row.checked_at}));
+  }
   async budget(principal,limit) {
     const {rows}=await this.pool.query(`INSERT INTO tarteel_cloud.request_budgets AS budget
       (principal,window_start,request_count) VALUES($1,date_trunc('minute',now()),1)

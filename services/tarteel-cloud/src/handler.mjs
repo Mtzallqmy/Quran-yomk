@@ -43,10 +43,26 @@ const response=(data,status=200)=>Response.json(data,{status,headers:{'cache-con
 
 // db owns parameterized queries, persistent quotas and authorization scope.
 export function createHandler(db) {
+  let radioCache;
+  let radioLoading;
+  const catalog=async()=>{
+    if(radioCache && radioCache.expires>Date.now()) return radioCache.data;
+    radioLoading ??= db.radioCatalog().then(data=>{
+      radioCache={data,expires:Date.now()+60000};return data;
+    }).finally(()=>{radioLoading=undefined;});
+    return radioLoading;
+  };
   return async request => {
     try {
       const path=new URL(request.url).pathname.replace(/\/$/,'');
       if (path==='/health' && request.method==='GET') return response({service:'tarteel-optional-cloud',ok:true});
+      // Deliberately public GET metadata. No anonymous mutation or stream proxy.
+      if (path==='/v1/radio/stations') {
+        if(request.method!=='GET') throw new ApiError(405,'METHOD_NOT_ALLOWED');
+        return Response.json({data:await catalog()},{headers:{
+          'cache-control':'public, max-age=60, stale-if-error=86400',
+          'x-content-type-options':'nosniff'}});
+      }
       if (path==='/v1/devices' && request.method==='POST') {
         await db.budget('registration',20);
         const body=await readJson(request);

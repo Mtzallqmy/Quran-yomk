@@ -181,7 +181,7 @@ class PrayerReminderController {
     final now = _clock();
     final snapshot = await prayerTimes.snapshot(now: now, settings: current);
     await _cancelManagedWindow(now);
-    final adhanSchedules = <({PrayerKind prayer, DateTime time})>[];
+    final adhanSchedules = <({PrayerKind prayer, DateTime time, int id})>[];
     final extraCount = PrayerKind.values
         .where((p) => p.isRequiredPrayer)
         .fold<int>(
@@ -265,7 +265,11 @@ class PrayerReminderController {
           ),
         );
         if (audioMode) {
-          adhanSchedules.add((prayer: prayer, time: scheduledAt));
+          adhanSchedules.add((
+            prayer: prayer,
+            time: scheduledAt,
+            id: PrayerReminderIds.forPrayerOnDate(prayer, day.date),
+          ));
         }
       }
     }
@@ -273,7 +277,7 @@ class PrayerReminderController {
   }
 
   void _scheduleForegroundAdhan(
-    List<({PrayerKind prayer, DateTime time})> schedules,
+    List<({PrayerKind prayer, DateTime time, int id})> schedules,
     PrayerSettings current,
   ) {
     _adhanTimer?.cancel();
@@ -289,9 +293,7 @@ class PrayerReminderController {
       if (!_isForeground()) return;
       final id = PrayerReminderIds.forPrayer(next.prayer);
       try {
-        await notifications.cancel(
-          PrayerReminderIds.forPrayerOnDate(next.prayer, next.time),
-        );
+        await notifications.cancel(next.id);
         await notifications.show(
           LocalNotificationRequest(
             id: id,

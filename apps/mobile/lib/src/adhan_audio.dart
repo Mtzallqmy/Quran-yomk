@@ -98,21 +98,21 @@ class AdhanAudioService extends ChangeNotifier {
     if (path.trim().isNotEmpty) assetPath = path;
   }
 
-  Future<bool> play() async {
+  Future<bool> play({String? path}) async {
     if (_active != null) return false;
     _lastError = null;
     _isPlaying = true;
     notifyListeners();
-    final operation = _run();
+    final operation = _run(path ?? assetPath);
     _active = operation;
     unawaited(operation);
     return true;
   }
 
-  Future<void> _run() async {
+  Future<void> _run(String path) async {
     try {
       if (await _playback.isPlaying()) await _playback.pause();
-      await _player.playAsset(assetPath);
+      await _player.playAsset(path);
     } catch (_) {
       _lastError = 'ADHAN_PLAYBACK_FAILED';
       debugPrint(_lastError);

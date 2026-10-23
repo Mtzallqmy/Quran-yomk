@@ -4,6 +4,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tarteel/src/adhan_audio.dart';
 
 void main() {
+  test(
+    'preview captures requested path without replacing selected sound',
+    () async {
+      final player = _FakeAdhanPlayer();
+      final service = AdhanAudioService(
+        playbackGateway: _FakePlayback(playing: false),
+        player: player,
+        assetPath: 'chosen.ogg',
+      );
+      await service.play(path: 'assets/audio/reminder.wav');
+      await Future<void>.delayed(Duration.zero);
+      expect(player.lastPath, 'assets/audio/reminder.wav');
+      expect(service.assetPath, 'chosen.ogg');
+      player.finish();
+      await service.completion;
+      await service.close();
+    },
+  );
+
   test('adhan pauses active playback and prevents double playback', () async {
     final playback = _FakePlayback(playing: true);
     final player = _FakeAdhanPlayer();
@@ -83,11 +102,13 @@ class _FakeAdhanPlayer implements AdhanPlayerGateway {
 
   final bool missingAsset;
   Completer<void>? _playing;
+  String? lastPath;
   int playCount = 0;
   int stopCount = 0;
 
   @override
   Future<void> playAsset(String assetPath) async {
+    lastPath = assetPath;
     playCount += 1;
     if (missingAsset) throw StateError('ASSET_MISSING');
     _playing = Completer<void>();

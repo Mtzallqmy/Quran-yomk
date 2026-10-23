@@ -11,6 +11,7 @@ import '../prayer_settings.dart';
 import '../prayer_times.dart';
 import '../services.dart';
 import '../reading_card.dart';
+import '../theme.dart';
 import 'prayer_times.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -58,11 +59,11 @@ class _HomePageState extends ConsumerState<HomePage> {
         key: const PageStorageKey('home-dashboard'),
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            'مرحبًا بك في ترتيل',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          const _HomeWelcome(),
           const SizedBox(height: 16),
+          if (services.features.enabled(TarteelFeature.prayer))
+            const DashboardPrayerTimes(),
+          const SizedBox(height: 8),
           ContinueReadingCard(
             position: services.mushaf.lastPosition,
             onOpen: () {
@@ -74,8 +75,6 @@ class _HomePageState extends ConsumerState<HomePage> {
               );
             },
           ),
-          if (services.features.enabled(TarteelFeature.prayer))
-            const DashboardPrayerTimes(),
           if (services.quranPlayback.last case final session?)
             Card(
               child: ListTile(
@@ -148,7 +147,9 @@ class _HomePageState extends ConsumerState<HomePage> {
             runSpacing: 8,
             children: [
               _shortcut('المصحف', Icons.menu_book, MobileRoutes.quran),
-              _shortcut('القراء', Icons.headphones, MobileRoutes.reciters),
+              _shortcut('التلاوات', Icons.headphones, MobileRoutes.reciters),
+              if (services.features.enabled(TarteelFeature.radio))
+                _shortcut('الإذاعات', Icons.radio_outlined, MobileRoutes.radio),
               if (services.features.enabled(TarteelFeature.offlineDownloads))
                 _shortcut(
                   'التنزيلات',
@@ -184,6 +185,9 @@ class DashboardPrayerTimes extends ConsumerStatefulWidget {
 class _DashboardPrayerTimesState extends ConsumerState<DashboardPrayerTimes> {
   late Future<PrayerSnapshot> _snapshot;
   Timer? _timer;
+  DateTime _now = DateTime.now();
+  DateTime _lastRefresh = DateTime.now();
+  DateTime? _nextPrayerAt;
   late final PrayerSettingsStore _settings;
   @override
   void initState() {
@@ -191,16 +195,26 @@ class _DashboardPrayerTimesState extends ConsumerState<DashboardPrayerTimes> {
     _refresh();
     _settings = ref.read(servicesProvider).prayerSettings;
     _settings.addListener(_refresh);
-    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (mounted) _refresh();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _now = DateTime.now());
+      if ((_nextPrayerAt != null && !_nextPrayerAt!.isAfter(_now)) ||
+          _now.difference(_lastRefresh).abs() >= const Duration(minutes: 1)) {
+        _nextPrayerAt = null;
+        _refresh();
+      }
     });
   }
 
   void _refresh() {
+    _lastRefresh = DateTime.now();
     final services = ref.read(servicesProvider);
-    _snapshot = services.prayerTimes.snapshot(
-      settings: services.prayerSettings.value,
-    );
+    _snapshot = services.prayerTimes
+        .snapshot(settings: services.prayerSettings.value)
+        .then((snapshot) {
+          _nextPrayerAt = snapshot.next.time;
+          return snapshot;
+        });
     if (mounted) setState(() {});
   }
 
@@ -219,53 +233,198 @@ class _DashboardPrayerTimesState extends ConsumerState<DashboardPrayerTimes> {
     builder: (context, snapshot) {
       final data = snapshot.data;
       if (data == null) return const SizedBox.shrink();
-      final remaining = data.next.time.difference(DateTime.now());
+      final remaining = data.next.time.difference(_now);
+      final seconds = remaining.inSeconds.clamp(0, 172800);
+      final countdown =
+          '${(seconds ~/ 3600).toString().padLeft(2, '0')}:${((seconds ~/ 60) % 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
       return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${data.next.prayer.nameAr} القادمة • متبقي ${remaining.inHours}:${(remaining.inMinutes % 60).clamp(0, 59).toString().padLeft(2, '0')}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              Text(
-                ref.read(servicesProvider).prayerSettings.value.locationName,
-              ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
+              colors: [TarteelTheme.primary, TarteelTheme.deepGreen],
+            ),
+          ),
+          child: CustomPaint(
+            painter: const IslamicGeometryPainter(color: Color(0x15FFFFFF)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: DefaultTextStyle.merge(
+                style: const TextStyle(color: Colors.white),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final prayer in data.today.requiredPrayers)
-                      Padding(
-                        padding: const EdgeInsetsDirectional.only(
-                          end: 24,
-                          top: 8,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('الصلاة القادمة'),
+                              Text(
+                                data.next.prayer.nameAr,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Column(
-                          children: [
-                            Text(prayer.prayer.nameAr),
-                            Text(_time(prayer.time)),
-                          ],
+                        const Icon(
+                          Icons.mosque_outlined,
+                          size: 34,
+                          color: Color(0xFF83D6D4),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Semantics(
+                      label:
+                          'الوقت المتبقي ${remaining.inHours.clamp(0, 48)} ساعة و${remaining.inMinutes.clamp(0, 2880) % 60} دقيقة',
+                      excludeSemantics: true,
+                      child: Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            countdown,
+                            style: Theme.of(context).textTheme.displaySmall
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        Text(
+                          ref
+                              .read(servicesProvider)
+                              .prayerSettings
+                              .value
+                              .locationName,
+                        ),
+                        Text('• ${_time(data.next.time)}'),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Divider(color: Color(0x40FFFFFF)),
+                    ),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final prayer in data.today.requiredPrayers)
+                            Container(
+                              margin: const EdgeInsetsDirectional.only(end: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: prayer.prayer == data.next.prayer
+                                    ? const Color(0x33FFFFFF)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(prayer.prayer.nameAr),
+                                  Text(_time(prayer.time)),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => const PrayerTimesPage(),
+                          ),
+                        ),
+                        icon: const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 20,
+                        ),
+                        label: const Text('المواقيت وإعدادات الأذان'),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              TextButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => const PrayerTimesPage(),
-                  ),
-                ),
-                child: const Text('مواقيت الصلاة'),
-              ),
-            ],
+            ),
           ),
         ),
       );
     },
   );
+}
+
+class _HomeWelcome extends StatelessWidget {
+  const _HomeWelcome();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.auto_awesome_outlined,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('مرحبًا بك في ترتيل', style: theme.textTheme.titleLarge),
+              Text(
+                'قراءةٌ تُنير يومك، وذكرٌ يطمئن قلبك',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'الإعدادات',
+          onPressed: () => Navigator.pushNamed(context, MobileRoutes.settings),
+          icon: const Icon(Icons.tune_outlined),
+        ),
+      ],
+    );
+  }
 }

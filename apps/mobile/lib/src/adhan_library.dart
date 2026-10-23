@@ -7,6 +7,31 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'native_audio.dart';
 
+/// Offline assets shipped with the application; never fetched from a server.
+@immutable
+class BuiltInAdhanSound {
+  const BuiltInAdhanSound(this.id, this.nameAr, this.path, this.descriptionAr);
+  final String id;
+  final String nameAr;
+  final String path;
+  final String descriptionAr;
+}
+
+const builtInAdhanSounds = <BuiltInAdhanSound>[
+  BuiltInAdhanSound(
+    'built-in-adhan',
+    'الأذان المرفق',
+    'assets/audio/adhan.ogg',
+    'عينة أذان 42 ثانية • Aishatu98 • CC0 1.0',
+  ),
+  BuiltInAdhanSound(
+    'built-in-reminder',
+    'تنبيه هادئ',
+    'assets/audio/reminder.wav',
+    'تنبيه قصير للأذكار والتذكير • صوت مولّد داخل المشروع',
+  ),
+];
+
 @immutable
 class AdhanRecording {
   const AdhanRecording({
@@ -51,8 +76,7 @@ const adhanRecordings = <AdhanRecording>[
     nameAr: 'أذان مكة — نسخة متوافقة',
     nameEn: 'Makkah — Compatible audio copy',
     placeAr: 'مكة المكرمة',
-    sourceUrl:
-        'https://archive.org/download/AsrAzanFromMakkah/AsrAzanFromMakkah_512kb.mp4',
+    sourceUrl: 'https://archive.org/download/AsrAzanFromMakkah/AsrAzanFromMakkah_512kb.mp4',
     licenseUrl: 'https://archive.org/details/AsrAzanFromMakkah',
     licenseLabel: 'ملكية عامة (Internet Archive)',
     fileExtension: 'mp4',
@@ -71,14 +95,33 @@ class AdhanLibraryStore extends ChangeNotifier {
   String? _error;
 
   bool get busy => _busy;
-  bool get hasLocalFile => isDownloaded('phone-audio');
+  bool get hasLocalFile => importedIds.isNotEmpty;
+  List<String> get importedIds => _files.keys
+      .where((id) => id.startsWith('phone-') && isDownloaded(id))
+      .toList(growable: false);
+
+  /// Stable private paths are also used by independent per-prayer settings.
+  Map<String, String> get availablePaths => Map.unmodifiable({
+    for (final sound in builtInAdhanSounds) sound.id: sound.path,
+    for (final entry in _files.entries)
+      if (isDownloaded(entry.key)) entry.key: entry.value,
+  });
+
+  String labelFor(String id) {
+    for (final sound in builtInAdhanSounds) {
+      if (sound.id == id) return sound.nameAr;
+    }
+    return _find(id)?.nameAr ?? 'صوت محلي';
+  }
 
   Future<bool> importPhoneAudio() async {
     final path = await NativeAudio.pickAudio();
     if (path == null) return false;
-    _files['phone-audio'] = path;
+    // Keep older imports: a prayer may still reference their private path.
+    final id = 'phone-${DateTime.now().microsecondsSinceEpoch}';
+    _files[id] = path;
     await _persist();
-    await select('phone-audio');
+    await select(id);
     return true;
   }
 
@@ -91,7 +134,8 @@ class AdhanLibraryStore extends ChangeNotifier {
   String? get error => _error;
   String? get selectedId => _selectedId;
   AdhanRecording? get selected => _find(_selectedId);
-  String? get selectedPath => _selectedId == null ? null : _files[_selectedId];
+  String? get selectedPath =>
+      _selectedId == null ? null : availablePaths[_selectedId];
 
   void load() {
     _selectedId = _preferences.getString(_selectedKey);
@@ -111,9 +155,11 @@ class AdhanLibraryStore extends ChangeNotifier {
   }
 
   bool isDownloaded(String id) =>
-      _files.containsKey(id) && File(_files[id]!).existsSync();
+      builtInAdhanSounds.any((sound) => sound.id == id) ||
+      (_files.containsKey(id) && File(_files[id]!).existsSync());
 
   Future<bool> download(AdhanRecording recording) async {
+    if (_busy) return false;
     if (isDownloaded(recording.id)) {
       await select(recording.id);
       return true;
@@ -124,6 +170,7 @@ class AdhanLibraryStore extends ChangeNotifier {
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 15);
     File? part;
+    IOSink? output;
     try {
       final directory = await getApplicationSupportDirectory();
       final target = File(
@@ -143,7 +190,7 @@ class AdhanLibraryStore extends ChangeNotifier {
         throw StateError('ADHAN_DOWNLOAD_HTTP_${response.statusCode}');
       }
       var total = 0;
-      final output = part.openWrite();
+      output = part.openWrite();
       await for (final chunk in response.timeout(const Duration(seconds: 20))) {
         total += chunk.length;
         if (total > 80 * 1024 * 1024)
@@ -151,6 +198,7 @@ class AdhanLibraryStore extends ChangeNotifier {
         output.add(chunk);
       }
       await output.close();
+      output = null;
       if (total < 4096) throw StateError('ADHAN_DOWNLOAD_EMPTY');
       await part.rename(target.path);
       _files[recording.id] = target.path;
@@ -159,6 +207,13 @@ class AdhanLibraryStore extends ChangeNotifier {
       return true;
     } catch (error) {
       _error = error is StateError ? error.message : 'ADHAN_DOWNLOAD_FAILED';
+      if (output != null) {
+        try {
+          await output.close();
+        } catch (_) {
+          // Preserve the original error and clean up the incomplete download.
+        }
+      }
       if (part != null && await part.exists()) await part.delete();
       return false;
     } finally {
@@ -191,9 +246,9 @@ class AdhanLibraryStore extends ChangeNotifier {
 
   AdhanRecording? _find(String? id) {
     if (id == null) return null;
-    if (id == 'phone-audio')
-      return const AdhanRecording(
-        id: 'phone-audio',
+    if (id.startsWith('phone-'))
+      return AdhanRecording(
+        id: id,
         nameAr: 'صوت من الهاتف',
         nameEn: 'Phone audio',
         placeAr: 'ملف محلي',
@@ -210,8 +265,7 @@ class AdhanLibraryStore extends ChangeNotifier {
 
   void _removeMissing() {
     _files.removeWhere((_, path) => !File(path).existsSync());
-    if (_selectedId != null && !_files.containsKey(_selectedId))
-      _selectedId = null;
+    if (_selectedId != null && !isDownloaded(_selectedId!)) _selectedId = null;
   }
 
   Future<void> _persist() =>

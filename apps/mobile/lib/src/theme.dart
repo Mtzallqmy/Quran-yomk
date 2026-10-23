@@ -278,3 +278,46 @@ class TarteelPageTransitionsBuilder extends PageTransitionsBuilder {
     );
   }
 }
+
+/// A subtle eight-point lattice, drawn locally and ignored by accessibility.
+class IslamicGeometryPainter extends CustomPainter {
+  const IslamicGeometryPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+    const step = 88.0;
+    for (var y = -step; y < size.height + step; y += step) {
+      for (var x = -step; x < size.width + step; x += step) {
+        final center = Offset(x + step / 2, y + step / 2);
+        canvas.drawRect(
+          Rect.fromCenter(center: center, width: 36, height: 36),
+          paint,
+        );
+        canvas.save();
+        canvas.translate(center.dx, center.dy);
+        canvas.rotate(0.7853981633974483);
+        canvas.drawRect(const Rect.fromLTWH(-18, -18, 36, 36), paint);
+        canvas.restore();
+        canvas.drawLine(
+          center + const Offset(26, 0),
+          center + const Offset(62, 0),
+          paint,
+        );
+        canvas.drawLine(
+          center + const Offset(0, 26),
+          center + const Offset(0, 62),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(IslamicGeometryPainter oldDelegate) =>
+      color != oldDelegate.color;
+}

@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "verifiedAt": "2026-10-23",
+  "assets": [
+    {
+      "path": "assets/audio/adhan.ogg",
+      "sha256": "549a0b35c46f2c3d6214218155df28129c5391fe35527ae4cff06d3bfd8251d2",
+      "kind": "adhan_sample",
+      "durationSeconds": 42.097778,
+      "author": "Aishatu98",
+      "source": "https://commons.wikimedia.org/wiki/File:Adhan.ogg",
+      "sourceRevision": "https://commons.wikimedia.org/w/index.php?title=File:Adhan.ogg&oldid=1248174278",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "notes": "Existing adapted mono 22050 Hz recording. Short adhan announcement sample; not represented as a complete full-length adhan."
+    },
+    {
+      "path": "assets/audio/reminder.wav",
+      "sha256": "60d0a32bdddb470b5dbbe4a868e373fb0e0cb9f0c9484367d1eb64b624b0da9a",
+      "kind": "notification_chime",
+      "durationSeconds": 1.25,
+      "author": "Tarteel project, generated during 2026-10-23 update",
+      "source": "scripts/generate_tarteel_reminder.py",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "notes": "Original synthesized two-tone PCM notification sound. Contains no sampled recording, voice, or recitation."
+    }
+  ]
+}

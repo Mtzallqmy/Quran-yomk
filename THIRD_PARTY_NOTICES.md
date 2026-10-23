@@ -29,3 +29,15 @@ SIL Open Font License 1.1 is included verbatim at
 `apps/mobile/assets/fonts/OFL-NotoSansArabic.txt` and registered in Android's
 Flutter license registry. Font SHA-256:
 `63111b5b2e074dd48cc67692e0a2726d86ee94c1c37fe8598257b7b4e87e869e`.
+
+## Offline local reminder sound (2026-10-23)
+
+`apps/mobile/assets/audio/reminder.wav` is an original synthesized two-tone
+notification chime created for this update, with no recorded voice or samples.
+The generator `scripts/generate_tarteel_reminder.py` and its generated sound
+are dedicated under CC0 1.0. The sound is a short notification, not an adhan or
+a spoken dhikr. `apps/mobile/assets/audio/manifest.json` records checksums and
+provenance for both offline assets. The existing bundled adhan is a 42-second
+announcement sample; it is not described as a verified complete full-length
+adhan. Wikimedia Commons source revision 1248174278 was checked on 2026-10-23
+and explicitly identifies Aishatu98's own work under CC0 1.0.

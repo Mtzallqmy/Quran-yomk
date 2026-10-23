@@ -176,7 +176,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 }
 
 class DashboardPrayerTimes extends ConsumerStatefulWidget {
-  const DashboardPrayerTimes({super.key});
+  const DashboardPrayerTimes({super.key, this.clock});
+
+  /// Injectable clock keeps countdown and local calculations on one instant.
+  final DateTime Function()? clock;
   @override
   ConsumerState<DashboardPrayerTimes> createState() =>
       _DashboardPrayerTimesState();
@@ -185,19 +188,21 @@ class DashboardPrayerTimes extends ConsumerStatefulWidget {
 class _DashboardPrayerTimesState extends ConsumerState<DashboardPrayerTimes> {
   late Future<PrayerSnapshot> _snapshot;
   Timer? _timer;
-  DateTime _now = DateTime.now();
-  DateTime _lastRefresh = DateTime.now();
+  late DateTime _now;
+  late DateTime _lastRefresh;
   DateTime? _nextPrayerAt;
   late final PrayerSettingsStore _settings;
   @override
   void initState() {
     super.initState();
+    _now = _readNow();
+    _lastRefresh = _now;
     _refresh();
     _settings = ref.read(servicesProvider).prayerSettings;
     _settings.addListener(_refresh);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() => _now = DateTime.now());
+      setState(() => _now = _readNow());
       if ((_nextPrayerAt != null && !_nextPrayerAt!.isAfter(_now)) ||
           _now.difference(_lastRefresh).abs() >= const Duration(minutes: 1)) {
         _nextPrayerAt = null;
@@ -206,11 +211,14 @@ class _DashboardPrayerTimesState extends ConsumerState<DashboardPrayerTimes> {
     });
   }
 
+  DateTime _readNow() => widget.clock?.call() ?? DateTime.now();
+
   void _refresh() {
-    _lastRefresh = DateTime.now();
+    _now = _readNow();
+    _lastRefresh = _now;
     final services = ref.read(servicesProvider);
     _snapshot = services.prayerTimes
-        .snapshot(settings: services.prayerSettings.value)
+        .snapshot(now: _now, settings: services.prayerSettings.value)
         .then((snapshot) {
           _nextPrayerAt = snapshot.next.time;
           return snapshot;

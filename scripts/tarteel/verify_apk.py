@@ -31,7 +31,8 @@ def verify(apk, aapt, apksigner, output):
                       'assets/flutter_assets/assets/audio/adhan_makkah.ogg',
                       'assets/flutter_assets/assets/audio/adhan_madinah.ogg',
                       'assets/flutter_assets/assets/audio/adhan_kazakhstan.ogg',
-                      'assets/flutter_assets/assets/audio/adhan_sweden_fajr.ogg']:
+                      'assets/flutter_assets/assets/audio/adhan_sweden_fajr.ogg',
+                      *['assets/flutter_assets/assets/audio/' + name for name in ['user_makkah.mp3', 'user_madinah.mp3', 'user_egypt.mp3', 'user_abdul_basit.mp3', 'user_minshawi.mp3']]]:
             if archive.getinfo(asset).file_size < 1024:
                 raise ValueError('Missing offline audio: ' + asset)
     output.mkdir(parents=True, exist_ok=True)

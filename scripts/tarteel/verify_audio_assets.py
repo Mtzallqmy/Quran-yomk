@@ -13,8 +13,13 @@ for asset in manifest['assets']:
     seen.add(asset['path'])
     data = (root / path).read_bytes()
     assert hashlib.sha256(data).hexdigest() == asset['sha256'], path
-    assert data[:4] in (b'OggS', b'RIFF'), path
-    assert asset['author'] and asset['source'] and asset['licenseUrl'].startswith('https://creativecommons.org/')
+    assert data[:4] in (b'OggS', b'RIFF') or data[:3] == b'ID3' or (data[0] == 255 and data[1] & 224 == 224), path
+    assert asset['author'] and asset['source']
+    if asset['kind'] == 'user_provided_adhan':
+        assert asset['license'] == 'USER-PROVIDED-PERMISSION' and asset['permissionBasis']
+        assert asset['durationSeconds'] > 60
+    else:
+        assert asset['licenseUrl'].startswith('https://creativecommons.org/')
     if asset['kind'] == 'adhan_recording':
         assert asset['durationSeconds'] > 140
         assert asset['license'] in ('CC-BY-3.0', 'CC-BY-SA-4.0')

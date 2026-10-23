@@ -77,3 +77,15 @@ privately with its credentials, outside git. Its certificate SHA256 is:
 Future preview APKs must reuse that key and raise the actual split version code.
 Production verification continues to require the original2074 certificate; no
 new certificate is substituted into the production release gate.
+
+## User-supplied recordings (2026-10-24)
+
+The owner supplied `adhan_recordings.zip` and explicitly authorized inclusion.
+Five distinct original MP3 files are bundled unchanged: Makkah201s,
+Madinah96s, Egypt183s, AbdulBasit206s, Minshawi235s. Names and PrayTimes source
+links follow the provided README. No third-party Creative Commons license or
+independently verified muezzin/location is asserted for this supplied collection.
+All five are selectable, previewable and accepted by native alarm playback.
+Existing prayer selections and paths remain unchanged. Android instrumentation
+adds five-file readability plus actual screen-off playback of the supplied MP3.
+The packaged manifest now covers11 sounds; APK inspection requires all of them.

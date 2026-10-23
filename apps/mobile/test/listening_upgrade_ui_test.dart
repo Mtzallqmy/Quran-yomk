@@ -17,6 +17,8 @@ void main() {
       ),
     );
     expect(find.text('أذان المسجد النبوي'), findsOneWidget);
+    await tester.ensureVisible(find.text('أذان الحرم المكي'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('أذان الحرم المكي'));
     await tester.pumpAndSettle();
     expect(find.text('Seyfula Islam'), findsOneWidget);

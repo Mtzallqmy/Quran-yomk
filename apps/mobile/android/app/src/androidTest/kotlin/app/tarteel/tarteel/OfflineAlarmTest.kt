@@ -26,6 +26,17 @@ class OfflineAlarmTest {
             } finally { retriever.release(); file.delete() }
         }
     }
+    @Test fun allUserSuppliedMp3FilesAreReadableOffline() {
+        for (name in listOf("makkah", "madinah", "egypt", "abdul_basit", "minshawi")) {
+            val file = java.io.File(context.cacheDir, "test-user-$name.mp3")
+            val retriever = android.media.MediaMetadataRetriever()
+            try {
+                context.assets.open("flutter_assets/assets/audio/user_$name.mp3").use { input -> file.outputStream().use { input.copyTo(it) } }
+                retriever.setDataSource(file.absolutePath)
+                assertTrue((retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L) > 60_000L)
+            } finally { retriever.release(); file.delete() }
+        }
+    }
     @Test fun storesLocalSoundAndRestoresAfterRestart() {
         val id = 8_900_001
         val sound = java.io.File(context.filesDir, "test-adhan.ogg")
@@ -100,6 +111,39 @@ class OfflineAlarmTest {
             while (prefs.getLong("lastReadyAt", 0L) < before && System.currentTimeMillis() < deadline) Thread.sleep(100)
             assertEquals(path, prefs.getString("lastPath", null))
             assertTrue("Media3 prepared the bundled Madinah recording with screen off", prefs.getLong("lastReadyAt", 0L) >= before)
+        } finally {
+            context.stopService(android.content.Intent(context, LocalAlarmAudioService::class.java))
+            LocalAlarmScheduler.cancel(context, id)
+            automation.executeShellCommand("input keyevent 224").use { descriptor ->
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
+            }
+            automation.executeShellCommand("wm dismiss-keyguard").close()
+        }
+    }
+    @Test fun userSuppliedMakkahMp3StartsWithScreenOff() {
+        assertTrue(LocalAlarmScheduler.exactAvailable(context))
+        val id = 8_900_006
+        val path = "assets/audio/user_makkah.mp3"
+        val before = System.currentTimeMillis()
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        context.getSharedPreferences("alarm_diagnostics", Context.MODE_PRIVATE).edit().clear().commit()
+        try {
+            val record = JSONObject().put("id", id).put("title", "تجربة الأذان")
+                .put("path", path).put("time", before + 3000).put("timezone", "Asia/Aden")
+            LocalAlarmScheduler.schedule(context, record)
+            automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+            automation.executeShellCommand("input keyevent 223").use { descriptor ->
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
+            }
+            val power = context.getSystemService(android.os.PowerManager::class.java)
+            val screenDeadline = System.currentTimeMillis() + 2000L
+            while (power.isInteractive && System.currentTimeMillis() < screenDeadline) Thread.sleep(100)
+            assertFalse("The local alarm must be tested while the screen is off", power.isInteractive)
+            val prefs = context.getSharedPreferences("alarm_diagnostics", Context.MODE_PRIVATE)
+            val deadline = System.currentTimeMillis() + 20000L
+            while (prefs.getLong("lastReadyAt", 0L) < before && System.currentTimeMillis() < deadline) Thread.sleep(100)
+            assertEquals(path, prefs.getString("lastPath", null))
+            assertTrue("Media3 prepared the user supplied Makkah MP3 with screen off", prefs.getLong("lastReadyAt", 0L) >= before)
         } finally {
             context.stopService(android.content.Intent(context, LocalAlarmAudioService::class.java))
             LocalAlarmScheduler.cancel(context, id)

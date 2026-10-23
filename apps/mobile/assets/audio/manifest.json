@@ -72,6 +72,71 @@
       "license": "CC-BY-3.0",
       "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
       "notes": "Fajr field recording. Audio extracted; normalized to -18 LUFS, mono 44.1 kHz Vorbis. No phrases intentionally trimmed. Adapted audio remains CC BY 3.0."
+    },
+    {
+      "path": "assets/audio/user_makkah.mp3",
+      "sha256": "92dc60b51d048a568f643910ad5ea81c8ed6f8af836b691c92bcbf7f5db9d2c3",
+      "kind": "user_provided_adhan",
+      "title": "أذان مكة المكرمة — التسجيل المضاف",
+      "durationSeconds": 201,
+      "author": "الاسم حسب الملف الذي قدمه صاحب المشروع؛ حقوق التسجيل لأصحابه",
+      "source": "https://praytimes.org/audio/sunni/Adhan-Makkah.mp3",
+      "license": "USER-PROVIDED-PERMISSION",
+      "licenseUrl": "",
+      "permissionBasis": "Uploaded by the project owner with an explicit statement that use in Tarteel is permitted, 2026-10-24. Not represented as Creative Commons or public domain.",
+      "notes": "Original MP3 supplied by user, unchanged. Labels follow supplied README; no independent geographic/muezzin verification is claimed."
+    },
+    {
+      "path": "assets/audio/user_madinah.mp3",
+      "sha256": "839038913cf6d3056f2344f329c1046d87bdabb592434f5cde5db0d5dd889452",
+      "kind": "user_provided_adhan",
+      "title": "أذان المدينة المنورة — التسجيل المضاف",
+      "durationSeconds": 96,
+      "author": "الاسم حسب الملف الذي قدمه صاحب المشروع؛ حقوق التسجيل لأصحابه",
+      "source": "https://praytimes.org/audio/sunni/Adhan-Madinah.mp3",
+      "license": "USER-PROVIDED-PERMISSION",
+      "licenseUrl": "",
+      "permissionBasis": "Uploaded by the project owner with an explicit statement that use in Tarteel is permitted, 2026-10-24. Not represented as Creative Commons or public domain.",
+      "notes": "Original MP3 supplied by user, unchanged. Labels follow supplied README; no independent geographic/muezzin verification is claimed."
+    },
+    {
+      "path": "assets/audio/user_egypt.mp3",
+      "sha256": "049a005d21013849d013e42d1ad15b79a89e91a8bc41549a46fc13168ec2138e",
+      "kind": "user_provided_adhan",
+      "title": "أذان الإذاعة المصرية",
+      "durationSeconds": 183,
+      "author": "الاسم حسب الملف الذي قدمه صاحب المشروع؛ حقوق التسجيل لأصحابه",
+      "source": "https://praytimes.org/audio/sunni/Adhan-Egypt.mp3",
+      "license": "USER-PROVIDED-PERMISSION",
+      "licenseUrl": "",
+      "permissionBasis": "Uploaded by the project owner with an explicit statement that use in Tarteel is permitted, 2026-10-24. Not represented as Creative Commons or public domain.",
+      "notes": "Original MP3 supplied by user, unchanged. Labels follow supplied README; no independent geographic/muezzin verification is claimed."
+    },
+    {
+      "path": "assets/audio/user_abdul_basit.mp3",
+      "sha256": "416aa02ac87d5161880d7af03d183e5b926864563618cda8f974bdf3e4db7bed",
+      "kind": "user_provided_adhan",
+      "title": "أذان عبد الباسط عبد الصمد",
+      "durationSeconds": 206,
+      "author": "الاسم حسب الملف الذي قدمه صاحب المشروع؛ حقوق التسجيل لأصحابه",
+      "source": "https://praytimes.org/audio/sunni/Abdul-Basit.mp3",
+      "license": "USER-PROVIDED-PERMISSION",
+      "licenseUrl": "",
+      "permissionBasis": "Uploaded by the project owner with an explicit statement that use in Tarteel is permitted, 2026-10-24. Not represented as Creative Commons or public domain.",
+      "notes": "Original MP3 supplied by user, unchanged. Labels follow supplied README; no independent geographic/muezzin verification is claimed."
+    },
+    {
+      "path": "assets/audio/user_minshawi.mp3",
+      "sha256": "8855a6b34f7e999e9fdb6385c589ce85bca6445585d95e184cb8a5a8b48b7f21",
+      "kind": "user_provided_adhan",
+      "title": "أذان محمد صديق المنشاوي",
+      "durationSeconds": 235,
+      "author": "الاسم حسب الملف الذي قدمه صاحب المشروع؛ حقوق التسجيل لأصحابه",
+      "source": "https://praytimes.org/audio/sunni/Minshawi.mp3",
+      "license": "USER-PROVIDED-PERMISSION",
+      "licenseUrl": "",
+      "permissionBasis": "Uploaded by the project owner with an explicit statement that use in Tarteel is permitted, 2026-10-24. Not represented as Creative Commons or public domain.",
+      "notes": "Original MP3 supplied by user, unchanged. Labels follow supplied README; no independent geographic/muezzin verification is claimed."
     }
   ]
 }

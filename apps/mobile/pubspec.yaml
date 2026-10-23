@@ -55,6 +55,11 @@ flutter:
     - assets/audio/adhan_madinah.ogg
     - assets/audio/adhan_kazakhstan.ogg
     - assets/audio/reminder.wav
+    - assets/audio/user_makkah.mp3
+    - assets/audio/user_madinah.mp3
+    - assets/audio/user_egypt.mp3
+    - assets/audio/user_abdul_basit.mp3
+    - assets/audio/user_minshawi.mp3
     - assets/audio/manifest.json
     - assets/learning/thematic_segments.json
     - assets/learning/adhkar.json

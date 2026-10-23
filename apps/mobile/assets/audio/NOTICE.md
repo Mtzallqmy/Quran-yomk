@@ -33,3 +33,19 @@ Islamic Center Malmö; muezzin Besim Azemi. CC BY 3.0.
 https://commons.wikimedia.org/wiki/File:Eid_al-Fitr_Fajr_azan_at_Malmö_Mosque_-_19_August_2012.webm
 https://creativecommons.org/licenses/by/3.0/
 Extracted, converted and normalized as described above; no phrases intentionally trimmed.
+
+## Additional recordings supplied by the project owner
+
+The five `user_*.mp3` files were supplied in `adhan_recordings.zip` with
+an explicit permission-to-use statement on 2026-10-24. Original MP3 bytes
+are retained unchanged. The supplied README attributes distribution to
+https://praytimes.org/docs/adhan . No Creative Commons or public-domain
+license is invented for these files. Labels follow the supplied filenames
+and do not independently verify the place or muezzin. Recording rights
+remain with their respective owners.
+
+- `user_makkah.mp3`: أذان مكة المكرمة — التسجيل المضاف; https://praytimes.org/audio/sunni/Adhan-Makkah.mp3
+- `user_madinah.mp3`: أذان المدينة المنورة — التسجيل المضاف; https://praytimes.org/audio/sunni/Adhan-Madinah.mp3
+- `user_egypt.mp3`: أذان الإذاعة المصرية; https://praytimes.org/audio/sunni/Adhan-Egypt.mp3
+- `user_abdul_basit.mp3`: أذان عبد الباسط عبد الصمد; https://praytimes.org/audio/sunni/Abdul-Basit.mp3
+- `user_minshawi.mp3`: أذان محمد صديق المنشاوي; https://praytimes.org/audio/sunni/Minshawi.mp3

@@ -23,7 +23,7 @@ if __name__ == '__main__':
         abis = sorted({p.split('/')[1] for p in archive.namelist() if p.startswith('lib/') and p.endswith('.so')})
         if abis != ['arm64-v8a']:
             raise ValueError('Expected ARM64 only')
-        for asset in ['adhan.ogg', 'reminder.wav', 'adhan_makkah.ogg', 'adhan_madinah.ogg', 'adhan_kazakhstan.ogg', 'adhan_sweden_fajr.ogg']:
+        for asset in ['adhan.ogg', 'reminder.wav', 'adhan_makkah.ogg', 'adhan_madinah.ogg', 'adhan_kazakhstan.ogg', 'adhan_sweden_fajr.ogg', 'user_makkah.mp3', 'user_madinah.mp3', 'user_egypt.mp3', 'user_abdul_basit.mp3', 'user_minshawi.mp3']:
             if archive.getinfo('assets/flutter_assets/assets/audio/' + asset).file_size < 1024:
                 raise ValueError('Missing packaged offline audio')
     args.output.mkdir(parents=True, exist_ok=True)

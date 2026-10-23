@@ -182,6 +182,12 @@ class BundledAudioSources extends StatelessWidget {
           children: [
             _InfoTile(title: 'صاحب التسجيل أو المؤلف', value: sound.author),
             _InfoTile(title: 'المصدر الأصلي', value: sound.sourceUrl),
+            if (sound.id.startsWith('user-'))
+              const _InfoTile(
+                title: 'إذن الاستخدام',
+                value:
+                    'ملف قدمه صاحب المشروع مع تصريح بالسماح باستخدامه في ترتيل. المصدر حسب الملف المرفق: PrayTimes. حقوق التسجيل لأصحابه؛ لا ينسب إلى ترخيص Creative Commons.',
+              ),
             _InfoTile(title: 'رابط الترخيص', value: sound.licenseUrl),
             if (sound.id == 'built-in-makkah' ||
                 sound.id == 'built-in-madinah' ||

@@ -125,14 +125,12 @@ class EducationalContent {
 
   static Future<EducationalContent> load({AssetBundle? bundle}) async {
     final assets = bundle ?? rootBundle;
-    final thematic =
-        jsonDecode(
-              await assets.loadString('assets/learning/thematic_segments.json'),
-            )
-            as Map<String, dynamic>;
-    final adhkar =
-        jsonDecode(await assets.loadString('assets/learning/adhkar.json'))
-            as Map<String, dynamic>;
+    final thematic = jsonDecode(
+      await assets.loadString('assets/learning/thematic_segments.json'),
+    ) as Map<String, dynamic>;
+    final adhkar = jsonDecode(
+      await assets.loadString('assets/learning/adhkar.json'),
+    ) as Map<String, dynamic>;
     final segments = (thematic['segments'] as List<dynamic>)
         .map(
           (value) =>
@@ -498,7 +496,13 @@ extension AdhkarReminderModeLabel on AdhkarReminderMode {
 }
 
 class AdhkarReminderController {
-  AdhkarReminderController({required this.notifications, required this.store});
+  AdhkarReminderController({
+    required this.notifications,
+    required this.store,
+    String Function()? timezone,
+  }) : _timezone = timezone ?? (() => 'Asia/Aden');
+
+  final String Function() _timezone;
 
   static const ids = <String, int>{
     'morning': 730101,
@@ -539,7 +543,7 @@ class AdhkarReminderController {
         ? await notifications.requestPermission()
         : await notifications.permissionGranted();
     if (!permitted) return false;
-    final location = tz.getLocation('Asia/Aden');
+    final location = tz.getLocation(_timezone());
     final current = tz.TZDateTime.from(now ?? DateTime.now(), location);
     var target = tz.TZDateTime(
       location,
@@ -549,7 +553,16 @@ class AdhkarReminderController {
       hour,
       minute,
     );
-    if (!target.isAfter(current)) target = target.add(const Duration(days: 1));
+    if (!target.isAfter(current)) {
+      target = tz.TZDateTime(
+        location,
+        current.year,
+        current.month,
+        current.day + 1,
+        hour,
+        minute,
+      );
+    }
     await notifications.schedule(
       LocalNotificationRequest(
         id: id,
@@ -560,11 +573,15 @@ class AdhkarReminderController {
             ? 'حان وقت أذكار المساء'
             : 'لا تنس أذكار النوم',
         scheduledAt: target.toUtc(),
-        timezone: 'Asia/Aden',
+        timezone: location.name,
         payload: '/adhkar',
         channel: LocalNotificationChannel.prayerReminder,
         playSound:
             (mode ?? store.reminderMode(category)) == AdhkarReminderMode.tone,
+        audioPath:
+            (mode ?? store.reminderMode(category)) == AdhkarReminderMode.tone
+            ? 'assets/audio/reminder.wav'
+            : null,
         preferExact: false,
         repeatDaily: true,
       ),

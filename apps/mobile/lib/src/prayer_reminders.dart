@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 import 'adhan_audio.dart';
 import 'local_notifications.dart';
@@ -33,12 +34,21 @@ abstract final class PrayerReminderIds {
         'Sunrise is not a prayer reminder',
       ),
     };
-    final dayOfYear = date.difference(DateTime(date.year)).inDays;
+    final dayOfYear = DateTime.utc(
+      date.year,
+      date.month,
+      date.day,
+    ).difference(DateTime.utc(date.year)).inDays;
     return 4_200_000 +
         (prayerIndex * 40_000) +
         ((date.year % 100) * 366) +
         dayOfYear;
   }
+
+  static int before(PrayerKind prayer, DateTime date) =>
+      forPrayerOnDate(prayer, date) + 300_000;
+  static int after(PrayerKind prayer, DateTime date) =>
+      forPrayerOnDate(prayer, date) + 600_000;
 
   static int forPrayer(PrayerKind prayer) => switch (prayer) {
     PrayerKind.fajr => fajr,
@@ -81,9 +91,10 @@ class PrayerReminderController {
   bool _rerun = false;
   bool _started = false;
 
-  /// 45 days keeps prayer alarms useful fully offline while remaining below
-  /// Android vendor limits (225 prayer alarms, plus the app's other alarms).
+  /// Default window: 225 prayers. With all before/after reminders enabled,
+  /// use a 28 day window to stay below Samsung's 500 pending-alarm limit.
   static const scheduleDays = 45;
+  static const extendedScheduleDays = 28;
 
   Future<void> start() async {
     if (_started) return;
@@ -171,23 +182,66 @@ class PrayerReminderController {
     final snapshot = await prayerTimes.snapshot(now: now, settings: current);
     await _cancelManagedWindow(now);
     final adhanSchedules = <({PrayerKind prayer, DateTime time})>[];
-    for (var dayOffset = 0; dayOffset < scheduleDays; dayOffset++) {
+    final extraCount = PrayerKind.values
+        .where((p) => p.isRequiredPrayer)
+        .fold<int>(
+          0,
+          (count, p) =>
+              count +
+              (current.beforeMinutesFor(p) > 0 ? 1 : 0) +
+              (current.afterMinutesFor(p) > 0 ? 1 : 0),
+        );
+    final days = extraCount == 0 ? scheduleDays : extendedScheduleDays;
+    final scheduledCounts = <PrayerKind, int>{};
+    for (var dayOffset = 0; dayOffset <= days; dayOffset++) {
       final day = dayOffset == 0
           ? snapshot.today
-          : await prayerTimes.dayFor(
-              date: snapshot.today.date.add(Duration(days: dayOffset)),
+          : await prayerTimes.dayOffset(
+              from: snapshot.today.date,
+              days: dayOffset,
               settings: current,
             );
       for (final prayer in PrayerKind.values.where(
         (value) => value.isRequiredPrayer,
       )) {
         final mode = current.reminderModeFor(prayer);
-        if (mode == PrayerReminderMode.disabled) continue;
+        if (mode == PrayerReminderMode.disabled ||
+            (scheduledCounts[prayer] ?? 0) >= days)
+          continue;
         final scheduledAt = day.timeFor(prayer);
+        final audioMode =
+            mode == PrayerReminderMode.adhan ||
+            mode == PrayerReminderMode.shortAlert;
+        for (final before in [true, false]) {
+          final minutes = before
+              ? current.beforeMinutesFor(prayer)
+              : current.afterMinutesFor(prayer);
+          if (minutes == 0) continue;
+          final reminderTime = scheduledAt.add(
+            Duration(minutes: before ? -minutes : minutes),
+          );
+          if (!reminderTime.isAfter(now)) continue;
+          await notifications.reschedule(
+            LocalNotificationRequest(
+              id: before
+                  ? PrayerReminderIds.before(prayer, day.date)
+                  : PrayerReminderIds.after(prayer, day.date),
+              title: 'ترتيل',
+              body: before
+                  ? 'بقي $minutes دقيقة على صلاة ${prayer.nameAr}'
+                  : 'أذكار ما بعد صلاة ${prayer.nameAr}: سبحان الله، والحمد لله، والله أكبر',
+              scheduledAt: reminderTime,
+              timezone: current.timezone,
+              payload: '/prayer-times?prayer=${prayer.name}',
+              playSound: mode != PrayerReminderMode.silent,
+            ),
+          );
+        }
         if (!scheduledAt.isAfter(now)) continue;
+        scheduledCounts[prayer] = (scheduledCounts[prayer] ?? 0) + 1;
         await notifications.reschedule(
           LocalNotificationRequest(
-            id: PrayerReminderIds.forPrayerOnDate(prayer, scheduledAt),
+            id: PrayerReminderIds.forPrayerOnDate(prayer, day.date),
             title: 'ترتيل',
             body: mode == PrayerReminderMode.adhan
                 ? 'حان موعد أذان صلاة ${prayer.nameAr}'
@@ -195,16 +249,22 @@ class PrayerReminderController {
             scheduledAt: scheduledAt,
             timezone: current.timezone,
             payload: '/prayer-times?prayer=${prayer.name}',
-            channel: mode == PrayerReminderMode.adhan
+            channel: audioMode
                 ? LocalNotificationChannel.adhan
                 : LocalNotificationChannel.prayerReminder,
             playSound: mode != PrayerReminderMode.silent,
-            audioPath: mode == PrayerReminderMode.adhan
-                ? adhanAudio?.assetPath
+            audioPath: audioMode
+                ? current.audioPathFor(
+                    prayer,
+                    fallback: mode == PrayerReminderMode.shortAlert
+                        ? 'assets/audio/reminder.wav'
+                        : adhanAudio?.assetPath,
+                  )
                 : null,
+            volume: current.volumeFor(prayer),
           ),
         );
-        if (mode == PrayerReminderMode.adhan) {
+        if (audioMode) {
           adhanSchedules.add((prayer: prayer, time: scheduledAt));
         }
       }
@@ -244,7 +304,15 @@ class PrayerReminderController {
             preferExact: false,
           ),
         );
-        await adhanAudio!.play();
+        final mode = current.reminderModeFor(next.prayer);
+        await adhanAudio!.play(
+          path: current.audioPathFor(
+            next.prayer,
+            fallback: mode == PrayerReminderMode.shortAlert
+                ? 'assets/audio/reminder.wav'
+                : adhanAudio!.assetPath,
+          ),
+        );
       } catch (_) {
         debugPrint('FOREGROUND_ADHAN_FAILED');
       } finally {
@@ -263,13 +331,22 @@ class PrayerReminderController {
   Future<void> _cancelManagedWindow(DateTime now) async {
     // Include yesterday to clear stale alarms after timezone/location edits.
     for (var offset = -1; offset <= scheduleDays; offset++) {
-      final date = now.add(Duration(days: offset));
+      final location = tz.getLocation(settings.value.timezone);
+      final localNow = tz.TZDateTime.from(now, location);
+      final date = tz.TZDateTime(
+        location,
+        localNow.year,
+        localNow.month,
+        localNow.day + offset,
+      );
       for (final prayer in PrayerKind.values.where(
         (value) => value.isRequiredPrayer,
       )) {
         await notifications.cancel(
           PrayerReminderIds.forPrayerOnDate(prayer, date),
         );
+        await notifications.cancel(PrayerReminderIds.before(prayer, date));
+        await notifications.cancel(PrayerReminderIds.after(prayer, date));
       }
     }
   }

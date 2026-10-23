@@ -5,11 +5,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 enum PrayerKind { fajr, sunrise, dhuhr, asr, maghrib, isha }
 
-enum PrayerCalculationMethod { muslimWorldLeague, egyptian, ummAlQura }
+enum PrayerCalculationMethod {
+  muslimWorldLeague,
+  egyptian,
+  ummAlQura,
+  karachi,
+  northAmerica,
+}
 
 enum PrayerAsrMethod { shafi, hanafi }
 
-enum PrayerReminderMode { disabled, silent, notificationOnly, adhan }
+enum PrayerReminderMode {
+  disabled,
+  silent,
+  notificationOnly,
+  adhan,
+  shortAlert,
+}
 
 extension PrayerReminderModeLabel on PrayerReminderMode {
   String get nameAr => switch (this) {
@@ -17,6 +29,7 @@ extension PrayerReminderModeLabel on PrayerReminderMode {
     PrayerReminderMode.silent => 'إشعار صامت',
     PrayerReminderMode.notificationOnly => 'إشعار فقط',
     PrayerReminderMode.adhan => 'إشعار وأذان',
+    PrayerReminderMode.shortAlert => 'تنبيه صوتي قصير',
   };
 }
 
@@ -46,6 +59,10 @@ class PrayerSettings {
     required this.remindersEnabled,
     this.reminderModes = const <PrayerKind, PrayerReminderMode>{},
     this.manualTimes = const <PrayerKind, int>{},
+    this.beforeMinutes = const <PrayerKind, int>{},
+    this.afterMinutes = const <PrayerKind, int>{},
+    this.audioPaths = const <PrayerKind, String>{},
+    this.volumes = const <PrayerKind, double>{},
   });
 
   factory PrayerSettings.taiz() => PrayerSettings(
@@ -71,6 +88,8 @@ class PrayerSettings {
         timezone.trim().isEmpty ||
         latitude is! num ||
         longitude is! num ||
+        !latitude.isFinite ||
+        !longitude.isFinite ||
         latitude < -90 ||
         latitude > 90 ||
         longitude < -180 ||
@@ -82,7 +101,7 @@ class PrayerSettings {
     if (rawOffsets is Map<String, dynamic>) {
       for (final prayer in PrayerKind.values) {
         final value = rawOffsets[prayer.name];
-        if (value is num) {
+        if (value is num && value.isFinite) {
           offsets[prayer] = value.toInt().clamp(-60, 60).toInt();
         }
       }
@@ -108,7 +127,41 @@ class PrayerSettings {
         modes[prayer] = PrayerReminderMode.notificationOnly;
       }
     }
+    Map<PrayerKind, int> minuteMap(String key, int maximum) {
+      final raw = json[key];
+      return Map<PrayerKind, int>.unmodifiable({
+        if (raw is Map)
+          for (final prayer in PrayerKind.values)
+            if (raw[prayer.name] is num && (raw[prayer.name] as num).isFinite)
+              prayer: (raw[prayer.name] as num)
+                  .toInt()
+                  .clamp(0, maximum)
+                  .toInt(),
+      });
+    }
+
     return PrayerSettings(
+      beforeMinutes: minuteMap('before_minutes', 120),
+      afterMinutes: minuteMap('after_minutes', 120),
+      audioPaths: Map<PrayerKind, String>.unmodifiable({
+        if (json['audio_paths'] is Map)
+          for (final prayer in PrayerKind.values)
+            if ((json['audio_paths'] as Map)[prayer.name] is String &&
+                ((json['audio_paths'] as Map)[prayer.name] as String)
+                    .trim()
+                    .isNotEmpty)
+              prayer: (json['audio_paths'] as Map)[prayer.name] as String,
+      }),
+      volumes: Map<PrayerKind, double>.unmodifiable({
+        if (json['volumes'] is Map)
+          for (final prayer in PrayerKind.values)
+            if ((json['volumes'] as Map)[prayer.name] is num &&
+                ((json['volumes'] as Map)[prayer.name] as num).isFinite)
+              prayer: ((json['volumes'] as Map)[prayer.name] as num)
+                  .toDouble()
+                  .clamp(0, 1)
+                  .toDouble(),
+      }),
       locationName: locationName.trim(),
       latitude: latitude.toDouble(),
       longitude: longitude.toDouble(),
@@ -150,6 +203,32 @@ class PrayerSettings {
   /// Minutes after midnight in the configured timezone; absent = calculated.
   final Map<PrayerKind, int> manualTimes;
 
+  final Map<PrayerKind, int> beforeMinutes;
+  final Map<PrayerKind, int> afterMinutes;
+  final Map<PrayerKind, String> audioPaths;
+  final Map<PrayerKind, double> volumes;
+
+  int beforeMinutesFor(PrayerKind prayer) => beforeMinutes[prayer] ?? 0;
+  int afterMinutesFor(PrayerKind prayer) => afterMinutes[prayer] ?? 0;
+  String? audioPathFor(PrayerKind prayer, {String? fallback}) =>
+      audioPaths[prayer] ?? fallback;
+  double volumeFor(PrayerKind prayer) => volumes[prayer] ?? 1;
+
+  /// Guidance only: the local mosque's published timetable remains authoritative.
+  String? get calculationWarning {
+    if (latitude.abs() >= 48)
+      return 'في خطوط العرض المرتفعة قد تحتاج أوقات الفجر والعشاء إلى مراجعة تقويم مسجدك المحلي، خصوصًا صيفًا.';
+    if (calculationMethod == PrayerCalculationMethod.ummAlQura &&
+        (latitude < 16 || latitude > 33 || longitude < 34 || longitude > 56)) {
+      return 'طريقة أم القرى مخصصة أساسًا للسعودية. راجع ملاءمتها لموقعك أو اختر طريقة محلية مناسبة.';
+    }
+    if (calculationMethod == PrayerCalculationMethod.northAmerica &&
+        longitude > -30) {
+      return 'طريقة أمريكا الشمالية قد تختلف عن التقويم المعتمد في منطقتك. قارن المواقيت بتقويم مسجدك.';
+    }
+    return null;
+  }
+
   int offsetFor(PrayerKind prayer) => offsets[prayer] ?? 0;
 
   PrayerReminderMode reminderModeFor(PrayerKind prayer) {
@@ -173,7 +252,15 @@ class PrayerSettings {
     bool? remindersEnabled,
     Map<PrayerKind, PrayerReminderMode>? reminderModes,
     Map<PrayerKind, int>? manualTimes,
+    Map<PrayerKind, int>? beforeMinutes,
+    Map<PrayerKind, int>? afterMinutes,
+    Map<PrayerKind, String>? audioPaths,
+    Map<PrayerKind, double>? volumes,
   }) => PrayerSettings(
+    beforeMinutes: Map.unmodifiable(beforeMinutes ?? this.beforeMinutes),
+    afterMinutes: Map.unmodifiable(afterMinutes ?? this.afterMinutes),
+    audioPaths: Map.unmodifiable(audioPaths ?? this.audioPaths),
+    volumes: Map.unmodifiable(volumes ?? this.volumes),
     locationName: locationName ?? this.locationName,
     latitude: latitude ?? this.latitude,
     longitude: longitude ?? this.longitude,
@@ -191,6 +278,18 @@ class PrayerSettings {
   );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+    'before_minutes': {
+      for (final entry in beforeMinutes.entries) entry.key.name: entry.value,
+    },
+    'after_minutes': {
+      for (final entry in afterMinutes.entries) entry.key.name: entry.value,
+    },
+    'audio_paths': {
+      for (final entry in audioPaths.entries) entry.key.name: entry.value,
+    },
+    'volumes': {
+      for (final entry in volumes.entries) entry.key.name: entry.value,
+    },
     'location_name': locationName,
     'latitude': latitude,
     'longitude': longitude,
@@ -271,6 +370,39 @@ class PrayerSettingsStore extends ChangeNotifier {
   }
 
   Future<void> updateLocation(PrayerSettings settings) => _save(settings);
+
+  Future<void> setReminderMinutes(
+    PrayerKind prayer, {
+    int? before,
+    int? after,
+  }) async {
+    final beforeMap = Map<PrayerKind, int>.from(value.beforeMinutes);
+    final afterMap = Map<PrayerKind, int>.from(value.afterMinutes);
+    if (before != null) beforeMap[prayer] = before.clamp(0, 120).toInt();
+    if (after != null) afterMap[prayer] = after.clamp(0, 120).toInt();
+    await _save(
+      value.copyWith(beforeMinutes: beforeMap, afterMinutes: afterMap),
+    );
+  }
+
+  Future<void> setPrayerAudio(PrayerKind prayer, String? path) async {
+    final paths = Map<PrayerKind, String>.from(value.audioPaths);
+    if (path == null || path.trim().isEmpty) {
+      paths.remove(prayer);
+    } else {
+      paths[prayer] = path;
+    }
+    await _save(value.copyWith(audioPaths: paths));
+  }
+
+  Future<void> setPrayerVolume(PrayerKind prayer, double volume) async {
+    if (!volume.isFinite) throw ArgumentError.value(volume, 'volume');
+    await _save(
+      value.copyWith(
+        volumes: {...value.volumes, prayer: volume.clamp(0, 1).toDouble()},
+      ),
+    );
+  }
 
   Future<void> setManualTime(PrayerKind prayer, int? minutes) async {
     if (minutes != null && (minutes < 0 || minutes >= 1440)) {

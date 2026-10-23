@@ -134,6 +134,34 @@ class PrayerTimesService {
     return PrayerSnapshot(today: today, next: tomorrow.requiredPrayers.first);
   }
 
+  /// Calendar arithmetic is performed in the configured zone, never by
+  /// adding 24 hours (a DST calendar day may contain 23 or 25 hours).
+  Future<PrayerDay> dayOffset({
+    required DateTime from,
+    required int days,
+    required PrayerSettings settings,
+  }) async {
+    await initialize();
+    final location = tz.getLocation(settings.timezone);
+    return dayFor(
+      date: tz.TZDateTime(location, from.year, from.month, from.day + days),
+      settings: settings,
+    );
+  }
+
+  Future<List<PrayerDay>> calendar({
+    required DateTime from,
+    required int days,
+    required PrayerSettings settings,
+  }) async {
+    if (days < 1 || days > 366) throw ArgumentError.value(days, 'days');
+    final result = <PrayerDay>[];
+    for (var offset = 0; offset < days; offset++) {
+      result.add(await dayOffset(from: from, days: offset, settings: settings));
+    }
+    return List.unmodifiable(result);
+  }
+
   adhan.CalculationParameters _parameters(PrayerSettings settings) =>
       switch (settings.calculationMethod) {
         PrayerCalculationMethod.muslimWorldLeague =>
@@ -142,5 +170,9 @@ class PrayerTimesService {
           adhan.CalculationMethodParameters.egyptian(),
         PrayerCalculationMethod.ummAlQura =>
           adhan.CalculationMethodParameters.ummAlQura(),
+        PrayerCalculationMethod.karachi =>
+          adhan.CalculationMethodParameters.karachi(),
+        PrayerCalculationMethod.northAmerica =>
+          adhan.CalculationMethodParameters.northAmerica(),
       };
 }

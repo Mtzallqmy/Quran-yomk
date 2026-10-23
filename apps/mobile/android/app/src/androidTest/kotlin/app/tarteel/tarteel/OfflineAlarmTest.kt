@@ -54,6 +54,52 @@ class OfflineAlarmTest {
         assertTrue(LocalAlarmScheduler.read(context, id)!!.getLong("time") > System.currentTimeMillis())
         LocalAlarmScheduler.cancel(context, id)
     }
+    @Test fun duplicateAndStaleBroadcastsCannotConsumeReplacementAlarm() {
+        val id = 8_900_004
+        val firstTime = System.currentTimeMillis() + 60_000L
+        val record = JSONObject().put("id", id).put("time", firstTime).put("timezone", "Asia/Aden")
+        LocalAlarmScheduler.schedule(context, record)
+        // An already queued broadcast from the old schedule must not trigger the changed prayer time.
+        val replacementTime = firstTime + 60_000L
+        LocalAlarmScheduler.schedule(context, JSONObject(record.toString()).put("time", replacementTime))
+        assertNull(LocalAlarmScheduler.consume(context, id, firstTime))
+        assertEquals(replacementTime, LocalAlarmScheduler.read(context, id)!!.getLong("time"))
+        LocalAlarmScheduler.cancel(context, id)
+        assertNull(LocalAlarmScheduler.consume(context, id, replacementTime))
+    }
+    @Test fun version2074PendingIntentMigratesWithoutAllowingNewStaleBroadcasts() {
+        val id = 8_900_006
+        val time = System.currentTimeMillis() - 100L
+        val record = JSONObject().put("id", id).put("time", time).put("timezone", "Asia/Aden")
+        val prefs = context.getSharedPreferences("local_audio_alarms_v2", Context.MODE_PRIVATE)
+        prefs.edit().putString(id.toString(), record.toString()).commit()
+        assertNotNull("A 2074 alarm still delivers before restoration", LocalAlarmScheduler.consume(context, id, -1L))
+        assertNull(LocalAlarmScheduler.consume(context, id, -1L))
+        prefs.edit().putString(id.toString(), record.put("generationVersion", 1).toString()).commit()
+        assertNull("A migrated alarm always requires its exact generation", LocalAlarmScheduler.consume(context, id, -1L))
+        LocalAlarmScheduler.cancel(context, id)
+    }
+    @Test fun dailyWallTimeFollowsDaylightSavingInsteadOfAdding24Hours() {
+        val zone = java.time.ZoneId.of("Europe/Berlin")
+        val before = java.time.ZonedDateTime.of(2026, 3, 28, 8, 0, 0, 0, zone)
+        val record = JSONObject().put("time", before.toInstant().toEpochMilli()).put("timezone", zone.id)
+        val next = java.time.Instant.ofEpochMilli(LocalAlarmScheduler.nextDaily(record,
+            before.toInstant().toEpochMilli())).atZone(zone)
+        assertEquals(8, next.hour)
+        assertEquals(29, next.dayOfMonth)
+        assertEquals(23L * 60 * 60 * 1000, next.toInstant().toEpochMilli() - before.toInstant().toEpochMilli())
+    }
+    @Test fun deliveredAlarmIsConsumedOnceAndDailyAlarmAdvances() {
+        val id = 8_900_005
+        val time = System.currentTimeMillis() - 100L
+        val record = JSONObject().put("id", id).put("time", time).put("repeatDaily", true).put("timezone", "Asia/Aden")
+        context.getSharedPreferences("local_audio_alarms_v2", Context.MODE_PRIVATE).edit()
+            .putString(id.toString(), record.toString()).commit()
+        assertNotNull(LocalAlarmScheduler.consume(context, id, time))
+        assertNull(LocalAlarmScheduler.consume(context, id, time))
+        assertTrue(LocalAlarmScheduler.read(context, id)!!.getLong("time") > System.currentTimeMillis())
+        LocalAlarmScheduler.cancel(context, id)
+    }
     @Test fun microphoneRecordingSavesPlayableAudioAfterBackgroundStop() {
         context.startActivity(android.content.Intent(context, MainActivity::class.java)
             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 import 'native_audio.dart';
 
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -24,6 +25,7 @@ class LocalNotificationRequest {
     this.preferExact = true,
     this.repeatDaily = false,
     this.audioPath,
+    this.volume = 1.0,
   });
 
   final int id;
@@ -37,6 +39,9 @@ class LocalNotificationRequest {
   final bool preferExact;
   final bool repeatDaily;
   final String? audioPath;
+
+  /// Relative player volume; the system alarm volume and DND remain in control.
+  final double volume;
 }
 
 abstract class LocalNotificationGateway {
@@ -149,6 +154,14 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
   @override
   Future<String?> initialize(void Function(String payload) onTap) async {
     tz_data.initializeTimeZones();
+    if (NativeAudio.supported) {
+      NativeAudio.channel.setMethodCallHandler((call) async {
+        if (call.method == 'alarmTapped' && call.arguments is String) {
+          final payload = call.arguments as String;
+          if (payload.isNotEmpty) onTap(payload);
+        }
+      });
+    }
     const settings = InitializationSettings(
       android: AndroidInitializationSettings('ic_stat_tarteel'),
       iOS: DarwinInitializationSettings(
@@ -193,6 +206,8 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
     ]) {
       await android?.createNotificationChannel(channel);
     }
+    final nativePayload = await NativeAudio.call<String>('takeAlarmPayload');
+    if (nativePayload != null && nativePayload.isNotEmpty) return nativePayload;
     final launch = await _plugin.getNotificationAppLaunchDetails();
     if (launch?.didNotificationLaunchApp == true) {
       return launch?.notificationResponse?.payload;
@@ -302,9 +317,8 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
     LocalNotificationRequest request, {
     required bool exact,
   }) async {
-    if (request.playSound &&
-        (request.channel == LocalNotificationChannel.adhan ||
-            request.audioPath != null)) {
+    if (NativeAudio.supported &&
+        request.channel != LocalNotificationChannel.remotePush) {
       final native = await NativeAudio.call<bool>('scheduleAlarm', {
         'id': request.id,
         'title': request.title,
@@ -313,6 +327,11 @@ class FlutterLocalNotificationGateway implements LocalNotificationGateway {
         'timezone': request.timezone,
         'repeatDaily': request.repeatDaily,
         'path': request.audioPath ?? '',
+        'playSound': request.playSound,
+        'channel': request.channel.name,
+        'payload': request.payload,
+        'preferExact': exact,
+        'volume': request.volume.clamp(0.0, 1.0),
       });
       if (native == true) return;
     }
@@ -397,6 +416,29 @@ class LocalNotificationService {
   Future<bool> remoteChannelEnabled() async {
     await initialize();
     return _gateway.remoteChannelEnabled();
+  }
+
+  /// Native delivery status is evidence, not a promise about OEM background policy.
+  Future<Map<String, dynamic>> alarmDiagnostics() async {
+    await initialize();
+    if (!NativeAudio.supported) return const <String, dynamic>{};
+    return await const MethodChannel('app.tarteel.tarteel/settings')
+            .invokeMapMethod<String, dynamic>('alarmDiagnostics') ??
+        const <String, dynamic>{};
+  }
+
+  Future<bool> openAlarmSettings() async {
+    if (!NativeAudio.supported) return false;
+    return await const MethodChannel('app.tarteel.tarteel/settings')
+            .invokeMethod<bool>('openAlarmSettings') ??
+        false;
+  }
+
+  Future<bool> openBatterySettings() async {
+    if (!NativeAudio.supported) return false;
+    return await const MethodChannel('app.tarteel.tarteel/settings')
+            .invokeMethod<bool>('openBatterySettings') ??
+        false;
   }
 
   Future<void> show(LocalNotificationRequest request) async {

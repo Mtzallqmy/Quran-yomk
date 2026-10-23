@@ -5,6 +5,13 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaMetadataRetriever
 import android.os.SystemClock
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.net.Uri
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.provider.Settings
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -14,16 +21,24 @@ import java.io.File
 import java.util.concurrent.Executors
 
 class MainActivity : AudioServiceActivity() {
+    private var offlineChannel: MethodChannel? = null
+    private var pendingAlarmPayload: String? = null
     private var pickerResult: MethodChannel.Result? = null
     private var microphoneResult: MethodChannel.Result? = null
     private var microphoneArguments: Map<*, *>? = null
+    private var locationResult: MethodChannel.Result? = null
+    private var locationListener: LocationListener? = null
+    private val locationHandler = Handler(Looper.getMainLooper())
     private val fileExecutor = Executors.newSingleThreadExecutor()
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
-            "app.tarteel.tarteel/offline").setMethodCallHandler { call, result ->
+        pendingAlarmPayload = intent?.getStringExtra("alarmPayload")
+        offlineChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "app.tarteel.tarteel/offline")
+        offlineChannel!!.setMethodCallHandler { call, result ->
             try {
                 when (call.method) {
+                    "takeAlarmPayload" -> { result.success(pendingAlarmPayload); pendingAlarmPayload = null }
                     "pickAudio" -> {
                         if (pickerResult != null) result.error("BUSY", "File picker is open", null)
                         else {
@@ -83,13 +98,87 @@ class MainActivity : AudioServiceActivity() {
         }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
             "app.tarteel.tarteel/settings").setMethodCallHandler { call, result ->
-            if (call.method != "openNotificationSettings") { result.notImplemented(); return@setMethodCallHandler }
-            startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-            })
-            result.success(true)
+            try {
+                when (call.method) {
+                    "openNotificationSettings" -> {
+                        startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                            putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                        }); result.success(true)
+                    }
+                    "alarmDiagnostics" -> result.success(LocalAlarmScheduler.diagnostics(this))
+                    "openAlarmSettings" -> {
+                        val settings = if (Build.VERSION.SDK_INT >= 31)
+                            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName"))
+                        else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                        startActivity(settings); result.success(true)
+                    }
+                    "openBatterySettings" -> {
+                        // Open settings; never silently exempt the app or bypass the user's choice.
+                        startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); result.success(true)
+                    }
+                    "getPrayerLocation" -> {
+                        if (locationResult != null) result.error("BUSY", "Location request in progress", null)
+                        else {
+                            locationResult = result
+                            if (hasLocationPermission()) readPrayerLocation()
+                            else requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION), 9303)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            } catch (error: Exception) { result.error("SETTINGS_ERROR", error.message, null) }
         }
     }
+    private fun hasLocationPermission() =
+        checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+    private fun completePrayerLocation(location: Location?, error: String? = null) {
+        val result = locationResult ?: return
+        locationResult = null
+        locationHandler.removeCallbacksAndMessages(null)
+        locationListener?.let {
+            try { getSystemService(LocationManager::class.java).removeUpdates(it) }
+            catch (_: SecurityException) { /* Permission may have been revoked while requesting. */ }
+        }
+        locationListener = null
+        if (location == null) result.error(error ?: "LOCATION_UNAVAILABLE", "اختر المدينة أو الإحداثيات يدويًا", null)
+        else result.success(mapOf("latitude" to location.latitude, "longitude" to location.longitude,
+            "timezone" to java.util.TimeZone.getDefault().id, "accuracyMeters" to location.accuracy.toDouble(),
+            "capturedAt" to location.time))
+    }
+
+    @Suppress("DEPRECATION")
+    private fun readPrayerLocation() {
+        if (!hasLocationPermission()) { completePrayerLocation(null, "LOCATION_PERMISSION_DENIED"); return }
+        try {
+            val manager = getSystemService(LocationManager::class.java)
+            val providers = manager.getProviders(true).filter {
+                it == LocationManager.GPS_PROVIDER || it == LocationManager.NETWORK_PROVIDER
+            }
+            val last = providers.mapNotNull {
+                try { manager.getLastKnownLocation(it) } catch (_: SecurityException) { null }
+            }.maxByOrNull { it.elapsedRealtimeNanos }
+            // Cached coordinates are acceptable only when recent; never silently use a stale city.
+            if (last != null && SystemClock.elapsedRealtimeNanos() - last.elapsedRealtimeNanos < 30L * 60 * 1_000_000_000) {
+                completePrayerLocation(last); return
+            }
+            val provider = providers.firstOrNull { it == LocationManager.NETWORK_PROVIDER } ?: providers.firstOrNull()
+            if (provider == null) { completePrayerLocation(null, "LOCATION_DISABLED"); return }
+            val listener = object : LocationListener {
+                override fun onLocationChanged(location: Location) { completePrayerLocation(location) }
+                override fun onProviderDisabled(provider: String) { completePrayerLocation(null, "LOCATION_DISABLED") }
+                override fun onProviderEnabled(provider: String) = Unit
+                override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) = Unit
+            }
+            locationListener = listener
+            manager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
+            locationHandler.postDelayed({ completePrayerLocation(null, "LOCATION_TIMEOUT") }, 20_000L)
+        } catch (_: SecurityException) { completePrayerLocation(null, "LOCATION_PERMISSION_DENIED") }
+        catch (_: Exception) { completePrayerLocation(null, "LOCATION_UNAVAILABLE") }
+    }
+
     private fun startRecording() {
         val args = microphoneArguments
         startForegroundService(Intent(this, RecitationRecorderService::class.java)
@@ -99,11 +188,26 @@ class MainActivity : AudioServiceActivity() {
     }
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 9303) {
+            if (hasLocationPermission()) readPrayerLocation()
+            else completePrayerLocation(null, "LOCATION_PERMISSION_DENIED")
+            return
+        }
         if (requestCode != 9302) return
         val result = microphoneResult; microphoneResult = null
         if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
             try { startRecording(); result?.success(true) } catch (error: Exception) { result?.error("RECORD_START_FAILED", error.message, null) }
         } else result?.success(false)
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra("alarmPayload")?.takeIf { it.isNotBlank() }?.let {
+            offlineChannel?.invokeMethod("alarmTapped", it)
+        }
+    }
+    override fun onDestroy() {
+        if (locationResult != null) completePrayerLocation(null, "LOCATION_CANCELLED")
+        super.onDestroy()
     }
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)

@@ -176,3 +176,38 @@ class PrayerTimesService {
           adhan.CalculationMethodParameters.northAmerica(),
       };
 }
+
+/// Civil/tabular Islamic date using a 30-year cycle and the Friday epoch
+/// (Julian day 1948439.5 = proleptic Gregorian 622-07-19). This is a local
+/// calendar display, not an observational moon-sighting or Umm al-Qura date.
+/// Algorithm reference: https://www.fourmilab.ch/documents/calendar/#islamic
+({int year, int month, int day}) civilHijriForDate(DateTime date) {
+  final a = (14 - date.month) ~/ 12;
+  final y = date.year + 4800 - a;
+  final m = date.month + 12 * a - 3;
+  final julian =
+      date.day +
+      (153 * m + 2) ~/ 5 +
+      365 * y +
+      y ~/ 4 -
+      y ~/ 100 +
+      y ~/ 400 -
+      32045;
+  final days = julian - 1948440;
+  if (days < 0)
+    throw ArgumentError.value(
+      date,
+      'date',
+      'Date precedes the Islamic civil epoch',
+    );
+  final year = ((30 * days + 10646) / 10631).floor();
+  int firstDay(int month) =>
+      (29.5 * (month - 1)).ceil() +
+      354 * (year - 1) +
+      ((3 + 11 * year) / 30).floor();
+  var month = 1;
+  while (month < 12 && firstDay(month + 1) <= days) {
+    month++;
+  }
+  return (year: year, month: month, day: days - firstDay(month) + 1);
+}

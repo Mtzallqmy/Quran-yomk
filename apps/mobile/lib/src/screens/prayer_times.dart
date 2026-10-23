@@ -357,6 +357,7 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   DropdownButtonFormField<_PrayerCity>(
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'مدن محفوظة — أو أدخل موقعك أدناه',
                     ),
@@ -492,6 +493,7 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                     },
                   ),
                   DropdownButtonFormField<PrayerAsrMethod>(
+                    isExpanded: true,
                     initialValue: asr,
                     decoration: const InputDecoration(labelText: 'حساب العصر'),
                     items: [
@@ -570,7 +572,11 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
             for (final entry in paths.entries)
               DropdownMenuItem(
                 value: entry.value,
-                child: Text(services.adhanLibrary.labelFor(entry.key)),
+                child: Text(
+                  services.adhanLibrary.labelFor(entry.key),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             if (selected != null && !paths.containsValue(selected))
               DropdownMenuItem(
@@ -820,6 +826,7 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                           },
                         ),
                       DropdownButtonFormField<PrayerReminderMode>(
+                        isExpanded: true,
                         key: ValueKey<String>('prayer-mode-${prayer.name}'),
                         initialValue: settings.reminderModeFor(prayer),
                         decoration: const InputDecoration(
@@ -829,7 +836,11 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                           for (final mode in PrayerReminderMode.values)
                             DropdownMenuItem<PrayerReminderMode>(
                               value: mode,
-                              child: Text(mode.nameAr),
+                              child: Text(
+                                mode.nameAr,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                         ],
                         onChanged: _changingPrayer == null
@@ -858,6 +869,7 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                       ],
                       for (final before in [true, false])
                         DropdownButtonFormField<int>(
+                          isExpanded: true,
                           key: ValueKey(
                             'prayer-${before ? 'before' : 'after'}-${prayer.name}-${before ? settings.beforeMinutesFor(prayer) : settings.afterMinutesFor(prayer)}',
                           ),
@@ -889,6 +901,7 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                         ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<int>(
+                        isExpanded: true,
                         key: ValueKey<String>('prayer-offset-${prayer.name}'),
                         initialValue: settings.offsetFor(prayer),
                         decoration: const InputDecoration(
@@ -900,7 +913,11 @@ class _PrayerSettingsPageState extends ConsumerState<PrayerSettingsPage> {
                           ))
                             DropdownMenuItem<int>(
                               value: value,
-                              child: Text(_offsetLabel(value)),
+                              child: Text(
+                                _offsetLabel(value),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                         ],
                         onChanged: settings.manualTimes.containsKey(prayer)
@@ -1000,28 +1017,7 @@ PrayerKind? _currentPrayer(PrayerDay day, DateTime now) {
 /// Civil tabular Hijri date, explicitly labelled approximate; moon-sighting
 /// calendars may differ by one or two days.
 String _hijriDate(DateTime date) {
-  final a = (14 - date.month) ~/ 12;
-  final y = date.year + 4800 - a;
-  final m = date.month + 12 * a - 3;
-  final julian =
-      date.day +
-      (153 * m + 2) ~/ 5 +
-      365 * y +
-      y ~/ 4 -
-      y ~/ 100 +
-      y ~/ 400 -
-      32045;
-  final days = julian - 1948440;
-  final year = ((30 * days + 10646) / 10631).floor();
-  int firstDay(int month) =>
-      (29.5 * (month - 1)).ceil() +
-      354 * (year - 1) +
-      ((3 + 11 * year) / 30).floor();
-  var month = 1;
-  while (month < 12 && firstDay(month + 1) <= days) {
-    month++;
-  }
-  final day = days - firstDay(month) + 1;
+  final hijri = civilHijriForDate(date);
   const names = [
     'محرم',
     'صفر',
@@ -1036,7 +1032,7 @@ String _hijriDate(DateTime date) {
     'ذو القعدة',
     'ذو الحجة',
   ];
-  return '$day ${names[month - 1]} $year هـ (تقريبي)';
+  return '${hijri.day} ${names[hijri.month - 1]} ${hijri.year} هـ — هجري حسابي؛ قد يختلف عن الرؤية';
 }
 
 class PrayerCalendarPage extends ConsumerStatefulWidget {

@@ -11,6 +11,44 @@ void main() {
   final times = PrayerTimesService();
 
   test(
+    'civil Hijri epoch, leap year and 30-year boundaries are local and deterministic',
+    () {
+      final epoch = DateTime.utc(622, 7, 19);
+      expect(civilHijriForDate(epoch), (year: 1, month: 1, day: 1));
+      expect(civilHijriForDate(epoch.add(const Duration(days: 353))), (
+        year: 1,
+        month: 12,
+        day: 29,
+      ));
+      expect(civilHijriForDate(epoch.add(const Duration(days: 354))), (
+        year: 2,
+        month: 1,
+        day: 1,
+      ));
+      expect(civilHijriForDate(epoch.add(const Duration(days: 708))), (
+        year: 2,
+        month: 12,
+        day: 30,
+      ));
+      expect(civilHijriForDate(epoch.add(const Duration(days: 709))), (
+        year: 3,
+        month: 1,
+        day: 1,
+      ));
+      expect(civilHijriForDate(epoch.add(const Duration(days: 10631))), (
+        year: 31,
+        month: 1,
+        day: 1,
+      ));
+      expect(civilHijriForDate(DateTime.utc(2025, 3, 1)), (
+        year: 1446,
+        month: 9,
+        day: 1,
+      ));
+    },
+  );
+
+  test(
     'DST spring and autumn calendars contain every local date exactly once',
     () async {
       final settings = PrayerSettings.taiz().copyWith(

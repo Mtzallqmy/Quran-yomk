@@ -125,12 +125,14 @@ class EducationalContent {
 
   static Future<EducationalContent> load({AssetBundle? bundle}) async {
     final assets = bundle ?? rootBundle;
-    final thematic = jsonDecode(
-      await assets.loadString('assets/learning/thematic_segments.json'),
-    ) as Map<String, dynamic>;
-    final adhkar = jsonDecode(
-      await assets.loadString('assets/learning/adhkar.json'),
-    ) as Map<String, dynamic>;
+    final thematic =
+        jsonDecode(
+              await assets.loadString('assets/learning/thematic_segments.json'),
+            )
+            as Map<String, dynamic>;
+    final adhkar =
+        jsonDecode(await assets.loadString('assets/learning/adhkar.json'))
+            as Map<String, dynamic>;
     final segments = (thematic['segments'] as List<dynamic>)
         .map(
           (value) =>

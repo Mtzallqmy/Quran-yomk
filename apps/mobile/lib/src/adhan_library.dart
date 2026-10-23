@@ -76,7 +76,8 @@ const adhanRecordings = <AdhanRecording>[
     nameAr: 'أذان مكة — نسخة متوافقة',
     nameEn: 'Makkah — Compatible audio copy',
     placeAr: 'مكة المكرمة',
-    sourceUrl: 'https://archive.org/download/AsrAzanFromMakkah/AsrAzanFromMakkah_512kb.mp4',
+    sourceUrl:
+        'https://archive.org/download/AsrAzanFromMakkah/AsrAzanFromMakkah_512kb.mp4',
     licenseUrl: 'https://archive.org/details/AsrAzanFromMakkah',
     licenseLabel: 'ملكية عامة (Internet Archive)',
     fileExtension: 'mp4',

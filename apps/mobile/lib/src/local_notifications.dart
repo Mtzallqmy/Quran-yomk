@@ -422,22 +422,25 @@ class LocalNotificationService {
   Future<Map<String, dynamic>> alarmDiagnostics() async {
     await initialize();
     if (!NativeAudio.supported) return const <String, dynamic>{};
-    return await const MethodChannel('app.tarteel.tarteel/settings')
-            .invokeMapMethod<String, dynamic>('alarmDiagnostics') ??
+    return await const MethodChannel(
+          'app.tarteel.tarteel/settings',
+        ).invokeMapMethod<String, dynamic>('alarmDiagnostics') ??
         const <String, dynamic>{};
   }
 
   Future<bool> openAlarmSettings() async {
     if (!NativeAudio.supported) return false;
-    return await const MethodChannel('app.tarteel.tarteel/settings')
-            .invokeMethod<bool>('openAlarmSettings') ??
+    return await const MethodChannel(
+          'app.tarteel.tarteel/settings',
+        ).invokeMethod<bool>('openAlarmSettings') ??
         false;
   }
 
   Future<bool> openBatterySettings() async {
     if (!NativeAudio.supported) return false;
-    return await const MethodChannel('app.tarteel.tarteel/settings')
-            .invokeMethod<bool>('openBatterySettings') ??
+    return await const MethodChannel(
+          'app.tarteel.tarteel/settings',
+        ).invokeMethod<bool>('openBatterySettings') ??
         false;
   }
 

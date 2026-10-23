@@ -85,11 +85,17 @@ Future<void> main() async {
   );
   final localNotifications = LocalNotificationService();
   final learning = LearningStore(preferences)..load();
+  final prayerSettings = PrayerSettingsStore(preferences)..load();
   final adhkarReminders = AdhkarReminderController(
     notifications: localNotifications,
     store: learning,
+    timezone: () => prayerSettings.value.timezone,
   );
-  final prayerSettings = PrayerSettingsStore(preferences)..load();
+  prayerSettings.addListener(() {
+    adhkarReminders.start().catchError((Object error) {
+      debugPrint('ADHKAR_TIMEZONE_RESCHEDULE_FAILED');
+    });
+  });
   final prayerTimes = PrayerTimesService();
   final adhanLibrary = AdhanLibraryStore(preferences)..load();
   final adhanAudio = AdhanAudioService(
@@ -151,16 +157,9 @@ Future<void> main() async {
     'islamic_content': islamicContent.synchronizeInBackground,
     'runtime_config': remoteConfig.refresh,
     'local_reminders': () async {
-      if (features.enabled(TarteelFeature.prayer)) {
-        await prayerReminders.start();
-      } else {
-        await prayerReminders.suspend();
-      }
-      if (features.enabled(TarteelFeature.adhkar)) {
-        await adhkarReminders.start();
-      } else {
-        await adhkarReminders.suspend();
-      }
+      // User-owned local schedules must not be cancelled by cloud feature flags.
+      await prayerReminders.start();
+      await adhkarReminders.start();
     },
     'push_notifications': pushNotifications.initialize,
     'announcements': announcements.refresh,

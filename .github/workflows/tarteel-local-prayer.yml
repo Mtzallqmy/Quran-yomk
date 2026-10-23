@@ -1,11 +1,12 @@
 name: Tarteel local prayer upgrade
 on:
   push:
-    branches: [feat/tarteel-local-prayer-neon-2074]
+    branches: [feat/tarteel-local-prayer-neon-2074, main]
   pull_request:
     branches: [main]
     paths: ['apps/mobile/**', 'services/tarteel-cloud/**', 'scripts/tarteel/**', '.github/workflows/tarteel-local-prayer.yml']
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:
@@ -40,12 +41,20 @@ jobs:
         working-directory: apps/mobile
       - run: flutter test --no-pub
         working-directory: apps/mobile
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Cloud API contract and authorization tests
+        working-directory: services/tarteel-cloud
+        run: |
+          npm ci
+          npm test
       - name: Validate offline assets
         run: python3 scripts/generate_tarteel_reminder.py --check
       - name: Build Flutter and Android acceptance APKs
         working-directory: apps/mobile
         run: |
-          flutter build apk --debug --no-pub --dart-define=GIT_SHA=${{ github.sha }}
+          flutter build apk --debug --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_CLOUD_BASE_URL=https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech
           cd android
           ./gradlew :app:assembleDebugAndroidTest :app:lintDebug
       - uses: actions/upload-artifact@v4
@@ -148,7 +157,7 @@ jobs:
         working-directory: apps/mobile
         run: |
           flutter pub get
-          flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
+          flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_CLOUD_BASE_URL=https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
       - name: Verify actual split version and matching 2074 certificate
         shell: bash
         run: |

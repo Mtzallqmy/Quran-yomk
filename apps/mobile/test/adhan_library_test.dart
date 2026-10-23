@@ -31,8 +31,9 @@ void main() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final directory = await Directory.systemTemp.createTemp('tarteel-adhan-');
       final first = await File('${directory.path}/first.wav').writeAsBytes([1]);
-      final second = await File('${directory.path}/second.wav')
-          .writeAsBytes([2]);
+      final second = await File(
+        '${directory.path}/second.wav',
+      ).writeAsBytes([2]);
       var nextPath = first.path;
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

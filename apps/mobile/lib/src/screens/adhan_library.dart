@@ -33,9 +33,9 @@ class AdhanLibraryPage extends ConsumerWidget {
                       child: Text(
                         'الصوتان المرفقان يعملان من أول تشغيل دون إنترنت. الأذان المرفق عينة قصيرة مدتها 42 ثانية؛ يمكنك استيراد أذان كامل من هاتفك وتخصيصه لكل صلاة من إعدادات الصلاة.',
                         style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSecondaryContainer,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSecondaryContainer,
                         ),
                       ),
                     ),

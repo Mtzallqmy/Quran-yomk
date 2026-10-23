@@ -26,24 +26,40 @@ class OfflineAlarmTest {
         assertNull(LocalAlarmScheduler.read(context, id))
         sound.delete()
     }
-    @Test fun exactAlarmStartsSelectedLocalAudioWhileAppBackgrounded() {
+    @Test fun exactAlarmStartsSelectedLocalAudioWithScreenOff() {
         assertTrue(LocalAlarmScheduler.exactAvailable(context))
         val id = 8_900_003
         val sound = java.io.File(context.filesDir, "selected-test.ogg")
         context.resources.openRawResource(R.raw.adhan).use { input -> sound.outputStream().use { input.copyTo(it) } }
         val before = System.currentTimeMillis()
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
         context.getSharedPreferences("alarm_diagnostics", Context.MODE_PRIVATE).edit().clear().commit()
-        val record = JSONObject().put("id", id).put("title", "تجربة الأذان")
-            .put("path", sound.absolutePath).put("time", before + 2000).put("timezone", "Asia/Aden")
-        LocalAlarmScheduler.schedule(context, record)
-        InstrumentationRegistry.getInstrumentation().uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
-        val prefs = context.getSharedPreferences("alarm_diagnostics", Context.MODE_PRIVATE)
-        val deadline = System.currentTimeMillis() + 15000
-        while (prefs.getLong("lastReadyAt", 0L) < before && System.currentTimeMillis() < deadline) Thread.sleep(100)
-        assertEquals(sound.absolutePath, prefs.getString("lastPath", null))
-        assertTrue(prefs.getLong("lastReadyAt", 0L) >= before)
-        context.stopService(android.content.Intent(context, LocalAlarmAudioService::class.java))
-        LocalAlarmScheduler.cancel(context, id); sound.delete()
+        try {
+            val record = JSONObject().put("id", id).put("title", "تجربة الأذان")
+                .put("path", sound.absolutePath).put("time", before + 3000).put("timezone", "Asia/Aden")
+            LocalAlarmScheduler.schedule(context, record)
+            automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+            automation.executeShellCommand("input keyevent 223").use { descriptor ->
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
+            }
+            val power = context.getSystemService(android.os.PowerManager::class.java)
+            val screenDeadline = System.currentTimeMillis() + 2000L
+            while (power.isInteractive && System.currentTimeMillis() < screenDeadline) Thread.sleep(100)
+            assertFalse("The local alarm must be tested while the screen is off", power.isInteractive)
+            val prefs = context.getSharedPreferences("alarm_diagnostics", Context.MODE_PRIVATE)
+            val deadline = System.currentTimeMillis() + 20000L
+            while (prefs.getLong("lastReadyAt", 0L) < before && System.currentTimeMillis() < deadline) Thread.sleep(100)
+            assertEquals(sound.absolutePath, prefs.getString("lastPath", null))
+            assertTrue("Media3 prepared the imported local sound with screen off", prefs.getLong("lastReadyAt", 0L) >= before)
+        } finally {
+            context.stopService(android.content.Intent(context, LocalAlarmAudioService::class.java))
+            LocalAlarmScheduler.cancel(context, id)
+            automation.executeShellCommand("input keyevent 224").use { descriptor ->
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
+            }
+            automation.executeShellCommand("wm dismiss-keyguard").close()
+            sound.delete()
+        }
     }
     @Test fun missedDailyAlarmMovesToFutureWithoutPlayingAtBoot() {
         val id = 8_900_002

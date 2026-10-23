@@ -16,6 +16,43 @@ env:
   CI: 'true'
   FLUTTER_SUPPRESS_ANALYTICS: 'true'
 jobs:
+  signing-preflight:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/cache/restore@v4
+        id: key-cache
+        with:
+          path: ~/.android/debug.keystore
+          key: tarteel-internal-beta-signing-v1
+      - name: Check availability of the original 2074 signing identity
+        env:
+          KEYSTORE_BASE64: ${{ secrets.TARTEEL_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.TARTEEL_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.TARTEEL_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.TARTEEL_KEY_PASSWORD }}
+          CACHE_HIT: ${{ steps.key-cache.outputs.cache-hit }}
+        run: |
+          set -euo pipefail
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            test -n "$KEYSTORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD"
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/signing.keystore"
+            chmod 600 "$RUNNER_TEMP/signing.keystore"
+            keytool -exportcert -keystore "$RUNNER_TEMP/signing.keystore" -storepass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" -file "$RUNNER_TEMP/signer.der"
+          elif [ "$CACHE_HIT" = true ] && [ -s "$HOME/.android/debug.keystore" ]; then
+            keytool -exportcert -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -file "$RUNNER_TEMP/signer.der"
+          else
+            echo '::error::Release blocked: original 2074 signing key unavailable. Supply TARTEEL_KEYSTORE_BASE64, TARTEEL_KEYSTORE_PASSWORD, TARTEEL_KEY_ALIAS and TARTEEL_KEY_PASSWORD.'
+            exit 1
+          fi
+          digest=$(sha256sum "$RUNNER_TEMP/signer.der" | awk '{print $1}')
+          test "$digest" = b93cac8e6b74a7aa33ebc0a151a778fd2bd3b8452badf0161b0ef78b862ac4b8
+          rm -f "$RUNNER_TEMP/signing.keystore" "$RUNNER_TEMP/signer.der"
+          echo 'Original 2074 signing certificate verified.' >> "$GITHUB_STEP_SUMMARY"
   quality:
     runs-on: ubuntu-24.04
     timeout-minutes: 65
@@ -57,6 +94,20 @@ jobs:
           flutter build apk --debug --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_CLOUD_BASE_URL=https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech
           cd android
           ./gradlew :app:assembleDebugAndroidTest :app:lintDebug
+      - name: Compile actual unsigned ARM64 release (not installable)
+        working-directory: apps/mobile
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_CLOUD_BASE_URL=https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
+      - name: Inspect actual split version, package and offline audio
+        run: |
+          set -euo pipefail
+          mkdir -p release/unsigned
+          cp apps/mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release/unsigned/UNSIGNED-tarteel-arm64-v8a.apk
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n1)
+          python3 scripts/tarteel/inspect_unsigned_apk.py release/unsigned/*.apk --aapt "$AAPT" --output release/unsigned
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarteel-unsigned-compile-evidence-${{ github.sha }}
+          path: release/unsigned
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -105,7 +156,7 @@ jobs:
           name: tarteel-native-api-${{ matrix.api }}
           path: native-tests.txt
   signed-candidate:
-    needs: [quality, android-acceptance]
+    needs: [quality, android-acceptance, signing-preflight]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 50

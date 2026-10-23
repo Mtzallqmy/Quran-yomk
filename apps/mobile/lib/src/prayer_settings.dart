@@ -314,6 +314,10 @@ class PrayerSettings {
 
 class PrayerSettingsStore extends ChangeNotifier {
   PrayerSettingsStore(this._preferences);
+  void reload() {
+    load();
+    notifyListeners();
+  }
 
   static const _storageKey = 'settings:prayer:v1';
   final SharedPreferences _preferences;

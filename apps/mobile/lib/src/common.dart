@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'l10n.dart';
 import 'theme.dart';
+import 'listening_artwork.dart';
 
 class LoadingPane extends StatelessWidget {
   const LoadingPane({super.key});
@@ -169,16 +170,9 @@ class Artwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fallback = Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(TarteelTokens.radiusSm),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
-      child: Icon(icon),
+    final fallback = ListeningArtwork(
+      size: size,
+      radio: icon != Icons.menu_book,
     );
     final value = url;
     if (value == null || value.isEmpty) return fallback;

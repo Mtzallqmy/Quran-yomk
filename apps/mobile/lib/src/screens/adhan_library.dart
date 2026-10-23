@@ -31,7 +31,7 @@ class AdhanLibraryPage extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'الصوتان المرفقان يعملان من أول تشغيل دون إنترنت. الأذان المرفق عينة قصيرة مدتها 42 ثانية؛ يمكنك استيراد أذان كامل من هاتفك وتخصيصه لكل صلاة من إعدادات الصلاة.',
+                        'أذان مكة والمدينة وشالقار وأذان الفجر من مالمو متاح من أول تشغيل دون إنترنت، مع عينة قصيرة وتنبيه هادئ. يمكنك معاينة كل تسجيل وتخصيص صوت مختلف لكل صلاة. تسجيلات المساجد ميدانية وقد تتضمن صدى أو أصوات المكان.',
                         style: TextStyle(
                           color: Theme.of(
                             context,
@@ -56,7 +56,9 @@ class AdhanLibraryPage extends ConsumerWidget {
                         : Icons.radio_button_unchecked,
                   ),
                   title: Text(sound.nameAr),
-                  subtitle: Text('${sound.descriptionAr}\nمتاح دون إنترنت'),
+                  subtitle: Text(
+                    '${sound.descriptionAr}\n${sound.durationSeconds} ثانية • متاح دون إنترنت',
+                  ),
                   trailing: _preview(context, player, sound.path),
                   onTap: () => sound.id == 'built-in-adhan'
                       ? store.selectBuiltIn()
@@ -94,8 +96,9 @@ class AdhanLibraryPage extends ConsumerWidget {
                         ? Icons.radio_button_checked
                         : Icons.audio_file_outlined,
                   ),
-                  title: Text('صوت محفوظ ${store.importedIds.indexOf(id) + 1}'),
-                  subtitle: const Text('محلي • الملف الذي اخترته من هاتفك'),
+                  title: Text(store.labelFor(id)),
+                  onLongPress: () => _rename(context, store, id),
+                  subtitle: const Text('محلي • اضغط مطولًا لتغيير الاسم'),
                   trailing: _preview(
                     context,
                     player,
@@ -205,6 +208,37 @@ class AdhanLibraryPage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _rename(
+    BuildContext context,
+    AdhanLibraryStore store,
+    String id,
+  ) async {
+    var name = store.labelFor(id);
+    final value = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('اسم الصوت المحلي'),
+        content: TextFormField(
+          initialValue: name,
+          onChanged: (value) => name = value,
+          maxLength: 80,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, name),
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+    if (value != null) await store.rename(id, value);
   }
 
   Widget _preview(

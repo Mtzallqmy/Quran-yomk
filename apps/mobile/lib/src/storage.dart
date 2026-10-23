@@ -46,6 +46,11 @@ class FavoritesStore extends ChangeNotifier {
   final Set<String> reciterIds = <String>{};
   final Set<String> trackIds = <String>{};
 
+  void reload() {
+    load();
+    notifyListeners();
+  }
+
   void load() {
     stationIds.addAll(
       _prefs.getStringList('favorites:stations') ?? const <String>[],
@@ -78,6 +83,11 @@ class FavoritesStore extends ChangeNotifier {
 
 class SettingsStore extends ChangeNotifier {
   SettingsStore(this._prefs);
+  void reload() {
+    load();
+    notifyListeners();
+  }
+
   final SharedPreferences _prefs;
   ThemeMode themeMode = ThemeMode.system;
   Locale locale = const Locale('ar');

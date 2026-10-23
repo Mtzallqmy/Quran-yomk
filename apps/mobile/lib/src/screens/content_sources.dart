@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
+import '../adhan_library.dart';
 import '../islamic_content.dart';
 import '../l10n.dart';
 import '../models.dart';
@@ -21,12 +22,18 @@ class ContentSourcesPage extends ConsumerWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done &&
               !snapshot.hasData) {
-            return const LoadingPane();
+            return ListView(
+              children: const [
+                BundledAudioSources(),
+                SizedBox(height: 80, child: LoadingPane()),
+              ],
+            );
           }
           if (snapshot.hasError && !snapshot.hasData) {
             return ListView(
               padding: const EdgeInsets.only(bottom: 24),
               children: <Widget>[
+                const BundledAudioSources(),
                 const _IslamicLibrarySource(),
                 ErrorPane(
                   error: snapshot.error!,
@@ -48,6 +55,7 @@ class ContentSourcesPage extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Text(l10n.thirdPartyOwnershipNotice),
               ),
+              const BundledAudioSources(),
               const _IslamicLibrarySource(),
               if (sources.isEmpty)
                 EmptyPane(message: l10n.contentSourceUnavailable)
@@ -153,4 +161,58 @@ class _InfoTile extends StatelessWidget {
       subtitle: SelectableText(value!),
     );
   }
+}
+
+class BundledAudioSources extends StatelessWidget {
+  const BundledAudioSources({super.key});
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text(
+          'مصادر الأصوات والخلفيات المرفقة — متاحة دون إنترنت. ذكر المؤلف لا يعني تأييده للتطبيق.',
+        ),
+      ),
+      for (final sound in builtInAdhanSounds)
+        ExpansionTile(
+          leading: const Icon(Icons.library_music_outlined),
+          title: Text(sound.nameAr),
+          subtitle: Text(sound.descriptionAr),
+          children: [
+            _InfoTile(title: 'صاحب التسجيل أو المؤلف', value: sound.author),
+            _InfoTile(title: 'المصدر الأصلي', value: sound.sourceUrl),
+            _InfoTile(title: 'رابط الترخيص', value: sound.licenseUrl),
+            if (sound.id == 'built-in-makkah' ||
+                sound.id == 'built-in-madinah' ||
+                sound.id == 'built-in-kazakhstan' ||
+                sound.id == 'built-in-sweden-fajr')
+              const _InfoTile(
+                title: 'التعديلات على الصوت',
+                value:
+                    'استخراج الصوت وتحويله إلى Ogg Vorbis أحادي القناة 44.1 kHz وضبط جهارته إلى ‎-18 LUFS. لم تُحذف عبارات عمدًا. النسخة المعدلة موزعة بترخيص التسجيل الموضح أعلاه.',
+              ),
+          ],
+        ),
+      const ExpansionTile(
+        leading: Icon(Icons.radio_outlined),
+        title: Text('فهرس الإذاعات الإضافية'),
+        children: [
+          _InfoTile(title: 'المصدر', value: 'https://www.mp3quran.net/eng/api'),
+          _InfoTile(
+            title: 'طريقة الاستخدام',
+            value:
+                'روابط البث من API العام؛ حقوق المحطات والأصوات لأصحابها. يحفظ Neon بيانات الفهرس فقط، ولا يعيد استضافة البث ولا يمنح إذن تسجيله.',
+          ),
+        ],
+      ),
+      const ListTile(
+        leading: Icon(Icons.palette_outlined),
+        title: Text('خلفيات المشغّل والإذاعات'),
+        subtitle: Text(
+          'رسوم هندسية ومتجهية أصلية داخل مشروع ترتيل؛ تعمل محليًا دون تحميل صور.',
+        ),
+      ),
+    ],
+  );
 }

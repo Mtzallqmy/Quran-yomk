@@ -1175,17 +1175,19 @@ class _PrayerAlarmStatusPageState extends ConsumerState<PrayerAlarmStatusPage>
         title: 'ترتيل — اختبار التنبيه',
         body:
             'إذا سمعت هذا الصوت فالتنبيه المحلي يعمل حاليًا. اختبره أيضًا مع إغلاق الشاشة.',
-        scheduledAt: DateTime.now().add(const Duration(seconds: 20)),
+        scheduledAt: DateTime.now().add(const Duration(minutes: 1)),
         timezone: services.prayerSettings.value.timezone,
         payload: '/prayer-times',
-        audioPath: 'assets/audio/reminder.wav',
+        audioPath:
+            services.adhanLibrary.selectedPath ?? 'assets/audio/adhan.ogg',
+        channel: LocalNotificationChannel.adhan,
       ),
     );
     if (mounted)
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'تمت جدولة اختبار بعد ٢٠ ثانية. أغلق الشاشة للتحقق من تشغيله في الخلفية.',
+            'تمت جدولة اختبار بعد دقيقة. أغلق الشاشة للتحقق من تشغيله في الخلفية.',
           ),
         ),
       );
@@ -1276,6 +1278,15 @@ class _PrayerAlarmStatusPageState extends ConsumerState<PrayerAlarmStatusPage>
                   '${status['scheduledCount'] ?? 0} تنبيه. تجدد المواقيت عند فتح التطبيق؛ عند إضافة تذكيرات قبل/بعد الصلاة تكفي النافذة ٢٨ يومًا، وإلا ٤٥ يومًا.',
                 ),
               ),
+              if (status['lastReadyAt'] is num &&
+                  (status['lastReadyAt'] as num) > 0)
+                ListTile(
+                  leading: const Icon(Icons.play_circle_outline),
+                  title: const Text('آخر تجهيز للصوت في Android'),
+                  subtitle: Text(
+                    '${DateTime.fromMillisecondsSinceEpoch((status['lastReadyAt'] as num).toInt()).toLocal()}\nتجهيز الملف لا يؤكد سماعه؛ راجع مستوى الصوت وجرّب مع إغلاق الشاشة.',
+                  ),
+                ),
               if (status['lastFailure'] is String &&
                   (status['lastFailure'] as String).isNotEmpty)
                 ListTile(
@@ -1294,7 +1305,7 @@ class _PrayerAlarmStatusPageState extends ConsumerState<PrayerAlarmStatusPage>
                 child: FilledButton.icon(
                   onPressed: _testAlarm,
                   icon: const Icon(Icons.notifications_active_outlined),
-                  label: const Text('اختبار تنبيه بعد ٢٠ ثانية'),
+                  label: const Text('اختبار الأذان بعد دقيقة'),
                 ),
               ),
             ],

@@ -4,6 +4,7 @@ import 'offline_clip_contract.dart';
 import 'quran_models.dart';
 import 'storage.dart';
 import 'virtual_radio.dart';
+import 'radio_catalog.dart';
 
 class HomeData {
   const HomeData({
@@ -21,9 +22,47 @@ class HomeData {
 }
 
 class TarteelRepository {
-  TarteelRepository(this.api, this.cache);
+  TarteelRepository(
+    this.api,
+    this.cache, {
+    SupplementalRadioApi? supplementalRadio,
+  }) : supplementalRadio = supplementalRadio ?? SupplementalRadioApi();
   final TarteelApiClient api;
   final MetadataCache cache;
+  final SupplementalRadioApi supplementalRadio;
+
+  Future<List<Station>> _withSupplemental(
+    List<Station> base,
+    bool refresh,
+  ) async {
+    if (!supplementalRadio.enabled) return base;
+    const key = 'radio-supplements-v1';
+    dynamic rows = refresh ? null : cache.read(key, const Duration(minutes: 5));
+    if (rows is! List) {
+      try {
+        final stations = await supplementalRadio.stations();
+        rows = stations.map((s) => s.toJson()).toList();
+        await cache.write(key, rows);
+      } catch (_) {
+        rows = cache.readStale(key);
+      }
+    }
+    return mergeRadioCatalogs(
+      base,
+      rows is List
+          ? rows.map((row) => Station.fromJson(jsonMap(row))).toList()
+          : const [],
+    );
+  }
+
+  Future<Station> station(String slug) async {
+    if (slug.startsWith('neon-')) {
+      for (final value in await stations()) {
+        if (value.slug == slug) return value;
+      }
+    }
+    return api.station(slug);
+  }
 
   Future<HomeData> home({bool refresh = false}) async {
     final values = await Future.wait<Object>(<Future<Object>>[
@@ -46,9 +85,10 @@ class TarteelRepository {
     const key = 'stations-v3';
     final cached = refresh ? null : cache.read(key, const Duration(minutes: 5));
     if (cached is List) {
-      return cached
-          .map((e) => Station.fromJson(jsonMap(e)))
-          .toList(growable: false);
+      return _withSupplemental(
+        cached.map((e) => Station.fromJson(jsonMap(e))).toList(growable: false),
+        refresh,
+      );
     }
     try {
       final values = <Station>[];
@@ -67,13 +107,16 @@ class TarteelRepository {
         key,
         deduped.map((e) => e.toJson()).toList(growable: false),
       );
-      return deduped;
+      return await _withSupplemental(deduped, refresh);
     } catch (_) {
       final stale = cache.readStale(key);
       if (stale is List) {
-        return stale
-            .map((e) => Station.fromJson(jsonMap(e)))
-            .toList(growable: false);
+        return _withSupplemental(
+          stale
+              .map((e) => Station.fromJson(jsonMap(e)))
+              .toList(growable: false),
+          refresh,
+        );
       }
       rethrow;
     }

@@ -44,12 +44,12 @@ jobs:
           from pathlib import Path
           p = Path('candidate')
           m = json.loads((p/'release-metadata.json').read_text())
-          apk = p/'tarteel-0.9.0-beta.1-arm64-v8a.apk'
+          apk = p/'tarteel-0.9.0-beta.2-arm64-v8a.apk'
           checksum = hashlib.sha256(apk.read_bytes()).hexdigest()
           assert m['sourceCommit'] == os.environ['CANDIDATE_SHA']
           assert m['sha256'] == checksum
           assert m['applicationId'] == 'app.tarteel.tarteel' and m['versionCode'] > 2074
-          assert m['versionName'] == '0.9.0-beta.1' and m['abis'] == ['arm64-v8a']
+          assert m['versionName'] == '0.9.0-beta.2' and m['abis'] == ['arm64-v8a']
           assert m['certificateSha256'] == 'b93cac8e6b74a7aa33ebc0a151a778fd2bd3b8452badf0161b0ef78b862ac4b8'
           signature = (p/'signature.txt').read_text()
           assert re.findall(r'certificate SHA-256 digest: ([a-f0-9]+)',signature) == [m['certificateSha256']]
@@ -72,7 +72,7 @@ jobs:
           ترتيل Flutter — مواقيت وتنبيهات محلية، مكتبة صوت مدمجة، وتحسين الواجهة العربية، ونسخ مفضلة اختياري على Neon.
           Android 8+، arm64-v8a، الحزمة app.tarteel.tarteel؛ شهادة التوقيع تطابق APK المنشور 2074.
           راجع release-metadata.json وdevice-acceptance.json لنتائج التحقق ومصدر البناء.
-          الأذان المدمج عينة CC0 مدتها نحو 42 ثانية؛ يمكن استيراد أذان كامل من الهاتف.
+          تسجيلات أذان محلية لمكة والمدينة وشالقار مع توثيق المصدر والترخيص، واستيراد أصوات الهاتف.
           سياسات البطارية والصلاحيات الخاصة بالهاتف قد تقيد التنبيه؛ تعرض شاشة الحالة التفاصيل.
           NOTES
-          gh release create v0.9.0-beta.1 candidate/*.apk candidate/SHA256SUMS.txt candidate/badging.txt candidate/signature.txt candidate/release-metadata.json candidate/device-acceptance.json --repo "$GITHUB_REPOSITORY" --target "$CANDIDATE_SHA" --title 'ترتيل 0.9.0-beta.1 — الصلاة والتنبيهات المحلية' --notes-file notes.md --prerelease
+          gh release create v0.9.0-beta.2 candidate/*.apk candidate/SHA256SUMS.txt candidate/badging.txt candidate/signature.txt candidate/release-metadata.json candidate/device-acceptance.json --repo "$GITHUB_REPOSITORY" --target "$CANDIDATE_SHA" --title 'ترتيل 0.9.0-beta.2 — الصلاة والتنبيهات المحلية' --notes-file notes.md --prerelease

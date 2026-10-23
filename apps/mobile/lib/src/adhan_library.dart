@@ -10,25 +10,89 @@ import 'native_audio.dart';
 /// Offline assets shipped with the application; never fetched from a server.
 @immutable
 class BuiltInAdhanSound {
-  const BuiltInAdhanSound(this.id, this.nameAr, this.path, this.descriptionAr);
+  const BuiltInAdhanSound(
+    this.id,
+    this.nameAr,
+    this.path,
+    this.descriptionAr, {
+    this.author = '',
+    this.sourceUrl = '',
+    this.licenseUrl = '',
+    this.durationSeconds = 0,
+  });
   final String id;
   final String nameAr;
   final String path;
   final String descriptionAr;
+  final String author;
+  final String sourceUrl;
+  final String licenseUrl;
+  final int durationSeconds;
 }
 
 const builtInAdhanSounds = <BuiltInAdhanSound>[
+  BuiltInAdhanSound(
+    'built-in-sweden-fajr',
+    'أذان الفجر — مالمو، السويد',
+    'assets/audio/adhan_sweden_fajr.ogg',
+    'المؤذن بيسيم عزمي • المركز الإسلامي بمالمو • CC BY 3.0',
+    author: 'Islamic Center Malmö; Besim Azemi',
+    durationSeconds: 248,
+    sourceUrl:
+        'https://commons.wikimedia.org/wiki/File:Eid_al-Fitr_Fajr_azan_at_Malmö_Mosque_-_19_August_2012.webm',
+    licenseUrl: 'https://creativecommons.org/licenses/by/3.0/',
+  ),
+  BuiltInAdhanSound(
+    'built-in-makkah',
+    'أذان الحرم المكي',
+    'assets/audio/adhan_makkah.ogg',
+    'مكة المكرمة • تسجيل ميداني • CC BY 3.0',
+    author: 'Seyfula Islam',
+    durationSeconds: 197,
+    sourceUrl:
+        'https://commons.wikimedia.org/wiki/File:Adhan,_Great_Mosque_of_Mecca_-_Jan_21,_2013.webm',
+    licenseUrl: 'https://creativecommons.org/licenses/by/3.0/',
+  ),
+  BuiltInAdhanSound(
+    'built-in-madinah',
+    'أذان المسجد النبوي',
+    'assets/audio/adhan_madinah.ogg',
+    'المدينة المنورة • تسجيل ميداني • CC BY 3.0',
+    author: 'ejaz215',
+    durationSeconds: 187,
+    sourceUrl:
+        'https://commons.wikimedia.org/wiki/File:33937_ejaz215_call-to-prayer-from-the-prophet-s-mo.ogg',
+    licenseUrl: 'https://creativecommons.org/licenses/by/3.0/',
+  ),
+  BuiltInAdhanSound(
+    'built-in-kazakhstan',
+    'أذان شالقار — كازاخستان',
+    'assets/audio/adhan_kazakhstan.ogg',
+    'مسجد ماتاي قوقان أولي • CC BY-SA 4.0',
+    author: 'Esetok',
+    durationSeconds: 155,
+    sourceUrl:
+        'https://commons.wikimedia.org/wiki/File:Adhan_in_Shalqar_mosque.webm',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+  ),
   BuiltInAdhanSound(
     'built-in-adhan',
     'الأذان المرفق',
     'assets/audio/adhan.ogg',
     'عينة أذان 42 ثانية • Aishatu98 • CC0 1.0',
+    author: 'Aishatu98',
+    durationSeconds: 42,
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:Adhan.ogg',
+    licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
   ),
   BuiltInAdhanSound(
     'built-in-reminder',
     'تنبيه هادئ',
     'assets/audio/reminder.wav',
     'تنبيه قصير للأذكار والتذكير • صوت مولّد داخل المشروع',
+    author: 'Tarteel',
+    durationSeconds: 1,
+    licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
   ),
 ];
 
@@ -89,8 +153,10 @@ class AdhanLibraryStore extends ChangeNotifier {
 
   static const _selectedKey = 'adhan:selected:v1';
   static const _filesKey = 'adhan:files:v1';
+  static const _labelsKey = 'adhan:labels:v1';
   final SharedPreferences _preferences;
   final Map<String, String> _files = <String, String>{};
+  final Map<String, String> _labels = <String, String>{};
   String? _selectedId;
   bool _busy = false;
   String? _error;
@@ -112,7 +178,15 @@ class AdhanLibraryStore extends ChangeNotifier {
     for (final sound in builtInAdhanSounds) {
       if (sound.id == id) return sound.nameAr;
     }
-    return _find(id)?.nameAr ?? 'صوت محلي';
+    return _labels[id] ?? _find(id)?.nameAr ?? 'صوت محلي';
+  }
+
+  Future<void> rename(String id, String value) async {
+    final name = value.trim();
+    if (!importedIds.contains(id) || name.isEmpty || name.length > 80) return;
+    _labels[id] = name;
+    await _preferences.setString(_labelsKey, jsonEncode(_labels));
+    notifyListeners();
   }
 
   Future<bool> importPhoneAudio() async {
@@ -121,6 +195,7 @@ class AdhanLibraryStore extends ChangeNotifier {
     // Keep older imports: a prayer may still reference their private path.
     final id = 'phone-${DateTime.now().microsecondsSinceEpoch}';
     _files[id] = path;
+    _labels[id] = 'صوت محلي ${importedIds.length}';
     await _persist();
     await select(id);
     return true;
@@ -140,6 +215,18 @@ class AdhanLibraryStore extends ChangeNotifier {
 
   void load() {
     _selectedId = _preferences.getString(_selectedKey);
+    try {
+      final labels = jsonDecode(_preferences.getString(_labelsKey) ?? '{}');
+      if (labels is Map) {
+        for (final entry in labels.entries) {
+          if (entry.key is String && entry.value is String) {
+            _labels[entry.key as String] = entry.value as String;
+          }
+        }
+      }
+    } catch (_) {
+      /* Keep existing paths even if optional labels are damaged. */
+    }
     final raw = _preferences.getString(_filesKey);
     if (raw == null) return;
     try {
@@ -233,6 +320,7 @@ class AdhanLibraryStore extends ChangeNotifier {
 
   Future<void> remove(String id) async {
     final path = _files.remove(id);
+    _labels.remove(id);
     if (path != null) {
       final file = File(path);
       if (await file.exists()) await file.delete();
@@ -269,6 +357,8 @@ class AdhanLibraryStore extends ChangeNotifier {
     if (_selectedId != null && !isDownloaded(_selectedId!)) _selectedId = null;
   }
 
-  Future<void> _persist() =>
-      _preferences.setString(_filesKey, jsonEncode(_files));
+  Future<void> _persist() async {
+    await _preferences.setString(_filesKey, jsonEncode(_files));
+    await _preferences.setString(_labelsKey, jsonEncode(_labels));
+  }
 }

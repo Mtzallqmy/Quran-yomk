@@ -8,6 +8,7 @@ import '../navigation.dart';
 import '../quran_download_contract.dart';
 import 'content_sources.dart';
 import 'cloud_backup.dart';
+import 'local_backup.dart';
 import '../services.dart';
 import 'about.dart';
 import 'notification_settings.dart';
@@ -177,6 +178,18 @@ class SettingsPage extends ConsumerWidget {
               ),
             ),
             SectionHeader(english ? 'Privacy' : 'الخصوصية'),
+            ListTile(
+              leading: const Icon(Icons.save_alt_outlined),
+              title: const Text('نسخة محلية لبياناتك'),
+              subtitle: const Text(
+                'تصدير المفضلة والإعدادات واستيرادها دون إنترنت',
+              ),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const LocalBackupPage(),
+                ),
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.cloud_outlined),
               title: const Text('نسخة المفضلة الاختيارية'),

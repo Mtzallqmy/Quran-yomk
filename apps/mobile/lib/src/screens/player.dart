@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
+import '../listening_artwork.dart';
 import '../l10n.dart';
 import '../models.dart';
 import '../navigation.dart';
@@ -268,211 +269,215 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
           final entityId = item.extras?['entity_id'] as String?;
           final kind = item.extras?['kind'] as String?;
           final virtual = kind == 'virtual_radio';
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: <Widget>[
-              Center(
-                child: Artwork(
-                  url: item.artUri?.toString(),
-                  size: 220,
-                  icon: live ? Icons.radio : Icons.menu_book,
-                ),
-              ),
-              const SizedBox(height: 20),
-              if (live)
+          return ListeningBackdrop(
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: <Widget>[
                 Center(
-                  child: Chip(
-                    avatar: const Icon(Icons.circle, size: 12),
-                    label: Text(l10n.live),
+                  child: Artwork(
+                    url: item.artUri?.toString(),
+                    size: 220,
+                    icon: live ? Icons.radio : Icons.menu_book,
                   ),
                 ),
-              Text(
-                item.title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              if (item.artist != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(item.artist!, textAlign: TextAlign.center),
-                ),
-              const SizedBox(height: 20),
-              if (!live) _SeekBar(playback: playback),
-              StreamBuilder<PlaybackState>(
-                stream: playback.playbackStateStream,
-                builder: (context, stateSnapshot) {
-                  final playing = stateSnapshot.data?.playing == true;
-                  final processing = stateSnapshot.data?.processingState;
-                  final buffering =
-                      processing == AudioProcessingState.buffering ||
-                      processing == AudioProcessingState.loading;
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      if (!live)
-                        IconButton(
-                          iconSize: 40,
-                          tooltip: l10n.previous,
-                          onPressed: playback.skipToPrevious,
-                          icon: const Icon(Icons.skip_previous),
-                        ),
-                      if (buffering)
-                        const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: SizedBox(
-                            width: 40,
-                            height: 40,
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      else
-                        IconButton(
-                          iconSize: 64,
-                          tooltip: playing ? l10n.pause : l10n.play,
-                          onPressed: () => virtual
-                              ? playing
-                                    ? ref
-                                          .read(virtualRadioProvider.notifier)
-                                          .pause()
-                                    : ref
-                                          .read(virtualRadioProvider.notifier)
-                                          .resume()
-                              : playing
-                              ? playback.pause()
-                              : playback.play(),
-                          icon: Icon(
-                            playing ? Icons.pause_circle : Icons.play_circle,
-                          ),
-                        ),
-                      if (!live)
-                        IconButton(
-                          iconSize: 40,
-                          tooltip: l10n.next,
-                          onPressed: playback.skipToNext,
-                          icon: const Icon(Icons.skip_next),
-                        ),
-                      if (live)
-                        IconButton(
-                          iconSize: 40,
-                          tooltip: l10n.stopLive,
-                          onPressed: virtual
-                              ? ref.read(virtualRadioProvider.notifier).stop
-                              : playback.stop,
-                          icon: const Icon(Icons.stop_circle_outlined),
-                        ),
-                    ],
-                  );
-                },
-              ),
-              _VolumeControl(playback: playback),
-              const SizedBox(height: 8),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8,
-                runSpacing: 8,
-                children: <Widget>[
-                  if (entityId != null &&
-                      (kind == 'station' ||
-                          kind == 'track' ||
-                          kind == 'quran_audio'))
-                    AnimatedBuilder(
-                      animation: services.favorites,
-                      builder: (context, _) {
-                        final favorite = kind == 'station'
-                            ? services.favorites.isStation(entityId)
-                            : services.favorites.isTrack(entityId);
-                        return IconButton.filledTonal(
-                          tooltip: l10n.favorite,
-                          onPressed: () => kind == 'station'
-                              ? services.favorites.toggleStation(entityId)
-                              : services.favorites.toggleTrack(entityId),
-                          icon: Icon(
-                            favorite ? Icons.favorite : Icons.favorite_border,
-                          ),
-                        );
-                      },
+                const SizedBox(height: 20),
+                if (live)
+                  Center(
+                    child: Chip(
+                      avatar: const Icon(Icons.circle, size: 12),
+                      label: Text(l10n.live),
                     ),
-                  IconButton.filledTonal(
-                    tooltip: l10n.sleepTimer,
-                    onPressed: () => _showSleepTimer(context, playback, kind),
-                    icon: const Icon(Icons.bedtime_outlined),
                   ),
-                  if (kind == 'quran_audio' &&
-                      services.features.enabled(
-                        TarteelFeature.offlineDownloads,
-                      ))
-                    IconButton.filledTonal(
-                      tooltip: 'تنزيل التلاوة',
-                      icon: const Icon(Icons.download_outlined),
-                      onPressed: _downloadBusy
-                          ? null
-                          : () => _downloadCurrent(item),
-                    ),
-                  if (live &&
-                      Uri.tryParse(
-                            item.extras?['url'] as String? ?? '',
-                          )?.scheme ==
-                          'https')
-                    IconButton.filledTonal(
-                      tooltip: 'مشاركة رابط البث',
-                      icon: const Icon(Icons.share_outlined),
-                      onPressed: () => SharePlus.instance.share(
-                        ShareParams(text: item.extras!['url'] as String),
-                      ),
-                    ),
-                  if (kind == 'station') _OfflineClipAction(item: item),
-                  if (services.offlineClips.supported)
-                    IconButton.filledTonal(
-                      tooltip: l10n.savedClips,
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const SavedClipsPage(),
-                        ),
-                      ),
-                      icon: const Icon(Icons.offline_pin_outlined),
-                    ),
-                  if (!live)
-                    PopupMenuButton<double>(
-                      tooltip: l10n.defaultRecitationSpeed,
-                      icon: const Icon(Icons.speed),
-                      onSelected: (value) async {
-                        await services.settings.setPlaybackSpeed(value);
-                        await playback.setSpeed(value);
-                      },
-                      itemBuilder: (_) => const <PopupMenuEntry<double>>[
-                        PopupMenuItem(value: 0.75, child: Text('0.75×')),
-                        PopupMenuItem(value: 1.0, child: Text('1×')),
-                        PopupMenuItem(value: 1.25, child: Text('1.25×')),
-                        PopupMenuItem(value: 1.5, child: Text('1.5×')),
-                        PopupMenuItem(value: 2.0, child: Text('2×')),
+                Text(
+                  item.title,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                if (item.artist != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(item.artist!, textAlign: TextAlign.center),
+                  ),
+                const SizedBox(height: 20),
+                if (!live) _SeekBar(playback: playback),
+                StreamBuilder<PlaybackState>(
+                  stream: playback.playbackStateStream,
+                  builder: (context, stateSnapshot) {
+                    final playing = stateSnapshot.data?.playing == true;
+                    final processing = stateSnapshot.data?.processingState;
+                    final buffering =
+                        processing == AudioProcessingState.buffering ||
+                        processing == AudioProcessingState.loading;
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        if (!live)
+                          IconButton(
+                            iconSize: 40,
+                            tooltip: l10n.previous,
+                            onPressed: playback.skipToPrevious,
+                            icon: const Icon(Icons.skip_previous),
+                          ),
+                        if (buffering)
+                          const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        else
+                          IconButton(
+                            iconSize: 64,
+                            tooltip: playing ? l10n.pause : l10n.play,
+                            onPressed: () => virtual
+                                ? playing
+                                      ? ref
+                                            .read(virtualRadioProvider.notifier)
+                                            .pause()
+                                      : ref
+                                            .read(virtualRadioProvider.notifier)
+                                            .resume()
+                                : playing
+                                ? playback.pause()
+                                : playback.play(),
+                            icon: Icon(
+                              playing ? Icons.pause_circle : Icons.play_circle,
+                            ),
+                          ),
+                        if (!live)
+                          IconButton(
+                            iconSize: 40,
+                            tooltip: l10n.next,
+                            onPressed: playback.skipToNext,
+                            icon: const Icon(Icons.skip_next),
+                          ),
+                        if (live)
+                          IconButton(
+                            iconSize: 40,
+                            tooltip: l10n.stopLive,
+                            onPressed: virtual
+                                ? ref.read(virtualRadioProvider.notifier).stop
+                                : playback.stop,
+                            icon: const Icon(Icons.stop_circle_outlined),
+                          ),
                       ],
-                    ),
-                  if (kind == 'track' || kind == 'quran_audio')
-                    IconButton.filledTonal(
-                      tooltip: l10n.repeatSurah,
-                      onPressed: () async {
-                        setState(() => _repeatOne = !_repeatOne);
-                        await playback.setRepeatOne(_repeatOne);
-                      },
-                      icon: Icon(
-                        _repeatOne ? Icons.repeat_one_on : Icons.repeat_one,
+                    );
+                  },
+                ),
+                _VolumeControl(playback: playback),
+                const SizedBox(height: 8),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    if (entityId != null &&
+                        (kind == 'station' ||
+                            kind == 'track' ||
+                            kind == 'quran_audio'))
+                      AnimatedBuilder(
+                        animation: services.favorites,
+                        builder: (context, _) {
+                          final favorite = kind == 'station'
+                              ? services.favorites.isStation(entityId)
+                              : services.favorites.isTrack(entityId);
+                          return IconButton.filledTonal(
+                            tooltip: l10n.favorite,
+                            onPressed: () => kind == 'station'
+                                ? services.favorites.toggleStation(entityId)
+                                : services.favorites.toggleTrack(entityId),
+                            icon: Icon(
+                              favorite ? Icons.favorite : Icons.favorite_border,
+                            ),
+                          );
+                        },
                       ),
+                    IconButton.filledTonal(
+                      tooltip: l10n.sleepTimer,
+                      onPressed: () => _showSleepTimer(context, playback, kind),
+                      icon: const Icon(Icons.bedtime_outlined),
                     ),
-                ],
-              ),
-              if (live) const _TranscriptionStatus(),
-              StreamBuilder<Duration?>(
-                stream: playback.sleepRemainingStream,
-                builder: (context, snapshot) => snapshot.data == null
-                    ? const SizedBox.shrink()
-                    : Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: Center(
-                          child: Text(l10n.stopsAfter(_format(snapshot.data!))),
+                    if (kind == 'quran_audio' &&
+                        services.features.enabled(
+                          TarteelFeature.offlineDownloads,
+                        ))
+                      IconButton.filledTonal(
+                        tooltip: 'تنزيل التلاوة',
+                        icon: const Icon(Icons.download_outlined),
+                        onPressed: _downloadBusy
+                            ? null
+                            : () => _downloadCurrent(item),
+                      ),
+                    if (live &&
+                        Uri.tryParse(
+                              item.extras?['url'] as String? ?? '',
+                            )?.scheme ==
+                            'https')
+                      IconButton.filledTonal(
+                        tooltip: 'مشاركة رابط البث',
+                        icon: const Icon(Icons.share_outlined),
+                        onPressed: () => SharePlus.instance.share(
+                          ShareParams(text: item.extras!['url'] as String),
                         ),
                       ),
-              ),
-            ],
+                    if (kind == 'station') _OfflineClipAction(item: item),
+                    if (services.offlineClips.supported)
+                      IconButton.filledTonal(
+                        tooltip: l10n.savedClips,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const SavedClipsPage(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.offline_pin_outlined),
+                      ),
+                    if (!live)
+                      PopupMenuButton<double>(
+                        tooltip: l10n.defaultRecitationSpeed,
+                        icon: const Icon(Icons.speed),
+                        onSelected: (value) async {
+                          await services.settings.setPlaybackSpeed(value);
+                          await playback.setSpeed(value);
+                        },
+                        itemBuilder: (_) => const <PopupMenuEntry<double>>[
+                          PopupMenuItem(value: 0.75, child: Text('0.75×')),
+                          PopupMenuItem(value: 1.0, child: Text('1×')),
+                          PopupMenuItem(value: 1.25, child: Text('1.25×')),
+                          PopupMenuItem(value: 1.5, child: Text('1.5×')),
+                          PopupMenuItem(value: 2.0, child: Text('2×')),
+                        ],
+                      ),
+                    if (kind == 'track' || kind == 'quran_audio')
+                      IconButton.filledTonal(
+                        tooltip: l10n.repeatSurah,
+                        onPressed: () async {
+                          setState(() => _repeatOne = !_repeatOne);
+                          await playback.setRepeatOne(_repeatOne);
+                        },
+                        icon: Icon(
+                          _repeatOne ? Icons.repeat_one_on : Icons.repeat_one,
+                        ),
+                      ),
+                  ],
+                ),
+                if (live) const _TranscriptionStatus(),
+                StreamBuilder<Duration?>(
+                  stream: playback.sleepRemainingStream,
+                  builder: (context, snapshot) => snapshot.data == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 14),
+                          child: Center(
+                            child: Text(
+                              l10n.stopsAfter(_format(snapshot.data!)),
+                            ),
+                          ),
+                        ),
+                ),
+              ],
+            ),
           );
         },
       ),

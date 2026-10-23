@@ -97,7 +97,11 @@ class LocalAlarmAudioService : Service() {
             return Uri.fromFile(file)
         }
         // Flutter assets are packaged locally; only our audited catalog is accepted.
-        if (path == "assets/audio/reminder.wav") return Uri.parse("asset:///flutter_assets/$path")
+        if (path in setOf("assets/audio/reminder.wav", "assets/audio/adhan.ogg",
+                "assets/audio/adhan_makkah.ogg", "assets/audio/adhan_madinah.ogg",
+                "assets/audio/adhan_kazakhstan.ogg", "assets/audio/adhan_sweden_fajr.ogg")) {
+            return Uri.parse("asset:///flutter_assets/$path")
+        }
         if (channel != "adhan" && path.isEmpty()) {
             return Uri.parse("asset:///flutter_assets/assets/audio/reminder.wav")
         }

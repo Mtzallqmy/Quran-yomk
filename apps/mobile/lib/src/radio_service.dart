@@ -23,7 +23,7 @@ class BackendRadioService implements RadioService {
       repository.stations(refresh: refresh);
 
   @override
-  Future<Station> station(String slug) => repository.api.station(slug);
+  Future<Station> station(String slug) => repository.station(slug);
 }
 
 final radioServiceProvider = Provider<RadioService>((ref) {

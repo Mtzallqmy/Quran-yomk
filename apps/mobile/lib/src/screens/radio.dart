@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../branding.dart';
+import '../listening_artwork.dart';
 import '../common.dart';
 import '../models.dart';
 import '../radio_service.dart';
@@ -142,51 +143,57 @@ class _RadioPageState extends ConsumerState<RadioPage> {
             ref.read(virtualRadioProvider.notifier).refresh(),
           ]);
         },
-        child: CustomScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          slivers: <Widget>[
-            SliverToBoxAdapter(
-              child: _NowOnAir(stations: external, onPlay: _play),
-            ),
-            SliverToBoxAdapter(child: _VirtualRadioCard(value: virtual)),
-            SliverToBoxAdapter(
-              child: _RadioExplorer(
-                controller: _search,
-                query: query,
-                selectedCategory: selectedCategory,
-                stations: external,
-                onQuery: (value) => setState(() => query = value),
-                onCategory: (value) => setState(() => selectedCategory = value),
-                onClear: () {
-                  _search.clear();
-                  setState(() {
-                    query = '';
-                    selectedCategory = null;
-                  });
-                },
+        child: ListeningBackdrop(
+          child: CustomScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            slivers: <Widget>[
+              SliverToBoxAdapter(
+                child: _NowOnAir(stations: external, onPlay: _play),
               ),
-            ),
-            ...catalog.when(
-              loading: () => const <Widget>[
-                SliverFillRemaining(hasScrollBody: false, child: LoadingPane()),
-              ],
-              error: (error, _) => <Widget>[
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: ErrorPane(
-                    error: error,
-                    onRetry: () => ref.read(radioProvider.notifier).refresh(),
-                  ),
+              SliverToBoxAdapter(child: _VirtualRadioCard(value: virtual)),
+              SliverToBoxAdapter(
+                child: _RadioExplorer(
+                  controller: _search,
+                  query: query,
+                  selectedCategory: selectedCategory,
+                  stations: external,
+                  onQuery: (value) => setState(() => query = value),
+                  onCategory: (value) =>
+                      setState(() => selectedCategory = value),
+                  onClear: () {
+                    _search.clear();
+                    setState(() {
+                      query = '';
+                      selectedCategory = null;
+                    });
+                  },
                 ),
-              ],
-              data: (values) => _catalogSlivers(
-                values
-                    .where((station) => station.isExternal)
-                    .toList(growable: false),
               ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 28)),
-          ],
+              ...catalog.when(
+                loading: () => const <Widget>[
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: LoadingPane(),
+                  ),
+                ],
+                error: (error, _) => <Widget>[
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: ErrorPane(
+                      error: error,
+                      onRetry: () => ref.read(radioProvider.notifier).refresh(),
+                    ),
+                  ),
+                ],
+                data: (values) => _catalogSlivers(
+                  values
+                      .where((station) => station.isExternal)
+                      .toList(growable: false),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 28)),
+            ],
+          ),
         ),
       ),
     );

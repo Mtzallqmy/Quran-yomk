@@ -80,4 +80,28 @@ void main() {
     expect(store.isDownloaded('missing'), isFalse);
     expect(File('/tmp/adhan-does-not-exist.ogg').existsSync(), isFalse);
   });
+
+  test(
+    'local recording names survive reopening without moving their files',
+    () async {
+      final directory = await Directory.systemTemp.createTemp('tarteel-label-');
+      final file = await File('${directory.path}/local.ogg').writeAsBytes([1]);
+      try {
+        SharedPreferences.setMockInitialValues({
+          'adhan:files:v1': '{"phone-1":"${file.path}"}',
+          'adhan:selected:v1': 'phone-1',
+        });
+        final preferences = await SharedPreferences.getInstance();
+        final store = AdhanLibraryStore(preferences)..load();
+        await store.rename('phone-1', 'أذان من هاتفي');
+        final reopened = AdhanLibraryStore(preferences)..load();
+        expect(reopened.labelFor('phone-1'), 'أذان من هاتفي');
+        expect(reopened.selectedPath, file.path);
+        await reopened.rename('phone-1', ' ');
+        expect(reopened.labelFor('phone-1'), 'أذان من هاتفي');
+      } finally {
+        await directory.delete(recursive: true);
+      }
+    },
+  );
 }

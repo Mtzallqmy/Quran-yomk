@@ -11,6 +11,21 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class OfflineAlarmTest {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
+    @Test fun allNewBundledAdhanFilesAreDecodableOffline() {
+        for (name in listOf("makkah", "madinah", "kazakhstan", "sweden_fajr")) {
+            val file = java.io.File(context.cacheDir, "test-$name.ogg")
+            val retriever = android.media.MediaMetadataRetriever()
+            try {
+                context.assets.open("flutter_assets/assets/audio/adhan_$name.ogg").use { input ->
+                    file.outputStream().use { input.copyTo(it) }
+                }
+                retriever.setDataSource(file.absolutePath)
+                assertTrue("$name contains a long local recording", (retriever.extractMetadata(
+                    android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L) > 140_000L)
+                assertEquals("yes", retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO))
+            } finally { retriever.release(); file.delete() }
+        }
+    }
     @Test fun storesLocalSoundAndRestoresAfterRestart() {
         val id = 8_900_001
         val sound = java.io.File(context.filesDir, "test-adhan.ogg")
@@ -59,6 +74,39 @@ class OfflineAlarmTest {
             }
             automation.executeShellCommand("wm dismiss-keyguard").close()
             sound.delete()
+        }
+    }
+    @Test fun bundledMadinahAdhanStartsWithScreenOff() {
+        assertTrue(LocalAlarmScheduler.exactAvailable(context))
+        val id = 8_900_005
+        val path = "assets/audio/adhan_madinah.ogg"
+        val before = System.currentTimeMillis()
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        context.getSharedPreferences("alarm_diagnostics", Context.MODE_PRIVATE).edit().clear().commit()
+        try {
+            val record = JSONObject().put("id", id).put("title", "تجربة الأذان")
+                .put("path", path).put("time", before + 3000).put("timezone", "Asia/Aden")
+            LocalAlarmScheduler.schedule(context, record)
+            automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+            automation.executeShellCommand("input keyevent 223").use { descriptor ->
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
+            }
+            val power = context.getSystemService(android.os.PowerManager::class.java)
+            val screenDeadline = System.currentTimeMillis() + 2000L
+            while (power.isInteractive && System.currentTimeMillis() < screenDeadline) Thread.sleep(100)
+            assertFalse("The local alarm must be tested while the screen is off", power.isInteractive)
+            val prefs = context.getSharedPreferences("alarm_diagnostics", Context.MODE_PRIVATE)
+            val deadline = System.currentTimeMillis() + 20000L
+            while (prefs.getLong("lastReadyAt", 0L) < before && System.currentTimeMillis() < deadline) Thread.sleep(100)
+            assertEquals(path, prefs.getString("lastPath", null))
+            assertTrue("Media3 prepared the bundled Madinah recording with screen off", prefs.getLong("lastReadyAt", 0L) >= before)
+        } finally {
+            context.stopService(android.content.Intent(context, LocalAlarmAudioService::class.java))
+            LocalAlarmScheduler.cancel(context, id)
+            automation.executeShellCommand("input keyevent 224").use { descriptor ->
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
+            }
+            automation.executeShellCommand("wm dismiss-keyguard").close()
         }
     }
     @Test fun missedDailyAlarmMovesToFutureWithoutPlayingAtBoot() {

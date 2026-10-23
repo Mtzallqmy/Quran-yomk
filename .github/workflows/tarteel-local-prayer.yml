@@ -78,6 +78,8 @@ jobs:
         working-directory: apps/mobile
       - run: flutter test --no-pub
         working-directory: apps/mobile
+      - name: Verify embedded audio provenance and checksums
+        run: python3 scripts/tarteel/verify_audio_assets.py
       - uses: actions/setup-node@v4
         with:
           node-version: '24'

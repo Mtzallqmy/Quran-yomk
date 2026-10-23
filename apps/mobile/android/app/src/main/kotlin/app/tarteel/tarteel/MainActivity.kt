@@ -24,6 +24,7 @@ class MainActivity : AudioServiceActivity() {
     private var offlineChannel: MethodChannel? = null
     private var pendingAlarmPayload: String? = null
     private var pickerResult: MethodChannel.Result? = null
+    private var pickingBackup = false
     private var microphoneResult: MethodChannel.Result? = null
     private var microphoneArguments: Map<*, *>? = null
     private var locationResult: MethodChannel.Result? = null
@@ -39,12 +40,16 @@ class MainActivity : AudioServiceActivity() {
             try {
                 when (call.method) {
                     "takeAlarmPayload" -> { result.success(pendingAlarmPayload); pendingAlarmPayload = null }
-                    "pickAudio" -> {
+                    "pickAudio", "pickBackup" -> {
                         if (pickerResult != null) result.error("BUSY", "File picker is open", null)
                         else {
                             pickerResult = result
+                            pickingBackup = call.method == "pickBackup"
                             startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                                type = "audio/*"; addCategory(Intent.CATEGORY_OPENABLE)
+                                type = if (pickingBackup) "*/*" else "audio/*"
+                                if (pickingBackup) putExtra(Intent.EXTRA_MIME_TYPES,
+                                    arrayOf("application/json", "text/plain", "application/octet-stream"))
+                                addCategory(Intent.CATEGORY_OPENABLE)
                             }, 9301)
                         }
                     }
@@ -213,8 +218,29 @@ class MainActivity : AudioServiceActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != 9301) return
         val result = pickerResult ?: return; pickerResult = null
+        val backup = pickingBackup; pickingBackup = false
         val uri = data?.data
         if (resultCode != RESULT_OK || uri == null) { result.success(null); return }
+        if (backup) {
+            fileExecutor.execute {
+                try {
+                    val bytes = contentResolver.openInputStream(uri)?.use { input ->
+                        val output = java.io.ByteArrayOutputStream()
+                        val buffer = ByteArray(8192)
+                        while (true) {
+                            val count = input.read(buffer); if (count < 0) break
+                            require(output.size() + count <= 256 * 1024) { "BACKUP_TOO_LARGE" }
+                            output.write(buffer, 0, count)
+                        }
+                        output.toByteArray()
+                    } ?: error("BACKUP_UNREADABLE")
+                    runOnUiThread { result.success(String(bytes, Charsets.UTF_8)) }
+                } catch (error: Exception) {
+                    runOnUiThread { result.error("BACKUP_IMPORT_FAILED", error.message, null) }
+                }
+            }
+            return
+        }
         // A private copy keeps alerts usable after the user moves the source.
         fileExecutor.execute {
             val directory = File(filesDir, "alert_audio").apply { mkdirs() }

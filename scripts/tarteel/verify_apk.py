@@ -16,7 +16,7 @@ def verify(apk, aapt, apksigner, output):
     package = re.search(r"^package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'", badging, re.M)
     if not package or package[1] != 'app.tarteel.tarteel':
         raise ValueError('Wrong application ID')
-    if int(package[2]) <= 2074 or package[3] != '0.9.0-beta.1':
+    if int(package[2]) <= 2074 or package[3] != '0.9.0-beta.2':
         raise ValueError('Version does not upgrade 2074')
     if "sdkVersion:'26'" not in badging:
         raise ValueError('Expected Android 8 minimum API 26')
@@ -27,7 +27,11 @@ def verify(apk, aapt, apksigner, output):
         abis = sorted({p.split('/')[1] for p in archive.namelist() if p.startswith('lib/') and p.endswith('.so')})
         if abis != ['arm64-v8a']:
             raise ValueError(f'Unexpected native architectures: {abis}')
-        for asset in ['assets/flutter_assets/assets/audio/adhan.ogg', 'assets/flutter_assets/assets/audio/reminder.wav']:
+        for asset in ['assets/flutter_assets/assets/audio/adhan.ogg', 'assets/flutter_assets/assets/audio/reminder.wav',
+                      'assets/flutter_assets/assets/audio/adhan_makkah.ogg',
+                      'assets/flutter_assets/assets/audio/adhan_madinah.ogg',
+                      'assets/flutter_assets/assets/audio/adhan_kazakhstan.ogg',
+                      'assets/flutter_assets/assets/audio/adhan_sweden_fajr.ogg']:
             if archive.getinfo(asset).file_size < 1024:
                 raise ValueError('Missing offline audio: ' + asset)
     output.mkdir(parents=True, exist_ok=True)

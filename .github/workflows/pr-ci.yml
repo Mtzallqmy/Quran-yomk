@@ -1,0 +1,70 @@
+name: PR CI (Deterministic Quality Gate)
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quran-integrity:
+    name: Quran Canonical Integrity Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run Fail-Closed Checksum & Data Validation
+        run: |
+          chmod +x scripts/validate-checksums.sh
+          ./scripts/validate-checksums.sh
+
+  admin-quality-gate:
+    name: Admin Web Lint & Build Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'apps/admin/package-lock.json'
+
+      - name: Install Admin Dependencies
+        run: |
+          cd apps/admin
+          npm install
+
+      - name: Typecheck Admin Next.js
+        run: |
+          cd apps/admin
+          npx tsc --noEmit
+
+  backend-services-gate:
+    name: Audio Worker & Radio Engine Unit Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify Audio Worker & Radio Engine TypeScript
+        run: |
+          cd services/audio-worker && npm install && npx tsc --noEmit
+          cd ../radio-engine && npm install && npx tsc --noEmit

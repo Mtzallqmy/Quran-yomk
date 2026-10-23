@@ -7,6 +7,7 @@ import '../l10n.dart';
 import '../navigation.dart';
 import '../quran_download_contract.dart';
 import 'content_sources.dart';
+import 'cloud_backup.dart';
 import '../services.dart';
 import 'about.dart';
 import 'notification_settings.dart';
@@ -176,6 +177,18 @@ class SettingsPage extends ConsumerWidget {
               ),
             ),
             SectionHeader(english ? 'Privacy' : 'الخصوصية'),
+            ListTile(
+              leading: const Icon(Icons.cloud_outlined),
+              title: const Text('نسخة المفضلة الاختيارية'),
+              subtitle: const Text(
+                'Neon • موافقة صريحة • دون إرسال الموقع أو الصلاة',
+              ),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const CloudBackupPage(),
+                ),
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.privacy_tip_outlined),
               title: Text(

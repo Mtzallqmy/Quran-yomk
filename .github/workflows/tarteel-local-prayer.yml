@@ -1,0 +1,166 @@
+name: Tarteel local prayer upgrade
+on:
+  push:
+    branches: [feat/tarteel-local-prayer-neon-2074]
+  pull_request:
+    branches: [main]
+    paths: ['apps/mobile/**', 'services/tarteel-cloud/**', 'scripts/tarteel/**', '.github/workflows/tarteel-local-prayer.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tarteel-prayer-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  CI: 'true'
+  FLUTTER_SUPPRESS_ANALYTICS: 'true'
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: apps/mobile
+      - name: Formatting and locked dependencies
+        working-directory: apps/mobile
+        run: |
+          dart format --output=none --set-exit-if-changed lib test
+          git diff --exit-code -- pubspec.lock
+      - run: flutter analyze --no-pub --no-fatal-infos
+        working-directory: apps/mobile
+      - run: flutter test --no-pub
+        working-directory: apps/mobile
+      - name: Validate offline assets
+        run: python3 scripts/generate_tarteel_reminder.py --check
+      - name: Build Flutter and Android acceptance APKs
+        working-directory: apps/mobile
+        run: |
+          flutter build apk --debug --no-pub --dart-define=GIT_SHA=${{ github.sha }}
+          cd android
+          ./gradlew :app:assembleDebugAndroidTest :app:lintDebug
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tarteel-quality-evidence
+          path: |
+            apps/mobile/build/app/reports
+            apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+            apps/mobile/build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            apps/mobile/test/failures
+  android-acceptance:
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 36]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: tarteel-quality-evidence
+          path: validation
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            adb install -r $(find validation -name app-debug.apk)
+            adb install -r $(find validation -name app-debug-androidTest.apk)
+            adb shell pm grant app.tarteel.tarteel android.permission.POST_NOTIFICATIONS || true
+            adb shell pm grant app.tarteel.tarteel android.permission.RECORD_AUDIO
+            adb shell appops set app.tarteel.tarteel SCHEDULE_EXACT_ALARM allow || true
+            adb shell am start -W -n app.tarteel.tarteel/.MainActivity
+            adb shell am instrument -w app.tarteel.tarteel.test/androidx.test.runner.AndroidJUnitRunner | tee native-tests.txt
+            grep -q 'OK (' native-tests.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tarteel-native-api-${{ matrix.api }}
+          path: native-tests.txt
+  signed-candidate:
+    needs: [quality, android-acceptance]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - name: Restore previous internal beta signing key
+        id: old-key
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: tarteel-internal-beta-signing-v1
+      - name: Require existing signing identity
+        env:
+          KEYSTORE_BASE64: ${{ secrets.TARTEEL_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.TARTEEL_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.TARTEEL_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.TARTEEL_KEY_PASSWORD }}
+          CACHE_HIT: ${{ steps.old-key.outputs.cache-hit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            test -n "$KEYSTORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD"
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/tarteel-release.keystore"
+            chmod 600 "$RUNNER_TEMP/tarteel-release.keystore"
+            echo "TARTEEL_KEYSTORE_PATH=$RUNNER_TEMP/tarteel-release.keystore" >> "$GITHUB_ENV"
+            echo "TARTEEL_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "TARTEEL_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "TARTEEL_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+          elif [ "$CACHE_HIT" = true ] && [ -s "$HOME/.android/debug.keystore" ]; then
+            echo "TARTEEL_KEYSTORE_PATH=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
+            echo 'TARTEEL_KEYSTORE_PASSWORD=android' >> "$GITHUB_ENV"
+            echo 'TARTEEL_KEY_ALIAS=androiddebugkey' >> "$GITHUB_ENV"
+            echo 'TARTEEL_KEY_PASSWORD=android' >> "$GITHUB_ENV"
+          else
+            echo '::error::The existing 2074 signing key is unavailable. Do not generate a replacement key.'
+            exit 1
+          fi
+      - name: Build ARM64 candidate
+        working-directory: apps/mobile
+        run: |
+          flutter pub get
+          flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
+      - name: Verify actual split version and matching 2074 certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release/tarteel
+          cp apps/mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release/tarteel/tarteel-0.9.0-beta.1-arm64-v8a.apk
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n1)
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n1)
+          python3 scripts/tarteel/verify_apk.py release/tarteel/*.apk --aapt "$AAPT" --apksigner "$APKSIGNER" --output release/tarteel
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarteel-signed-candidate-${{ github.sha }}
+          path: release/tarteel
+      - name: Publication gate
+        run: echo 'Candidate only. Publication requires a recorded physical-device upgrade and offline screen-off alarm test for this exact SHA and APK checksum.' >> "$GITHUB_STEP_SUMMARY"

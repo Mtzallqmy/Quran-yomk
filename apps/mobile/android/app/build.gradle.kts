@@ -31,11 +31,23 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        val keystorePath = System.getenv("TARTEEL_KEYSTORE_PATH")
+        if (!keystorePath.isNullOrBlank()) {
+            create("tarteelRelease") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("TARTEEL_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("TARTEEL_KEY_ALIAS")
+                keyPassword = System.getenv("TARTEEL_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Current milestone: an installable test APK, not a Play Store upload.
-            // Store signing is deliberately out of scope for this release target.
-            signingConfig = signingConfigs.getByName("debug")
+            // Never silently create a new debug identity for an in-place update.
+            // CI supplies the existing key and verifies its certificate against 2074.
+            signingConfig = signingConfigs.findByName("tarteelRelease")
         }
     }
 }

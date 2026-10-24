@@ -640,3 +640,24 @@ T? nextItem<T>(List<T> values, T current) {
   final index = values.indexOf(current);
   return index >= 0 && index + 1 < values.length ? values[index + 1] : null;
 }
+
+/// Stable range keys also restore user-selected ranges outside thematic samples.
+ThematicSegment? personalReviewSegment(String key) {
+  final m = RegExp(r'^(\d{1,3}):(\d{1,3})-(\d{1,3})$').firstMatch(key);
+  if (m == null) return null;
+  final surah = int.parse(m[1]!),
+      first = int.parse(m[2]!),
+      last = int.parse(m[3]!);
+  if (surah < 1 || surah > 114 || first < 1 || last < first || last > 286)
+    return null;
+  return ThematicSegment(
+    surah: surah,
+    startAyah: first,
+    endAyah: last,
+    topicTitleAr: 'سورة $surah — $first إلى $last',
+    topicSummaryAr: 'مقطعك المحفوظ',
+    colorToken: 'blue',
+    source: 'اختيار المستخدم',
+    reviewStatus: 'user_selection',
+  );
+}

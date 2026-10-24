@@ -7,6 +7,7 @@ import '../navigation.dart';
 import '../quran_models.dart';
 import '../services.dart';
 import '../reading_card.dart';
+import 'quran_study.dart';
 
 class QuranIndexPage extends ConsumerStatefulWidget {
   const QuranIndexPage({super.key, this.initialSection = 0});
@@ -67,6 +68,14 @@ class _QuranIndexPageState extends ConsumerState<QuranIndexPage> {
       animation: store,
       builder: (_, _) => Column(
         children: [
+          TextButton.icon(
+            icon: const Icon(Icons.school_outlined),
+            label: const Text('حفظ مقطع والبحث في الآيات'),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const QuranStudyPage()),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(

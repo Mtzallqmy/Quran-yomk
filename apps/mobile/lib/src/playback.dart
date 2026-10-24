@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'models.dart';
+import 'playback_progress.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'offline_clip_contract.dart';
 import 'quran_audio.dart';
 import 'virtual_radio.dart';
@@ -44,14 +46,32 @@ abstract class PlaybackPort {
   void cancelSleepTimer();
 }
 
+abstract class QueuePlaybackPort {
+  Stream<List<MediaItem>> get queueStream;
+  Future<void> selectQueueItem(int index);
+  void setStudyPause(Duration duration);
+}
+
 class TarteelAudioHandler extends BaseAudioHandler
     with SeekHandler
-    implements PlaybackPort {
+    implements PlaybackPort, QueuePlaybackPort {
   TarteelAudioHandler() {
     _player.playbackEventStream.listen((_) => _broadcastState());
     _player.playingStream.listen((playing) {
       if (playing) _reconnectAttempt = 0;
       _broadcastState();
+    });
+    _player.processingStateStream.listen((state) {
+      if (state == ProcessingState.completed) unawaited(_completeItem());
+    });
+    _player.positionStream.listen((position) {
+      final bucket = position.inSeconds ~/ 5;
+      if (bucket != _lastSavedBucket &&
+          !_loadingMedia &&
+          _player.processingState == ProcessingState.ready) {
+        _lastSavedBucket = bucket;
+        unawaited(_saveProgress());
+      }
     });
     _player.errorStream.listen((_) {
       _errors.add('PLAYBACK_ERROR');
@@ -75,6 +95,68 @@ class TarteelAudioHandler extends BaseAudioHandler
   int _trackIndex = 0;
   int _reconnectAttempt = 0;
   bool _shouldPlay = false;
+  PlaybackProgressStore? _progress;
+  int _lastSavedBucket = -1;
+  int _completionGeneration = 0;
+  Duration _studyPause = Duration.zero;
+  bool _loadingMedia = false;
+  double _speed = 1.0;
+  @override
+  Stream<List<MediaItem>> get queueStream => queue.stream;
+  @override
+  void setStudyPause(Duration duration) =>
+      _studyPause = Duration(seconds: duration.inSeconds.clamp(0, 30));
+  Future<void> _saveProgress({bool completed = false}) async {
+    final item = mediaItem.value;
+    if (item == null ||
+        isLive ||
+        _loadingMedia ||
+        item.extras?['ayah_number'] != null)
+      return;
+    await _progress?.save(item.id, _player.position, completed: completed);
+  }
+
+  Future<void> _restoreProgress() async {
+    final item = mediaItem.value;
+    if (item == null || item.extras?['ayah_number'] != null) return;
+    final position =
+        _progress?.position(item.id, _player.duration) ?? Duration.zero;
+    if (position > Duration.zero) await _player.seek(position);
+  }
+
+  Future<void> _completeItem() async {
+    if (isLive || !_shouldPlay || _loadingMedia) return;
+    final generation = ++_completionGeneration;
+    await _saveProgress(completed: true);
+    if (generation != _completionGeneration) return;
+    if (_sleepAtEnd) {
+      cancelSleepTimer();
+      await pause();
+      return;
+    }
+    final length = _quranMedia.isNotEmpty ? _quranMedia.length : _tracks.length;
+    if (_trackIndex + 1 >= length) {
+      await pause();
+      return;
+    }
+    if (_studyPause > Duration.zero) await Future<void>.delayed(_studyPause);
+    if (generation == _completionGeneration && _shouldPlay) await skipToNext();
+  }
+
+  @override
+  Future<void> selectQueueItem(int index) async {
+    final length = _quranMedia.isNotEmpty ? _quranMedia.length : _tracks.length;
+    if (isLive || index < 0 || index >= length) return;
+    _completionGeneration++;
+    await _saveProgress();
+    if (_quranMedia.isNotEmpty) {
+      await _loadQuran(index);
+    } else {
+      await _loadTrack(index);
+    }
+    await play();
+  }
+
   bool _resumeAfterInterruption = false;
   double _volumeBeforeDuck = 1.0;
 
@@ -96,6 +178,7 @@ class TarteelAudioHandler extends BaseAudioHandler
   Stream<String> get errorStream => _errors.stream;
 
   Future<void> initialize() async {
+    _progress = PlaybackProgressStore(await SharedPreferences.getInstance());
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.music());
     if (kIsWeb) await _player.setWebCrossOrigin(WebCrossOrigin.anonymous);
@@ -128,6 +211,8 @@ class TarteelAudioHandler extends BaseAudioHandler
       url != null && Uri.tryParse(url)?.scheme.toLowerCase() == 'https';
 
   void _resetSourceState() {
+    _completionGeneration++;
+    _studyPause = Duration.zero;
     _cancelReconnect();
     _virtualRadio = null;
     _liveStation = null;
@@ -142,6 +227,7 @@ class TarteelAudioHandler extends BaseAudioHandler
   Future<void> playStation(Station station) async {
     if (!station.isPlayable) throw StateError('STATION_UNAVAILABLE');
     if (!_secureUrl(station.playbackUrl)) throw StateError('STREAM_INSECURE');
+    await _saveProgress();
     cancelSleepTimer();
     _resetSourceState();
     _liveStation = station;
@@ -160,6 +246,7 @@ class TarteelAudioHandler extends BaseAudioHandler
     if (index < 0 || index >= media.length) {
       throw RangeError.index(index, media);
     }
+    await _saveProgress();
     cancelSleepTimer();
     _resetSourceState();
     _quranMedia = List<QuranAudioMedia>.unmodifiable(media);
@@ -167,6 +254,7 @@ class TarteelAudioHandler extends BaseAudioHandler
     _shouldPlay = true;
     queue.add(_quranMedia.map(_quranItem).toList(growable: false));
     await _loadQuran(_trackIndex);
+    await _restoreProgress();
     unawaited(_player.play());
     _broadcastState();
   }
@@ -194,19 +282,24 @@ class TarteelAudioHandler extends BaseAudioHandler
   );
 
   Future<void> _loadQuran(int index) async {
-    final media = _quranMedia[index];
-    _trackIndex = index;
-    mediaItem.add(_quranItem(media));
-    if (media.localPath != null) {
-      await _player.setFilePath(media.localPath!, preload: true);
-    } else {
-      if (!_secureUrl(media.playbackUri.toString())) {
-        throw StateError('QURAN_AUDIO_INSECURE');
+    _loadingMedia = true;
+    try {
+      final media = _quranMedia[index];
+      _trackIndex = index;
+      mediaItem.add(_quranItem(media));
+      if (media.localPath != null) {
+        await _player.setFilePath(media.localPath!, preload: true);
+      } else {
+        if (!_secureUrl(media.playbackUri.toString())) {
+          throw StateError('QURAN_AUDIO_INSECURE');
+        }
+        await _loadUrl(media.playbackUri.toString());
       }
-      await _loadUrl(media.playbackUri.toString());
+      await _player.setSpeed(_speed);
+      _broadcastState();
+    } finally {
+      _loadingMedia = false;
     }
-    await _player.setSpeed(1.0);
-    _broadcastState();
   }
 
   @override
@@ -216,6 +309,7 @@ class TarteelAudioHandler extends BaseAudioHandler
       throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
     }
     if (!_secureUrl(station.playbackUrl)) throw StateError('STREAM_INSECURE');
+    await _saveProgress();
     cancelSleepTimer();
     _resetSourceState();
     _virtualRadio = resolution;
@@ -308,6 +402,7 @@ class TarteelAudioHandler extends BaseAudioHandler
       throw RangeError.index(index, tracks);
     final selected = tracks[index];
     final mappedIndex = playable.indexWhere((track) => track.id == selected.id);
+    await _saveProgress();
     cancelSleepTimer();
     _resetSourceState();
     _reciter = reciter;
@@ -320,6 +415,8 @@ class TarteelAudioHandler extends BaseAudioHandler
           .toList(growable: false),
     );
     await _loadTrack(_trackIndex);
+    await _player.setSpeed(_speed);
+    await _restoreProgress();
     unawaited(_player.play());
     _broadcastState();
   }
@@ -342,18 +439,24 @@ class TarteelAudioHandler extends BaseAudioHandler
   );
 
   Future<void> _loadTrack(int index) async {
-    final track = _tracks[index];
-    final reciter = _reciter;
-    if (reciter == null || track.playbackUrl == null) return;
-    _trackIndex = index;
-    mediaItem.add(_trackItem(track, reciter));
-    await _loadUrl(track.playbackUrl!);
-    _broadcastState();
+    _loadingMedia = true;
+    try {
+      final track = _tracks[index];
+      final reciter = _reciter;
+      if (reciter == null || track.playbackUrl == null) return;
+      _trackIndex = index;
+      mediaItem.add(_trackItem(track, reciter));
+      await _loadUrl(track.playbackUrl!);
+      _broadcastState();
+    } finally {
+      _loadingMedia = false;
+    }
   }
 
   @override
   Future<void> playOfflineClip(OfflineClip clip) async {
     if (kIsWeb) throw UnsupportedError('OFFLINE_CLIP_PLAYBACK_UNSUPPORTED');
+    await _saveProgress();
     cancelSleepTimer();
     _resetSourceState();
     _shouldPlay = true;
@@ -373,7 +476,13 @@ class TarteelAudioHandler extends BaseAudioHandler
         },
       ),
     );
-    await _player.setFilePath(clip.filePath, preload: true);
+    _loadingMedia = true;
+    try {
+      await _player.setFilePath(clip.filePath, preload: true);
+    } finally {
+      _loadingMedia = false;
+    }
+    await _restoreProgress();
     await _player.setSpeed(1.0);
     unawaited(_player.play());
     _broadcastState();
@@ -393,6 +502,8 @@ class TarteelAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> pause() async {
+    _completionGeneration++;
+    await _saveProgress();
     _shouldPlay = false;
     await _player.pause();
     _broadcastState();
@@ -400,6 +511,8 @@ class TarteelAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> stop() async {
+    _completionGeneration++;
+    await _saveProgress();
     _shouldPlay = false;
     _cancelReconnect();
     cancelSleepTimer();
@@ -415,6 +528,7 @@ class TarteelAudioHandler extends BaseAudioHandler
   @override
   Future<void> skipToNext() async {
     if (isLive || (_tracks.isEmpty && _quranMedia.isEmpty)) return;
+    _completionGeneration++;
     final next = _trackIndex + 1;
     final length = _quranMedia.isNotEmpty ? _quranMedia.length : _tracks.length;
     if (next >= length) return;
@@ -433,6 +547,7 @@ class TarteelAudioHandler extends BaseAudioHandler
       await _player.seek(Duration.zero);
       return;
     }
+    _completionGeneration++;
     final previous = _trackIndex - 1;
     if (previous < 0) return;
     if (_quranMedia.isNotEmpty) {
@@ -446,7 +561,8 @@ class TarteelAudioHandler extends BaseAudioHandler
   @override
   Future<void> setSpeed(double speed) async {
     if (isLive) return;
-    await _player.setSpeed(speed.clamp(0.75, 2.0));
+    _speed = speed.clamp(0.75, 2.0);
+    await _player.setSpeed(_speed);
     _broadcastState();
   }
 
@@ -490,6 +606,7 @@ class TarteelAudioHandler extends BaseAudioHandler
     if (isLive) return;
     cancelSleepTimer();
     _sleepAtEnd = true;
+    unawaited(_player.setLoopMode(LoopMode.off));
     _sleepTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
       final duration = _player.duration;
       if (!_sleepAtEnd || duration == null || duration == Duration.zero) {
@@ -497,8 +614,7 @@ class TarteelAudioHandler extends BaseAudioHandler
         return;
       }
       final remaining = duration - _player.position;
-      if (remaining <= const Duration(seconds: 1) ||
-          _player.processingState == ProcessingState.completed) {
+      if (_player.processingState == ProcessingState.completed) {
         cancelSleepTimer();
         await pause();
       } else {

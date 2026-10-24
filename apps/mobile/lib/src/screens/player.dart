@@ -300,6 +300,28 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                   ),
                 const SizedBox(height: 20),
                 if (!live) _SeekBar(playback: playback),
+                if (!live && playback is QueuePlaybackPort)
+                  StreamBuilder<List<MediaItem>>(
+                    stream: (playback as QueuePlaybackPort).queueStream,
+                    builder: (context, snapshot) {
+                      final items = snapshot.data ?? const <MediaItem>[];
+                      if (items.isEmpty) return const SizedBox.shrink();
+                      return ExpansionTile(
+                        title: Text('قائمة الاستماع (${items.length})'),
+                        leading: const Icon(Icons.queue_music),
+                        children: [
+                          for (var i = 0; i < items.length; i++)
+                            ListTile(
+                              title: Text(items[i].title),
+                              subtitle: Text(items[i].artist ?? ''),
+                              leading: Text('${i + 1}'),
+                              onTap: () => (playback as QueuePlaybackPort)
+                                  .selectQueueItem(i),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
                 StreamBuilder<PlaybackState>(
                   stream: playback.playbackStateStream,
                   builder: (context, stateSnapshot) {

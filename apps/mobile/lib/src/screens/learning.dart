@@ -7,6 +7,9 @@ import '../learning.dart';
 import '../quran_audio.dart';
 import '../quran_models.dart';
 import '../services.dart';
+import '../common.dart';
+import '../playback.dart';
+import 'quran_study.dart';
 
 class LearningCenterPage extends ConsumerWidget {
   const LearningCenterPage({super.key});
@@ -32,8 +35,8 @@ class LearningCenterPage extends ConsumerWidget {
               _ActionCard(
                 icon: Icons.play_circle_outline,
                 title: 'ابدأ الحفظ',
-                subtitle: 'اختر مقطعًا موضوعيًا وابدأ جلسة عملية',
-                onTap: () => _open(context, const ThematicMushafPage()),
+                subtitle: 'اختر أي سورة ومقطع، وابحث في الآيات',
+                onTap: () => _open(context, const QuranStudyPage()),
               ),
               _ActionCard(
                 icon: Icons.history,
@@ -343,23 +346,11 @@ class _MemorizationSessionPageState
   bool _autoNext = true;
   bool _busy = false;
   int _hideLevel = 1;
-  StreamSubscription<dynamic>? _mediaSubscription;
-  bool _seenFirstMedia = false;
-  int _pauseGeneration = 0;
-
+  late Future<List<QuranVerse>> _verseFuture;
   @override
-  void dispose() {
-    _pauseGeneration++;
-    unawaited(_mediaSubscription?.cancel());
-    super.dispose();
-  }
-
-  Future<void> _pauseBetweenItems() async {
-    final generation = ++_pauseGeneration;
-    final playback = ref.read(servicesProvider).playback;
-    await playback.pause();
-    await Future<void>.delayed(Duration(seconds: _pauseSeconds));
-    if (mounted && generation == _pauseGeneration) await playback.play();
+  void initState() {
+    super.initState();
+    _verseFuture = _verses();
   }
 
   Future<List<QuranVerse>> _verses() async {
@@ -407,18 +398,10 @@ class _MemorizationSessionPageState
             resolved.add(media);
         }
       }
-      await _mediaSubscription?.cancel();
-      _seenFirstMedia = false;
-      if (_pauseSeconds > 0 && resolved.length > 1) {
-        _mediaSubscription = services.playback.mediaItemStream.listen((_) {
-          if (!_seenFirstMedia) {
-            _seenFirstMedia = true;
-            return;
-          }
-          unawaited(_pauseBetweenItems());
-        });
-      }
       await services.playback.playQuranAudio(resolved, 0);
+      if (services.playback case final QueuePlaybackPort queue) {
+        queue.setStudyPause(Duration(seconds: _pauseSeconds));
+      }
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
@@ -444,8 +427,13 @@ class _MemorizationSessionPageState
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(widget.segment.topicTitleAr)),
     body: FutureBuilder<List<QuranVerse>>(
-      future: _verses(),
+      future: _verseFuture,
       builder: (context, snapshot) {
+        if (snapshot.hasError)
+          return ErrorPane(
+            error: snapshot.error!,
+            onRetry: () => setState(() => _verseFuture = _verses()),
+          );
         if (!snapshot.hasData)
           return const Center(child: CircularProgressIndicator());
         final verses = snapshot.data!;
@@ -627,7 +615,9 @@ class ReviewPage extends ConsumerWidget {
                   final matches = segments.where(
                     (value) => value.id == record.key,
                   );
-                  final segment = matches.isEmpty ? null : matches.first;
+                  final segment = matches.isEmpty
+                      ? personalReviewSegment(record.key)
+                      : matches.first;
                   return Card(
                     child: ListTile(
                       title: Text(segment?.topicTitleAr ?? record.key),

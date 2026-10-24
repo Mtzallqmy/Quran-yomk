@@ -50,6 +50,8 @@ flutter:
   assets:
     - assets/fonts/OFL-NotoSansArabic.txt
     - assets/islamic_content_manifest.json
+    - assets/mushaf_library/topics-2026-10-24.json.gz
+    - assets/mushaf_library/hafs-page-map.json
     - assets/audio/adhan.ogg
     - assets/audio/adhan_sweden_fajr.ogg
     - assets/audio/adhan_makkah.ogg

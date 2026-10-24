@@ -37,3 +37,12 @@ test('health checks never follow redirects or access arbitrary/private hosts',as
  assert.equal(await health('https://backup.qurango.net/radio/a',async(_,options)=>{assert.equal(options.redirect,'error');return new Response('x',{headers:{'content-type':'audio/mpeg'}});}),true);
 });
 test('unreviewed provider rights stay disabled independently',()=>{for(const id of ['archive','islamic-radio','quran-foundation','kfgqpc','quran-android'])assert.equal(providers.find(p=>p.id===id).enabled,false);});
+
+test('mushaf catalog exposes approved views through read-only role and no writes',async()=>{
+ const statements=[];let releases=0;
+ const pool={async connect(){return {async query(sql){statements.push(sql);return {rows:sql.includes('public_library_status')?[{canonical_ayahs:'6236',topics:'6100',covered_ayahs:'3673',complete_reviewed_tajweed_available:false}]:sql.includes('public_editions')?[{id:'madinah-hafs-svg-v1',rights_status:'approved'}]:[]};},release(){releases++;}};}};
+ const h=handler(pool);const response=await h(new Request('https://example.org/v1/mushaf-library'));
+ assert.equal(response.status,200);const body=await response.json();assert.equal(body.status.topics,'6100');assert.equal(body.status.complete_reviewed_tajweed_available,false);
+ assert.equal(releases,3);assert.equal(statements.filter(s=>s==='SET LOCAL ROLE tarteel_catalog_reader').length,3);assert.equal(statements.filter(s=>s==='BEGIN READ ONLY').length,3);
+ assert.equal((await h(new Request('https://example.org/v1/mushaf-library',{method:'POST'}))).status,405);
+});

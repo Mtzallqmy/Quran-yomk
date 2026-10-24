@@ -45,5 +45,7 @@ class ContentCatalogApi {
     return _get('/v1/translations/$key/$surah');
   }
 
+  Future<Map<String, dynamic>> mushafLibrary() => _get('/v1/mushaf-library');
+
   void dispose() => _client.close();
 }

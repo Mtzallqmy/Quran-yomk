@@ -253,6 +253,18 @@ class MushafPageRepository extends ChangeNotifier {
     }
   }
 
+  /// Delete only this edition's cached assets; bookmarks and reading state
+  /// live in MushafStore and are never touched here.
+  Future<void> removeOfflinePack(MushafPageEdition edition) async {
+    if (_packActive) throw StateError('MUSHAF_DOWNLOAD_ALREADY_ACTIVE');
+    await _ensureInitialized();
+    final directory = _editionDirectory(edition);
+    if (await directory.exists()) await directory.delete(recursive: true);
+    final partial = _packPartial(edition);
+    if (await partial.exists()) await partial.delete();
+    notifyListeners();
+  }
+
   Future<void> downloadOfflinePack(MushafPageEdition edition) async {
     await _ensureInitialized();
     if (_packActive) throw StateError("MUSHAF_DOWNLOAD_ALREADY_ACTIVE");

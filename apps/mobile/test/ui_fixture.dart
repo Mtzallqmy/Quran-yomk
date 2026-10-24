@@ -160,6 +160,10 @@ class UiDownloads extends QuranDownloadService {
 
 class UiPages extends ChangeNotifier implements MushafPageRepository {
   @override
+  MushafOfflineProgress? get offlineProgress => null;
+  @override
+  Future<bool> isOfflinePackAvailable(MushafPageEdition edition) async => false;
+  @override
   Future<MushafPageAsset> page(int page, MushafPageEdition edition) async =>
       throw MushafAssetUnavailableOfflineException(page, edition);
   @override

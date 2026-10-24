@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
+import '../quran_search.dart';
+export '../quran_search.dart' show normalizeQuranQuery;
 import '../models.dart';
 import '../navigation.dart';
 import '../quran_models.dart';
 import '../services.dart';
 import '../reading_card.dart';
 import 'quran_study.dart';
+import 'mushaf_library.dart';
 
 class QuranIndexPage extends ConsumerStatefulWidget {
   const QuranIndexPage({super.key, this.initialSection = 0});
@@ -68,6 +71,16 @@ class _QuranIndexPageState extends ConsumerState<QuranIndexPage> {
       animation: store,
       builder: (_, _) => Column(
         children: [
+          TextButton.icon(
+            icon: const Icon(Icons.local_library_outlined),
+            label: const Text('مكتبة المصاحف'),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => const MushafLibraryPage(),
+              ),
+            ),
+          ),
           TextButton.icon(
             icon: const Icon(Icons.school_outlined),
             label: const Text('حفظ مقطع والبحث في الآيات'),
@@ -215,18 +228,3 @@ class _QuranIndexPageState extends ConsumerState<QuranIndexPage> {
     );
   }
 }
-
-String normalizeQuranQuery(String value) => value
-    .trim()
-    .toLowerCase()
-    .replaceAll(RegExp('[أإآٱ]'), 'ا')
-    .replaceAll('ى', 'ي')
-    .replaceAll('ؤ', 'و')
-    .replaceAll('ئ', 'ي')
-    .replaceAll('ة', 'ه')
-    .replaceAll(RegExp(r'\s+'), ' ')
-    .replaceAll(RegExp('[\\u064B-\\u065F\\u0670\\u0640]'), '')
-    .replaceAllMapped(
-      RegExp('[٠-٩]'),
-      (match) => '${'٠١٢٣٤٥٦٧٨٩'.indexOf(match[0]!)}',
-    );

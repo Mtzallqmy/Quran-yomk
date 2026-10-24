@@ -123,6 +123,28 @@ class MushafStore extends ChangeNotifier {
     return values;
   }
 
+  /// Keep the exact previous serialized values before a new library mode is
+  /// selected. No preference key is renamed and malformed originals stay intact.
+  Future<void> backupBeforeLibraryUpgrade() async {
+    const key = 'mushaf:pre-library-backup:v1';
+    if (_prefs.containsKey(key)) return;
+    final snapshot = <String, Object?>{
+      for (final name in [
+        _positionKey,
+        _bookmarksKey,
+        _fontScaleKey,
+        _tajweedKey,
+        _themesKey,
+        _presentationKey,
+        _pageEditionKey,
+      ])
+        name: _prefs.get(name),
+    };
+    if (!await _prefs.setString(key, jsonEncode(snapshot))) {
+      throw StateError('Could not preserve Mushaf preferences');
+    }
+  }
+
   void load() {
     final rawPosition = _prefs.getString(_positionKey);
     if (rawPosition != null) {

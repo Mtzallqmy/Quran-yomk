@@ -120,9 +120,19 @@ class _MushafPageState extends ConsumerState<MushafPage> {
         .read(servicesProvider)
         .repository
         .quranPassage(QuranBrowseMode.page, page);
-    return passage.verses
+    final found = passage.verses
         .where((verse) => verse.verseKey == verseKey)
         .firstOrNull;
+    if (found != null) return found;
+    // The artwork and API's text metadata differ at some page boundaries.
+    // Keep verse identity authoritative; never substitute the adjacent ayah.
+    final surah = int.tryParse(verseKey.split(':').first);
+    if (surah == null || surah < 1 || surah > 114) return null;
+    final full = await ref
+        .read(servicesProvider)
+        .repository
+        .quranPassage(QuranBrowseMode.surah, surah);
+    return full.verses.where((verse) => verse.verseKey == verseKey).firstOrNull;
   }
 
   Future<int> _surahForCurrentPage() async {

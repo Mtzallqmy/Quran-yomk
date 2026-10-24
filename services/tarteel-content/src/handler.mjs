@@ -7,6 +7,12 @@ export function handler(pool){
   const u=new URL(request.url);if(request.method!=='GET')return json({error:'METHOD_NOT_ALLOWED'},405);
   try{
    if(u.pathname==='/health')return json({service:'tarteel-content',status:'ok'});
+   if(u.pathname==='/v1/mushaf-library'){
+    const editions=await read('SELECT * FROM tarteel_mushaf.public_editions ORDER BY id');
+    const packages=await read('SELECT * FROM tarteel_mushaf.public_packages ORDER BY id');
+    const status=await read('SELECT * FROM tarteel_mushaf.public_library_status');
+    return json({editions,packages,status:status[0]??null});
+   }
    if(u.pathname==='/v1/catalog'){
     if(cached&&Date.now()<until)return json(cached);
     const rows=await read('SELECT id,kind,title_ar,language_code,edition,metadata FROM tarteel_catalog.public_catalog ORDER BY kind,id LIMIT 500');cached={data:rows};until=Date.now()+60000;return json(cached);

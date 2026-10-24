@@ -25,6 +25,7 @@ class ContentSourcesPage extends ConsumerWidget {
             return ListView(
               children: const [
                 BundledAudioSources(),
+                _MushafLibrarySource(),
                 SizedBox(height: 80, child: LoadingPane()),
               ],
             );
@@ -34,6 +35,7 @@ class ContentSourcesPage extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 24),
               children: <Widget>[
                 const BundledAudioSources(),
+                const _MushafLibrarySource(),
                 const _IslamicLibrarySource(),
                 const _QuranEncSource(),
                 ErrorPane(
@@ -57,6 +59,7 @@ class ContentSourcesPage extends ConsumerWidget {
                 child: Text(l10n.thirdPartyOwnershipNotice),
               ),
               const BundledAudioSources(),
+              const _MushafLibrarySource(),
               const _IslamicLibrarySource(),
               const _QuranEncSource(),
               if (sources.isEmpty)
@@ -119,6 +122,32 @@ class ContentSourcesPage extends ConsumerWidget {
       _ => english ? 'License reference' : 'مرجع الترخيص',
     };
   }
+}
+
+class _MushafLibrarySource extends StatelessWidget {
+  const _MushafLibrarySource();
+  @override
+  Widget build(BuildContext context) => const ExpansionTile(
+    leading: Icon(Icons.auto_stories_outlined),
+    title: Text('مكتبة المصاحف والموضوعات'),
+    children: [
+      _InfoTile(
+        title: 'مصحف المدينة — حفص',
+        value:
+            'رسم مجمع الملك فهد عبر Quranpedia SVG؛ الإصدار المثبت b91d39e1065b57bdda3e94aca8ecf3575e50e1e6. ترخيص التحويل CC0 في هذا الإصدار؛ لا ندّعي طبعة 1440هـ. https://qurancomplex.gov.sa/quran-dev/',
+      ),
+      _InfoTile(
+        title: 'الموضوعات',
+        value:
+            'الموسوعة القرآنية https://quranpedia.net — نسخة 2026-10-24. الاستخدام داخل التطبيقات مجاني؛ إعادة نشر البيانات تتطلب المصدر والإصدار. 6100 موضوع، تغطي 3673 آية؛ ليست تقسيمًا شاملًا أو متفقًا عليه.',
+      ),
+      _InfoTile(
+        title: 'صفحات التجويد الحالية',
+        value:
+            'QUL QPC V4 https://qul.tarteel.ai/resources/font/240/licence — صفحة المصدر لا توفر معلومات حقوق النشر. لم نعتمد أصولًا جديدة أو علامات أحكام غير مراجعة. الأصول الحالية لم تُستبدل.',
+      ),
+    ],
+  );
 }
 
 class _IslamicLibrarySource extends StatelessWidget {

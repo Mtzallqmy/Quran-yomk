@@ -1,0 +1,15 @@
+[
+  {
+    "id": "0cbaeaa3-dfee-5bc0-b05d-669585d1f60c",
+    "provider": "mp3quran",
+    "provider_station_id": "109083",
+    "name_ar": "الشمائل المحمدية",
+    "canonical_stream": "qurango.net/radio/shmaeel",
+    "playback_url": "https://backup.qurango.net/radio/shmaeel",
+    "category": "HADITH",
+    "source_url": "https://www.mp3quran.net/eng/api",
+    "attribution": "MP3Quran — حقوق البث والتسجيل لأصحابها",
+    "checked_at": "2026-10-23T21:00:00Z",
+    "enabled": true
+  }
+]

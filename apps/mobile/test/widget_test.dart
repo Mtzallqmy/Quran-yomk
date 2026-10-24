@@ -1,88 +1,96 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:quran_yutla_mobile/main.dart';
-import 'package:quran_yutla_mobile/core/services/app_services.dart';
-import 'package:quran_yutla_mobile/core/config/features_manager.dart';
-import 'package:quran_yutla_mobile/core/repositories/quran_yutla_repository.dart';
-import 'package:quran_yutla_mobile/core/models/app_models.dart';
+import 'package:tarteel/src/common.dart';
+import 'package:tarteel/src/theme.dart';
 
 void main() {
-  group('Quran Yutla Mobile Unit & Widget Tests', () {
-    testWidgets('Quran Yutla App boots with Arabic title and dynamic navigation shell', (WidgetTester tester) async {
-      final mockServices = AppServices(isInitialized: true, activeEnvironment: 'test');
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            appServicesProvider.overrideWithValue(mockServices),
-          ],
-          child: const QuranYutlaApp(),
-        ),
+  test('brand themes preserve distinct semantic accent colors', () {
+    for (final theme in <ThemeData>[
+      TarteelTheme.light(),
+      TarteelTheme.dark(),
+    ]) {
+      expect(theme.colorScheme.primary, isNot(theme.colorScheme.secondary));
+      expect(theme.colorScheme.tertiary, isNot(theme.colorScheme.secondary));
+      expect(theme.cardTheme.shape, isA<RoundedRectangleBorder>());
+      expect(
+        theme.navigationBarTheme.indicatorColor,
+        theme.colorScheme.secondaryContainer,
       );
+      expect(theme.snackBarTheme.behavior, SnackBarBehavior.floating);
+    }
+  });
 
-      await tester.pumpAndSettle();
+  testWidgets('Arabic surface is RTL-capable and scalable', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TarteelTheme.light(),
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
+            body: Center(
+              child: Semantics(
+                label: 'اسم التطبيق',
+                child: const Text('ترتيل'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('ترتيل'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.text('ترتيل')).label,
+      contains('اسم التطبيق'),
+    );
+  });
 
-      // Verify Brand AppBar title
-      expect(find.text('قرآن يتلى'), findsOneWidget);
+  testWidgets('empty state does not overflow at large Arabic text scale', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TarteelTheme.light(),
+        home: const MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Scaffold(
+              body: EmptyPane(message: 'لا يوجد محتوى متاح في الوقت الحالي'),
+            ),
+          ),
+        ),
+      ),
+    );
 
-      // Verify Bottom Navigation items
-      expect(find.text('الرئيسية'), findsOneWidget);
-      expect(find.text('الإذاعة'), findsOneWidget);
-      expect(find.text('المصحف'), findsOneWidget);
-      expect(find.text('القراء'), findsOneWidget);
-      expect(find.text('المفضلة'), findsOneWidget);
-    });
+    expect(tester.takeException(), isNull);
+    expect(find.text('لا يوجد محتوى متاح في الوقت الحالي'), findsOneWidget);
+  });
 
-    test('FeaturesManager toggles radio feature flag correctly', () {
-      final manager = FeaturesManager();
-      expect(manager.state.radioEnabled, isTrue);
+  testWidgets('internal routes use the shared light transition', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TarteelTheme.light(),
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const Scaffold(body: Text('الصفحة الداخلية')),
+              ),
+            ),
+            child: const Text('فتح'),
+          ),
+        ),
+      ),
+    );
 
-      manager.toggleRadio(false);
-      expect(manager.state.radioEnabled, isFalse);
+    await tester.tap(find.text('فتح'));
+    await tester.pump(const Duration(milliseconds: 40));
 
-      manager.toggleRadio(true);
-      expect(manager.state.radioEnabled, isTrue);
-    });
-
-    test('FavoritesNotifier adds and removes favorite IDs', () {
-      final notifier = FavoritesNotifier();
-      expect(notifier.isFavorite('station-1'), isTrue);
-
-      notifier.toggleFavorite('station-1');
-      expect(notifier.isFavorite('station-1'), isFalse);
-
-      notifier.toggleFavorite('station-1');
-      expect(notifier.isFavorite('station-1'), isTrue);
-    });
-
-    test('PlaylistsNotifier creates and renames playlists', () {
-      final notifier = PlaylistsNotifier();
-      final initialCount = notifier.state.length;
-
-      notifier.createPlaylist('تلاوات المساء');
-      expect(notifier.state.length, initialCount + 1);
-      expect(notifier.state.last.name, 'تلاوات المساء');
-
-      final newId = notifier.state.last.id;
-      notifier.renamePlaylist(newId, 'تلاوات المساء والوتر');
-      expect(notifier.state.last.name, 'تلاوات المساء والوتر');
-
-      notifier.deletePlaylist(newId);
-      expect(notifier.state.length, initialCount);
-    });
-
-    test('DownloadsNotifier tracks task state and supports pausing', () {
-      final notifier = DownloadsNotifier();
-      final initialCount = notifier.state.length;
-
-      notifier.addDownload(1, 'سورة الفاتحة', 'الشيخ عبد الباسط');
-      expect(notifier.state.length, initialCount + 1);
-      final addedTask = notifier.state.last;
-      expect(addedTask.status, DownloadStatus.downloading);
-
-      notifier.togglePauseResume(addedTask.id);
-      final pausedTask = notifier.state.firstWhere((t) => t.id == addedTask.id);
-      expect(pausedTask.status, DownloadStatus.paused);
-    });
+    expect(find.byType(FadeTransition), findsWidgets);
+    expect(find.byType(SlideTransition), findsWidgets);
+    await tester.pumpAndSettle();
+    expect(find.text('الصفحة الداخلية'), findsOneWidget);
   });
 }

@@ -1,10 +1,9 @@
-FROM alpine:3.19
-
-RUN apk add --no-cache icecast mailcap
-
-COPY icecast.xml /etc/icecast.xml
-RUN chown -R icecast:icecast /etc/icecast.xml /var/log/icecast
-
-USER icecast
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends icecast2=2.4.4-4build4 ca-certificates nodejs wget && rm -rf /var/lib/apt/lists/*
+COPY icecast.xml.template /opt/tarteel/icecast.xml.template
+COPY render-config.mjs /opt/tarteel/render-config.mjs
+COPY entrypoint.sh /opt/tarteel/entrypoint.sh
+RUN chmod 0555 /opt/tarteel/entrypoint.sh
 EXPOSE 8000
-CMD ["icecast", "-c", "/etc/icecast.xml"]
+ENTRYPOINT ["/opt/tarteel/entrypoint.sh"]

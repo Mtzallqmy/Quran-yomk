@@ -1,4 +1,18 @@
 -- Development-only, idempotent Phase 6 station/catalog fixtures.
+-- These prerequisites must exist during migration replay, before db.seed runs.
+-- Existing deployments retain their catalog rows and permissions.
+insert into app.content_provider_types(code,description)
+values ('INTERNAL','Owned and operated by this platform') on conflict(code) do nothing;
+insert into app.stream_types(code,description)
+values ('INTERNAL','Platform-managed Icecast output') on conflict(code) do nothing;
+insert into app.content_providers
+ (name,slug,provider_type,priority,production_enabled,rights_status,commercial_use_status,metadata)
+values ('Internal Platform','internal','INTERNAL',1000,true,'APPROVED','ALLOWED','{"managed":true}')
+on conflict(slug) do nothing;
+insert into app.categories(slug,name_ar,name_en,icon_key,sort_order,is_active)
+values ('QURAN_GENERAL','القرآن العام','General Quran','quran',10,true)
+on conflict(slug) do nothing;
+
 insert into app.stations(
  id,provider_id,category_id,name_ar,name_en,search_name_ar,search_name_en,slug,description,
  station_source,stream_type,stream_url,timezone,status,health_status,is_active,is_featured,

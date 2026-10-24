@@ -1,8 +1,13 @@
-# @quran-yutla/radio-engine
+# Tarteel Radio Engine Foundation
 
-24/7 radio playlist scheduler and Liquidsoap stream orchestrator for **Quran Yutla (قرآن يتلى)**.
+Phase 5 service only: it claims one INTERNAL station, validates a development playlist, starts a continuous Liquidsoap source to `/tarteel.mp3`, publishes basic checkpoints, and restarts the source with bounded exponential backoff. Scheduler, commands, live takeover and production queue logic are intentionally absent.
 
-## Architecture
-- Dynamically queries scheduled recitations from Supabase PostgreSQL.
-- Pushes audio track references into Liquidsoap's live buffer via telnet control socket.
-- Handles automated cross-fading and seamless fallback to canonical recitations during connectivity drops.
+```bash
+npm ci
+npm run build
+npm test
+npm run check:dependencies
+npm start
+```
+
+Use environment variables from `.env.example` through a secret manager or local non-committed `.env`. `TARTEEL_RADIO_ENGINE_DATABASE_MODE=disabled` is only for isolated local stream tests; managed environments must use the Supabase lease store. The generated Liquidsoap script is mode `0600` inside a per-instance `0700` workspace and is removed on shutdown; credentials are never arguments or logs.

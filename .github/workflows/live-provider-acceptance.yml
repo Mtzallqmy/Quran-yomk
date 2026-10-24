@@ -1,20 +1,55 @@
-name: Live Provider Acceptance (Non-Blocking)
+name: Tarteel Live Provider Acceptance
 
 on:
-  schedule:
-    # Run once daily at midnight UTC to verify external live stream feeds
-    - cron: '0 0 * * *'
   workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/mobile/tool/islamic_content_acceptance.py'
+      - 'apps/mobile/tool/quran_ci.py'
+      - 'apps/mobile/tool/quran_audio_ci.py'
+      - 'apps/mobile/assets/islamic_content_manifest.json'
+      - 'apps/mobile/lib/src/api.dart'
+      - '.github/workflows/live-provider-acceptance.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-provider-acceptance-main
+  cancel-in-progress: true
 
 jobs:
-  check-external-providers:
-    name: Check External Live Quran Feeds
-    runs-on: ubuntu-latest
+  live-provider-acceptance:
+    name: Verify deployed APIs and pinned provider bytes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mobile
     steps:
-      - name: Test Cairo Quran Stream Reachability
-        run: |
-          curl -I --connect-timeout 10 https://stream.ertu.org/quran || echo "::warning::Cairo stream transient network timeout"
+      - uses: actions/checkout@v4
 
-      - name: Test Mecca Quran Stream Reachability
+      - name: Validate live Islamic Library Data bytes
         run: |
-          curl -I --connect-timeout 10 https://stream.sba.sa/nedaa || echo "::warning::Mecca stream transient network timeout"
+          python3 -m py_compile tool/islamic_content_acceptance.py
+          python3 tool/islamic_content_acceptance.py assets/islamic_content_manifest.json --live
+
+      - name: Validate deployed Mushaf API
+        run: python3 tool/quran_ci.py
+
+      - name: Validate live Quran audio providers
+        run: python3 tool/quran_audio_ci.py
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tarteel-live-provider-evidence
+          path: |
+            apps/mobile/release/quran
+            apps/mobile/release/quran-audio
+          if-no-files-found: warn
+          retention-days: 14

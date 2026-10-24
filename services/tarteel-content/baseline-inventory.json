@@ -1,0 +1,3592 @@
+{
+  "observedAt": "2026-10-24",
+  "stations": [
+    {
+      "id": "87a0bf77-bee7-432c-bcb8-2e7fec905df1",
+      "slug": "mp3quran-radio-123",
+      "name_ar": "-تراتيل قصيرة متميزة-",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/tarateel"
+    },
+    {
+      "id": "bc6bc294-0a2f-4210-a918-15ac013bb18e",
+      "slug": "islamic-app-ib-chinese-islamic-radio",
+      "name_ar": "IB — Chinese Islamic Radio",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8036/stream"
+    },
+    {
+      "id": "70e62f82-239d-4af1-81df-f1b950876e38",
+      "slug": "islamic-app-ib-deenagers-youth-radio",
+      "name_ar": "IB — Deenagers Youth Radio",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8072/stream"
+    },
+    {
+      "id": "56a04a73-916f-421f-845f-d6e45d6471ee",
+      "slug": "islamic-app-ib-francophone-francais",
+      "name_ar": "IB — Francophone Français",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8046/stream"
+    },
+    {
+      "id": "9ad7ee0b-6c8b-426e-98e9-403fe4e4fd84",
+      "slug": "islamic-app-ib-islamic-bulletin-from-san-francisco",
+      "name_ar": "IB — Islamic Bulletin (San Francisco)",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8076/stream"
+    },
+    {
+      "id": "082b21dc-b602-4505-936d-b15219d02570",
+      "slug": "islamic-app-ib-islamic-radio-filipino",
+      "name_ar": "IB — Islamic Radio Filipino",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8030/stream"
+    },
+    {
+      "id": "100689a2-0047-461d-84d0-51a81b7fad00",
+      "slug": "islamic-app-ib-motivational-series",
+      "name_ar": "IB — Motivational Series",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8078/stream"
+    },
+    {
+      "id": "58877ade-f075-47ba-aa61-f37234c5d83e",
+      "slug": "islamic-app-ib-nur-ala-nur-radio-station-in-arabic",
+      "name_ar": "IB — Nur Ala Nur (Arabic)",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8056/stream"
+    },
+    {
+      "id": "001db843-6e49-4e0f-922e-115581e0903c",
+      "slug": "islamic-app-ib-omar-abd-al-kafi-channel",
+      "name_ar": "IB — Omar Abd al-Kafi Channel",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8068/stream"
+    },
+    {
+      "id": "78b2b4b4-2ff0-41de-99fb-fadc86ee32aa",
+      "slug": "islamic-app-ib-quran-for-the-heart",
+      "name_ar": "IB — Quran for the Heart",
+      "provider": "islamic-app",
+      "playback_url": "https://edge.mixlr.com/channel/rwumx"
+    },
+    {
+      "id": "120a4545-bc0a-49a4-88a6-dec242996eae",
+      "slug": "islamic-app-ib-quran-for-the-soul",
+      "name_ar": "IB — Quran for the Soul",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8102/stream"
+    },
+    {
+      "id": "5ee4ac82-511a-4767-8595-63c9e06602fd",
+      "slug": "islamic-app-ib-radio-islam-deutsch",
+      "name_ar": "IB — Radio Islam Deutsch",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8044/stream"
+    },
+    {
+      "id": "89f39ded-d15c-4c6c-bed4-9050dceee49f",
+      "slug": "islamic-app-ib-radio-islam-italiana",
+      "name_ar": "IB — Radio Islam Italiana",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8042/stream"
+    },
+    {
+      "id": "6e42a668-b611-4819-8402-037e21d137ce",
+      "slug": "islamic-app-ib-radio-islam-melayu",
+      "name_ar": "IB — Radio Islam Melayu",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8024/stream"
+    },
+    {
+      "id": "dcf57c6f-beee-471a-af00-413f1c59ad95",
+      "slug": "islamic-app-ib-radio-islamica-espanola",
+      "name_ar": "IB — Radio Islámica Española",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8048/stream"
+    },
+    {
+      "id": "3304437e-6aaa-4c42-aa90-4cceb87406fc",
+      "slug": "islamic-app-ib-radio-islamica-portugues",
+      "name_ar": "IB — Rádio Islâmica Português",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8040/stream"
+    },
+    {
+      "id": "96f51c95-dc51-4d63-a2ce-b3a101c08aa4",
+      "slug": "islamic-app-ib-radio-urdu-mehfil-e-noor",
+      "name_ar": "IB — Radio Urdu Mehfil E Noor",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8050/stream"
+    },
+    {
+      "id": "0acdced7-2d3f-4c34-9e4f-1c1c9e664467",
+      "slug": "islamic-app-ib-river-nile",
+      "name_ar": "IB — River Nile",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8064/stream"
+    },
+    {
+      "id": "4287e14d-786d-417a-af30-0fc12f77ceab",
+      "slug": "islamic-app-ib-riyad-as-salihin",
+      "name_ar": "IB — Riyad as-Salihin",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8058/stream"
+    },
+    {
+      "id": "f4fdc9ab-e706-490d-8a60-3468eff5f744",
+      "slug": "islamic-app-ib-sharawi-radio",
+      "name_ar": "IB — Sharawi Radio",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8066/stream"
+    },
+    {
+      "id": "4427b32e-1fde-4185-8aa9-17856c836bff",
+      "slug": "islamic-app-ib-sirah-hajj-sahabah-radio",
+      "name_ar": "IB — Sira / Hajj / Sahabah",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8070/stream"
+    },
+    {
+      "id": "feb91ae0-83d7-4519-94f0-a76229a6fdc8",
+      "slug": "islamic-app-ib-sirah",
+      "name_ar": "IB — Sirah",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8054/stream"
+    },
+    {
+      "id": "0f33776e-30d0-4c60-ba1c-292c632b774e",
+      "slug": "islamic-app-ib-womens-wisdom",
+      "name_ar": "IB — Women's Wisdom",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8074/stream"
+    },
+    {
+      "id": "d4b7ffff-c3af-4892-874a-01cb1912d1e3",
+      "slug": "islamic-app-miraath-al-anbiyya",
+      "name_ar": "Miraath Al Anbiyya",
+      "provider": "islamic-app",
+      "playback_url": "https://radio.al7eah.net/8010/stream"
+    },
+    {
+      "id": "1ba7ffe6-5d6f-4b43-aec8-039c1d166c10",
+      "slug": "islamic-app-mmradio",
+      "name_ar": "MM Radio",
+      "provider": "islamic-app",
+      "playback_url": "https://redradioypc.com:8028/stream"
+    },
+    {
+      "id": "9f4de09c-6680-41ff-9c9e-d5e8bce1e5df",
+      "slug": "islamic-app-radio-sunna",
+      "name_ar": "Radio Sunna",
+      "provider": "islamic-app",
+      "playback_url": "https://api.islamic.app/v1/radio/stations/radio-sunna/stream"
+    },
+    {
+      "id": "b4bd83db-cd7d-4276-a374-106409f20de7",
+      "slug": "islamic-app-radio-tigrinya-eritrea",
+      "name_ar": "Radio Tigrinya Eritrea",
+      "provider": "islamic-app",
+      "playback_url": "https://islamicbulletin.site:8038/stream"
+    },
+    {
+      "id": "6ce6193a-c499-4407-a57d-2b909523b0f8",
+      "slug": "islamic-app-sawt-el-ghad-quran-al-kareem",
+      "name_ar": "Sawt El Ghad — Quran Al Kareem",
+      "provider": "islamic-app",
+      "playback_url": "https://sawtelghad.org/8888/stream"
+    },
+    {
+      "id": "ed0ee7fb-d7e4-4b15-ae4a-aeef28157073",
+      "slug": "islamic-radio-4",
+      "name_ar": "VosCast Station",
+      "provider": "islamic-radio-api",
+      "playback_url": "http://station.voscast.com/5a1b3c82d8b3f/"
+    },
+    {
+      "id": "00c5d55b-95b5-4723-b2e7-df43a50bf777",
+      "slug": "mp3quran-radio-10902",
+      "name_ar": "آيات السكينة",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/sakeenah"
+    },
+    {
+      "id": "50cf20cf-2695-44ac-8017-a13f712cca9b",
+      "slug": "qurango-ahmad-alajmy",
+      "name_ar": "أحمد العجمي",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/ahmad_alajmy"
+    },
+    {
+      "id": "8c5dee76-1c04-470e-a685-0b6aaa0b79f0",
+      "slug": "mp3quran-radio-109075",
+      "name_ar": "أحمد طالب بن حميد",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/a_binhameed"
+    },
+    {
+      "id": "ecd5294e-5663-4f51-b0e1-d6a041bcb93c",
+      "slug": "mp3quran-radio-274",
+      "name_ar": "أذاعة محمد أبوسنينة",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/sneineh"
+    },
+    {
+      "id": "ed9e4e4a-9948-4310-b331-f1d488f8ae4c",
+      "slug": "qurango-morning-adhkar",
+      "name_ar": "أذكار الصباح",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/athkar_sabah"
+    },
+    {
+      "id": "14721ae7-fa4d-4b85-a055-aeeff6b558bd",
+      "slug": "qurango-evening-adhkar",
+      "name_ar": "أذكار المساء",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/athkar_masa"
+    },
+    {
+      "id": "fff666f6-1da0-475f-a55c-4109c3ca7df1",
+      "slug": "qurango-idrees-abkr",
+      "name_ar": "إدريس أبكر",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/idrees_abkr"
+    },
+    {
+      "id": "9f9f7143-fd51-451c-a94f-1a224b65dc05",
+      "slug": "mp3quran-radio-4",
+      "name_ar": "إذاعة أحمد الحواشي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ahmad_alhawashi"
+    },
+    {
+      "id": "93a23890-f763-4b6b-a5ef-aad7c8af85d8",
+      "slug": "mp3quran-radio-100",
+      "name_ar": "إذاعة أحمد الطرابلسي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ahmed_altrabulsi"
+    },
+    {
+      "id": "51fb80fc-2355-4107-a697-b5c7be0dd311",
+      "slug": "mp3quran-radio-99",
+      "name_ar": "إذاعة أحمد خضر الطرابلسي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ahmad_khader_altarabulsi"
+    },
+    {
+      "id": "f913df34-6e11-4a9a-bd34-656a9d017119",
+      "slug": "mp3quran-radio-120",
+      "name_ar": "إذاعة أحمد خليل شاهين",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ahmad_shaheen"
+    },
+    {
+      "id": "91f86e27-d059-4a55-b3fe-21d6cefab9eb",
+      "slug": "mp3quran-radio-265",
+      "name_ar": "إذاعة أحمد ديبان",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ahmad_deban"
+    },
+    {
+      "id": "90d85aba-cc2a-4d60-a682-68cbb57302d1",
+      "slug": "mp3quran-radio-5",
+      "name_ar": "إذاعة أحمد صابر",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ahmad_saber"
+    },
+    {
+      "id": "33fc320b-c4f3-45ce-8087-ad9164e7b75b",
+      "slug": "mp3quran-radio-102",
+      "name_ar": "إذاعة أحمد عامر",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ahmed_amer"
+    },
+    {
+      "id": "4d3ee6ef-7fee-4ca0-a1fd-0740b5779797",
+      "slug": "mp3quran-radio-6",
+      "name_ar": "إذاعة أحمد نعينع",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ahmad_nauina"
+    },
+    {
+      "id": "369bc652-2e53-4295-accd-243dcd08162c",
+      "slug": "mp3quran-radio-7",
+      "name_ar": "إذاعة أكرم العلاقمي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/akram_alalaqmi"
+    },
+    {
+      "id": "f128238b-4ba3-4d66-8f8d-afa2ac45642d",
+      "slug": "mp3quran-radio-1",
+      "name_ar": "إذاعة إبراهيم الأخضر",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ibrahim_alakdar"
+    },
+    {
+      "id": "28ba3d1f-25b0-4542-9f1e-b179061525f2",
+      "slug": "islamic-radio-3",
+      "name_ar": "إذاعة إسلام توداي - القناة الأولى",
+      "provider": "islamic-radio-api",
+      "playback_url": "http://islam2day.tv:3000"
+    },
+    {
+      "id": "b2e6bee1-8e1a-4d6f-a755-7cf272d46fd9",
+      "slug": "mp3quran-radio-91",
+      "name_ar": "إذاعة ابراهيم الدوسري",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ibrahim_aldosari"
+    },
+    {
+      "id": "dcf05905-d029-47a2-b2e0-3d9688510c4a",
+      "slug": "mp3quran-radio-104",
+      "name_ar": "إذاعة الدوكالي محمد العالم",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/addokali_mohammad_alalim"
+    },
+    {
+      "id": "39de4d16-ff98-40dc-8656-b18613f39ad4",
+      "slug": "mp3quran-radio-9",
+      "name_ar": "إذاعة الزين محمد أحمد",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/alzain_mohammad_ahmad"
+    },
+    {
+      "id": "abeefe12-86ea-468e-a0a1-495c98a1f7e9",
+      "slug": "mp3quran-radio-11",
+      "name_ar": "إذاعة العيون الكوشي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/aloyoon_alkoshi"
+    },
+    {
+      "id": "4d8a33b3-6e4c-4a82-9e81-ff2dd6bfa25a",
+      "slug": "mp3quran-radio-106",
+      "name_ar": "إذاعة الفاتح محمد الزبير",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/alfateh_alzubair"
+    },
+    {
+      "id": "38225b7e-0a11-4ff4-94b6-25040fab9269",
+      "slug": "mp3quran-radio-10",
+      "name_ar": "إذاعة القارئ ياسين",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/alqaria_yassen"
+    },
+    {
+      "id": "8b794bdc-a8d0-47a1-8fcf-e26bbe37f1d8",
+      "slug": "islamic-radio-2",
+      "name_ar": "إذاعة القرآن الكريم - التفسير",
+      "provider": "islamic-radio-api",
+      "playback_url": "http://66.45.232.131:9992"
+    },
+    {
+      "id": "99de5ae4-7e80-4a11-b7c6-fbb37870dcb6",
+      "slug": "saudi-quran-radio",
+      "name_ar": "إذاعة القرآن الكريم السعودية",
+      "provider": "radiojar",
+      "playback_url": "https://stream.radiojar.com/0tpy1h0kxtzuv"
+    },
+    {
+      "id": "9e2b8f4b-f079-48c3-8bd1-32185a00d6ef",
+      "slug": "islamic-radio-1",
+      "name_ar": "إذاعة القرآن الكريم من القاهرة",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://stream.radiojar.com/8s5u5tpdtwzuv"
+    },
+    {
+      "id": "bdf7b6d5-3ab7-4b64-98c1-00fb754e2efd",
+      "slug": "mp3quran-radio-110",
+      "name_ar": "إذاعة تكبيرات العيد",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/eid"
+    },
+    {
+      "id": "8f9467f9-2fca-422d-ab0d-046bee05ca0a",
+      "slug": "mp3quran-radio-12",
+      "name_ar": "إذاعة توفيق الصايغ",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/tawfeeq_assayegh"
+    },
+    {
+      "id": "e835dd17-e715-48cf-93e0-51c7c2172581",
+      "slug": "mp3quran-radio-13",
+      "name_ar": "إذاعة جمال شاكر عبدالله",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/jamal_shaker_abdullah"
+    },
+    {
+      "id": "5cbb0a4d-fa51-4d36-8a7d-3983b71cd2c9",
+      "slug": "mp3quran-radio-93",
+      "name_ar": "إذاعة جمعان العصيمي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/jamaan_alosaimi"
+    },
+    {
+      "id": "23138ebb-673d-4510-80e7-0d80dea75e72",
+      "slug": "mp3quran-radio-14",
+      "name_ar": "إذاعة خالد القحطاني",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/khaled_alqahtani"
+    },
+    {
+      "id": "7a9b6860-5b07-4012-aa6a-6eddd432c54f",
+      "slug": "mp3quran-radio-86",
+      "name_ar": "إذاعة خالد المهنا",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/khalid_almohana"
+    },
+    {
+      "id": "c8e41889-93ce-4b23-ac46-2c40810d3bed",
+      "slug": "mp3quran-radio-15",
+      "name_ar": "إذاعة خالد عبدالكافي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/khalid_abdulkafi"
+    },
+    {
+      "id": "d104bd2a-7b44-49db-b42e-127c6ce94a6b",
+      "slug": "mp3quran-radio-16",
+      "name_ar": "إذاعة خليفة الطنيجي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/khalifa_altunaiji"
+    },
+    {
+      "id": "22e53730-d2a5-4822-aab4-e72c1ec50458",
+      "slug": "mp3quran-radio-20",
+      "name_ar": "إذاعة زكي داغستاني",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/zaki_daghistani"
+    },
+    {
+      "id": "54ba2ac4-7a18-4292-8f38-761db51ce441",
+      "slug": "mp3quran-radio-19",
+      "name_ar": "إذاعة سهل ياسين",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/sahl_yassin"
+    },
+    {
+      "id": "b24c0e6a-9213-4b8e-889d-7085a5e00f52",
+      "slug": "islamic-radio-183",
+      "name_ar": "إذاعة سيد رمضان",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/sayed_ramadan"
+    },
+    {
+      "id": "a6202c98-8cd2-471d-9e6c-78da422530f9",
+      "slug": "mp3quran-radio-21",
+      "name_ar": "إذاعة سيد رمضان",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/sayeed_ramadan"
+    },
+    {
+      "id": "bded0eba-6652-412e-a5a1-773adbc1aab0",
+      "slug": "mp3quran-radio-2",
+      "name_ar": "إذاعة شيخ أبو بكر الشاطري",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/shaik_abu_bakr_al_shatri"
+    },
+    {
+      "id": "fe280656-254c-4be6-916b-1d300c92e314",
+      "slug": "mp3quran-radio-22",
+      "name_ar": "إذاعة شيرزاد عبدالرحمن طاهر",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/shirazad_taher"
+    },
+    {
+      "id": "121a2884-1bc6-475c-883d-7c2d0bd563d9",
+      "slug": "islamic-radio-184",
+      "name_ar": "إذاعة شيرزاد عبدالرحمن طاهر",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/shirzad_abdul_rahman_taher"
+    },
+    {
+      "id": "cb8dec75-d9fc-42de-9419-6a5e1b4120a4",
+      "slug": "mp3quran-radio-23",
+      "name_ar": "إذاعة صابر عبدالحكم",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/saber_abdulhakm"
+    },
+    {
+      "id": "ee5715fc-8441-4ffe-8c8a-ab6b2ce5a0fb",
+      "slug": "islamic-radio-185",
+      "name_ar": "إذاعة صابر عبدالحكم",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/saber_abdul_hakam"
+    },
+    {
+      "id": "4e266898-f2ce-4eda-9c3f-8f63ca57c71a",
+      "slug": "islamic-radio-186",
+      "name_ar": "إذاعة صالح الصهود",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/saleh_alsahood"
+    },
+    {
+      "id": "df27fe38-2fb0-404e-b14f-833b2bf02b61",
+      "slug": "islamic-radio-188",
+      "name_ar": "إذاعة صالح الفوزان",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/saleh_alfawzan"
+    },
+    {
+      "id": "5c015ebe-efd7-4a33-bd04-f15e86861c2d",
+      "slug": "islamic-radio-187",
+      "name_ar": "إذاعة صالح الهبدان",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/saleh_al_habdan"
+    },
+    {
+      "id": "e1d3e6d6-a3f1-4f46-9771-a18206ff09d1",
+      "slug": "mp3quran-radio-24",
+      "name_ar": "إذاعة صلاح البدير",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/salah_albudair"
+    },
+    {
+      "id": "a23a389b-582b-4fa9-be9b-1f0210d79d1d",
+      "slug": "mp3quran-radio-25",
+      "name_ar": "إذاعة صلاح الهاشم",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/salah_alhashim"
+    },
+    {
+      "id": "f6ed0b20-f075-4ff8-98fa-665e4d4c1bb9",
+      "slug": "mp3quran-radio-26",
+      "name_ar": "إذاعة صلاح بو خاطر",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/slaah_bukhatir"
+    },
+    {
+      "id": "51d0cbca-11d9-40ba-ba79-c48daac6b1f8",
+      "slug": "islamic-radio-189",
+      "name_ar": "إذاعة طارق عبدالغني دعوب",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/tariq_abdulgani_daoub"
+    },
+    {
+      "id": "d8ade7dc-6aaf-4f52-babb-159a7ecf0b46",
+      "slug": "mp3quran-radio-107",
+      "name_ar": "إذاعة طارق عبدالغني دعوب",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/tareq_abdulgani_daawob"
+    },
+    {
+      "id": "e5388239-4679-4649-85ab-a51e4d0118cb",
+      "slug": "islamic-radio-190",
+      "name_ar": "إذاعة عادل الكلباني",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/adel_alkalbani"
+    },
+    {
+      "id": "91076a97-02f3-435f-8748-d6cef000f1e4",
+      "slug": "mp3quran-radio-87",
+      "name_ar": "إذاعة عادل الكلباني",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/adel_alkhalbany"
+    },
+    {
+      "id": "0bbc4697-9cdc-4095-90f4-e4303c88d46b",
+      "slug": "islamic-radio-191",
+      "name_ar": "إذاعة عادل ريان",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/adel_rayan"
+    },
+    {
+      "id": "201c01b6-7dab-4a97-922e-04a28249dbae",
+      "slug": "mp3quran-radio-27",
+      "name_ar": "إذاعة عادل ريان",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/adel_ryyan"
+    },
+    {
+      "id": "04f22d6f-afee-4b5b-b55f-f300d12e4db6",
+      "slug": "mp3quran-radio-28",
+      "name_ar": "إذاعة عبدالبارئ الثبيتي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdelbari_altoubayti"
+    },
+    {
+      "id": "3460edc3-8a73-4bff-a12f-4947abfe30ed",
+      "slug": "mp3quran-radio-29",
+      "name_ar": "إذاعة عبدالبارئ محمد",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdulbari_mohammad"
+    },
+    {
+      "id": "d919563d-637a-40a1-b05c-ec0f645e35e7",
+      "slug": "islamic-radio-192",
+      "name_ar": "إذاعة عبدالباري الثبيتي",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/abdulbari_althubaity"
+    },
+    {
+      "id": "9582adc4-2fea-445f-bf3c-c9d9529a20fa",
+      "slug": "mp3quran-radio-31",
+      "name_ar": "إذاعة عبدالباسط عبدالصمد",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdulbasit_abdulsamad_warsh"
+    },
+    {
+      "id": "319a5202-0909-4dd3-9489-45aedcd48710",
+      "slug": "mp3quran-radio-287",
+      "name_ar": "إذاعة عبدالرحمن الشحات",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/a_alshahhat"
+    },
+    {
+      "id": "d1907866-cec4-48b5-8632-dbeb46ec4259",
+      "slug": "mp3quran-radio-111",
+      "name_ar": "إذاعة عبدالرحمن الماجد",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdulrahman_almajed"
+    },
+    {
+      "id": "50ff17a6-3d16-480c-89bb-3ce18fe46742",
+      "slug": "mp3quran-radio-39",
+      "name_ar": "إذاعة عبدالرشيد صوفي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdulrasheed_soufi_khalaf"
+    },
+    {
+      "id": "4cd03582-481f-4730-8cfc-fb6428a6993c",
+      "slug": "mp3quran-radio-40",
+      "name_ar": "إذاعة عبدالرشيد صوفي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdulrasheed_soufi_assosi"
+    },
+    {
+      "id": "953370a9-3d3c-4c1a-a281-1ea97802e465",
+      "slug": "mp3quran-radio-34",
+      "name_ar": "إذاعة عبدالعزيز الأحمد",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdul_aziz_alahmad"
+    },
+    {
+      "id": "e182cf58-aca4-4f2b-931c-07a8baab59a3",
+      "slug": "mp3quran-radio-122",
+      "name_ar": "إذاعة عبدالله الخلف",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdullah_alkhalaf"
+    },
+    {
+      "id": "0c6b23b7-7c47-4226-8e47-5bd7ce87d675",
+      "slug": "mp3quran-radio-101",
+      "name_ar": "إذاعة عبدالله الكندري",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdullah_alkandari"
+    },
+    {
+      "id": "3f5c2633-42ea-4671-ae6f-634d0492190a",
+      "slug": "mp3quran-radio-35",
+      "name_ar": "إذاعة عبدالله المطرود",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdullah_almattrod"
+    },
+    {
+      "id": "dc375636-28ae-4631-b4c0-6a242bb5e3a7",
+      "slug": "mp3quran-radio-121",
+      "name_ar": "إذاعة عبدالله الموسى",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdullah_almousa"
+    },
+    {
+      "id": "d890c7c3-c67f-466d-9ea4-03db5f3848fa",
+      "slug": "mp3quran-radio-36",
+      "name_ar": "إذاعة عبدالله بصفر",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdullah_basfer"
+    },
+    {
+      "id": "3ba87b5f-0b0c-40cf-84b1-6223b679c02e",
+      "slug": "mp3quran-radio-37",
+      "name_ar": "إذاعة عبدالله خياط",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdullah_khayyat"
+    },
+    {
+      "id": "44794f65-65ec-4b0e-9949-e1c20dbf56d1",
+      "slug": "mp3quran-radio-41",
+      "name_ar": "إذاعة عبدالمحسن الحارثي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdulmohsin_alharthy"
+    },
+    {
+      "id": "8f57bfc1-227a-4fa1-9266-f0c3cd88bf19",
+      "slug": "mp3quran-radio-43",
+      "name_ar": "إذاعة عبدالمحسن العبيكان",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdulmohsin_alobaikan"
+    },
+    {
+      "id": "c601b32f-a41f-423b-8dfb-861240e84d1a",
+      "slug": "mp3quran-radio-44",
+      "name_ar": "إذاعة عبدالهادي أحمد كناكري",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdulhadi_kanakeri"
+    },
+    {
+      "id": "7f0588c3-1656-4c0c-b41b-ca7e71614d1d",
+      "slug": "mp3quran-radio-45",
+      "name_ar": "إذاعة عبدالودود حنيف",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/abdulwadood_haneef"
+    },
+    {
+      "id": "3a98f865-d132-4971-8ed9-d71ca37d01df",
+      "slug": "mp3quran-radio-47",
+      "name_ar": "إذاعة علي الحذيفي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ali_alhuthaifi_qalon"
+    },
+    {
+      "id": "4d849606-7871-43dc-8704-cb21b4b8f68b",
+      "slug": "mp3quran-radio-49",
+      "name_ar": "إذاعة علي حجاج السويسي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ali_hajjaj_alsouasi"
+    },
+    {
+      "id": "b1db4bd7-8dfa-41e7-a3e3-2f9fa32c6331",
+      "slug": "mp3quran-radio-50",
+      "name_ar": "إذاعة عماد زهير حافظ",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/emad_hafez"
+    },
+    {
+      "id": "34b0b314-ada9-4cf2-9b0a-f1c852e1081c",
+      "slug": "mp3quran-radio-51",
+      "name_ar": "إذاعة عمر القزابري",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/omar_alqazabri"
+    },
+    {
+      "id": "a73c7031-228a-4cca-8f1c-ec240438df5e",
+      "slug": "mp3quran-radio-139",
+      "name_ar": "إذاعة ماجد الزامل",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/majed_alzamel"
+    },
+    {
+      "id": "cdc11468-05ab-4359-a7f9-6116fc724879",
+      "slug": "mp3quran-radio-84",
+      "name_ar": "إذاعة ماهر شخاشيرو",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/maher_shakhashero"
+    },
+    {
+      "id": "29394555-98fc-4e76-80f5-1a1de5e4f479",
+      "slug": "mp3quran-radio-261",
+      "name_ar": "إذاعة محمد أيوب - قراءة مميزة-",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ayyoub2"
+    },
+    {
+      "id": "8849dc93-52e0-4393-819a-39d721bce343",
+      "slug": "mp3quran-radio-275",
+      "name_ar": "إذاعة محمد الأمين قنيوة",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/qeniwa"
+    },
+    {
+      "id": "344d8036-4982-46e7-acc5-4f5a97e54f5e",
+      "slug": "mp3quran-radio-65",
+      "name_ar": "إذاعة محمد اللحيدان",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mohammed_allohaidan"
+    },
+    {
+      "id": "4e6b8ce1-f4ea-464d-9502-d37b9461da97",
+      "slug": "mp3quran-radio-68",
+      "name_ar": "إذاعة محمد جبريل",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mohammed_jibreel"
+    },
+    {
+      "id": "6812663a-4bd3-4f0b-b994-248387cb3e5b",
+      "slug": "mp3quran-radio-98",
+      "name_ar": "إذاعة محمد رشاد الشريف",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mohammad_rashad_alshareef"
+    },
+    {
+      "id": "37f1089e-6472-4875-99c5-ebec6817476f",
+      "slug": "mp3quran-radio-67",
+      "name_ar": "إذاعة محمد صالح عالم شاه",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mohammad_saleh_alim_shah"
+    },
+    {
+      "id": "43dad61e-aa28-4fee-a968-611663064a5f",
+      "slug": "mp3quran-radio-73",
+      "name_ar": "إذاعة محمد عبدالحكيم سعيد العبدالله",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mohammad_alabdullah_aldorai"
+    },
+    {
+      "id": "5bc345e6-1fa6-446a-a916-84cf96a6362d",
+      "slug": "mp3quran-radio-72",
+      "name_ar": "إذاعة محمد عبدالحكيم سعيد العبدالله",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mohammad_alabdullah_albizi"
+    },
+    {
+      "id": "9e2c67d9-cd0d-4ea1-a2b9-5c6ea85a1f94",
+      "slug": "mp3quran-radio-71",
+      "name_ar": "إذاعة محمد عبدالكريم",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mohammad_abdullkarem"
+    },
+    {
+      "id": "d7f65468-395d-4b5a-a55f-fb3bf1ad5336",
+      "slug": "mp3quran-radio-105",
+      "name_ar": "إذاعة محمد عبدالكريم",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mohammad_abdullkarem_alasbahani"
+    },
+    {
+      "id": "616f9c0e-19db-4e32-a69b-36300c5b98cf",
+      "slug": "mp3quran-radio-103",
+      "name_ar": "إذاعة محمد عثمان خان",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mohammed_osman_khan"
+    },
+    {
+      "id": "5a6048f6-7ae3-49e2-98e6-d19bddde6ed4",
+      "slug": "mp3quran-radio-90",
+      "name_ar": "إذاعة محمود الرفاعي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mahmood_al_rifai"
+    },
+    {
+      "id": "845da033-75a1-40e6-b161-799c3764cc6a",
+      "slug": "mp3quran-radio-85",
+      "name_ar": "إذاعة محمود الشيمي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mahmood_alsheimy"
+    },
+    {
+      "id": "e7b972ce-7da5-499e-8c3f-8f9e93a7edca",
+      "slug": "mp3quran-radio-76",
+      "name_ar": "إذاعة محمود خليل الحصري",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mahmoud_khalil_alhussary_warsh"
+    },
+    {
+      "id": "a10aaccd-85d0-476d-816a-62a1b216acce",
+      "slug": "mp3quran-radio-78",
+      "name_ar": "إذاعة محمود علي البنا",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mahmoud_ali__albanna_mojawwad"
+    },
+    {
+      "id": "5de235b6-4e1c-4f5f-bcf6-4a14a74e76c9",
+      "slug": "mp3quran-radio-77",
+      "name_ar": "إذاعة محمود علي البنا",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mahmoud_ali__albanna"
+    },
+    {
+      "id": "6d9cde72-7194-43f6-a19b-6e149b636544",
+      "slug": "mp3quran-radio-81",
+      "name_ar": "إذاعة مصطفى اللاهوني",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mustafa_allahoni"
+    },
+    {
+      "id": "68cbf6b7-c950-4b89-a299-89cfe51615bd",
+      "slug": "mp3quran-radio-82",
+      "name_ar": "إذاعة مصطفى رعد العزاوي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mustafa_raad_alazawy"
+    },
+    {
+      "id": "6a8d64a6-d502-4d54-a396-65983605f7c6",
+      "slug": "mp3quran-radio-97",
+      "name_ar": "إذاعة معيض الحارثي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/moeedh_alharthi"
+    },
+    {
+      "id": "239071b4-8475-4a1d-baa2-7634dc8b6208",
+      "slug": "mp3quran-radio-94",
+      "name_ar": "إذاعة مفتاح السلطني",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/muftah_alsaltany"
+    },
+    {
+      "id": "3b278e02-e004-46c8-934d-78ca75c80404",
+      "slug": "mp3quran-radio-96",
+      "name_ar": "إذاعة مفتاح السلطني",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/muftah_alsaltany_ibn_thakwan_an_ibn_amr"
+    },
+    {
+      "id": "15f8c4e0-7bfe-47a3-a988-e523297598ca",
+      "slug": "mp3quran-radio-83",
+      "name_ar": "إذاعة مفتاح السلطني",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/muftah_alsaltany_aldori_an_abi_amr"
+    },
+    {
+      "id": "2e4eeaa8-2ebf-4a34-9d0b-6ab039615e70",
+      "slug": "mp3quran-radio-92",
+      "name_ar": "إذاعة مفتاح السلطني",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/muftah_alsaltany_aldorai"
+    },
+    {
+      "id": "7151e2d3-07e3-443b-9d3d-dfe565e23232",
+      "slug": "mp3quran-radio-88",
+      "name_ar": "إذاعة موسى بلال",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/mousa_bilal"
+    },
+    {
+      "id": "fc9d3e1f-57f0-44a3-91e0-08b477e80178",
+      "slug": "mp3quran-radio-248",
+      "name_ar": "إذاعة ناصر العصفور",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/nasser_alosfor"
+    },
+    {
+      "id": "2a0c63cb-ff11-4654-86bd-8479f376237f",
+      "slug": "mp3quran-radio-118",
+      "name_ar": "إذاعة ناصر الماجد",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/nasser_almajed"
+    },
+    {
+      "id": "da812e79-14a1-4f95-8e35-95f8dbe47429",
+      "slug": "mp3quran-radio-54",
+      "name_ar": "إذاعة نبيل الرفاعي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/nabil_al_rifay"
+    },
+    {
+      "id": "3f44c077-ee94-4814-b09c-152698e57910",
+      "slug": "mp3quran-radio-55",
+      "name_ar": "إذاعة نعمة الحسان",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/neamah_alhassan"
+    },
+    {
+      "id": "fd6e694a-edaa-4998-b941-ec564aa71893",
+      "slug": "mp3quran-radio-56",
+      "name_ar": "إذاعة هاني الرفاعي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/hani_arrifai"
+    },
+    {
+      "id": "72825037-be24-41c6-81d9-271d5b3b964e",
+      "slug": "mp3quran-radio-119",
+      "name_ar": "إذاعة هيثم الجدعاني",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/hitham_aljadani"
+    },
+    {
+      "id": "3e4c2d94-6a42-420f-8b38-05b351f0ca89",
+      "slug": "mp3quran-radio-57",
+      "name_ar": "إذاعة وليد النائحي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/waleed_alnaehi"
+    },
+    {
+      "id": "b09a8a32-3602-4cf8-bee9-7f7d76c95c02",
+      "slug": "mp3quran-radio-59",
+      "name_ar": "إذاعة ياسر القرشي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/yasser_alqurashi"
+    },
+    {
+      "id": "11818d2b-9d8c-474a-84b9-ce7065545b19",
+      "slug": "mp3quran-radio-60",
+      "name_ar": "إذاعة ياسر المزروعي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/yasser_almazroyee"
+    },
+    {
+      "id": "70aff7ed-aff6-412d-b7d3-1c3b167fd2a4",
+      "slug": "mp3quran-radio-61",
+      "name_ar": "إذاعة يحيى حوا",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/yahya_hawwa"
+    },
+    {
+      "id": "98145f9a-b71b-4f3f-b5e8-20c1e2893a83",
+      "slug": "mp3quran-radio-62",
+      "name_ar": "إذاعة يوسف الشويعي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/yousef_alshoaey"
+    },
+    {
+      "id": "0009d3a7-c55c-4566-bc5a-9414b8f32010",
+      "slug": "mp3quran-radio-95",
+      "name_ar": "إذاعة يوسف بن نوح أحمد",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/yousef_bin_noah_ahmad"
+    },
+    {
+      "id": "fadcb111-3323-4646-8755-6344dc7501c9",
+      "slug": "qurango-mix",
+      "name_ar": "الإذاعة العامة - قراء متنوعون",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/mix"
+    },
+    {
+      "id": "ceeec234-63a8-4e5b-aba5-08060ec3517d",
+      "slug": "qurango-hussary-mojawwad",
+      "name_ar": "الحصري - مجود",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/mahmoud_khalil_alhussary_mojawwad"
+    },
+    {
+      "id": "8866133b-b12f-4ab0-a9d9-182f81f23ceb",
+      "slug": "qurango-tabari-summary",
+      "name_ar": "الخلاصة من تفسير الطبري",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/tabri"
+    },
+    {
+      "id": "21d3a7e4-b04c-4298-be23-cffa65ee51e1",
+      "slug": "qurango-ruqyah",
+      "name_ar": "الرقية الشرعية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/roqiah"
+    },
+    {
+      "id": "782b8484-3e4f-4550-ad33-dc3fa685fea4",
+      "slug": "qurango-prophetic-biography",
+      "name_ar": "السيرة النبوية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/almukhtasar_fi_alsiyra"
+    },
+    {
+      "id": "109bc81c-27dd-4d35-9a1c-f93348a53948",
+      "slug": "qurango-fatwa",
+      "name_ar": "الفتاوى",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/fatwa"
+    },
+    {
+      "id": "c39efc1d-a73f-4964-8872-91e688297f7b",
+      "slug": "qurango-concise-tafseer",
+      "name_ar": "المختصر في تفسير القرآن",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/mukhtasartafsir"
+    },
+    {
+      "id": "89c68509-b21e-4e6f-ace9-0820475c0efa",
+      "slug": "qurango-minshawi-mojawwad",
+      "name_ar": "المنشاوي - مجود",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/mohammed_siddiq_alminshawi_mojawwad"
+    },
+    {
+      "id": "174bfe1f-9d22-43a5-b794-d1ec90f4f2dd",
+      "slug": "mp3quran-radio-109077",
+      "name_ar": "بدر التركي",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/bader"
+    },
+    {
+      "id": "99268e0f-120a-4f5f-99e4-0662332e53af",
+      "slug": "qurango-bandar-balilah",
+      "name_ar": "بندر بليلة",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/bandar_balilah"
+    },
+    {
+      "id": "b02d147b-45cf-4790-9139-6ca2802bcd91",
+      "slug": "islamic-radio-171",
+      "name_ar": "تدبر معاني القرآن باللغة الفارسية - أهل القرآن-",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/farsi-tadabor"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000006",
+      "slug": "tarteel-dev",
+      "name_ar": "ترتيل — تطوير",
+      "provider": "internal",
+      "playback_url": null
+    },
+    {
+      "id": "3c6cc720-5d04-4c6c-8c09-010c125f3dab",
+      "slug": "qurango-translation-urdu",
+      "name_ar": "ترجمة معاني القرآن - الأردية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_urdu_basit"
+    },
+    {
+      "id": "eb5d6aff-7933-4a92-9754-50f17c849d63",
+      "slug": "qurango-translation-german",
+      "name_ar": "ترجمة معاني القرآن - الألمانية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_german"
+    },
+    {
+      "id": "258f8da0-076e-4271-8300-4ee2fdda81f7",
+      "slug": "qurango-translation-spanish",
+      "name_ar": "ترجمة معاني القرآن - الإسبانية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_spanish_afs"
+    },
+    {
+      "id": "f005caaa-487d-4aef-9b0a-99b43ddb0e94",
+      "slug": "qurango-translation-english",
+      "name_ar": "ترجمة معاني القرآن - الإنجليزية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_english_bsfr"
+    },
+    {
+      "id": "49dfefd2-09da-478f-872d-69eb2032b030",
+      "slug": "qurango-translation-turkish",
+      "name_ar": "ترجمة معاني القرآن - التركية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_turkish"
+    },
+    {
+      "id": "afc47008-3fb9-448f-a9f8-f03a02eb3dec",
+      "slug": "qurango-translation-russian",
+      "name_ar": "ترجمة معاني القرآن - الروسية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_Russia"
+    },
+    {
+      "id": "1465b8f5-d2f6-4dfa-9592-b4f5493c01bd",
+      "slug": "qurango-translation-chinese",
+      "name_ar": "ترجمة معاني القرآن - الصينية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_chinese"
+    },
+    {
+      "id": "87b03c87-1638-48f2-b4d6-faa8dec68a41",
+      "slug": "qurango-translation-farsi",
+      "name_ar": "ترجمة معاني القرآن - الفارسية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_farsi"
+    },
+    {
+      "id": "07fe95f1-df88-4cd6-91e2-cb35c067a372",
+      "slug": "qurango-translation-french",
+      "name_ar": "ترجمة معاني القرآن - الفرنسية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_french"
+    },
+    {
+      "id": "a63bdebe-62d6-456b-adb1-59b0e3024765",
+      "slug": "qurango-translation-korean",
+      "name_ar": "ترجمة معاني القرآن - الكورية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_Korean"
+    },
+    {
+      "id": "bcee370b-37bd-48c6-b0da-4673378d4a2b",
+      "slug": "mp3quran-radio-109041",
+      "name_ar": "ترجمة معاني القرآن باللغة الألبانية",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_albanian"
+    },
+    {
+      "id": "812e295e-9521-4bd6-9d89-54b0a9bfc6e4",
+      "slug": "mp3quran-radio-109043",
+      "name_ar": "ترجمة معاني القرآن باللغة الأمازيغية",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_tamazight"
+    },
+    {
+      "id": "1744cb93-2622-4f84-9c5d-6b85fc7cf97e",
+      "slug": "mp3quran-radio-109044",
+      "name_ar": "ترجمة معاني القرآن باللغة الأوردية",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_urdu_sds_shur"
+    },
+    {
+      "id": "2fa3c454-b064-4bf0-86f8-56b41eacf457",
+      "slug": "mp3quran-radio-109045",
+      "name_ar": "ترجمة معاني القرآن باللغة الأوردية",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_urdu_minsh"
+    },
+    {
+      "id": "e9a6675a-3e38-4b7c-adb6-a34e10349120",
+      "slug": "islamic-radio-182",
+      "name_ar": "ترجمة معاني القرآن باللغة الإجليزية ( المختصر )",
+      "provider": "islamic-radio-api",
+      "playback_url": "http://backup.qurango.net/radio/mokhtasr-english"
+    },
+    {
+      "id": "6417f2fd-05ec-4e30-a802-14ad000382c0",
+      "slug": "mp3quran-radio-109046",
+      "name_ar": "ترجمة معاني القرآن باللغة الإنجليزية",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_english_basit"
+    },
+    {
+      "id": "a98db374-e273-49d5-921e-e108b42c2dbd",
+      "slug": "mp3quran-radio-109048",
+      "name_ar": "ترجمة معاني القرآن باللغة الإنجليزية -ترجمة والك-",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_english_walk_basit"
+    },
+    {
+      "id": "a4f0cafe-169a-4499-97ef-5b394f901b1c",
+      "slug": "mp3quran-radio-109049",
+      "name_ar": "ترجمة معاني القرآن باللغة البرتغالية",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_portuguese"
+    },
+    {
+      "id": "8970996b-f0d1-45c8-8d61-95d341b81403",
+      "slug": "mp3quran-radio-109050",
+      "name_ar": "ترجمة معاني القرآن باللغة البوسنية",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_bosnia"
+    },
+    {
+      "id": "6903d382-fac3-44fb-8102-d5ca66a93a84",
+      "slug": "islamic-radio-170",
+      "name_ar": "ترجمة معاني القرآن باللغة الفارسية - أهل القرآن-",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/farsi-trans"
+    },
+    {
+      "id": "8eae53e6-1e64-4a72-aa7b-a6121568690b",
+      "slug": "islamic-radio-172",
+      "name_ar": "ترجمة معاني القرآن باللغة الفرنسية",
+      "provider": "islamic-radio-api",
+      "playback_url": "https://backup.qurango.net/radio/mokhtasr-french"
+    },
+    {
+      "id": "55162719-5425-4c41-93b9-49e194165d26",
+      "slug": "mp3quran-radio-109056",
+      "name_ar": "ترجمة معاني القرآن باللغة الكردية",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_kurdish"
+    },
+    {
+      "id": "0dfe16ec-a9f7-486c-a395-f4a8796b67fc",
+      "slug": "mp3quran-radio-109058",
+      "name_ar": "ترجمة معاني القرآن باللغة المجرية",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_hungarian"
+    },
+    {
+      "id": "7f206bcd-04b6-4cb1-b349-4f04e2fb8cee",
+      "slug": "mp3quran-radio-109062",
+      "name_ar": "ترجمة معاني القرآن باللغة الهوسا",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/Translation_Quran_Hausa"
+    },
+    {
+      "id": "6d439a10-024c-4de3-9a47-3833bc92eeb7",
+      "slug": "mp3quran-radio-109059",
+      "name_ar": "ترجمة معاني القرآن باللغة اليونانية",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/translation_quran_greek"
+    },
+    {
+      "id": "2b1f3448-6b0b-4984-96cb-577fd5a4c445",
+      "slug": "qurango-tafseer",
+      "name_ar": "تفسير القرآن",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/tafseer"
+    },
+    {
+      "id": "d39aae65-fb2b-4809-9cc6-307d6b003bf1",
+      "slug": "qurango-gharib-quran",
+      "name_ar": "تفسير غريب القرآن",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/gareeb-quran"
+    },
+    {
+      "id": "71bfaaf1-c083-491e-ae68-9906c0a9f025",
+      "slug": "qurango-humble-recitations",
+      "name_ar": "تلاوات خاشعة",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/salma"
+    },
+    {
+      "id": "cd515cee-ee37-4313-97cc-e72a193183c4",
+      "slug": "mp3quran-radio-89",
+      "name_ar": "حاتم فريد الواعر",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/hatem_fareed_alwaer"
+    },
+    {
+      "id": "5a222409-8e16-4246-817f-2e810d6edc69",
+      "slug": "qurango-khalid-aljileel",
+      "name_ar": "خالد الجليل",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/khalid_aljileel"
+    },
+    {
+      "id": "3b385ef0-0761-43e5-a603-d0e1115059b3",
+      "slug": "qurango-riyad-al-salihin",
+      "name_ar": "رياض الصالحين",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/riyad"
+    },
+    {
+      "id": "f756f80b-338a-4ca5-ac57-da1ba41efd3c",
+      "slug": "qurango-saad-alghamdi",
+      "name_ar": "سعد الغامدي",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/saad_alghamdi"
+    },
+    {
+      "id": "4f6e3b36-bd0f-47ae-9b59-fb88660440f0",
+      "slug": "qurango-saud-alshuraim",
+      "name_ar": "سعود الشريم",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/saud_alshuraim"
+    },
+    {
+      "id": "7a06d649-dd4e-479f-90be-8fad42ed4bb6",
+      "slug": "qurango-surah-al-baqarah",
+      "name_ar": "سورة البقرة - عدة قراء",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/albaqarah"
+    },
+    {
+      "id": "a63d2d2e-c2c6-4fbf-8b1e-67ae32fb3cf0",
+      "slug": "qurango-surah-al-mulk",
+      "name_ar": "سورة الملك",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/Surah_Al-Mulk"
+    },
+    {
+      "id": "d29475b4-289d-4ffc-803c-1d458eafd44b",
+      "slug": "mp3quran-radio-109038",
+      "name_ar": "صالح الهبدان",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/saleh_alhabdan"
+    },
+    {
+      "id": "a8ce1d36-1810-4c2b-8d22-57efc09d39bd",
+      "slug": "qurango-sahih-bukhari",
+      "name_ar": "صحيح البخاري",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/saheh-bokharee"
+    },
+    {
+      "id": "1ac29088-a7d2-4270-9e4f-6e05bf3ee904",
+      "slug": "qurango-sahih-muslim",
+      "name_ar": "صحيح مسلم",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/saheh-muslim"
+    },
+    {
+      "id": "55d40118-cedb-421e-b581-c34586e7b970",
+      "slug": "qurango-lives-companions",
+      "name_ar": "صور من حياة الصحابة",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/sahabah"
+    },
+    {
+      "id": "3249f2a9-52f2-4ed8-b7c5-34005b60639b",
+      "slug": "qurango-abdulbasit",
+      "name_ar": "عبدالباسط عبدالصمد",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/abdulbasit_abdulsamad"
+    },
+    {
+      "id": "94193593-3887-4ff9-a51f-6a89f679ef05",
+      "slug": "qurango-abdulbasit-mojawwad",
+      "name_ar": "عبدالباسط عبدالصمد - مجود",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/abdulbasit_abdulsamad_mojawwad"
+    },
+    {
+      "id": "b82ace2b-674c-4aab-8c61-5abba1669a3e",
+      "slug": "qurango-abdulrahman-alsudais",
+      "name_ar": "عبدالرحمن السديس",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/abdulrahman_alsudaes"
+    },
+    {
+      "id": "e682331a-644b-41e5-8216-605ebac6fa8e",
+      "slug": "mp3quran-radio-307",
+      "name_ar": "عبدالعزيز سحيم",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/a_sheim"
+    },
+    {
+      "id": "801649e9-f95d-46dd-b2b7-93d9842574c4",
+      "slug": "mp3quran-radio-109074",
+      "name_ar": "عبدالله البعيجان",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/buajan"
+    },
+    {
+      "id": "10a2ac7f-17b1-4b5a-b075-b86fa7466abd",
+      "slug": "qurango-abdullah-aljohany",
+      "name_ar": "عبدالله عواد الجهني",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/abdullah_aljohany"
+    },
+    {
+      "id": "211ebe62-be9b-4c99-84ec-71c783a1c6ab",
+      "slug": "qurango-abdulmohsen-alqasim",
+      "name_ar": "عبدالمحسن القاسم",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/abdulmohsen_alqasim"
+    },
+    {
+      "id": "f5dae87f-54b5-4d57-a804-b53259c73486",
+      "slug": "qurango-ali-alhuthaifi",
+      "name_ar": "علي الحذيفي",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/ali_alhuthaifi"
+    },
+    {
+      "id": "2a8f3a22-b19d-449f-abb4-fb33bbe6e7f5",
+      "slug": "qurango-ali-jaber",
+      "name_ar": "علي جابر",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/ali_jaber"
+    },
+    {
+      "id": "da543a56-f851-4637-a41e-ecc281d823b1",
+      "slug": "qurango-fares-abbad",
+      "name_ar": "فارس عباد",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/fares_abbad"
+    },
+    {
+      "id": "e946ae9c-3734-483b-b217-69c5d6df041b",
+      "slug": "mp3quran-radio-109061",
+      "name_ar": "فضل شهر رمضان",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/ramadan"
+    },
+    {
+      "id": "700e723e-5bcb-4389-9866-b760258f4211",
+      "slug": "qurango-in-shade-seerah",
+      "name_ar": "في ظلال السيرة النبوية",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/fi_zilal_alsiyra"
+    },
+    {
+      "id": "e4989215-dc0a-49db-a305-00c77086ff46",
+      "slug": "qurango-stories-prophets",
+      "name_ar": "قصص الأنبياء",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/alanbiya"
+    },
+    {
+      "id": "089cee5b-5267-4c1c-b608-5b9ba29ef54c",
+      "slug": "holol-sunnah-live",
+      "name_ar": "قناة السنة النبوية",
+      "provider": "holol",
+      "playback_url": "https://win.holol.com/live/sunnah/playlist.m3u8"
+    },
+    {
+      "id": "169f2410-1531-404d-b338-5bd84b5749da",
+      "slug": "holol-quran-live",
+      "name_ar": "قناة القرآن الكريم",
+      "provider": "holol",
+      "playback_url": "https://win.holol.com/live/quran/playlist.m3u8"
+    },
+    {
+      "id": "ed361d48-9871-4cc4-87db-450ea3b0e7e8",
+      "slug": "mp3quran-radio-21116",
+      "name_ar": "كتاب الاختيارات الفقهية في مسائل العبادات والمعاملات",
+      "provider": "mp3quran",
+      "playback_url": "https://backup.qurango.net/radio/alaikhtiarat_alfiqhayh_bin_baz"
+    },
+    {
+      "id": "b38006c1-5eec-46ee-af94-5c7a2dc128a2",
+      "slug": "qurango-maher-almuaiqly",
+      "name_ar": "ماهر المعيقلي",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/maher"
+    },
+    {
+      "id": "866dc919-911e-460f-aaf9-57b36b7f9734",
+      "slug": "qurango-mohammed-ayyub",
+      "name_ar": "محمد أيوب",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/mohammed_ayyub"
+    },
+    {
+      "id": "f4e7ea6c-9c24-4f5a-bd61-f3ca37ca869e",
+      "slug": "qurango-tablawy",
+      "name_ar": "محمد الطبلاوي",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/mohammad_altablaway"
+    },
+    {
+      "id": "7a6add9e-2598-4373-9d99-a4b5db605ba0",
+      "slug": "qurango-minshawi",
+      "name_ar": "محمد صديق المنشاوي",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/mohammed_siddiq_alminshawi"
+    },
+    {
+      "id": "ac4bd304-48f4-4907-9b34-30f2dfd5e035",
+      "slug": "qurango-hussary",
+      "name_ar": "محمود خليل الحصري",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/mahmoud_khalil_alhussary"
+    },
+    {
+      "id": "2a254331-1587-4808-a469-0069a1e2db44",
+      "slug": "qurango-mishary-alafasi",
+      "name_ar": "مشاري العفاسي",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/mishary_alafasi"
+    },
+    {
+      "id": "2aebd928-8efb-48d8-89fd-71bb8588058a",
+      "slug": "qurango-mustafa-ismail",
+      "name_ar": "مصطفى إسماعيل",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/mustafa_ismail"
+    },
+    {
+      "id": "addf7440-ac5e-4a7e-8f64-7b836b1d0b88",
+      "slug": "qurango-nasser-alqatami",
+      "name_ar": "ناصر القطامي",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/nasser_alqatami"
+    },
+    {
+      "id": "f36780ce-ba4b-43ea-bb6f-d4ecaaeccfcc",
+      "slug": "qurango-hazza-albalushi",
+      "name_ar": "هزاع البلوشي",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/hazza"
+    },
+    {
+      "id": "6169874f-0464-4a74-b81e-a98ec319fbb3",
+      "slug": "qurango-yasser-aldosari",
+      "name_ar": "ياسر الدوسري",
+      "provider": "qurango",
+      "playback_url": "https://backup.qurango.net/radio/yasser_aldosari"
+    }
+  ],
+  "quranReciters": [
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 1,
+      "moshaf_id": 1,
+      "name_ar": "إبراهيم الأخضر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 10,
+      "moshaf_id": 10,
+      "name_ar": "أكرم العلاقمي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 100,
+      "moshaf_id": 100,
+      "name_ar": "ماجد العنزي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 102,
+      "moshaf_id": 133,
+      "name_ar": "ماهر المعيقلي",
+      "rewaya_ar": "المصحف المجود - المصحف المجود"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 102,
+      "moshaf_id": 103,
+      "name_ar": "ماهر المعيقلي",
+      "rewaya_ar": "المصحف المعلم - المصحف المعلم"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 102,
+      "moshaf_id": 102,
+      "name_ar": "ماهر المعيقلي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 104,
+      "moshaf_id": 104,
+      "name_ar": "محمد الأيراوي",
+      "rewaya_ar": "ورش عن نافع من طريق الأزرق - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 105,
+      "moshaf_id": 105,
+      "name_ar": "محمد البراك",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 106,
+      "moshaf_id": 10912,
+      "name_ar": "محمد الطبلاوي",
+      "rewaya_ar": "المصحف المجود - المصحف المجود"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 106,
+      "moshaf_id": 106,
+      "name_ar": "محمد الطبلاوي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 107,
+      "moshaf_id": 107,
+      "name_ar": "محمد اللحيدان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 108,
+      "moshaf_id": 108,
+      "name_ar": "محمد المحيسني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 109,
+      "moshaf_id": 320,
+      "name_ar": "محمد أيوب",
+      "rewaya_ar": "حفص عن عاصم - تلاوة مميزة"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 109,
+      "moshaf_id": 109,
+      "name_ar": "محمد أيوب",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 11,
+      "moshaf_id": 11,
+      "name_ar": "الحسيني العزازي",
+      "rewaya_ar": "المصحف المعلم - المصحف المعلم"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 110,
+      "moshaf_id": 110,
+      "name_ar": "محمد صالح عالم شاه",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 111,
+      "moshaf_id": 111,
+      "name_ar": "محمد جبريل",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 112,
+      "moshaf_id": 10924,
+      "name_ar": "محمد صديق المنشاوي",
+      "rewaya_ar": "حفص عن عاصم - تسجيل عام 1387 هـ - 1967م"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 112,
+      "moshaf_id": 114,
+      "name_ar": "محمد صديق المنشاوي",
+      "rewaya_ar": "المصحف المعلم - المصحف المعلم"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 112,
+      "moshaf_id": 113,
+      "name_ar": "محمد صديق المنشاوي",
+      "rewaya_ar": "المصحف المجود - المصحف المجود"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 112,
+      "moshaf_id": 112,
+      "name_ar": "محمد صديق المنشاوي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 115,
+      "moshaf_id": 210,
+      "name_ar": "محمد عبدالكريم",
+      "rewaya_ar": "ورش عن نافع من طريق أبي بكر الأصبهاني - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 115,
+      "moshaf_id": 115,
+      "name_ar": "محمد عبدالكريم",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 116,
+      "moshaf_id": 117,
+      "name_ar": "محمد عبدالحكيم سعيد العبدالله",
+      "rewaya_ar": "الدوري عن الكسائي - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 116,
+      "moshaf_id": 116,
+      "name_ar": "محمد عبدالحكيم سعيد العبدالله",
+      "rewaya_ar": "البزي وقنبل عن ابن كثير - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 118,
+      "moshaf_id": 270,
+      "name_ar": "محمود خليل الحصري",
+      "rewaya_ar": "قالون عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 118,
+      "moshaf_id": 269,
+      "name_ar": "محمود خليل الحصري",
+      "rewaya_ar": "الدوري عن أبي عمرو - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 118,
+      "moshaf_id": 120,
+      "name_ar": "محمود خليل الحصري",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 118,
+      "moshaf_id": 119,
+      "name_ar": "محمود خليل الحصري",
+      "rewaya_ar": "المصحف المجود - المصحف المجود"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 118,
+      "moshaf_id": 118,
+      "name_ar": "محمود خليل الحصري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 12,
+      "moshaf_id": 12,
+      "name_ar": "إدريس أبكر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 121,
+      "moshaf_id": 122,
+      "name_ar": "محمود علي البنا",
+      "rewaya_ar": "المصحف المجود - المصحف المجود"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 121,
+      "moshaf_id": 121,
+      "name_ar": "محمود علي البنا",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 123,
+      "moshaf_id": 124,
+      "name_ar": "مشاري العفاسي",
+      "rewaya_ar": "الدوري عن الكسائي - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 123,
+      "moshaf_id": 123,
+      "name_ar": "مشاري العفاسي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 125,
+      "moshaf_id": 288,
+      "name_ar": "مصطفى إسماعيل",
+      "rewaya_ar": "المصحف المجود - المصحف المجود"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 125,
+      "moshaf_id": 125,
+      "name_ar": "مصطفى إسماعيل",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 126,
+      "moshaf_id": 126,
+      "name_ar": "مصطفى اللاهوني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 127,
+      "moshaf_id": 127,
+      "name_ar": "مصطفى رعد العزاوي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 128,
+      "moshaf_id": 128,
+      "name_ar": "معمر الأندونيسي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 129,
+      "moshaf_id": 196,
+      "name_ar": "مفتاح السلطني",
+      "rewaya_ar": "ابن ذكوان عن ابن عامر - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 129,
+      "moshaf_id": 195,
+      "name_ar": "مفتاح السلطني",
+      "rewaya_ar": "شعبة  عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 129,
+      "moshaf_id": 182,
+      "name_ar": "مفتاح السلطني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 129,
+      "moshaf_id": 180,
+      "name_ar": "مفتاح السلطني",
+      "rewaya_ar": "الدوري عن الكسائي - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 129,
+      "moshaf_id": 129,
+      "name_ar": "مفتاح السلطني",
+      "rewaya_ar": "الدوري عن أبي عمرو - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 13,
+      "moshaf_id": 13,
+      "name_ar": "الزين محمد أحمد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 134,
+      "moshaf_id": 134,
+      "name_ar": "محمد سايد",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 135,
+      "moshaf_id": 135,
+      "name_ar": "عبدالرحمن السويّد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 136,
+      "moshaf_id": 136,
+      "name_ar": "عبدالإله بن عون",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 137,
+      "moshaf_id": 137,
+      "name_ar": "أحمد طالب بن حميد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 138,
+      "moshaf_id": 138,
+      "name_ar": "نورين محمد صديق",
+      "rewaya_ar": "الدوري عن أبي عمرو - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 139,
+      "moshaf_id": 139,
+      "name_ar": "ماجد الزامل",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 14,
+      "moshaf_id": 14,
+      "name_ar": "القارئ ياسين",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 149,
+      "moshaf_id": 149,
+      "name_ar": "ماهر شخاشيرو",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 15,
+      "moshaf_id": 15,
+      "name_ar": "العشري عمران",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 150,
+      "moshaf_id": 150,
+      "name_ar": "محمد المنشد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 151,
+      "moshaf_id": 151,
+      "name_ar": "محمود الشيمي",
+      "rewaya_ar": "الدوري عن الكسائي - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 152,
+      "moshaf_id": 152,
+      "name_ar": "ياسر سلامة",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 153,
+      "moshaf_id": 153,
+      "name_ar": "أخيل عبدالحي روا",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 154,
+      "moshaf_id": 154,
+      "name_ar": "أستاذ زامري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 159,
+      "moshaf_id": 159,
+      "name_ar": "خالد المهنا",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 16,
+      "moshaf_id": 16,
+      "name_ar": "العيون الكوشي",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 160,
+      "moshaf_id": 160,
+      "name_ar": "عادل الكلباني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 161,
+      "moshaf_id": 161,
+      "name_ar": "موسى بلال",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 162,
+      "moshaf_id": 162,
+      "name_ar": "حسين آل الشيخ",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 163,
+      "moshaf_id": 163,
+      "name_ar": "حاتم فريد الواعر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 164,
+      "moshaf_id": 164,
+      "name_ar": "إبراهيم الجرمي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 165,
+      "moshaf_id": 165,
+      "name_ar": "محمود الرفاعي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 166,
+      "moshaf_id": 166,
+      "name_ar": "ناصر العبيد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 167,
+      "moshaf_id": 167,
+      "name_ar": "واصل المذن",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 17,
+      "moshaf_id": 17,
+      "name_ar": "توفيق الصايغ",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 178,
+      "moshaf_id": 232,
+      "name_ar": "إبراهيم الدوسري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 178,
+      "moshaf_id": 178,
+      "name_ar": "إبراهيم الدوسري",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 18,
+      "moshaf_id": 18,
+      "name_ar": "جمال شاكر عبدالله",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 181,
+      "moshaf_id": 181,
+      "name_ar": "جمعان العصيمي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 183,
+      "moshaf_id": 183,
+      "name_ar": "رضية عبدالرحمن",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 184,
+      "moshaf_id": 184,
+      "name_ar": "رقية سولونق",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 185,
+      "moshaf_id": 185,
+      "name_ar": "سابينة مامات",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 187,
+      "moshaf_id": 187,
+      "name_ar": "سيدين عبدالرحمن",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 188,
+      "moshaf_id": 188,
+      "name_ar": "عبدالغني عبدالله",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 189,
+      "moshaf_id": 189,
+      "name_ar": "عبدالله فهمي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 19,
+      "moshaf_id": 19,
+      "name_ar": "حمد الدغريري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 190,
+      "moshaf_id": 190,
+      "name_ar": "محمد الحافظ",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 191,
+      "moshaf_id": 191,
+      "name_ar": "محمد حفص علي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 192,
+      "moshaf_id": 192,
+      "name_ar": "محمد خير النور",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 193,
+      "moshaf_id": 193,
+      "name_ar": "يوسف بن نوح أحمد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 194,
+      "moshaf_id": 194,
+      "name_ar": "جمال الدين الزيلعي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 197,
+      "moshaf_id": 197,
+      "name_ar": "معيض الحارثي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 198,
+      "moshaf_id": 198,
+      "name_ar": "محمد رشاد الشريف",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 2,
+      "moshaf_id": 2,
+      "name_ar": "إبراهيم الجبرين",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 20,
+      "moshaf_id": 20,
+      "name_ar": "خالد الجليل",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 201,
+      "moshaf_id": 201,
+      "name_ar": "أحمد الطرابلسي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 201,
+      "moshaf_id": 199,
+      "name_ar": "أحمد الطرابلسي",
+      "rewaya_ar": "قالون عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 202,
+      "moshaf_id": 202,
+      "name_ar": "عبدالله الكندري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 203,
+      "moshaf_id": 203,
+      "name_ar": "أحمد عامر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 204,
+      "moshaf_id": 204,
+      "name_ar": "إبراهيم السعدان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 205,
+      "moshaf_id": 205,
+      "name_ar": "أحمد الحذيفي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 206,
+      "moshaf_id": 206,
+      "name_ar": "محمد عثمان خان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 207,
+      "moshaf_id": 207,
+      "name_ar": "يوسف الدغوش",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 208,
+      "moshaf_id": 208,
+      "name_ar": "الدوكالي محمد العالم",
+      "rewaya_ar": "قالون عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 209,
+      "moshaf_id": 209,
+      "name_ar": "وشيار حيدر اربيلي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21,
+      "moshaf_id": 21,
+      "name_ar": "خالد القحطاني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 211,
+      "moshaf_id": 211,
+      "name_ar": "الفاتح محمد الزبير",
+      "rewaya_ar": "الدوري عن أبي عمرو - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21136,
+      "moshaf_id": 10914,
+      "name_ar": "عبدالله القرافي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21148,
+      "moshaf_id": 10915,
+      "name_ar": "عبدالبديع غيلان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21181,
+      "moshaf_id": 340,
+      "name_ar": "محمد برهجي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21182,
+      "moshaf_id": 10904,
+      "name_ar": "يوسف العيدروس",
+      "rewaya_ar": "حفص عن عاصم - تلاوة مميزة"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21183,
+      "moshaf_id": 10905,
+      "name_ar": "حسن الدغريري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21184,
+      "moshaf_id": 10906,
+      "name_ar": "محمد الفقيه",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21186,
+      "moshaf_id": 10908,
+      "name_ar": "جنيد آدم عبدالله",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21187,
+      "moshaf_id": 10909,
+      "name_ar": "خالد الزيادي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21188,
+      "moshaf_id": 10910,
+      "name_ar": "الوليد الشمسان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21191,
+      "moshaf_id": 10911,
+      "name_ar": "إبراهيم الشهري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21193,
+      "moshaf_id": 10913,
+      "name_ar": "عبدالرحمن بن عبدالرزاق البدر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21196,
+      "moshaf_id": 10917,
+      "name_ar": "عليجان قوري حمدان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21197,
+      "moshaf_id": 10918,
+      "name_ar": "محمد الزبيدي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21199,
+      "moshaf_id": 10920,
+      "name_ar": "عبد المجيب بنكيران",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 212,
+      "moshaf_id": 212,
+      "name_ar": "طارق عبدالغني دعوب",
+      "rewaya_ar": "قالون عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21200,
+      "moshaf_id": 10921,
+      "name_ar": "محمد ديبيروف",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21201,
+      "moshaf_id": 10922,
+      "name_ar": "عاصم اللحیدان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21202,
+      "moshaf_id": 10923,
+      "name_ar": "محمود حرفوش",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 21203,
+      "moshaf_id": 10925,
+      "name_ar": "أيمن رشدي سويد",
+      "rewaya_ar": "حفص عن عاصم - المصحف المعلم"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 216,
+      "moshaf_id": 216,
+      "name_ar": "عثمان الأنصاري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 217,
+      "moshaf_id": 217,
+      "name_ar": "بندر بليله",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 218,
+      "moshaf_id": 218,
+      "name_ar": "خالد الشريمي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 219,
+      "moshaf_id": 219,
+      "name_ar": "وديع اليمني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 22,
+      "moshaf_id": 22,
+      "name_ar": "خالد عبدالكافي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 221,
+      "moshaf_id": 221,
+      "name_ar": "رعد محمد الكردي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 225,
+      "moshaf_id": 225,
+      "name_ar": "عبدالرحمن العوسي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 226,
+      "moshaf_id": 226,
+      "name_ar": "خالد الغامدي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 227,
+      "moshaf_id": 227,
+      "name_ar": "رمضان شكور",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 228,
+      "moshaf_id": 228,
+      "name_ar": "عبدالمجيد الأركاني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 229,
+      "moshaf_id": 229,
+      "name_ar": "محمد خليل القارئ",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 23,
+      "moshaf_id": 23,
+      "name_ar": "خالد الوهيبي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 230,
+      "moshaf_id": 230,
+      "name_ar": "رامي الدعيس",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 231,
+      "moshaf_id": 231,
+      "name_ar": "هزاع البلوشي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 236,
+      "moshaf_id": 236,
+      "name_ar": "عبدالرحمن الماجد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 237,
+      "moshaf_id": 287,
+      "name_ar": "مروان العكري",
+      "rewaya_ar": "قالون عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 24,
+      "moshaf_id": 24,
+      "name_ar": "خليفة الطنيجي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 240,
+      "moshaf_id": 240,
+      "name_ar": "سلمان العتيبي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 241,
+      "moshaf_id": 241,
+      "name_ar": "محمد رفعت",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 243,
+      "moshaf_id": 286,
+      "name_ar": "عبدالله الموسى",
+      "rewaya_ar": "المصحف المعلم - المصحف المعلم"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 243,
+      "moshaf_id": 243,
+      "name_ar": "عبدالله الموسى",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 244,
+      "moshaf_id": 244,
+      "name_ar": "عبدالله الخلف",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 245,
+      "moshaf_id": 245,
+      "name_ar": "منصور السالمي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 246,
+      "moshaf_id": 246,
+      "name_ar": "صلاح مصلي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 247,
+      "moshaf_id": 247,
+      "name_ar": "خالد الشارخ",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 248,
+      "moshaf_id": 248,
+      "name_ar": "ناصر العصفور",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 25,
+      "moshaf_id": 25,
+      "name_ar": "داود حمزة",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 250,
+      "moshaf_id": 250,
+      "name_ar": "محمد البخيت",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 251,
+      "moshaf_id": 251,
+      "name_ar": "ناصر الماجد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 252,
+      "moshaf_id": 252,
+      "name_ar": "أحمد السويلم",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 253,
+      "moshaf_id": 253,
+      "name_ar": "إسلام صبحي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 254,
+      "moshaf_id": 254,
+      "name_ar": "بدر التركي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 255,
+      "moshaf_id": 255,
+      "name_ar": "هيثم الجدعاني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 256,
+      "moshaf_id": 256,
+      "name_ar": "أحمد خليل شاهين",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 257,
+      "moshaf_id": 257,
+      "name_ar": "سعد المقرن",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 259,
+      "moshaf_id": 259,
+      "name_ar": "أحمد النفيس",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 26,
+      "moshaf_id": 26,
+      "name_ar": "رشيد إفراد",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 260,
+      "moshaf_id": 260,
+      "name_ar": "عمر الدريويز",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 263,
+      "moshaf_id": 263,
+      "name_ar": "عبدالعزيز العسيري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 264,
+      "moshaf_id": 264,
+      "name_ar": "يونس اسويلص",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 313,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "ابن جماز عن أبي جعفر - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 312,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "هشام عن ابي عامر - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 311,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "خلف عن حمزة - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 310,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "الدوري عن الكسائي - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 309,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "السوسي عن أبي عمرو - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 308,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "ابن ذكوان عن ابن عامر - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 301,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "ورش عن نافع من طريق الأزرق - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 285,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "الدوري عن أبي عمرو - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 280,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "قالون عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 279,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "البزي عن ابن كثير - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 278,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "قنبل عن ابن كثير - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 276,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "شعبة  عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 265,
+      "moshaf_id": 265,
+      "name_ar": "أحمد ديبان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 267,
+      "moshaf_id": 267,
+      "name_ar": "عبدالله كامل",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 268,
+      "moshaf_id": 268,
+      "name_ar": "بيشه وا قادر الكردي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 27,
+      "moshaf_id": 261,
+      "name_ar": "رشيد بلعالية",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 27,
+      "moshaf_id": 27,
+      "name_ar": "رشيد بلعالية",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 271,
+      "moshaf_id": 271,
+      "name_ar": "نذير المالكي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 272,
+      "moshaf_id": 296,
+      "name_ar": "عكاشة كميني",
+      "rewaya_ar": "البزي عن ابن كثير - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 272,
+      "moshaf_id": 272,
+      "name_ar": "عكاشة كميني",
+      "rewaya_ar": "الدوري عن الكسائي - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 273,
+      "moshaf_id": 273,
+      "name_ar": "هيثم الدخين",
+      "rewaya_ar": "حفص عن عاصم - تلاوة مميزة"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 274,
+      "moshaf_id": 274,
+      "name_ar": "محمد أبو سنينة",
+      "rewaya_ar": "قالون عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 275,
+      "moshaf_id": 275,
+      "name_ar": "محمد الأمين قنيوة",
+      "rewaya_ar": "قالون عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 277,
+      "moshaf_id": 277,
+      "name_ar": "محمود عبدالحكم",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 278,
+      "moshaf_id": 290,
+      "name_ar": "أحمد عيسى المعصراوي",
+      "rewaya_ar": "قراءة يعقوب الحضرمي بروايتي رويس وروح - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 278,
+      "moshaf_id": 289,
+      "name_ar": "أحمد عيسى المعصراوي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 279,
+      "moshaf_id": 291,
+      "name_ar": "إبراهيم كشيدان",
+      "rewaya_ar": "قالون عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 28,
+      "moshaf_id": 28,
+      "name_ar": "زكريا حمامة",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 280,
+      "moshaf_id": 292,
+      "name_ar": "هاشم أبو دلال",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 281,
+      "moshaf_id": 293,
+      "name_ar": "فؤاد الخامري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 282,
+      "moshaf_id": 294,
+      "name_ar": "سيد أحمد هاشمي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 283,
+      "moshaf_id": 295,
+      "name_ar": "خالد كريم محمدي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 284,
+      "moshaf_id": 297,
+      "name_ar": "مال الله عبدالرحمن الجابر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 285,
+      "moshaf_id": 298,
+      "name_ar": "سلمان الصديق",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 286,
+      "moshaf_id": 299,
+      "name_ar": "حسن صالح",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 287,
+      "moshaf_id": 302,
+      "name_ar": "عبدالرحمن الشحات",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 288,
+      "moshaf_id": 303,
+      "name_ar": "عيسى عمر سناكو",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 289,
+      "moshaf_id": 304,
+      "name_ar": "هارون بقائي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 29,
+      "moshaf_id": 281,
+      "name_ar": "عبدالله بخاري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 290,
+      "moshaf_id": 306,
+      "name_ar": "صالح القريشي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 3,
+      "moshaf_id": 3,
+      "name_ar": "إبراهيم العسيري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 30,
+      "moshaf_id": 30,
+      "name_ar": "سعد الغامدي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 300,
+      "moshaf_id": 300,
+      "name_ar": "صالح الشمراني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 301,
+      "moshaf_id": 307,
+      "name_ar": "فيصل الهاجري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 302,
+      "moshaf_id": 314,
+      "name_ar": "أنس العمادي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 303,
+      "moshaf_id": 315,
+      "name_ar": "عبدالملك العسكر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 304,
+      "moshaf_id": 316,
+      "name_ar": "عبدالكريم الحازمي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 305,
+      "moshaf_id": 317,
+      "name_ar": "هشام الهراز",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 306,
+      "moshaf_id": 318,
+      "name_ar": "عبدالله المشعل",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 307,
+      "moshaf_id": 319,
+      "name_ar": "عبدالعزيز سحيم",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 31,
+      "moshaf_id": 31,
+      "name_ar": "سعود الشريم",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 32,
+      "moshaf_id": 32,
+      "name_ar": "سهل ياسين",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 33,
+      "moshaf_id": 33,
+      "name_ar": "زكي داغستاني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 34,
+      "moshaf_id": 34,
+      "name_ar": "سامي الحسن",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 35,
+      "moshaf_id": 35,
+      "name_ar": "سامي الدوسري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 36,
+      "moshaf_id": 36,
+      "name_ar": "سيد رمضان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 37,
+      "moshaf_id": 37,
+      "name_ar": "شعبان الصياد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 38,
+      "moshaf_id": 38,
+      "name_ar": "شيرزاد عبدالرحمن طاهر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 39,
+      "moshaf_id": 39,
+      "name_ar": "صابر عبدالحكم",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 4,
+      "moshaf_id": 4,
+      "name_ar": "شيخ أبو بكر الشاطري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 40,
+      "moshaf_id": 40,
+      "name_ar": "صالح الصاهود",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 41,
+      "moshaf_id": 41,
+      "name_ar": "صالح آل طالب",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 42,
+      "moshaf_id": 42,
+      "name_ar": "صالح الهبدان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 43,
+      "moshaf_id": 43,
+      "name_ar": "صلاح البدير",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 44,
+      "moshaf_id": 45,
+      "name_ar": "صلاح الهاشم",
+      "rewaya_ar": "قالون عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 44,
+      "moshaf_id": 44,
+      "name_ar": "صلاح الهاشم",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 46,
+      "moshaf_id": 46,
+      "name_ar": "صلاح بو خاطر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 47,
+      "moshaf_id": 283,
+      "name_ar": "مختار الحاج",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 48,
+      "moshaf_id": 48,
+      "name_ar": "عادل ريان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 49,
+      "moshaf_id": 49,
+      "name_ar": "عبدالبارئ الثبيتي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 5,
+      "moshaf_id": 5,
+      "name_ar": "أحمد بن علي العجمي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 50,
+      "moshaf_id": 169,
+      "name_ar": "عبدالبارئ محمد",
+      "rewaya_ar": "المصحف المعلم - المصحف المعلم"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 50,
+      "moshaf_id": 50,
+      "name_ar": "عبدالبارئ محمد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 51,
+      "moshaf_id": 53,
+      "name_ar": "عبدالباسط عبدالصمد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 51,
+      "moshaf_id": 52,
+      "name_ar": "عبدالباسط عبدالصمد",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 51,
+      "moshaf_id": 51,
+      "name_ar": "عبدالباسط عبدالصمد",
+      "rewaya_ar": "المصحف المجود - المصحف المجود"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 54,
+      "moshaf_id": 54,
+      "name_ar": "عبدالرحمن السديس",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 55,
+      "moshaf_id": 55,
+      "name_ar": "عبدالعزيز الأحمد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 56,
+      "moshaf_id": 56,
+      "name_ar": "عبدالعزيز الزهراني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 57,
+      "moshaf_id": 57,
+      "name_ar": "عبدالله البريمي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 58,
+      "moshaf_id": 58,
+      "name_ar": "عبدالله البعيجان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 59,
+      "moshaf_id": 59,
+      "name_ar": "عبدالله المطرود",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 6,
+      "moshaf_id": 6,
+      "name_ar": "أحمد الحواشي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 60,
+      "moshaf_id": 60,
+      "name_ar": "عبدالله بصفر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 61,
+      "moshaf_id": 61,
+      "name_ar": "عبدالله خياط",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 62,
+      "moshaf_id": 62,
+      "name_ar": "عبدالله عواد الجهني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 63,
+      "moshaf_id": 63,
+      "name_ar": "عبدالله غيلان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 64,
+      "moshaf_id": 258,
+      "name_ar": "عبدالرشيد صوفي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 64,
+      "moshaf_id": 65,
+      "name_ar": "عبدالرشيد صوفي",
+      "rewaya_ar": "السوسي عن أبي عمرو - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 64,
+      "moshaf_id": 64,
+      "name_ar": "عبدالرشيد صوفي",
+      "rewaya_ar": "خلف عن حمزة - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 66,
+      "moshaf_id": 66,
+      "name_ar": "عبدالمحسن الحارثي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 67,
+      "moshaf_id": 67,
+      "name_ar": "عبدالمحسن القاسم",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 68,
+      "moshaf_id": 68,
+      "name_ar": "عبدالمحسن العسكر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 69,
+      "moshaf_id": 69,
+      "name_ar": "عبدالمحسن العبيكان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 7,
+      "moshaf_id": 7,
+      "name_ar": "أحمد سعود",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 70,
+      "moshaf_id": 70,
+      "name_ar": "عبدالهادي أحمد كناكري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 71,
+      "moshaf_id": 71,
+      "name_ar": "عبدالودود حنيف",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 72,
+      "moshaf_id": 72,
+      "name_ar": "عبدالولي الأركاني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 73,
+      "moshaf_id": 73,
+      "name_ar": "علي أبو هاشم",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 74,
+      "moshaf_id": 305,
+      "name_ar": "علي بن عبدالرحمن الحذيفي",
+      "rewaya_ar": "شعبة  عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 74,
+      "moshaf_id": 75,
+      "name_ar": "علي بن عبدالرحمن الحذيفي",
+      "rewaya_ar": "قالون عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 74,
+      "moshaf_id": 74,
+      "name_ar": "علي بن عبدالرحمن الحذيفي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 76,
+      "moshaf_id": 76,
+      "name_ar": "علي جابر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 77,
+      "moshaf_id": 77,
+      "name_ar": "علي حجاج السويسي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 78,
+      "moshaf_id": 78,
+      "name_ar": "عماد زهير حافظ",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 79,
+      "moshaf_id": 282,
+      "name_ar": "عبدالعزيز التركي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 8,
+      "moshaf_id": 8,
+      "name_ar": "أحمد صابر",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 80,
+      "moshaf_id": 80,
+      "name_ar": "عمر القزابري",
+      "rewaya_ar": "ورش عن نافع - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 81,
+      "moshaf_id": 81,
+      "name_ar": "فارس عباد",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 82,
+      "moshaf_id": 82,
+      "name_ar": "فهد العتيبي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 83,
+      "moshaf_id": 83,
+      "name_ar": "فهد الكندري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 84,
+      "moshaf_id": 84,
+      "name_ar": "فواز الكعبي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 85,
+      "moshaf_id": 85,
+      "name_ar": "لافي العوني",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 86,
+      "moshaf_id": 86,
+      "name_ar": "ناصر القطامي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 87,
+      "moshaf_id": 87,
+      "name_ar": "نبيل الرفاعي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 88,
+      "moshaf_id": 88,
+      "name_ar": "نعمة الحسان",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 89,
+      "moshaf_id": 89,
+      "name_ar": "هاني الرفاعي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 9,
+      "moshaf_id": 9,
+      "name_ar": "أحمد نعينع",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 90,
+      "moshaf_id": 90,
+      "name_ar": "وليد الدليمي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 91,
+      "moshaf_id": 91,
+      "name_ar": "وليد النائحي",
+      "rewaya_ar": "قالون عن نافع من طريق أبي نشيط - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 92,
+      "moshaf_id": 92,
+      "name_ar": "ياسر الدوسري",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 93,
+      "moshaf_id": 93,
+      "name_ar": "ياسر القرشي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 94,
+      "moshaf_id": 94,
+      "name_ar": "ياسر الفيلكاوي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 95,
+      "moshaf_id": 95,
+      "name_ar": "ياسر المزروعي ",
+      "rewaya_ar": "قراءة يعقوب الحضرمي بروايتي رويس وروح - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 96,
+      "moshaf_id": 96,
+      "name_ar": "يحيى حوا",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 97,
+      "moshaf_id": 97,
+      "name_ar": "يوسف الشويعي",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    },
+    {
+      "provider": "MP3QURAN",
+      "provider_reciter_id": 98,
+      "moshaf_id": 284,
+      "name_ar": "عبدالله عبدل",
+      "rewaya_ar": "حفص عن عاصم - مرتل"
+    }
+  ],
+  "personalDeviceDatabase": "Not accessible; preserved unchanged. Baseline is current server catalog and shipped provider adapters."
+}

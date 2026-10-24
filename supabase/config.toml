@@ -1,27 +1,27 @@
-project_id = "quran_yutla"
+project_id = "tarteel"
 
-[api]
-port = 54321
-schemas = ["public", "app", "radio", "storage", "graphql_public"]
-extra_search_path = ["public", "app", "radio", "extensions"]
-max_rows = 1000
+[db.seed]
+enabled = true
+sql_paths = ["./seed/*.sql"]
 
-[db]
-port = 54322
-shadow_port = 54320
-major_version = 15
+[db.migrations]
+enabled = true
+schema_paths = ["./migrations/*.sql"]
 
-[studio]
-port = 54323
+[functions.tarteel-api]
+verify_jwt = false
 
-[inbucket]
-port = 54324
+[functions.managed-radio]
+verify_jwt = true
 
-[storage]
-file_size_limit = "500MiB"
+# Dedicated random cron token is verified server-side against Vault.
+[functions.provider-sync]
+verify_jwt = false
 
-[auth]
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["app.quranyutla://login-callback"]
-jwt_expiry = 3600
-enable_signup = false
+[functions.tarteel-api-health]
+verify_jwt = false
+
+# This function validates user JWTs, installation secrets and the cron bearer
+# token itself because device registration also supports signed guest installs.
+[functions.notifications]
+verify_jwt = false

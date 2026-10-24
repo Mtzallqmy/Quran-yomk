@@ -1,0 +1,39 @@
+name: Publish verified Tarteel preview
+on:
+  push:
+    branches: [feat/tarteel-local-prayer-neon-2074]
+    paths: ['release-candidates/preview-2092.json']
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: tarteel-publish-preview-2092
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install APK verification tools
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;36.0.0"'
+      - name: Verify candidate gates, reconstruct externally signed APK and publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 scripts/tarteel/publish_verified_preview.py
+          --metadata release-candidates/preview-2092.json
+          --build-tools "$ANDROID_HOME/build-tools/36.0.0"
+          --output preview-release
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tarteel-signed-preview-release-evidence
+          path: |
+            preview-release/*.apk
+            preview-release/verification/
+            preview-release/release.json

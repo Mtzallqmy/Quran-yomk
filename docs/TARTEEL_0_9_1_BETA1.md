@@ -22,10 +22,15 @@ Server connections verify TLS certificates. The public API assumes a read-only r
 
 ## Verification / release gates
 
-Local checks:188 Flutter tests (including the real audio handler driven through simulated native events, mixed local/remote progression and cancellation),33 UI goldens, no analyze errors/warnings (ten existing information lints), seven existing cloud tests and nine content tests. All eleven audio checksums/provenance records pass. The canonical Quran checksum tests remain enabled.
+Local checks:194 Flutter tests (including the real audio handler driven through simulated native events, mixed local/remote progression and cancellation),33 UI goldens, no analyze errors/warnings (ten existing information lints), seven existing cloud tests and ten content tests. All eleven audio checksums/provenance records pass. The canonical Quran checksum tests remain enabled.
 
 Live checks: two syncs each on validation/main, public catalog read, a seven-verse translation read with version1.1.2, anonymous admin rejection, public write rejection, read-only role permissions and exclusion of an unapproved fixture. Two simultaneous DB transactions returned the same entity ID. Fixtures remained on validation only.
 
-Android native compilation, lint, API26/API36 instrumentation and the final release APK are verified by the Actions run linked in PR64 when complete; do not infer those results from the local checks above. Physical-phone audible playback, manufacturer battery behavior and upgrade acceptance remain manual tests.
+Android native compilation/lint, ARM64 release build and API26/API36 instrumentation passed in Actions run40137313679. The final locally signed APK passed package/version/ABI, embedded Git reference, audio byte comparison, certificate and16KiB alignment checks. Physical-phone audible playback, manufacturer battery behavior and upgrade acceptance remain manual tests.
 
 The preview must reuse the backed-up beta2 signing identity (SHA2565e2a2a7412c93c8a0e9e28917195534b726c9c1ae3a35232e9fd0aeb5fa718b8). It can be a cryptographically compatible update to beta2/code2091. It cannot update original2074 or the old beta1 certificate. Original2074 verification remains in the production release pipeline; this preview does not bypass it or claim a production-compatible release.
+
+
+## Mushaf library follow-up
+
+The sourced library/topical layer and its real coverage, rights gates and migration details are documented in [mushaf-library/IMPLEMENTATION.md](mushaf-library/IMPLEMENTATION.md). The signed preview APK embeds the actual tested PR merge reference8d174003e4f1337c0d58f8b0a37bb373f5c981a2; its feature head is3cb8c31f4bb249cb79a099d1d83346824d52fe83. Signed APK metadata and SHA256 are in docs/mushaf-library. An external public signing envelope reconstructs only that exact reviewed binary from the exact Actions artifact; it contains no keystore or private signing material. Publishing verifies the full native/test gates, artifact digest, embedded Git reference, package/version/ABI, certificate and alignment before creating a prerelease.

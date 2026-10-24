@@ -15,7 +15,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     badging = subprocess.check_output([args.aapt, 'dump', 'badging', str(args.apk)], text=True)
     package = re.search(r"^package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'", badging, re.M)
-    if not package or package[1] != 'app.tarteel.tarteel' or int(package[2]) <= 2074 or package[3] != '0.9.0-beta.2':
+    if not package or package[1] != 'app.tarteel.tarteel' or int(package[2]) <= 2074 or package[3] != '0.9.1-beta.1':
         raise ValueError('Unexpected Tarteel package or actual split APK version')
     if "sdkVersion:'26'" not in badging:
         raise ValueError('Expected Android 8 API26 minimum')

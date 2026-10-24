@@ -180,7 +180,6 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
   StreamSubscription<MediaItem?>? _mediaSubscription;
   Timer? _nowPlayingTimer;
   MediaItem? _latest;
-  bool _repeatOne = false;
   bool _downloadBusy = false;
 
   @override
@@ -472,15 +471,20 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage> {
                         ],
                       ),
                     if (kind == 'track' || kind == 'quran_audio')
-                      IconButton.filledTonal(
-                        tooltip: l10n.repeatSurah,
-                        onPressed: () async {
-                          setState(() => _repeatOne = !_repeatOne);
-                          await playback.setRepeatOne(_repeatOne);
+                      StreamBuilder<PlaybackState>(
+                        stream: playback.playbackStateStream,
+                        builder: (context, snapshot) {
+                          final enabled =
+                              snapshot.data?.repeatMode ==
+                              AudioServiceRepeatMode.one;
+                          return IconButton.filledTonal(
+                            tooltip: l10n.repeatSurah,
+                            onPressed: () => playback.setRepeatOne(!enabled),
+                            icon: Icon(
+                              enabled ? Icons.repeat_one_on : Icons.repeat_one,
+                            ),
+                          );
                         },
-                        icon: Icon(
-                          _repeatOne ? Icons.repeat_one_on : Icons.repeat_one,
-                        ),
                       ),
                   ],
                 ),

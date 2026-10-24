@@ -35,6 +35,7 @@ class ContentSourcesPage extends ConsumerWidget {
               children: <Widget>[
                 const BundledAudioSources(),
                 const _IslamicLibrarySource(),
+                const _QuranEncSource(),
                 ErrorPane(
                   error: snapshot.error!,
                   onRetry: () => services.repository.api.contentSources(),
@@ -57,6 +58,7 @@ class ContentSourcesPage extends ConsumerWidget {
               ),
               const BundledAudioSources(),
               const _IslamicLibrarySource(),
+              const _QuranEncSource(),
               if (sources.isEmpty)
                 EmptyPane(message: l10n.contentSourceUnavailable)
               else
@@ -217,6 +219,23 @@ class BundledAudioSources extends StatelessWidget {
         title: Text('خلفيات المشغّل والإذاعات'),
         subtitle: Text(
           'رسوم هندسية ومتجهية أصلية داخل مشروع ترتيل؛ تعمل محليًا دون تحميل صور.',
+        ),
+      ),
+    ],
+  );
+}
+
+class _QuranEncSource extends StatelessWidget {
+  const _QuranEncSource();
+  @override
+  Widget build(BuildContext context) => const ExpansionTile(
+    leading: Icon(Icons.translate),
+    title: Text('ترجمات معاني القرآن — QuranEnc.com'),
+    children: [
+      Padding(
+        padding: EdgeInsets.all(16),
+        child: SelectableText(
+          'خدمة اختيارية لترجمات المعاني، مستقلة عن النص القرآني الحالي. يعرض كل إصدار اسم الترجمة ووصف المترجم ورقم الإصدار والحواشي ومصدرها. تُفحص النسخة عند الطلب، ولا تُعرض نسخة تغيّر إصدارها قبل مزامنتها.\nhttps://quranenc.com/en/home/api/\nالحقوق لأصحاب الترجمات؛ يُراعى النقل دون تغيير، ونسبة العمل لمصدره، وتحديث الإصدارات.',
         ),
       ),
     ],

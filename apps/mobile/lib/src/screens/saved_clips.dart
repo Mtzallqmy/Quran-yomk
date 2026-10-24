@@ -5,6 +5,7 @@ import '../common.dart';
 import '../l10n.dart';
 import '../offline_clip_service.dart';
 import '../services.dart';
+import '../playback.dart';
 import '../native_audio.dart';
 
 class SavedClipsPage extends ConsumerWidget {
@@ -104,6 +105,26 @@ class SavedClipsPage extends ConsumerWidget {
                             onPressed: () => _play(context, services, clip),
                             icon: const Icon(Icons.play_arrow),
                           ),
+                          if (services.playback is QueuePlaybackPort)
+                            IconButton(
+                              tooltip: 'إضافة إلى قائمة الاستماع',
+                              icon: const Icon(Icons.playlist_add),
+                              onPressed: () async {
+                                try {
+                                  await (services.playback as QueuePlaybackPort)
+                                      .appendOfflineClip(clip);
+                                } catch (_) {
+                                  if (context.mounted)
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'أوقف الإذاعة المباشرة أولًا لإعداد قائمة استماع',
+                                        ),
+                                      ),
+                                    );
+                                }
+                              },
+                            ),
                           IconButton(
                             tooltip: l10n.delete,
                             onPressed: () => _delete(context, clips, clip),

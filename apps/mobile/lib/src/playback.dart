@@ -49,6 +49,7 @@ abstract class PlaybackPort {
 abstract class QueuePlaybackPort {
   Stream<List<MediaItem>> get queueStream;
   Future<void> selectQueueItem(int index);
+  Future<void> appendOfflineClip(OfflineClip clip);
   void setStudyPause(Duration duration);
 }
 
@@ -101,6 +102,57 @@ class TarteelAudioHandler extends BaseAudioHandler
   Duration _studyPause = Duration.zero;
   bool _loadingMedia = false;
   double _speed = 1.0;
+  List<OfflineClip> _queuedClips = <OfflineClip>[];
+  int get _baseQueueLength =>
+      _quranMedia.isNotEmpty ? _quranMedia.length : _tracks.length;
+  int get _queueLength => _baseQueueLength + _queuedClips.length;
+  MediaItem _offlineItem(OfflineClip clip) => MediaItem(
+    id: 'offline:${clip.id}',
+    title: clip.stationNameAr,
+    artUri: clip.artworkUrl == null ? null : Uri.tryParse(clip.artworkUrl!),
+    duration: clip.duration,
+    isLive: false,
+    extras: <String, dynamic>{
+      'kind': 'offline_clip',
+      'entity_id': clip.id,
+      'path': clip.filePath,
+      'station_id': clip.stationId,
+    },
+  );
+  Future<void> _loadQueue(int index) async {
+    if (index < _baseQueueLength) {
+      if (_quranMedia.isNotEmpty) {
+        await _loadQuran(index);
+      } else {
+        await _loadTrack(index);
+      }
+    } else {
+      final clip = _queuedClips[index - _baseQueueLength];
+      _loadingMedia = true;
+      try {
+        _trackIndex = index;
+        mediaItem.add(_offlineItem(clip));
+        await _player.setFilePath(clip.filePath, preload: true);
+        await _player.setSpeed(_speed);
+      } finally {
+        _loadingMedia = false;
+      }
+      _broadcastState();
+    }
+  }
+
+  @override
+  Future<void> appendOfflineClip(OfflineClip clip) async {
+    if (isLive) throw StateError('LIVE_QUEUE_UNSUPPORTED');
+    if (_queueLength == 0) {
+      await playOfflineClip(clip);
+      return;
+    }
+    _queuedClips.add(clip);
+    queue.add([...queue.value, _offlineItem(clip)]);
+    _broadcastState();
+  }
+
   @override
   Stream<List<MediaItem>> get queueStream => queue.stream;
   @override
@@ -134,7 +186,7 @@ class TarteelAudioHandler extends BaseAudioHandler
       await pause();
       return;
     }
-    final length = _quranMedia.isNotEmpty ? _quranMedia.length : _tracks.length;
+    final length = _queueLength;
     if (_trackIndex + 1 >= length) {
       await pause();
       return;
@@ -145,15 +197,11 @@ class TarteelAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> selectQueueItem(int index) async {
-    final length = _quranMedia.isNotEmpty ? _quranMedia.length : _tracks.length;
+    final length = _queueLength;
     if (isLive || index < 0 || index >= length) return;
     _completionGeneration++;
     await _saveProgress();
-    if (_quranMedia.isNotEmpty) {
-      await _loadQuran(index);
-    } else {
-      await _loadTrack(index);
-    }
+    await _loadQueue(index);
     await play();
   }
 
@@ -213,6 +261,7 @@ class TarteelAudioHandler extends BaseAudioHandler
   void _resetSourceState() {
     _completionGeneration++;
     _studyPause = Duration.zero;
+    _queuedClips = <OfflineClip>[];
     _cancelReconnect();
     _virtualRadio = null;
     _liveStation = null;
@@ -249,6 +298,7 @@ class TarteelAudioHandler extends BaseAudioHandler
     await _saveProgress();
     cancelSleepTimer();
     _resetSourceState();
+    await _player.setLoopMode(LoopMode.off);
     _quranMedia = List<QuranAudioMedia>.unmodifiable(media);
     _trackIndex = index;
     _shouldPlay = true;
@@ -405,6 +455,7 @@ class TarteelAudioHandler extends BaseAudioHandler
     await _saveProgress();
     cancelSleepTimer();
     _resetSourceState();
+    await _player.setLoopMode(LoopMode.off);
     _reciter = reciter;
     _tracks = playable;
     _trackIndex = mappedIndex < 0 ? 0 : mappedIndex;
@@ -459,31 +510,12 @@ class TarteelAudioHandler extends BaseAudioHandler
     await _saveProgress();
     cancelSleepTimer();
     _resetSourceState();
+    await _player.setLoopMode(LoopMode.off);
+    _queuedClips = [clip];
     _shouldPlay = true;
-    queue.add(const <MediaItem>[]);
-    mediaItem.add(
-      MediaItem(
-        id: 'offline:${clip.id}',
-        title: clip.stationNameAr,
-        artUri: clip.artworkUrl == null ? null : Uri.tryParse(clip.artworkUrl!),
-        duration: clip.duration,
-        isLive: false,
-        extras: <String, dynamic>{
-          'kind': 'offline_clip',
-          'entity_id': clip.id,
-          'path': clip.filePath,
-          'station_id': clip.stationId,
-        },
-      ),
-    );
-    _loadingMedia = true;
-    try {
-      await _player.setFilePath(clip.filePath, preload: true);
-    } finally {
-      _loadingMedia = false;
-    }
+    queue.add([_offlineItem(clip)]);
+    await _loadQueue(0);
     await _restoreProgress();
-    await _player.setSpeed(1.0);
     unawaited(_player.play());
     _broadcastState();
   }
@@ -522,39 +554,33 @@ class TarteelAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> seek(Duration position) async {
+    _completionGeneration++;
     if (!isLive) await _player.seek(position);
   }
 
   @override
   Future<void> skipToNext() async {
-    if (isLive || (_tracks.isEmpty && _quranMedia.isEmpty)) return;
+    if (isLive || (_queueLength == 0)) return;
     _completionGeneration++;
     final next = _trackIndex + 1;
-    final length = _quranMedia.isNotEmpty ? _quranMedia.length : _tracks.length;
+    final length = _queueLength;
     if (next >= length) return;
-    if (_quranMedia.isNotEmpty) {
-      await _loadQuran(next);
-    } else {
-      await _loadTrack(next);
-    }
+    await _loadQueue(next);
     if (_shouldPlay) unawaited(_player.play());
   }
 
   @override
   Future<void> skipToPrevious() async {
-    if (isLive || (_tracks.isEmpty && _quranMedia.isEmpty)) return;
+    if (isLive || (_queueLength == 0)) return;
     if (_player.position > const Duration(seconds: 5)) {
+      _completionGeneration++;
       await _player.seek(Duration.zero);
       return;
     }
     _completionGeneration++;
     final previous = _trackIndex - 1;
     if (previous < 0) return;
-    if (_quranMedia.isNotEmpty) {
-      await _loadQuran(previous);
-    } else {
-      await _loadTrack(previous);
-    }
+    await _loadQueue(previous);
     if (_shouldPlay) unawaited(_player.play());
   }
 
@@ -673,12 +699,10 @@ class TarteelAudioHandler extends BaseAudioHandler
     playbackState.add(
       PlaybackState(
         controls: <MediaControl>[
-          if (!isLive && (_tracks.isNotEmpty || _quranMedia.isNotEmpty))
-            MediaControl.skipToPrevious,
+          if (!isLive && (_queueLength > 0)) MediaControl.skipToPrevious,
           _player.playing ? MediaControl.pause : MediaControl.play,
           MediaControl.stop,
-          if (!isLive && (_tracks.isNotEmpty || _quranMedia.isNotEmpty))
-            MediaControl.skipToNext,
+          if (!isLive && (_queueLength > 0)) MediaControl.skipToNext,
         ],
         systemActions: isLive
             ? const <MediaAction>{}
@@ -693,9 +717,7 @@ class TarteelAudioHandler extends BaseAudioHandler
         updatePosition: _player.position,
         bufferedPosition: _player.bufferedPosition,
         speed: _player.speed,
-        queueIndex: !isLive && (_tracks.isNotEmpty || _quranMedia.isNotEmpty)
-            ? _trackIndex
-            : null,
+        queueIndex: !isLive && (_queueLength > 0) ? _trackIndex : null,
         repeatMode: _player.loopMode == LoopMode.one
             ? AudioServiceRepeatMode.one
             : AudioServiceRepeatMode.none,

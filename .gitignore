@@ -23,3 +23,5 @@ supabase/.temp/
 **/.next/
 
 **/*.tsbuildinfo
+
+**/test/failures/

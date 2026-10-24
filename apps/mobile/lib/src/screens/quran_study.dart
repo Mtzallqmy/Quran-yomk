@@ -7,6 +7,7 @@ import '../navigation.dart';
 import '../quran_models.dart';
 import '../services.dart';
 import 'learning.dart';
+import 'quran_translations.dart';
 import 'quran_index.dart' show normalizeQuranQuery;
 
 /// Reads the existing repository/cache; never rewrites Quran text.
@@ -92,6 +93,7 @@ class _QuranStudyPageState extends ConsumerState<QuranStudyPage> {
               },
             ),
             if (_selected case final Surah s) ...[
+              QuranTranslationsPane(surah: s.number),
               Row(
                 children: [
                   _number(true, s),
@@ -135,7 +137,8 @@ class _QuranStudyPageState extends ConsumerState<QuranStudyPage> {
                       error: p.error!,
                       onRetry: () => _select(s),
                     );
-                  if (!p.hasData) return const LoadingPane();
+                  if (p.connectionState != ConnectionState.done || !p.hasData)
+                    return const LoadingPane();
                   final query = normalizeQuranQuery(_query);
                   final verses = p.data!.verses
                       .where(

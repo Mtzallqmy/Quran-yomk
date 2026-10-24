@@ -4,7 +4,7 @@ on:
     branches: [feat/tarteel-local-prayer-neon-2074, main]
   pull_request:
     branches: [main]
-    paths: ['apps/mobile/**', 'services/tarteel-cloud/**', 'scripts/tarteel/**', '.github/workflows/tarteel-local-prayer.yml']
+    paths: ['apps/mobile/**', 'services/tarteel-cloud/**', 'services/tarteel-content/**', 'database/neon/**', 'scripts/tarteel/**', '.github/workflows/tarteel-local-prayer.yml']
   workflow_dispatch:
   workflow_call:
 permissions:
@@ -88,17 +88,23 @@ jobs:
         run: |
           npm ci
           npm test
+      - name: Content catalog identity, rights and authorization tests
+        working-directory: services/tarteel-content
+        run: |
+          npm ci
+          npm test
+          npm run build
       - name: Validate offline assets
         run: python3 scripts/generate_tarteel_reminder.py --check
       - name: Build Flutter and Android acceptance APKs
         working-directory: apps/mobile
         run: |
-          flutter build apk --debug --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_CLOUD_BASE_URL=https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech
+          flutter build apk --debug --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_CONTENT_BASE_URL=https://br-curly-salad-bajy1evn-tarteelcontent.compute.c-8.eu-central-1.aws.neon.tech --dart-define=TARTEEL_CLOUD_BASE_URL=https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech
           cd android
           ./gradlew :app:assembleDebugAndroidTest :app:lintDebug
       - name: Compile actual unsigned ARM64 release (not installable)
         working-directory: apps/mobile
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_CLOUD_BASE_URL=https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_CONTENT_BASE_URL=https://br-curly-salad-bajy1evn-tarteelcontent.compute.c-8.eu-central-1.aws.neon.tech --dart-define=TARTEEL_CLOUD_BASE_URL=https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
       - name: Inspect actual split version, package and offline audio
         run: |
           set -euo pipefail
@@ -210,13 +216,13 @@ jobs:
         working-directory: apps/mobile
         run: |
           flutter pub get
-          flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_CLOUD_BASE_URL=https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
+          flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub --dart-define=GIT_SHA=${{ github.sha }} --dart-define=TARTEEL_CONTENT_BASE_URL=https://br-curly-salad-bajy1evn-tarteelcontent.compute.c-8.eu-central-1.aws.neon.tech --dart-define=TARTEEL_CLOUD_BASE_URL=https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
       - name: Verify actual split version and matching 2074 certificate
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release/tarteel
-          cp apps/mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release/tarteel/tarteel-0.9.0-beta.1-arm64-v8a.apk
+          cp apps/mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release/tarteel/tarteel-0.9.1-beta.1-arm64-v8a.apk
           AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n1)
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n1)
           python3 scripts/tarteel/verify_apk.py release/tarteel/*.apk --aapt "$AAPT" --apksigner "$APKSIGNER" --output release/tarteel

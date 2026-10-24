@@ -16,7 +16,7 @@ def verify(apk, aapt, apksigner, output):
     package = re.search(r"^package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'", badging, re.M)
     if not package or package[1] != 'app.tarteel.tarteel':
         raise ValueError('Wrong application ID')
-    if int(package[2]) <= 2074 or package[3] != '0.9.0-beta.2':
+    if int(package[2]) <= 2074 or package[3] != '0.9.1-beta.1':
         raise ValueError('Version does not upgrade 2074')
     if "sdkVersion:'26'" not in badging:
         raise ValueError('Expected Android 8 minimum API 26')

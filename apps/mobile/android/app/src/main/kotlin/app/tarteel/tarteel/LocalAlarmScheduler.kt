@@ -101,15 +101,22 @@ internal object LocalAlarmScheduler {
         val power = context.getSystemService(android.os.PowerManager::class.java)
         val manager = context.getSystemService(NotificationManager::class.java)
         val audio = context.getSystemService(android.media.AudioManager::class.java)
-        val times = prefs(context).all.values.mapNotNull {
-            try { JSONObject(it as String).getLong("time") } catch (_: Exception) { null }
-        }
+        val records = prefs(context).all.values.mapNotNull {
+            try { JSONObject(it as String) } catch (_: Exception) { null }
+        }.filter { it.optLong("time") > System.currentTimeMillis() }
+        val next = records.minByOrNull { it.optLong("time") }
+        val times = records.map { it.optLong("time") }
         return mapOf("exactAlarms" to exactAvailable(context), "notifications" to manager.areNotificationsEnabled(),
             "alarmChannelEnabled" to (manager.getNotificationChannel(OfflineNotifications.ALARM_CHANNEL)?.importance != NotificationManager.IMPORTANCE_NONE),
             "batteryUnrestricted" to power.isIgnoringBatteryOptimizations(context.packageName),
             "alarmVolume" to audio.getStreamVolume(android.media.AudioManager.STREAM_ALARM),
             "alarmVolumeMax" to audio.getStreamMaxVolume(android.media.AudioManager.STREAM_ALARM),
             "scheduledCount" to times.size, "nextAlarmAt" to (times.minOrNull() ?: 0L),
+            "nextAlarmTitle" to (next?.optString("title") ?: ""),
+            "nextAlarmPath" to (next?.optString("path")?.substringAfterLast('/') ?: ""),
+            "nextAlarmSilent" to (next?.optBoolean("playSound", true) == false),
+            "manufacturer" to Build.MANUFACTURER, "dndFilter" to manager.currentInterruptionFilter,
+            "eventsJson" to (diagnostics.getString("events", "[]") ?: "[]"),
             "lastReadyAt" to diagnostics.getLong("lastReadyAt", 0L),
             "lastFailure" to (diagnostics.getString("lastFailure", "") ?: ""),
             "lastRescheduleFailure" to (diagnostics.getString("lastRescheduleFailure", "") ?: ""),
@@ -135,12 +142,14 @@ class LocalAudioAlarmReceiver : BroadcastReceiver() {
         val record = LocalAlarmScheduler.consume(context, id, intent.getLongExtra("scheduledTime", -1L)) ?: return
         val age = System.currentTimeMillis() - record.getLong("time")
         // Never replay an old prayer when the phone wakes hours later.
-        if (age > 15 * 60 * 1000L) return
-        if (!record.optBoolean("playSound", true)) { showFallback(context, record); return }
+        if (age > 15 * 60 * 1000L) { AlarmDiagnostics.record(context, record, "SKIPPED_STALE"); return }
+        AlarmDiagnostics.record(context, record, "RECEIVED")
+        if (!record.optBoolean("playSound", true)) { AlarmDiagnostics.record(context, record, "SILENT_NOTIFICATION"); showFallback(context, record); return }
         try {
             context.startForegroundService(Intent(context, LocalAlarmAudioService::class.java)
                 .putExtra("record", record.toString()))
         } catch (error: Exception) {
+            AlarmDiagnostics.record(context, record, "BACKGROUND_START_FAILED")
             context.getSharedPreferences("alarm_diagnostics", Context.MODE_PRIVATE).edit()
                 .putString("lastFailure", "BACKGROUND_START_${error.javaClass.simpleName}").apply()
             // Inexact alarms cannot always start an FGS on Android 12+. Keep the visible reminder.

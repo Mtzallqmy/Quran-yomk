@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common.dart';
+import 'prayer_reliability.dart';
 import '../local_notifications.dart';
 import '../prayer_settings.dart';
 import '../prayer_times.dart';
@@ -1240,6 +1241,7 @@ class _PrayerAlarmStatusPageState extends ConsumerState<PrayerAlarmStatusPage>
           return ListView(
             padding: const EdgeInsets.only(bottom: 32),
             children: [
+              PrayerReliabilityDetails(status: status),
               row(
                 'إذن الإشعارات',
                 status['notifications'] == true,

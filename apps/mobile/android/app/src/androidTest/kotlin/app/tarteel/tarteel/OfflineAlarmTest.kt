@@ -11,6 +11,13 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class OfflineAlarmTest {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
+    @Test fun diagnosticsKeepBoundedHistoryWithoutPrivatePaths() {
+        val alarm = JSONObject().put("id", 8900009).put("title", "تجربة").put("time", System.currentTimeMillis()+60000).put("path", "/private/sound.mp3")
+        repeat(30) { AlarmDiagnostics.record(context, alarm, "AUDIO_READY") }
+        val raw = LocalAlarmScheduler.diagnostics(context)["eventsJson"] as String
+        assertEquals(24, org.json.JSONArray(raw).length())
+        assertFalse(raw.contains("/private/"))
+    }
     @Test fun allNewBundledAdhanFilesAreDecodableOffline() {
         for (name in listOf("makkah", "madinah", "kazakhstan", "sweden_fajr")) {
             val file = java.io.File(context.cacheDir, "test-$name.ogg")

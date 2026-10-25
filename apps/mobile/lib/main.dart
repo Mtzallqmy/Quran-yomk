@@ -83,6 +83,7 @@ Future<void> main() async {
   final features = FeatureManager(
     config: remoteConfig,
     installedVersion: packageInfo.version,
+    installedBuildNumber: packageInfo.buildNumber,
   );
   final localNotifications = LocalNotificationService();
   final learning = LearningStore(preferences)..load();

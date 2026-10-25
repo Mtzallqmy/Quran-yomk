@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'surah_content.dart';
 import 'mushaf_store.dart';
+import 'content_catalog.dart';
 
 final surahContentProvider = Provider<SurahApiClient>((ref) {
-  final api = SurahApiClient();
+  final registry = ContentCatalogApi();
+  final api = SurahApiClient(projectCatalog: registry.surahProjects);
+  ref.onDispose(registry.dispose);
   ref.onDispose(api.close);
   return api;
 });

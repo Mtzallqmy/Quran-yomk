@@ -59,9 +59,10 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
 
   @override
   Widget build(BuildContext context) {
-    final favorites = ref.watch(servicesProvider).favorites;
+    final services = ref.watch(servicesProvider);
+    final favorites = services.favorites;
     return Scaffold(
-      appBar: AppBar(title: const Text('نسخة المفضلة الاختيارية')),
+      appBar: AppBar(title: const Text('النسخ السحابي الاختياري')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -97,6 +98,34 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
               label: const Text('أوافق على إرسال المفضلة وتفعيل النسخة'),
             ),
           if (_enabled) ...[
+            const Text(
+              'يمكنك حفظ إعدادات الأذان بصورة منفصلة: طريقة الحساب، التعديلات، أنماط التنبيه، مستوى الصوت واختيارات الأصوات المدمجة. لا تُرسل الإحداثيات أو المواقيت اليدوية أو الملفات الصوتية. تبقى الجدولة محلية وتحتاج صلاحيات الهاتف.',
+            ),
+            OutlinedButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () => _run(
+                      () => _client.uploadPrayerPreferences(
+                        services.prayerSettings.value,
+                      ),
+                      'حُفظت إعدادات الأذان دون الموقع أو ملفات الصوت.',
+                    ),
+              icon: const Icon(Icons.cloud_upload_outlined),
+              label: const Text('أوافق على حفظ إعدادات الأذان'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () => _run(
+                      () => _client.restorePrayerPreferences(
+                        services.prayerSettings,
+                      ),
+                      'استُعيدت إعدادات الأذان. تُراجع الجدولة محليًا وفق صلاحيات الهاتف؛ موقعك محفوظ.',
+                    ),
+              icon: const Icon(Icons.alarm),
+              label: const Text('استعادة إعدادات الأذان وإعادة الجدولة'),
+            ),
+            const Divider(),
             FilledButton.icon(
               onPressed: _busy
                   ? null

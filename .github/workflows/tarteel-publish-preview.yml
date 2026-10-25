@@ -2,12 +2,12 @@ name: Publish verified Tarteel preview
 on:
   push:
     branches: [feat/tarteel-mushaf-surah-unification-2092]
-    paths: ['release-candidates/preview-2094.json']
+    paths: ['release-candidates/preview-2095.json']
 permissions:
   contents: write
   actions: read
 concurrency:
-  group: tarteel-publish-preview-2094
+  group: tarteel-publish-preview-2095
   cancel-in-progress: false
 jobs:
   publish:
@@ -26,19 +26,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >-
           python3 scripts/tarteel/publish_verified_preview.py
-          --metadata release-candidates/preview-2094.json
+          --metadata release-candidates/preview-2095.json
           --build-tools "$ANDROID_HOME/build-tools/36.0.0"
           --output preview-release --prepare-only
-      - name: Download exact signed2092 baseline
+      - name: Download exact signed2094 baseline
         run: |
-          curl --fail --location --retry 2 --output preview-release/baseline2092.apk 'https://github.com/Mtzallqmy/Quran-yomk/releases/download/v0.9.1-beta.1-preview.2092/Tarteel-0.9.1-beta.1-2092-ARM64-PREVIEW.apk'
-          echo '46c0ddd6cf99122192473ef8b409a70b1862ef764f6ef2b4ae885420ded2e10b  preview-release/baseline2092.apk' | sha256sum --check
+          curl --fail --location --retry 2 --output preview-release/baseline2094.apk 'https://github.com/Mtzallqmy/Quran-yomk/releases/download/v0.9.2-beta.2-preview.2094/Tarteel-0.9.2-beta.2-2094-ARM64-PREVIEW.apk'
+          echo '18f7103c3ef8efde6577872e6ee5cacfe5788cf80a43949fa7e8023e0e050429  preview-release/baseline2094.apk' | sha256sum --check
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Actual ARM64 signed2092 upgrade and data retention
+      - name: Actual ARM64 signed2094 upgrade and data retention
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -47,13 +47,13 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: python3 scripts/tarteel/upgrade_preview_acceptance.py --baseline preview-release/baseline2092.apk --candidate preview-release/Tarteel-0.9.2-beta.2-2094-ARM64-PREVIEW.apk --apksigner "$ANDROID_HOME/build-tools/36.0.0/apksigner" --output preview-release/upgrade
+          script: python3 scripts/tarteel/upgrade_preview_acceptance.py --baseline preview-release/baseline2094.apk --candidate preview-release/Tarteel-0.9.2-beta.3-2095-ARM64-PREVIEW.apk --apksigner "$ANDROID_HOME/build-tools/36.0.0/apksigner" --output preview-release/upgrade
       - name: Publish only after exact APK upgrade acceptance
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
           python3 scripts/tarteel/publish_verified_preview.py
-          --metadata release-candidates/preview-2094.json
+          --metadata release-candidates/preview-2095.json
           --build-tools "$ANDROID_HOME/build-tools/36.0.0"
           --output preview-release --upgrade-evidence preview-release/upgrade/acceptance.json
       - uses: actions/upload-artifact@v4

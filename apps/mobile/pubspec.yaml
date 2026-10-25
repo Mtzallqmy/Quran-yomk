@@ -1,7 +1,7 @@
 name: tarteel
 description: Tarteel listener for Quran live radio, Mushaf reading, and recitations.
 publish_to: none
-version: 0.9.2-beta.2+94
+version: 0.9.2-beta.3+95
 
 environment:
   sdk: ">=3.12.0 <4.0.0"

@@ -35,6 +35,12 @@ export function handler(pool){
     );
     return json({surah,themes:rows,kind:'tags-not-exclusive-contiguous-passages'});
    }
+   if(u.pathname==='/v1/surah/projects'){
+    const projects=await read(
+      'SELECT slug,title,scope,source_url,policy,attribution,terms_url,permanent_storage_allowed,redistribution_allowed FROM surah_content.public_projects ORDER BY slug'
+    );
+    return json({projects,source:'surah_content.public_projects',offline_reuse_allowed:false});
+   }
    if(u.pathname==='/v1/catalog'){
     if(cached&&Date.now()<until)return json(cached);
     const rows=await read('SELECT id,kind,title_ar,language_code,edition,metadata FROM tarteel_catalog.public_catalog ORDER BY kind,id LIMIT 500');cached={data:rows};until=Date.now()+60000;return json(cached);

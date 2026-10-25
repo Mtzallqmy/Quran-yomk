@@ -20,7 +20,7 @@ export function handler(pool){
     const page=Number(p[1]);
     if(page>604)return json({error:'PAGE_OUT_OF_RANGE'},400);
     const rows=await read(
-      'SELECT edition_id,verse_key,source_bounds FROM tarteel_mushaf.mushaf_ayah_positions WHERE page=$1 ORDER BY verse_key',
+      'SELECT edition_id,verse_key,source_bounds FROM tarteel_mushaf.public_ayah_positions WHERE page=$1 ORDER BY verse_key',
       [page]
     );
     return json({page,positions:rows,source:'tarteel_mushaf.mushaf_ayah_positions'});
@@ -30,7 +30,7 @@ export function handler(pool){
     const surah=Number(t[1]);
     if(surah>114)return json({error:'SURAH_OUT_OF_RANGE'},400);
     const rows=await read(
-      "SELECT r.verse_key,s.id,s.title_ar,s.source_id FROM tarteel_mushaf.thematic_ayah_ranges r JOIN tarteel_mushaf.thematic_sections s ON s.id=r.section_id WHERE split_part(r.verse_key,':',1)::integer=$1 ORDER BY r.verse_key,s.id LIMIT 5000",
+      "SELECT r.verse_key,s.id,s.title_ar,s.source_id FROM tarteel_mushaf.public_thematic_ayahs r JOIN tarteel_mushaf.public_thematic_sections s ON s.id=r.section_id WHERE split_part(r.verse_key,':',1)::integer=$1 ORDER BY r.verse_key,s.id LIMIT 5000",
       [surah]
     );
     return json({surah,themes:rows,kind:'tags-not-exclusive-contiguous-passages'});

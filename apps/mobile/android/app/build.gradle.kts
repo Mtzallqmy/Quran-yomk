@@ -29,6 +29,7 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["tarteelAppLabel"] = "ترتيل"
     }
 
     signingConfigs {
@@ -44,6 +45,14 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            if (System.getenv("TARTEEL_ISOLATED_TRIAL") == "1") {
+                // Side-by-side trial, never replaces the installed 2092 APK.
+                applicationIdSuffix = ".trial"
+                versionNameSuffix = "-trial"
+                manifestPlaceholders["tarteelAppLabel"] = "ترتيل تجربة"
+            }
+        }
         release {
             // Never silently create a new debug identity for an in-place update.
             // CI supplies the existing key and verifies its certificate against 2074.

@@ -125,40 +125,42 @@ class _MushafPageReaderState extends State<MushafPageReader> {
         builder: (context, update) => SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('إعدادات المصحف'),
-                SwitchListTile(
-                  value: widget.store.showThemes,
-                  onChanged: (value) async {
-                    await widget.store.setShowThemes(value);
-                    update(() {});
-                  },
-                  title: const Text('إظهار التلوين الموضوعي'),
-                ),
-                const Text('شفافية الألوان الهادئة'),
-                Slider(
-                  value: widget.store.themeOpacity,
-                  min: 0.08,
-                  max: 0.65,
-                  onChanged: (value) async {
-                    await widget.store.setThemeOpacity(value);
-                    update(() {});
-                  },
-                ),
-                SwitchListTile(
-                  value: widget.store.autoTafsirPanel,
-                  onChanged: (value) async {
-                    await widget.store.setAutoTafsirPanel(value);
-                    update(() {});
-                  },
-                  title: const Text('فتح لوحة التفسير عند تحديد الآية'),
-                ),
-                const Text(
-                  'موضوعات موثقة لـ3673 من6236آية (58.9%). الآيات غير المصنفة تبقى دون لون.',
-                ),
-              ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('إعدادات المصحف'),
+                  SwitchListTile(
+                    value: widget.store.showThemes,
+                    onChanged: (value) async {
+                      await widget.store.setShowThemes(value);
+                      if (context.mounted) update(() {});
+                    },
+                    title: const Text('إظهار التلوين الموضوعي'),
+                  ),
+                  const Text('شفافية الألوان الهادئة'),
+                  Slider(
+                    value: widget.store.themeOpacity,
+                    min: 0.08,
+                    max: 0.65,
+                    onChanged: (value) async {
+                      await widget.store.setThemeOpacity(value);
+                      if (context.mounted) update(() {});
+                    },
+                  ),
+                  SwitchListTile(
+                    value: widget.store.autoTafsirPanel,
+                    onChanged: (value) async {
+                      await widget.store.setAutoTafsirPanel(value);
+                      if (context.mounted) update(() {});
+                    },
+                    title: const Text('فتح لوحة التفسير عند تحديد الآية'),
+                  ),
+                  const Text(
+                    'موضوعات موثقة لـ3673 من6236آية (58.9%). الآيات غير المصنفة تبقى دون لون.',
+                  ),
+                ],
+              ),
             ),
           ),
         ),

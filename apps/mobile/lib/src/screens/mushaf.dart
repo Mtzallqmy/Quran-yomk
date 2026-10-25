@@ -803,7 +803,9 @@ class _AudioAndReadingControls extends ConsumerWidget {
                 value: store.showThemes,
                 onChanged: store.setShowThemes,
                 title: Text(l10n.showThemes),
-                subtitle: Text(l10n.thematicRukuNote),
+                subtitle: const Text(
+                  'وسوم Quranpedia الموثقة؛ تغطية58.9%، وليست تقسيمًا متصلًا شاملًا.',
+                ),
               ),
             ],
           ),

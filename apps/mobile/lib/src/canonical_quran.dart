@@ -147,6 +147,10 @@ class TarteelCanonicalQuran {
 
 extension CanonicalAyahIdentity on QuranVerse {
   String get canonicalId => 'hafs:$verseKey';
+  // End-of-ayah numerals are display metadata, not memorization words.
+  // The canonical source string remains untouched for reading/copying.
+  String get studyText =>
+      textUthmani.replaceFirst(RegExp(r'\s*\u06dd[٠-٩0-9]+\s*$'), '');
   bool get hasEmbeddedAyahNumber =>
       RegExp(r'\u06dd[٠-٩0-9]+\s*$').hasMatch(textUthmani);
 }

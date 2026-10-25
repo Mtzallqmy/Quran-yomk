@@ -15,6 +15,17 @@ import 'package:tarteel/src/tajweed.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
+    'study presentation excludes the verse-end numeral without changing source text',
+    () async {
+      final q = await TarteelCanonicalQuran.load();
+      final verse = q.ayah('1:1')!;
+      final original = verse.textUthmani;
+      expect(verse.studyText.contains('\u06dd'), false);
+      expect(verse.textUthmani, original);
+      expect(verse.hasEmbeddedAyahNumber, true);
+    },
+  );
+  test(
     'tajweed offsets fail without identical Unicode fingerprint and reviewed rights',
     () async {
       final text = (await TarteelCanonicalQuran.load())

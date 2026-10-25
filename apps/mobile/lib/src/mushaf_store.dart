@@ -107,6 +107,16 @@ class MushafStore extends ChangeNotifier {
   static const _presentationKey = 'mushaf:presentation:v1';
   static const _pageEditionKey = 'mushaf:page-edition:v1';
 
+  static const _educationKey = 'mushaf:education-project:v1';
+  String get educationProject =>
+      _prefs.getString(_educationKey) ?? 'tafsir-mokhtasar';
+  Future<void> setEducationProject(String slug) async {
+    if (!RegExp(r'^[a-zA-Z0-9_-]{1,100}$').hasMatch(slug))
+      throw ArgumentError('Invalid project');
+    await _prefs.setString(_educationKey, slug);
+    notifyListeners();
+  }
+
   final SharedPreferences _prefs;
   final Map<String, MushafBookmark> _bookmarks = <String, MushafBookmark>{};
 

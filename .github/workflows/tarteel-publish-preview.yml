@@ -2,12 +2,12 @@ name: Publish verified Tarteel preview
 on:
   push:
     branches: [feat/tarteel-local-prayer-neon-2074]
-    paths: ['release-candidates/preview-2092.json']
+    paths: ['release-candidates/preview-2093.json']
 permissions:
   contents: write
   actions: read
 concurrency:
-  group: tarteel-publish-preview-2092
+  group: tarteel-publish-preview-2093
   cancel-in-progress: false
 jobs:
   publish:
@@ -26,7 +26,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >-
           python3 scripts/tarteel/publish_verified_preview.py
-          --metadata release-candidates/preview-2092.json
+          --metadata release-candidates/preview-2093.json
           --build-tools "$ANDROID_HOME/build-tools/36.0.0"
           --output preview-release
       - uses: actions/upload-artifact@v4

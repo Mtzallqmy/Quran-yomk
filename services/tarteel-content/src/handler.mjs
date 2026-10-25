@@ -13,6 +13,10 @@ export function handler(pool){
     const status=await read('SELECT * FROM tarteel_mushaf.public_library_status');
     return json({editions,packages,status:status[0]??null});
    }
+   if(u.pathname==='/v1/surah-projects'){
+    const projects=await read('SELECT * FROM surah_content.public_projects ORDER BY slug');
+    return json({projects,contentStorage:'metadata_only',contentAccess:'direct_official_api'});
+   }
    if(u.pathname==='/v1/catalog'){
     if(cached&&Date.now()<until)return json(cached);
     const rows=await read('SELECT id,kind,title_ar,language_code,edition,metadata FROM tarteel_catalog.public_catalog ORDER BY kind,id LIMIT 500');cached={data:rows};until=Date.now()+60000;return json(cached);

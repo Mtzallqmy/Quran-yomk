@@ -9,6 +9,7 @@ import 'islamic_content.dart';
 import 'mushaf_pages.dart';
 import 'mushaf_store.dart';
 import 'quran_models.dart';
+import 'surah_reader_panel.dart';
 
 class MushafPageReader extends StatefulWidget {
   const MushafPageReader({
@@ -117,10 +118,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     if (selected == null || !mounted) return;
     final verse = await widget.resolveVerse(_page, selected.verseKey);
     if (verse == null || !mounted) return;
-    final content = await widget.contentRepository.ayahContent(
-      selected.surahNumber,
-      selected.ayahNumber,
-    );
+    await widget.store.backupBeforeLibraryUpgrade();
     if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
@@ -149,27 +147,12 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               'الآية ${selected.verseKey}',
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            if (content.theme != null) ...<Widget>[
-              const SizedBox(height: 12),
-              ListTile(
-                tileColor: Color(content.theme!.colorValue),
-                leading: const Icon(Icons.palette_outlined),
-                title: Text(content.theme!.titleAr),
-                subtitle: Text(content.theme!.descriptionAr),
-              ),
-            ],
-            if (content.tafseer != null) ...<Widget>[
-              const SizedBox(height: 12),
-              Text(
-                'التفسير الميسر',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 6),
-              SelectableText(
-                content.tafseer!,
-                textDirection: TextDirection.rtl,
-              ),
-            ],
+            SurahReaderPanel(
+              surah: selected.surahNumber,
+              ayah: selected.ayahNumber,
+              page: _page,
+              preferences: widget.store,
+            ),
             const Divider(height: 28),
             ListTile(
               leading: const Icon(Icons.play_circle_outline),
@@ -183,9 +166,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               leading: const Icon(Icons.copy_outlined),
               title: const Text('نسخ الآية'),
               onTap: () async {
-                await Clipboard.setData(
-                  ClipboardData(text: content.arabic ?? verse.textUthmani),
-                );
+                await Clipboard.setData(ClipboardData(text: verse.textUthmani));
                 if (context.mounted) Navigator.pop(context);
               },
             ),
@@ -195,7 +176,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               onTap: () => SharePlus.instance.share(
                 ShareParams(
                   text:
-                      '${content.arabic ?? verse.textUthmani}\n'
+                      '${verse.textUthmani}\n'
                       '[${selected.verseKey}]',
                 ),
               ),

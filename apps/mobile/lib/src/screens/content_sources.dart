@@ -7,6 +7,7 @@ import '../islamic_content.dart';
 import '../l10n.dart';
 import '../models.dart';
 import '../services.dart';
+import '../surah_reader_panel.dart';
 
 class ContentSourcesPage extends ConsumerWidget {
   const ContentSourcesPage({super.key});
@@ -25,6 +26,7 @@ class ContentSourcesPage extends ConsumerWidget {
             return ListView(
               children: const [
                 BundledAudioSources(),
+                SurahContentSource(),
                 _MushafLibrarySource(),
                 SizedBox(height: 80, child: LoadingPane()),
               ],
@@ -35,6 +37,7 @@ class ContentSourcesPage extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 24),
               children: <Widget>[
                 const BundledAudioSources(),
+                const SurahContentSource(),
                 const _MushafLibrarySource(),
                 const _IslamicLibrarySource(),
                 const _QuranEncSource(),
@@ -59,6 +62,7 @@ class ContentSourcesPage extends ConsumerWidget {
                 child: Text(l10n.thirdPartyOwnershipNotice),
               ),
               const BundledAudioSources(),
+              const SurahContentSource(),
               const _MushafLibrarySource(),
               const _IslamicLibrarySource(),
               const _QuranEncSource(),

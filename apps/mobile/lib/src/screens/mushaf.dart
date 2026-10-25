@@ -11,6 +11,7 @@ import '../quran_models.dart';
 import '../services.dart';
 import '../download_progress.dart';
 import '../tajweed.dart';
+import '../surah_reader_panel.dart';
 
 class MushafPage extends ConsumerStatefulWidget {
   const MushafPage({super.key, this.onImmersiveChanged, this.initialPage});
@@ -462,7 +463,39 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                             _QuranText(
                               passage: passage,
                               store: mushaf,
-                              onRemember: _remember,
+                              onRemember: (verse) async {
+                                await _remember(verse);
+                                await mushaf.backupBeforeLibraryUpgrade();
+                                if (!context.mounted) return;
+                                await showModalBottomSheet<void>(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  builder: (context) =>
+                                      DraggableScrollableSheet(
+                                        expand: false,
+                                        initialChildSize: 0.75,
+                                        minChildSize: 0.4,
+                                        maxChildSize: 0.95,
+                                        builder: (context, controller) =>
+                                            ListView(
+                                              controller: controller,
+                                              padding: const EdgeInsets.all(16),
+                                              children: [
+                                                Text('الآية ${verse.verseKey}'),
+                                                SelectableText(
+                                                  verse.textUthmani,
+                                                ),
+                                                SurahReaderPanel(
+                                                  surah: verse.surahNumber,
+                                                  ayah: verse.ayahNumber,
+                                                  page: verse.pageNumber,
+                                                  preferences: mushaf,
+                                                ),
+                                              ],
+                                            ),
+                                      ),
+                                );
+                              },
                               onPlayAyah: _playAyah,
                             ),
                             _NavigationControls(

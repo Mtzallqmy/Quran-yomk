@@ -30,7 +30,7 @@ def publish(metadata_path,build_tools,output):
         if type(metadata[key]) is not int or metadata[key]<=0:
             raise ValueError('Invalid Actions identity')
     # The only release this reviewed workflow is authorized to publish.
-    if metadata['tag']!='v0.9.1-beta.1-preview.2092':
+    if metadata['tag']!='v0.9.1-beta.2-preview.2093':
         raise ValueError('Unexpected release tag')
     run=api(f"actions/runs/{metadata['candidate_run_id']}")
     if run['head_sha']!=commit or run['conclusion']!='success' or run['event']!='pull_request' or run['name']!='Tarteel local prayer upgrade':
@@ -59,8 +59,8 @@ def publish(metadata_path,build_tools,output):
         entries=[n for n in package.namelist() if n=='UNSIGNED-tarteel-arm64-v8a.apk']
         if len(entries)!=1:raise ValueError('Unexpected APK artifact layout')
         before=package.read(entries[0])
-    envelope=json.loads((metadata_path.parent/'preview-2092-envelope.json').read_text())
-    apk=output/'Tarteel-0.9.1-beta.1-2092-ARM64-PREVIEW.apk'
+    envelope=json.loads((metadata_path.parent/'preview-2093-envelope.json').read_text())
+    apk=output/'Tarteel-0.9.1-beta.2-2093-ARM64-PREVIEW.apk'
     apk.write_bytes(reconstruct(before,envelope))
     with zipfile.ZipFile(apk) as signed_package:
         if source.encode() not in signed_package.read('lib/arm64-v8a/libapp.so'):
@@ -74,8 +74,8 @@ def publish(metadata_path,build_tools,output):
     if exists.returncode==0:raise ValueError('Release already exists; refusing overwrite')
     subprocess.run(['gh','release','create',metadata['tag'],str(apk),str(verification/'SHA256SUMS.txt'),str(verification/'preview-metadata.json'),
         '--repo',REPO,'--target',source,'--prerelease','--latest=false',
-        '--title','ترتيل 0.9.1-beta.1 — معاينة 2092',
-        '--notes-file','docs/mushaf-library/RELEASE_NOTES.md'],check=True)
+        '--title','ترتيل 0.9.1-beta.2 — معاينة 2093',
+        '--notes-file','docs/surah-api/RELEASE_NOTES.md'],check=True)
     release=api('releases/tags/'+metadata['tag'])
     assets=[a for a in release['assets'] if a['name']==apk.name]
     if len(assets)!=1 or assets[0]['size']!=apk.stat().st_size or not release['prerelease']:

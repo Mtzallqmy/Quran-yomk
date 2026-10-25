@@ -46,3 +46,8 @@ test('mushaf catalog exposes approved views through read-only role and no writes
  assert.equal(releases,3);assert.equal(statements.filter(s=>s==='SET LOCAL ROLE tarteel_catalog_reader').length,3);assert.equal(statements.filter(s=>s==='BEGIN READ ONLY').length,3);
  assert.equal((await h(new Request('https://example.org/v1/mushaf-library',{method:'POST'}))).status,405);
 });
+
+test('Surah exposes metadata through read-only view, never educational bodies',async()=>{
+ const statements=[];const h=handler({async connect(){return {async query(sql){statements.push(sql);return {rows:sql.includes('public_projects')?[{slug:'tafsir-mokhtasar',permanent_storage_allowed:false}]:[]};},release(){}};}});
+ const r=await h(new Request('https://example.org/v1/surah-projects'));assert.equal(r.status,200);const b=await r.json();assert.equal(b.contentStorage,'metadata_only');assert.equal(b.projects[0].permanent_storage_allowed,false);assert.ok(statements.includes('SET LOCAL ROLE tarteel_catalog_reader'));assert.ok(statements.includes('BEGIN READ ONLY'));assert.equal((await h(new Request('https://example.org/v1/surah-projects',{method:'POST'}))).status,405);assert.equal((await h(new Request('https://example.org/v1/aya/tafsir-saadi/1/1'))).status,404);
+});

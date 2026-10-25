@@ -7,6 +7,17 @@ import 'quran_models.dart';
 
 enum MushafReaderPresentation { page, text }
 
+enum UnifiedMushafMode { madinah, thematic, tajweed, combined }
+
+extension UnifiedMushafModeLabel on UnifiedMushafMode {
+  String get label => switch (this) {
+    UnifiedMushafMode.madinah => 'مصحف المدينة',
+    UnifiedMushafMode.thematic => 'المصحف الموضوعي الملون',
+    UnifiedMushafMode.tajweed => 'مصحف التجويد',
+    UnifiedMushafMode.combined => 'الموضوعي مع التجويد',
+  };
+}
+
 class MushafPosition {
   const MushafPosition({
     required this.mode,
@@ -115,6 +126,40 @@ class MushafStore extends ChangeNotifier {
       throw ArgumentError('Invalid project');
     await _prefs.setString(_educationKey, slug);
     notifyListeners();
+  }
+
+  double get themeOpacity =>
+      (_prefs.getDouble('mushaf:theme-opacity:v2') ?? 0.28).clamp(0.08, 0.65);
+  bool get autoTafsirPanel =>
+      _prefs.getBool('mushaf:auto-education-panel:v2') ?? true;
+  Future<void> setThemeOpacity(double value) async {
+    await _prefs.setDouble('mushaf:theme-opacity:v2', value.clamp(0.08, 0.65));
+    notifyListeners();
+  }
+
+  Future<void> setAutoTafsirPanel(bool value) async {
+    await _prefs.setBool('mushaf:auto-education-panel:v2', value);
+    notifyListeners();
+  }
+
+  UnifiedMushafMode get unifiedMode {
+    final tajweed = pageEdition == 'madinahTajweedQcfV4';
+    return tajweed
+        ? (showThemes ? UnifiedMushafMode.combined : UnifiedMushafMode.tajweed)
+        : (showThemes ? UnifiedMushafMode.thematic : UnifiedMushafMode.madinah);
+  }
+
+  Future<void> setUnifiedMode(UnifiedMushafMode mode) async {
+    await backupBeforeLibraryUpgrade();
+    await setShowThemes(
+      mode == UnifiedMushafMode.thematic || mode == UnifiedMushafMode.combined,
+    );
+    await setShowTajweed(
+      mode == UnifiedMushafMode.tajweed || mode == UnifiedMushafMode.combined,
+    );
+    await setPageEdition(
+      showTajweed ? 'madinahTajweedQcfV4' : 'madinahHafsSvg',
+    );
   }
 
   final SharedPreferences _prefs;

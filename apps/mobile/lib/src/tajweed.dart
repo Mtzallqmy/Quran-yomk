@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 
 class TajweedMarkup {
@@ -104,4 +106,57 @@ String arabicIndicNumber(int value) {
     final index = western.indexOf(digit);
     return index < 0 ? digit : arabic[index];
   }).join();
+}
+
+class TajweedColor {
+  const TajweedColor(this.value);
+  final int value;
+}
+
+class TajweedRule {
+  const TajweedRule({
+    required this.id,
+    required this.label,
+    required this.explanation,
+    required this.color,
+    required this.reviewReference,
+  });
+  final String id, label, explanation, reviewReference;
+  final TajweedColor color;
+}
+
+class TajweedTextVersion {
+  const TajweedTextVersion(this.id, this.textSha256);
+  final String id, textSha256;
+}
+
+class TajweedSourceRights {
+  const TajweedSourceRights(
+    this.source,
+    this.licenseUrl, {
+    required this.mayUse,
+    required this.scholarlyReviewed,
+  });
+  final String source, licenseUrl;
+  final bool mayUse, scholarlyReviewed;
+}
+
+class TajweedAnnotation {
+  const TajweedAnnotation(
+    this.startUtf16,
+    this.endUtf16,
+    this.rule,
+    this.version,
+  );
+  final int startUtf16, endUtf16;
+  final TajweedRule rule;
+  final TajweedTextVersion version;
+  bool matches(String exactText, TajweedSourceRights rights) =>
+      rights.mayUse &&
+      rights.scholarlyReviewed &&
+      rule.reviewReference.isNotEmpty &&
+      sha256.convert(utf8.encode(exactText)).toString() == version.textSha256 &&
+      startUtf16 >= 0 &&
+      endUtf16 > startUtf16 &&
+      endUtf16 <= exactText.length;
 }

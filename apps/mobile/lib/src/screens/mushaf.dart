@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +12,9 @@ import '../quran_models.dart';
 import '../services.dart';
 import '../download_progress.dart';
 import '../tajweed.dart';
+import '../canonical_quran.dart';
+import '../thematic_quran.dart';
+import '../mushaf_library.dart';
 import '../surah_reader_panel.dart';
 
 class MushafPage extends ConsumerStatefulWidget {
@@ -31,11 +35,34 @@ class _MushafPageState extends ConsumerState<MushafPage> {
   QuranAudioCatalogReciter? _selectedReciter;
   int _bitrateKbps = 128;
   bool _audioBusy = false;
+  String? _playingKey;
+  StreamSubscription<dynamic>? _media;
+  @override
+  void dispose() {
+    _media?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
     final services = ref.read(servicesProvider);
+    _media = services.playback.mediaItemStream.listen((item) {
+      final extras = item?.extras;
+      final surah = extras?['surah_number'], ayah = extras?['ayah_number'];
+      final key =
+          extras?['kind'] == 'quran_audio' &&
+              surah is int &&
+              ayah is int &&
+              surah > 0 &&
+              ayah > 0
+          ? '$surah:$ayah'
+          : null;
+      if (mounted && key != _playingKey)
+        setState(() {
+          _playingKey = key;
+        });
+    });
     final last = services.mushaf.lastPosition;
     if (last != null) {
       _mode = QuranBrowseMode.page;
@@ -342,6 +369,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
         if (mushaf.presentation == MushafReaderPresentation.page) {
           return MushafPageReader(
             repository: services.mushafPages,
+            playingVerseKey: _playingKey,
             contentRepository: services.islamicContent,
             store: mushaf,
             initialPage: _number,
@@ -463,6 +491,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                             _QuranText(
                               passage: passage,
                               store: mushaf,
+                              playingVerseKey: _playingKey,
                               onRemember: (verse) async {
                                 await _remember(verse);
                                 await mushaf.backupBeforeLibraryUpgrade();
@@ -484,6 +513,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                                                 Text('الآية ${verse.verseKey}'),
                                                 SelectableText(
                                                   verse.textUthmani,
+                                                ),
+                                                ThematicAyahPanel(
+                                                  verseKey: verse.verseKey,
                                                 ),
                                                 SurahReaderPanel(
                                                   surah: verse.surahNumber,
@@ -787,128 +819,133 @@ class _QuranText extends StatelessWidget {
     required this.store,
     required this.onRemember,
     required this.onPlayAyah,
+    this.playingVerseKey,
   });
 
   final QuranPassage passage;
+  final String? playingVerseKey;
   final MushafStore store;
   final ValueChanged<QuranVerse> onRemember;
   final ValueChanged<QuranVerse> onPlayAyah;
 
   @override
-  Widget build(BuildContext context) {
-    final base =
-        Theme.of(context).textTheme.headlineSmall?.copyWith(
-          height: 2.05,
-          fontSize: 25 * store.fontScale,
-          fontFamily: 'serif',
-        ) ??
-        TextStyle(fontSize: 25 * store.fontScale, height: 2.05);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Directionality(
-        textDirection: TextDirection.rtl,
-        child: Column(
-          children: passage.verses
-              .map((verse) {
-                final section = passage.themeSections
-                    .where((item) => item.contains(verse))
-                    .firstOrNull;
-                final color = store.showThemes && section != null
-                    ? _themeColor(context, section.rukuNumber)
-                    : Colors.transparent;
-                final tajweed =
-                    store.showTajweed &&
-                    passage.tajweedAvailable &&
-                    verse.textTajweed != null &&
-                    verse.textTajweed!.isNotEmpty;
-                final spans = tajweed
-                    ? TajweedMarkup.spans(
-                        verse.textTajweed!,
-                        base,
-                        Theme.of(context).colorScheme,
-                      )
-                    : <InlineSpan>[
-                        TextSpan(text: verse.textUthmani, style: base),
-                      ];
-                return Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.symmetric(vertical: 3),
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Expanded(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: () => onRemember(verse),
-                          child: RichText(
-                            textAlign: TextAlign.justify,
-                            textDirection: TextDirection.rtl,
-                            text: TextSpan(
-                              children: <InlineSpan>[
-                                ...spans,
-                                TextSpan(
-                                  text:
-                                      '  ﴿${arabicIndicNumber(verse.ayahNumber)}﴾',
-                                  style: base.copyWith(
-                                    fontSize: 20 * store.fontScale,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
+  Widget build(BuildContext context) => FutureBuilder<MushafTopicIndex>(
+    future: store.showThemes ? MushafTopicIndex.load() : null,
+    builder: (context, topicSnapshot) {
+      final marks = topicSnapshot.hasData
+          ? ThematicPassageResolver(
+              topicSnapshot.data!,
+            ).marks(passage.verses.map((v) => v.verseKey))
+          : <String, ThematicMark>{};
+      final base =
+          Theme.of(context).textTheme.headlineSmall?.copyWith(
+            height: 2.05,
+            fontSize: 25 * store.fontScale,
+            fontFamily: 'TarteelQuran',
+          ) ??
+          TextStyle(fontSize: 25 * store.fontScale, height: 2.05);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Column(
+            children: passage.verses
+                .map((verse) {
+                  final mark = marks[verse.verseKey];
+                  final color = store.showThemes && mark != null
+                      ? Color(
+                          mark.colorValue,
+                        ).withValues(alpha: store.themeOpacity)
+                      : Colors.transparent;
+                  final tajweed =
+                      store.showTajweed &&
+                      passage.tajweedAvailable &&
+                      verse.textTajweed != null &&
+                      verse.textTajweed!.isNotEmpty;
+                  final spans = tajweed
+                      ? TajweedMarkup.spans(
+                          verse.textTajweed!,
+                          base,
+                          Theme.of(context).colorScheme,
+                        )
+                      : <InlineSpan>[
+                          TextSpan(text: verse.textUthmani, style: base),
+                        ];
+                  return Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(vertical: 3),
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                    decoration: BoxDecoration(
+                      color: color,
+                      border: verse.verseKey == playingVerseKey
+                          ? Border.all(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2,
+                            )
+                          : null,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Expanded(
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => onRemember(verse),
+                            child: RichText(
+                              textAlign: TextAlign.justify,
+                              textDirection: TextDirection.rtl,
+                              text: TextSpan(
+                                children: <InlineSpan>[
+                                  ...spans,
+                                  TextSpan(
+                                    text: verse.hasEmbeddedAyahNumber
+                                        ? ''
+                                        : '  ﴿${arabicIndicNumber(verse.ayahNumber)}﴾',
+                                    style: base.copyWith(
+                                      fontSize: 20 * store.fontScale,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      Column(
-                        children: <Widget>[
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            tooltip: context.l10n.play,
-                            onPressed: () => onPlayAyah(verse),
-                            icon: const Icon(Icons.play_circle_outline),
-                          ),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            tooltip: store.isBookmarked(verse.verseKey)
-                                ? context.l10n.removeBookmark
-                                : context.l10n.bookmark,
-                            onPressed: () => store.toggleBookmark(verse),
-                            icon: Icon(
-                              store.isBookmarked(verse.verseKey)
-                                  ? Icons.bookmark
-                                  : Icons.bookmark_border,
+                        Column(
+                          children: <Widget>[
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: context.l10n.play,
+                              onPressed: () => onPlayAyah(verse),
+                              icon: const Icon(Icons.play_circle_outline),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              })
-              .toList(growable: false),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: store.isBookmarked(verse.verseKey)
+                                  ? context.l10n.removeBookmark
+                                  : context.l10n.bookmark,
+                              onPressed: () => store.toggleBookmark(verse),
+                              icon: Icon(
+                                store.isBookmarked(verse.verseKey)
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                })
+                .toList(growable: false),
+          ),
         ),
-      ),
-    );
-  }
-
-  Color _themeColor(BuildContext context, int ruku) {
-    final scheme = Theme.of(context).colorScheme;
-    return switch (ruku % 6) {
-      0 => scheme.primaryContainer.withValues(alpha: 0.26),
-      1 => scheme.secondaryContainer.withValues(alpha: 0.26),
-      2 => scheme.tertiaryContainer.withValues(alpha: 0.26),
-      3 => scheme.surfaceContainerHighest.withValues(alpha: 0.7),
-      4 => scheme.primaryContainer.withValues(alpha: 0.16),
-      _ => scheme.secondaryContainer.withValues(alpha: 0.16),
-    };
-  }
+      );
+    },
+  );
 }
 
 class _NavigationControls extends StatelessWidget {

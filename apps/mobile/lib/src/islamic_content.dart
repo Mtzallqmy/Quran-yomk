@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'canonical_quran.dart';
+import 'quran_models.dart';
 
 const islamicLibraryRepositoryUrl =
     'https://github.com/mohammed-2-5/islamic-library-data';
@@ -120,7 +122,6 @@ class IslamicContentRepository extends ChangeNotifier {
       <String, IslamicContentAsset>{};
   Database? _database;
   Directory? _root;
-  List<IslamicThemeSegment>? _themes;
   bool _cancelRequested = false;
   IslamicContentProgress? progress;
 
@@ -171,6 +172,10 @@ class IslamicContentRepository extends ChangeNotifier {
     bool refresh = false,
     String rightsStatus = 'PER_ITEM',
   }) async {
+    if (RegExp(r'^quran/(chapters/ar|tajweed)/[0-9]+\.json$').hasMatch(path) ||
+        path == 'tafseer/muyassar.json') {
+      throw StateError('RETIRED_QURAN_SOURCE');
+    }
     _validatePath(path);
     await initialize();
     if (!refresh && _memory.containsKey(path)) return _memory[path];
@@ -224,94 +229,47 @@ class IslamicContentRepository extends ChangeNotifier {
     String language = 'ar',
   }) async {
     _validateSurah(surah);
+    if (language == 'ar') {
+      final canonical = await TarteelCanonicalQuran.load();
+      return {
+        'verses': [
+          for (final v
+              in canonical.passage(QuranBrowseMode.surah, surah).verses)
+            {'id': v.ayahNumber, 'text': v.textUthmani},
+        ],
+      };
+    }
     final value = await readJson('quran/chapters/$language/$surah.json');
     return Map<String, dynamic>.from(value as Map);
-  }
-
-  Future<Map<String, dynamic>> tajweed(int surah) async {
-    _validateSurah(surah);
-    final value = await readJson('quran/tajweed/$surah.json');
-    return Map<String, dynamic>.from(value as Map);
-  }
-
-  Future<List<IslamicThemeSegment>> themes() async {
-    if (_themes != null) return _themes!;
-    _themes = parseIslamicThemeSegments(
-      await readJson('quran/quran_segments.json'),
-    );
-    return _themes!;
-  }
-
-  Future<IslamicThemeSegment?> themeForAyah(int surah, int ayah) async {
-    final values = await themes();
-    return values.where((value) => value.contains(surah, ayah)).firstOrNull;
-  }
-
-  Future<Map<String, IslamicThemeSegment>> themesForVerseKeys(
-    Iterable<String> verseKeys,
-  ) async {
-    final values = await themes();
-    final result = <String, IslamicThemeSegment>{};
-    for (final key in verseKeys) {
-      final parts = key.split(':');
-      if (parts.length != 2) continue;
-      final surah = int.tryParse(parts[0]);
-      final ayah = int.tryParse(parts[1]);
-      if (surah == null || ayah == null) continue;
-      final match = values
-          .where((value) => value.contains(surah, ayah))
-          .firstOrNull;
-      if (match != null) result[key] = match;
-    }
-    return result;
-  }
-
-  Future<IslamicAyahContent> ayahContent(int surah, int ayah) async {
-    _validateSurah(surah);
-    final values = await Future.wait<dynamic>(<Future<dynamic>>[
-      this.surah(surah),
-      this.surah(surah, language: 'en'),
-      readJson('tafseer/muyassar.json'),
-      tajweed(surah),
-      themeForAyah(surah, ayah),
-    ]);
-    String? verseText(dynamic source) {
-      final verses = (source as Map)['verses'] as List<dynamic>? ?? const [];
-      final item = verses
-          .where((value) => ((value as Map)['id'] as num?)?.toInt() == ayah)
-          .firstOrNull;
-      return item == null ? null : (item as Map)['text'] as String?;
-    }
-
-    final tafseer = (values[2] as List<dynamic>).where((value) {
-      final item = value as Map;
-      return int.tryParse('${item['number']}') == surah &&
-          int.tryParse('${item['aya']}') == ayah;
-    }).firstOrNull;
-    final tajweedVerses =
-        (values[3] as Map)['verses'] as List<dynamic>? ?? const <dynamic>[];
-    final tajweedVerse = tajweedVerses
-        .where((value) => ((value as Map)['id'] as num?)?.toInt() == ayah)
-        .firstOrNull;
-    return IslamicAyahContent(
-      surahNumber: surah,
-      ayahNumber: ayah,
-      arabic: verseText(values[0]),
-      english: verseText(values[1]),
-      tafseer: tafseer == null ? null : (tafseer as Map)['text'] as String?,
-      tajweedMarkup: tajweedVerse == null
-          ? null
-          : (tajweedVerse as Map)['text'] as String?,
-      theme: values[4] as IslamicThemeSegment?,
-    );
   }
 
   Future<void> synchronizeInBackground() async {
     // Pinned-version synchronization is deterministic: it warms the small
     // index/theme files and never blocks startup or replaces verified data.
     try {
+      await TarteelCanonicalQuran.load();
+      await initialize();
+      final marker = File(p.join(_root!.path, 'retired-canonical-v2.json'));
+      if (!await marker.exists()) {
+        final retired = await retireLegacyQuranTextFiles(_root!);
+        await _database!.transaction((tx) async {
+          for (final path in retired.keys) {
+            await tx.delete(
+              'content_assets',
+              where: 'path = ? AND revision = ?',
+              whereArgs: [path, islamicLibraryRevision],
+            );
+            _memory.remove(path);
+          }
+        });
+        await marker.writeAsString(
+          jsonEncode({
+            'canonical': QuranTextVersion.id,
+            'retired_sha256': retired,
+          }),
+        );
+      }
       await Future.wait<dynamic>(<Future<dynamic>>[
-        readJson('quran/quran_segments.json'),
         readJson('quran/hizb_quarters.json'),
         readJson('quran/qcf_surah_starts.json'),
         readJson('data/catalog.json'),
@@ -389,11 +347,8 @@ class IslamicContentRepository extends ChangeNotifier {
         .toSet();
     if (group == 'quran') {
       for (var surah = 1; surah <= 114; surah++) {
-        paths.add('quran/chapters/ar/$surah.json');
         paths.add('quran/chapters/en/$surah.json');
-        paths.add('quran/tajweed/$surah.json');
       }
-      paths.add('tafseer/muyassar.json');
     } else if (group == 'hadith') {
       for (final id in const <String>['bukhari', 'muslim', 'malik', 'ahmed']) {
         paths.add('hadith/$id.json');
@@ -484,4 +439,29 @@ List<IslamicThemeSegment> parseIslamicThemeSegments(dynamic decoded) {
   }
   if (result.isEmpty) throw const FormatException('No thematic segments');
   return List<IslamicThemeSegment>.unmodifiable(result);
+}
+
+/// Exact expendable Quran-cache paths only; English, audio and user databases stay.
+Future<Map<String, String>> retireLegacyQuranTextFiles(Directory root) async {
+  final removed = <String, String>{};
+  final canonicalRoot = await root.resolveSymbolicLinks();
+  final paths = [
+    for (var s = 1; s <= 114; s++) ...[
+      'quran/chapters/ar/$s.json',
+      'quran/tajweed/$s.json',
+    ],
+    'tafseer/muyassar.json',
+  ];
+  for (final relative in paths) {
+    final file = File(p.join(root.path, relative));
+    if (await FileSystemEntity.type(file.path, followLinks: false) !=
+        FileSystemEntityType.file)
+      continue;
+    final actual = await file.resolveSymbolicLinks();
+    if (!p.isWithin(canonicalRoot, actual))
+      throw StateError('QURAN_CACHE_OUTSIDE_ROOT');
+    removed[relative] = sha256.convert(await file.readAsBytes()).toString();
+    await file.delete();
+  }
+  return removed;
 }

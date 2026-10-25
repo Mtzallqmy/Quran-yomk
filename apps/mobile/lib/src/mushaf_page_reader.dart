@@ -62,12 +62,18 @@ class _MushafPageReaderState extends State<MushafPageReader> {
       (value) => value.name == widget.store.pageEdition,
       orElse: () => MushafPageEdition.madinahHafsSvg,
     );
+    widget.store.addListener(_onMushafPreferencesChanged);
     _scheduleControlsHide();
+  }
+
+  void _onMushafPreferencesChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _controlsTimer?.cancel();
+    widget.store.removeListener(_onMushafPreferencesChanged);
     _pages.dispose();
     widget.onImmersiveChanged(false);
     super.dispose();
@@ -95,6 +101,15 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     });
     await widget.store.setPageEdition(edition.name);
     _scheduleControlsHide();
+  }
+
+  Future<void> _setReadingMode(String mode) async {
+    final colored = mode == 'thematic' || mode == 'combined';
+    final edition = mode == 'tajweed' || mode == 'combined'
+        ? MushafPageEdition.madinahTajweedQcfV4
+        : MushafPageEdition.madinahHafsSvg;
+    await widget.store.setShowThemes(colored);
+    await _setEdition(edition);
   }
 
   Future<void> _select(MushafAyahRegion region) async {
@@ -553,6 +568,11 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                                   widget.onDownloadSurah();
                                 case 'pack':
                                   _offlinePack();
+                                case 'traditional':
+                                case 'thematic':
+                                case 'tajweed':
+                                case 'combined':
+                                  _setReadingMode(action);
                                 case 'themes':
                                   widget.store.setShowThemes(
                                     !widget.store.showThemes,
@@ -572,6 +592,26 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                                 value: 'pack',
                                 child: Text('تنزيل صفحات المصحف'),
                               ),
+                              if (const bool.fromEnvironment(
+                                  'TARTEEL_ISOLATED_TRIAL',
+                                  defaultValue: false)) ...[
+                                const PopupMenuItem(
+                                  value: 'traditional',
+                                  child: Text('مصحف المدينة التقليدي'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'thematic',
+                                  child: Text('المصحف الموضوعي الملون'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'tajweed',
+                                  child: Text('مصحف التجويد'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'combined',
+                                  child: Text('المصحف الموضوعي مع التجويد'),
+                                ),
+                              ],
                               PopupMenuItem(
                                 value: 'themes',
                                 child: Text(

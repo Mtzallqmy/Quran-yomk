@@ -176,43 +176,53 @@ void main() {
     api.close();
   });
   testWidgets(
-    'actual source word is selectable in RTL without reader branding',
+    'word projects retain their own token identities and location updates refresh tafsir',
     (tester) async {
+      final paths = <String>[];
       final api = SurahApiClient(
         client: MockClient((r) async {
-          if (r.url.path.endsWith('projects')) return response(catalog);
+          paths.add(r.url.path);
+          if (r.url.path.endsWith('projects'))
+            return response([
+              ...catalog,
+              {'slug': 'word-qeraat', 'title': 'بيان القراءات', 'type': 'word'},
+            ]);
+          final pieces = r.url.pathSegments;
           if (r.url.path.contains('/word/'))
             return response([
               {
                 'sura_number': 1,
-                'aya_number': 1,
-                'word_number': 1,
-                'word': 'كلمة',
-                'content': 'إعراب موثق',
+                'aya_number': int.parse(pieces[5]),
+                'word_number': pieces[3] == 'word-qeraat' ? 9 : 1,
+                'word': pieces[3] == 'word-qeraat'
+                    ? 'كلمة المصدر المختلف'
+                    : 'كلمة',
+                'content': pieces[3] == 'word-qeraat'
+                    ? 'قراءات موثقة'
+                    : 'إعراب موثق',
               },
             ]);
           return response({
             'sura_number': 1,
-            'aya_number': 1,
-            'content': 'تفسير',
+            'aya_number': int.parse(pieces.last),
+            'content': 'تفسير ${pieces.last}',
           });
         }),
       );
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [surahContentProvider.overrideWithValue(api)],
-          child: MaterialApp(
-            home: Scaffold(
-              body: SingleChildScrollView(
-                child: Directionality(
-                  textDirection: TextDirection.rtl,
-                  child: SurahReaderPanel(surah: 1, ayah: 1, page: 1),
-                ),
+      Widget tree(int ayah) => ProviderScope(
+        overrides: [surahContentProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: SurahReaderPanel(surah: 1, ayah: ayah, page: 1),
               ),
             ),
           ),
         ),
       );
+      await tester.pumpWidget(tree(1));
       await tester.pumpAndSettle();
       expect(find.text(SurahRightsRegistry.attribution), findsNothing);
       await tester.tap(find.text('الكلمات والإعراب'));
@@ -220,6 +230,21 @@ void main() {
       await tester.tap(find.text('كلمة'));
       await tester.pumpAndSettle();
       expect(find.text('إعراب موثق'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('surah-word-project')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('بيان القراءات').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('كلمة المصدر المختلف'));
+      await tester.pumpAndSettle();
+      expect(find.text('قراءات موثقة'), findsOneWidget);
+      expect(find.text('تفسير 1'), findsOneWidget);
+      expect(paths, contains('/api/v1/word/word-qeraat/1/1/1/32'));
+      await tester.pumpWidget(tree(2));
+      await tester.pumpAndSettle();
+      expect(find.text('تفسير 2'), findsOneWidget);
+      expect(paths, contains('/api/v1/word/word-qeraat/1/2/1/32'));
+      expect(find.text('تفسير 1'), findsNothing);
+      expect(find.text('قراءات موثقة'), findsNothing);
       api.close();
     },
   );

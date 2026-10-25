@@ -8,6 +8,7 @@ import '../l10n.dart';
 import '../models.dart';
 import '../services.dart';
 import '../surah_reader_panel.dart';
+import '../canonical_quran.dart';
 
 class ContentSourcesPage extends ConsumerWidget {
   const ContentSourcesPage({super.key});
@@ -27,6 +28,12 @@ class ContentSourcesPage extends ConsumerWidget {
               children: const [
                 BundledAudioSources(),
                 SurahContentSource(),
+                ListTile(
+                  title: Text(QuranSourceRights.publisher),
+                  subtitle: SelectableText(
+                    "${QuranTextVersion.id}\n${QuranSourceRights.notice}\n${QuranSourceRights.permissionUrl}",
+                  ),
+                ),
                 _MushafLibrarySource(),
                 SizedBox(height: 80, child: LoadingPane()),
               ],
@@ -38,6 +45,12 @@ class ContentSourcesPage extends ConsumerWidget {
               children: <Widget>[
                 const BundledAudioSources(),
                 const SurahContentSource(),
+                ListTile(
+                  title: Text(QuranSourceRights.publisher),
+                  subtitle: SelectableText(
+                    "${QuranTextVersion.id}\n${QuranSourceRights.notice}\n${QuranSourceRights.permissionUrl}",
+                  ),
+                ),
                 const _MushafLibrarySource(),
                 const _IslamicLibrarySource(),
                 const _QuranEncSource(),
@@ -63,6 +76,12 @@ class ContentSourcesPage extends ConsumerWidget {
               ),
               const BundledAudioSources(),
               const SurahContentSource(),
+              ListTile(
+                title: Text(QuranSourceRights.publisher),
+                subtitle: SelectableText(
+                  "${QuranTextVersion.id}\n${QuranSourceRights.notice}\n${QuranSourceRights.permissionUrl}",
+                ),
+              ),
               const _MushafLibrarySource(),
               const _IslamicLibrarySource(),
               const _QuranEncSource(),

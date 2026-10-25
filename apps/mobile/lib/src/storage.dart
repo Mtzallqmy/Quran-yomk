@@ -7,6 +7,16 @@ class MetadataCache {
   MetadataCache(this._prefs);
   final SharedPreferences _prefs;
 
+  Future<void> retireLegacyQuranPassages() async {
+    const marker = 'mushaf:canonical-v2-cache-migrated';
+    if (_prefs.getBool(marker) == true) return;
+    final retired = RegExp(r'^cache:quran:(surah|juz|page):[0-9]+(:written)?$');
+    for (final key in _prefs.getKeys().where(retired.hasMatch).toList()) {
+      await _prefs.remove(key);
+    }
+    await _prefs.setBool(marker, true);
+  }
+
   dynamic read(String key, Duration maxAge) {
     final raw = _prefs.getString('cache:$key');
     final written = _prefs.getInt('cache:$key:written');

@@ -53,7 +53,13 @@ class SurahContentEntry {
   final Uri sourceUrl;
   int? get wordNumber => (data['word_number'] as num?)?.toInt();
   String get word => plain('${data['word'] ?? ''}');
-  String get text => plain('${data['content'] ?? ''}');
+  String get text {
+    final content = data['content'];
+    return content is List
+        ? content.cast<String>().map(plain).join('\n\n')
+        : plain('${content ?? ''}');
+  }
+
   String get sha256Hex =>
       sha256.convert(utf8.encode(jsonEncode(data))).toString();
   static String plain(String value) {
@@ -241,7 +247,11 @@ class SurahApiClient {
     final rows = raw is List ? raw : [raw];
     final seen = <String>{};
     return rows.map((row) {
-      if (row is! Map || row['content'] is! String)
+      if (row is! Map ||
+          !(row['content'] is String ||
+              (project.scope == SurahScope.page &&
+                  row['content'] is List &&
+                  (row['content'] as List).every((v) => v is String))))
         throw const FormatException('INVALID_CONTENT');
       final keys = switch (project.scope) {
         SurahScope.sura => ['sura_number'],

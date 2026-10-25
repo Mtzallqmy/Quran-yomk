@@ -1,4 +1,5 @@
 import 'api.dart';
+import 'canonical_quran.dart';
 import 'models.dart';
 import 'offline_clip_contract.dart';
 import 'quran_models.dart';
@@ -189,31 +190,7 @@ class TarteelRepository {
       api.reciters(query: query, page: page, limit: 30);
 
   Future<List<Surah>> surahs({bool refresh = false}) async {
-    const key = 'surahs';
-    final cached = refresh ? null : cache.read(key, const Duration(days: 7));
-    if (cached is List) {
-      final result = cached
-          .map((e) => Surah.fromJson(jsonMap(e)))
-          .toList(growable: false);
-      if (result.length == 114) return result;
-    }
-    try {
-      final result = await api.surahs();
-      await cache.write(
-        key,
-        result.map((e) => e.toJson()).toList(growable: false),
-      );
-      return result;
-    } catch (_) {
-      final stale = cache.readStale(key);
-      if (stale is List) {
-        final result = stale
-            .map((e) => Surah.fromJson(jsonMap(e)))
-            .toList(growable: false);
-        if (result.length == 114) return result;
-      }
-      rethrow;
-    }
+    return (await TarteelCanonicalQuran.load()).surahs;
   }
 
   Future<QuranPassage> quranPassage(
@@ -221,59 +198,9 @@ class TarteelRepository {
     int number, {
     bool refresh = false,
   }) async {
-    final key = 'quran:${mode.name}:$number';
-    final maxAge = mode == QuranBrowseMode.surah
-        ? const Duration(days: 1)
-        : const Duration(hours: 6);
-    final cached = refresh ? null : cache.read(key, maxAge);
-    if (cached is Map) return QuranPassage.fromJson(jsonMap(cached));
-    try {
-      final result = await api.quranPassage(mode, number);
-      await cache.write(key, <String, dynamic>{
-        'mode': result.mode.name,
-        'number': result.number,
-        'source': result.source,
-        'total_pages': result.totalPages,
-        'tajweed_available': result.tajweedAvailable,
-        'verses': result.verses
-            .map(
-              (verse) => <String, dynamic>{
-                'global_number': verse.globalNumber,
-                'surah_number': verse.surahNumber,
-                'ayah_number': verse.ayahNumber,
-                'verse_key': verse.verseKey,
-                'text_uthmani': verse.textUthmani,
-                'text_tajweed': verse.textTajweed,
-                'juz_number': verse.juzNumber,
-                'page_number': verse.pageNumber,
-                'ruku_number': verse.rukuNumber,
-                'hizb_quarter': verse.hizbQuarter,
-                'sajda': verse.sajda,
-                'surah_name_ar': verse.surahNameAr,
-                'surah_name_en': verse.surahNameEn,
-              },
-            )
-            .toList(growable: false),
-        'theme_sections': result.themeSections
-            .map(
-              (section) => <String, dynamic>{
-                'surah_number': section.surahNumber,
-                'from_ayah': section.fromAyah,
-                'to_ayah': section.toAyah,
-                'title_ar': section.titleAr,
-                'title_en': section.titleEn,
-                'color_key': section.colorKey,
-                'ruku_number': section.rukuNumber,
-              },
-            )
-            .toList(growable: false),
-      });
-      return result;
-    } catch (_) {
-      final stale = cache.readStale(key);
-      if (stale is Map) return QuranPassage.fromJson(jsonMap(stale));
-      rethrow;
-    }
+    final canonical = await TarteelCanonicalQuran.load();
+    await cache.retireLegacyQuranPassages();
+    return canonical.passage(mode, number);
   }
 
   Future<List<QuranAudioReciter>> quranAudioReciters(

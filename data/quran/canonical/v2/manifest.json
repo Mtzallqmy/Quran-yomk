@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "dataset": "tarteel-quran-canonical",
+  "version": "2",
+  "status": "APPROVED",
+  "approval_policy": "VERBATIM_SNAPSHOT_NO_TEXT_MUTATION",
+  "approval_basis": "Whole official edition selected by verified publisher identity and published archive SHA256, never by text similarity; no independent scholarly-review claim.",
+  "source": {
+    "provider": "KFGQPC",
+    "url": "https://download.qurancomplex.gov.sa/resources_dev/kfgqpc_hafs_v30.zip",
+    "terms": "https://qurancomplex.gov.sa/quran-dev/",
+    "uthmani_edition": "kfgqpc-hafs-v30",
+    "tajweed_edition": "NONE_MATCHING_VERIFIED_TEXT"
+  },
+  "source_revision": {
+    "archive_sha256": "227e6b1564d980f2bd09c2c35ebfb0330ac268c79a7c247cd1ab665bc635f245",
+    "uthmani_response_sha256": "d7adf8aeeef5a7b6798060706a55735dffbcdb542b290a3907bd9f70c498f4d3",
+    "uthmani_response_bytes": 3691596
+  },
+  "sha256": "132090d1264257ce816dfe1245014c422e3cd4c491f2397c78447efbe161ee8f",
+  "surahs": 114,
+  "verses": 6236,
+  "pages": 604,
+  "rights": {
+    "storage_policy": "OFFICIAL_DEVELOPER_USE_WITH_ATTRIBUTION",
+    "permission_url": "https://qurancomplex.gov.sa/quran-dev/",
+    "no_text_mutation": true,
+    "no_ai_correction": true,
+    "notice": "مجمع الملك فهد لطباعة المصحف الشريف — جميع الحقوق محفوظة؛ الحزمة الرسمية المقدمة لتطوير التطبيقات والبرمجيات."
+  },
+  "navigation_metadata": {
+    "hizb_ruku_sajda": "Preserved identity/navigation metadata from retired canonical-v1; no old Quran text retained."
+  },
+  "font_sha256": "9ccd82324319bfe9e57efd34c830770ce86655f01661ca06b50e3b0c20073c57",
+  "font_source": "https://download.qurancomplex.gov.sa/resources_dev/kfgqpc_hafs_v30.zip"
+}

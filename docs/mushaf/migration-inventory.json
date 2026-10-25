@@ -1,0 +1,383 @@
+{
+  "checkpoint": "69d67ca0c267682f6342beacee6b8ace7fb682c3",
+  "assets": [
+    {
+      "path": "apps/mobile/assets/islamic_content_manifest.json",
+      "sha256": "260a1d0d7a1014644dc0777060194e598fe645bf9dd5404ef45d77db5035e279",
+      "bytes": 4113,
+      "category": "محتوى تفسير/تعليم؛ افصل النص القرآني فقط",
+      "references": [
+        ".github/workflows/live-provider-acceptance.yml",
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/assets/learning/thematic_segments.json",
+      "sha256": "ecdd9b7f20eca1aa32cb750f8c98cd53622189bf61eca75db371870bf543227f",
+      "bytes": 1421,
+      "category": "طبقة موضوعية مستقلة بلا نص قرآني",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/assets/mushaf_library/hafs-page-map.json",
+      "sha256": "0f58f1a5a58d4e4b7b07e21498e9a3b7abb461728775973a96049786ffb163e7",
+      "bytes": 72959,
+      "category": "رسم/مواضع آيات ومحرك صفحات قابل لإعادة الاستخدام",
+      "references": []
+    },
+    {
+      "path": "apps/mobile/assets/mushaf_library/topics-2026-10-24.json.gz",
+      "sha256": "149f3e4532761dbd9365903fa48ab0e8d5eabcdb8971c42fed7f9ce6b4858b8c",
+      "bytes": 163306,
+      "category": "طبقة موضوعية مستقلة بلا نص قرآني",
+      "references": [
+        "scripts/tarteel/import_mushaf_library.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/main.dart",
+      "sha256": "ae70ea8ddfc921ce6feabf547f5bd9786a3de091983fd6ecb1baeb29f9c15194",
+      "bytes": 5861,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/src/api.dart",
+      "sha256": "cce216efe71b94c7b81dfa894b235dda670a8ab080a752cdef2d6e72ae9bcf5c",
+      "bytes": 9678,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        ".github/workflows/live-provider-acceptance.yml",
+        "apps/admin/test/managed-radio-contract.test.ts",
+        "apps/mobile/tool/app_rights_ci.py",
+        "apps/mobile/tool/offline_clip_ci.py",
+        "apps/mobile/tool/phase11_api_e2e.py",
+        "apps/mobile/tool/quran_ci.py",
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/src/islamic_content.dart",
+      "sha256": "5436cce380d17ad1552ef8c9634f103a670452fc3ca5fa22215e4c1203ac6621",
+      "bytes": 15787,
+      "category": "محتوى تفسير/تعليم؛ افصل النص القرآني فقط",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/src/learning.dart",
+      "sha256": "4aa9ef476df336d4a4b8a1f7e2b041d7b1294772cd9123900fb54049b90515cd",
+      "bytes": 20533,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/src/mushaf_library.dart",
+      "sha256": "2a3f845fe616598b8e04a51b2e38dc3439fcc718c2b83ce4cde4e326f7eac72a",
+      "bytes": 4584,
+      "category": "طبقة موضوعية مستقلة بلا نص قرآني",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/src/mushaf_page_reader.dart",
+      "sha256": "81aca6dac8cf97b6cde4099c9f97cbf8d59aae60c1e3a70b245458a92a10bc9f",
+      "bytes": 33230,
+      "category": "رسم/مواضع آيات ومحرك صفحات قابل لإعادة الاستخدام",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/src/mushaf_pages.dart",
+      "sha256": "1584ebf3773d9a4c773f2045ce28fab4b6e7b6ba0376997f24e9f3526802bd7f",
+      "bytes": 29002,
+      "category": "رسم/مواضع آيات ومحرك صفحات قابل لإعادة الاستخدام",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/src/mushaf_store.dart",
+      "sha256": "71f7b5f32b9b15c43a16c410f8985dcb4ecd4591fb1237d8703c7c5e42f8e9d5",
+      "bytes": 7937,
+      "category": "بيانات مستخدم؛ ممنوع الحذف أو تغيير المفاتيح",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/src/quran_models.dart",
+      "sha256": "53e4a9ddf1ae6ec9b20b307c7c35525dad21c7ba7ff50e54f46ab5137d534665",
+      "bytes": 5782,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/src/screens/mushaf.dart",
+      "sha256": "4dcf8d37ee138369d18691e0b9bf261e90b1f0c54c80d7391883133b1c3872c9",
+      "bytes": 36472,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/src/screens/mushaf_library.dart",
+      "sha256": "59c1feb09e9b81c3a730836935586993361d99227189e08e39888edb160d6247",
+      "bytes": 18412,
+      "category": "طبقة موضوعية مستقلة بلا نص قرآني",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/lib/src/tajweed.dart",
+      "sha256": "0c2a3f4a918869e459f68b642b821aae9bda30eccf0d56ae0426312158c39831",
+      "bytes": 2795,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "apps/mobile/pubspec.yaml",
+      "sha256": "87cb91d83614072866d006df4dbbab03fdfb762d6044aa90327011db1d2edf5f",
+      "bytes": 1732,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        ".github/workflows/phase78-bootstrap.yml",
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "data/quran/canonical/README.md",
+      "sha256": "877778d05c538fe75a73dc8c97e057580b1c3aa5a598878de6f4a1861e13806d",
+      "bytes": 298,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "data/quran/canonical/manifest.json",
+      "sha256": "048b417b0121ecf27a6695485d5e1520bdce878fdbd91b0777ef997f9bd4fc84",
+      "bytes": 783,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        "scripts/validate-checksums.sh"
+      ]
+    },
+    {
+      "path": "data/quran/canonical/surahs.json",
+      "sha256": "edd2fd310dbee37d06401801ff499f858d170c50fe5ba097841fb1b15731aff1",
+      "bytes": 29319,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        "services/quran-yutla-api-elysia/src/index.ts",
+        "supabase/functions/quran-yutla-api/index.ts"
+      ]
+    },
+    {
+      "path": "data/quran/canonical/v1/dataset.json",
+      "sha256": "cc9db6390358e1a98091f868b0e09c9b8ede3bee559e38fd67c4a839646f2946",
+      "bytes": 5088468,
+      "category": "محتوى نصي مرجعي مرشح للاستبدال",
+      "references": [
+        ".github/workflows/quran-integrity.yml",
+        "apps/mobile/test/learning_test.dart",
+        "apps/mobile/test/mushaf_library_test.dart",
+        "scripts/quran-integrity/validate.test.mjs",
+        "scripts/tarteel/import_mushaf_library.py"
+      ]
+    },
+    {
+      "path": "data/quran/canonical/v1/manifest.json",
+      "sha256": "ba851b12ea5fb4e8dda1b0bc7254ff386440c3f1bbacfc788bc8e7deb3fccaf1",
+      "bytes": 1493,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        ".github/workflows/quran-integrity.yml",
+        "apps/mobile/test/learning_test.dart",
+        "scripts/quran-integrity/validate.test.mjs",
+        "scripts/tarteel/import_mushaf_library.py"
+      ]
+    },
+    {
+      "path": "database/neon/003_mushaf_library.sql",
+      "sha256": "db09a0fd9cf7d523afa09d463cc367e618a78fc331a23665634c164f2323edb1",
+      "bytes": 7992,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        "scripts/mushaf/inventory.py",
+        "scripts/tarteel/import_mushaf_library.py"
+      ]
+    },
+    {
+      "path": "scripts/quran-integrity/capture.mjs",
+      "sha256": "b07933574b3b02dec51010d1ce6bdea4a6dbc3839b903271eda9bdb98d4f8991",
+      "bytes": 3114,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        ".github/workflows/quran-integrity.yml"
+      ]
+    },
+    {
+      "path": "scripts/quran-integrity/lib.mjs",
+      "sha256": "ba4811b8e5d0a3755d90530b0f336bc10717e8a54b83c7be2792f71175596506",
+      "bytes": 14531,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "scripts/quran-integrity/runtime.test.mjs",
+      "sha256": "b25840e8827096fd92f77772354e91b5cd38e35ba090484721769c0396c2854e",
+      "bytes": 3440,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "scripts/quran-integrity/validate.mjs",
+      "sha256": "b2bf9619ae98d672e1eafca1ae56acd0414cc46cd496a17d4da6bbc5b6a9a2fa",
+      "bytes": 2160,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        ".github/workflows/quran-integrity.yml"
+      ]
+    },
+    {
+      "path": "scripts/quran-integrity/validate.test.mjs",
+      "sha256": "c49924a5dc9e32dd3e51d5a15741976bef9f60293a532b5dfbdbca6d45aee500",
+      "bytes": 2618,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/.gitignore",
+      "sha256": "0796ba61c0b42002de21b0d49daacb7a2e97989891e4275918e82f6b27b383e2",
+      "bytes": 32,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/README.md",
+      "sha256": "7864abefed28594e2d5dd1282718989a0ffe8d804510d5aca26357d631825cfa",
+      "bytes": 2908,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/baseline-inventory.json",
+      "sha256": "b632a6e40207615c993f53b266dd41ca1537ab3e75cd5682a73bf8f4183c5b18",
+      "bytes": 118249,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/build.mjs",
+      "sha256": "1f273a0792f63286e2df7f60203c1a6460fec37528c859cf89d62bd4005ccb4a",
+      "bytes": 399,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/package-lock.json",
+      "sha256": "e58881d97f95b75b39a1e808ba2387e9aba607458ae8916cbcfdbe18df558ac5",
+      "bytes": 19954,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/package.json",
+      "sha256": "5ad30ad7e6cfca1cf71dbcf7e424c8ea7457a678a187ca7fdaa5e61c1103a1c6",
+      "bytes": 281,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/src/admin.mjs",
+      "sha256": "de9017ebd60db31fe6d0e4a394949af281497c08dfc9ed99ce3a45916619b116",
+      "bytes": 1119,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/src/database.mjs",
+      "sha256": "b6d2a37c2e2e1c767ee867b93ac38660a7438be33094c26c38100e543c8b24a9",
+      "bytes": 286,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/src/handler.mjs",
+      "sha256": "a3a3721e227254502fbc9f8bd40b531e065d59adb7bed83460ef706709f71c5d",
+      "bytes": 3298,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/src/identity.mjs",
+      "sha256": "8fe0c9eb72d197614a7df60fc23181a8a33cb6aa125ae0598371aa85b0df5d3a",
+      "bytes": 1790,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/src/index.mjs",
+      "sha256": "10baaec77b1467de12c818e16b435d03950c21389c0280fe2190ee8bf859f2f3",
+      "bytes": 377,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/src/registry.mjs",
+      "sha256": "0d7869eeee0f27a2f8ddbbbe94d74726727c451b93d669afc0191a1b244ffe31",
+      "bytes": 3581,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/src/sync.mjs",
+      "sha256": "0c435bb9a150b99b451ca8a24b9869281243745b64d372bb6d6527e2667d4b7b",
+      "bytes": 4992,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "services/tarteel-content/test/content.test.mjs",
+      "sha256": "2404d2a1ca0a51efc114daa143c98ab7cd15749ca1f2774b34fa6db0806645a9",
+      "bytes": 6047,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": []
+    },
+    {
+      "path": "supabase/functions/tarteel-api/quran.ts",
+      "sha256": "41bb5deb22fba5fbc772cc8dab360b1784ddb9003fb50f74233c430ed6900643",
+      "bytes": 10497,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        ".github/workflows/quran-integrity.yml",
+        "scripts/mushaf/inventory.py"
+      ]
+    },
+    {
+      "path": "supabase/functions/tarteel-api/quran_integrity_runtime.js",
+      "sha256": "4a68c74788975a0c4daffeb2c221a2ba1d2d98cc80394d4a794cd1ff6f719e6b",
+      "bytes": 6230,
+      "category": "بيانات وصفية أو شيفرة أو اختبارات لازمة",
+      "references": [
+        ".github/workflows/quran-integrity.yml",
+        "scripts/mushaf/inventory.py",
+        "scripts/quran-integrity/runtime.test.mjs"
+      ]
+    }
+  ]
+}

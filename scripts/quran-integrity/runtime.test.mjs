@@ -108,3 +108,11 @@ test("canonical page/juz selection embeds surah identity without text mutation",
     englishName: "Surah 1",
   });
 });
+
+test('actual official corpus loads without external API and all114 surahs remain ordered',async()=>{
+ const {canonicalQuranSnapshots,TARTEEL_CANONICAL_QURAN}=await import('../../supabase/functions/tarteel-api/quran_integrity_runtime.js');
+ const snapshots=await canonicalQuranSnapshots();assert.equal(TARTEEL_CANONICAL_QURAN.source.provider,'KFGQPC');assert.equal(snapshots.tajweed,null);
+ assert.equal(snapshots.uthmani.data.surahs.length,114);assert.equal(snapshots.uthmani.data.surahs.reduce((n,s)=>n+s.ayahs.length,0),6236);
+ for(const [surah,count] of [[1,7],[2,286],[101,11],[112,4]])assert.equal(selectCanonicalPassage(snapshots.uthmani,'surah',surah).data.ayahs.length,count);
+ for(let page=1;page<=604;page++)assert.ok(selectCanonicalPassage(snapshots.uthmani,'page',page).data.ayahs.every(v=>v.page===page));
+});

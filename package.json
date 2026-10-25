@@ -3,18 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "description": "Quran Yutla (قرآن يتلى) — Monorepo Ecosystem",
-  "workspaces": [
-    "packages/*",
-    "apps/admin",
-    "services/*"
-  ],
   "scripts": {
-    "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present",
-    "check-env": "bash ./scripts/check-env.sh || echo 'Skipping check-env on non-bash environment'",
-    "validate-checksums": "bash ./scripts/validate-checksums.sh || echo 'Skipping checksum script'"
+    "lint": "node scripts/run-node-components.mjs lint",
+    "typecheck": "node scripts/run-node-components.mjs typecheck",
+    "test": "node scripts/run-node-components.mjs test",
+    "build": "node scripts/run-node-components.mjs build",
+    "check-env": "bash ./scripts/check-env.sh",
+    "validate-checksums": "bash ./scripts/validate-checksums.sh"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

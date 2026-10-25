@@ -1,0 +1,7 @@
+{
+  "url": "https://br-curly-salad-bajy1evn-tarteelcontent.compute.c-8.eu-central-1.aws.neon.tech/v1/surah-projects",
+  "http": 200,
+  "projects": 20,
+  "storage": "metadata_only",
+  "all_permanent_storage_denied": true
+}

@@ -1,25 +1,60 @@
-# Android Release Acceptance & Quality Checklist
+# Tarteel Android release acceptance
 
-## 1. Application Identity
-- **App Name (Arabic)**: قرآن يتلى
-- **App Name (English)**: Quran Yutla
-- **Application ID**: `com.aistudio.quranyutla.live`
-- **Minimum SDK**: 24 (Android 7.0 Nougat)
-- **Target SDK**: 34 (Android 14)
-- **Primary Architecture**: ARM64-v8a, armeabi-v7a, x86_64
+This release phase produces installable Android APK artifacts only. It does not
+publish to Google Play and does not use Play App Signing.
 
-## 2. Audio & Background Services Acceptance
-- [x] Background playback continues when the screen is turned off.
-- [x] Media notification displays current Surah and reciter with interactive Play, Pause, and Skip buttons.
-- [x] Audio focus cleanly yields when receiving telephone calls or navigating navigation alerts.
-- [x] Mini-player seamlessly transitions to full-screen player bottom sheet.
+## Automated release gates
 
-## 3. Quran Integrity & Storage
-- [x] Canonical 114 Surahs dataset embedded locally with verified SHA-256 hash.
-- [x] Offline audio downloads stream directly to disk without loading entire files into memory.
-- [x] Fail-Closed verification prevents reading altered text files.
+- Flutter dependency resolution
+- Dart format check (read-only)
+- `flutter analyze`
+- unit and widget tests
+- dedicated Mushaf model, persistence, and Tajweed integrity tests
+- 604-page normal/Tajweed asset existence, file-signature, and verse-map comparison
+- live Tarteel Quran API acceptance
+- unified Quran audio repository/provider and download-contract tests
+- live AlQuran Cloud surah/ayah and MP3Quran audio-byte probes
+- universal release APK build
+- ARM64 release APK build
+- APK manifest inspection with Android `aapt`
+- native library inspection from the APK ZIP contents
+- SHA-256, byte size, version, SDK, and ABI evidence
+- Android 8 (API 26) emulator install/launch plus SVG and Tajweed WebP screenshots
 
-## 4. Privacy & Hardware Access
-- [x] Zero background location tracking; prayer times calculated offline locally.
-- [x] Notification permission follows Android 13+ runtime permission lifecycle.
-- [x] Zero advertising SDKs, tracking pixels, or third-party telemetry analytics.
+The release job fails unless `minSdk` is exactly 26 and both APKs contain
+`lib/arm64-v8a/` native libraries. The ARM64 APK also fails if it contains a
+different native ABI.
+
+## Device acceptance checklist
+
+The following checks require an Android 8.0+ device or emulator and must not be
+reported as completed merely because the APK built:
+
+- install the release APK
+- launch the application
+- open the Mushaf
+- load an SVG Mushaf page
+- load a Tajweed WebP page
+- zoom and swipe between pages
+- download an offline pack
+- open the Mushaf without network access
+- play a surah with a selected reciter
+- play one ayah when the selected edition supports ayah audio
+- switch reciter, riwayah/moshaf, and an available bitrate
+- download a surah, pause/resume it, and play the verified local file offline
+- delete the downloaded surah and retry a failed download
+- continue audio playback in the background
+- switch between normal and Tajweed Mushaf modes
+- restore the last page after restarting the app
+
+GitHub-hosted Ubuntu runners do not provide a physical Android 8 device. The
+workflow therefore records physical-device acceptance as **NOT RUN** and never
+claims otherwise. A tester must record the device model, Android version, APK
+SHA-256, and result for every item above when a suitable device is available.
+
+The hosted workflow does run a separate Android 8/API 26 emulator gate. It
+installs the same universal release APK, opens page 1 in the default SVG reader,
+switches to the pre-generated QCF V4 Tajweed WebP reader without changing the
+page, verifies both accessibility page labels, and stores both screenshots and
+their SHA-256 values beside the APKs. This emulator result is not represented as
+a physical-device test.

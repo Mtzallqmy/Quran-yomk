@@ -1,57 +1,167 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:audio_service/audio_service.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'core/config/brand_config.dart';
-import 'core/services/app_services.dart';
-import 'core/theme/quran_yutla_theme.dart';
-import 'features/shell/presentation/root_shell.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+import 'src/api.dart';
+import 'src/adhan_audio.dart';
+import 'src/adhan_library.dart';
+import 'src/announcements.dart';
+import 'src/app.dart';
+import 'src/feature_manager.dart';
+import 'src/islamic_content.dart';
+import 'src/local_notifications.dart';
+import 'src/learning.dart';
+import 'src/mushaf_pages.dart';
+import 'src/mushaf_store.dart';
+import 'src/offline_clip_service.dart';
+import 'src/playback.dart';
+import 'src/quran_audio.dart';
+import 'src/quran_download_service.dart';
+import 'src/quran_playback_store.dart';
+import 'src/quran_playlist_store.dart';
+import 'src/prayer_reminders.dart';
+import 'src/prayer_settings.dart';
+import 'src/prayer_times.dart';
+import 'src/push_notifications.dart';
+import 'src/remote_config.dart';
+import 'src/repository.dart';
+import 'src/services.dart';
+import 'src/storage.dart';
+import 'src/startup.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks([
+      'Noto Sans Arabic',
+    ], await rootBundle.loadString('assets/fonts/OFL-NotoSansArabic.txt'));
+  });
 
-  // Initialize Core App Services (Composition Root)
-  final appServices = await AppServices.init(
-    onNavigateToRoute: (route) {
-      debugPrint("Navigating to FCM target route: $route");
-      navigatorKey.currentState?.pushNamed(route);
+  late TarteelAudioHandler playback;
+  await AudioService.init(
+    builder: () {
+      playback = TarteelAudioHandler();
+      return playback;
     },
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'app.tarteel.tarteel.audio',
+      androidNotificationChannelName: 'Tarteel audio playback',
+      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: true,
+    ),
+  );
+  await playback.initialize();
+
+  final preferences = await SharedPreferences.getInstance();
+  final favorites = FavoritesStore(preferences)..load();
+  final settings = SettingsStore(preferences)..load();
+  final mushaf = MushafStore(preferences)..load();
+  final mushafPages = MushafPageRepository();
+  final islamicContent = IslamicContentRepository();
+  final offlineClips = createOfflineClipService(preferences);
+  final quranDownloads = createQuranDownloadService(preferences);
+  final quranAudio = QuranAudioRepository(
+    providers: <QuranAudioProvider>[
+      AlQuranCloudAudioProvider(),
+      Mp3QuranAudioProvider(),
+    ],
+    localLookup: quranDownloads,
+  );
+  final quranPlayback = QuranPlaybackStore(preferences)..load();
+  quranPlayback.bind(playback);
+  final quranPlaylists = QuranPlaylistStore(preferences)..load();
+  final api = TarteelApiClient();
+  final repository = TarteelRepository(api, MetadataCache(preferences));
+  final remoteConfig = TarteelRemoteConfig(repository, preferences)..load();
+  final announcements = AnnouncementService(preferences);
+  final packageInfo = await PackageInfo.fromPlatform();
+  final features = FeatureManager(
+    config: remoteConfig,
+    installedVersion: packageInfo.version,
+  );
+  final localNotifications = LocalNotificationService();
+  final learning = LearningStore(preferences)..load();
+  final prayerSettings = PrayerSettingsStore(preferences)..load();
+  final adhkarReminders = AdhkarReminderController(
+    notifications: localNotifications,
+    store: learning,
+    timezone: () => prayerSettings.value.timezone,
+  );
+  prayerSettings.addListener(() {
+    adhkarReminders.start().catchError((Object error) {
+      debugPrint('ADHKAR_TIMEZONE_RESCHEDULE_FAILED');
+    });
+  });
+  final prayerTimes = PrayerTimesService();
+  final adhanLibrary = AdhanLibraryStore(preferences)..load();
+  final adhanAudio = AdhanAudioService(
+    playback: playback,
+    assetPath: adhanLibrary.selectedPath ?? 'assets/audio/adhan.ogg',
+  );
+  final prayerReminders = PrayerReminderController(
+    notifications: localNotifications,
+    prayerTimes: prayerTimes,
+    settings: prayerSettings,
+    adhanAudio: adhanAudio,
+  );
+  adhanLibrary.addListener(() {
+    adhanAudio.setAudioPath(
+      adhanLibrary.selectedPath ?? 'assets/audio/adhan.ogg',
+    );
+    prayerReminders.reconcile();
+  });
+  final pushNotifications = PushNotificationService(
+    preferences: preferences,
+    localNotifications: localNotifications,
+  );
+  final services = AppServices(
+    repository: repository,
+    favorites: favorites,
+    settings: settings,
+    mushaf: mushaf,
+    mushafPages: mushafPages,
+    islamicContent: islamicContent,
+    offlineClips: offlineClips,
+    playback: playback,
+    quranAudio: quranAudio,
+    quranDownloads: quranDownloads,
+    quranPlayback: quranPlayback,
+    quranPlaylists: quranPlaylists,
+    remoteConfig: remoteConfig,
+    announcements: announcements,
+    features: features,
+    localNotifications: localNotifications,
+    prayerSettings: prayerSettings,
+    prayerTimes: prayerTimes,
+    prayerReminders: prayerReminders,
+    adhanAudio: adhanAudio,
+    adhanLibrary: adhanLibrary,
+    pushNotifications: pushNotifications,
+    learning: learning,
+    adhkarReminders: adhkarReminders,
   );
 
   runApp(
     ProviderScope(
-      overrides: [
-        appServicesProvider.overrideWithValue(appServices),
-      ],
-      child: const QuranYutlaApp(),
+      overrides: [servicesProvider.overrideWithValue(services)],
+      child: const TarteelApp(),
     ),
   );
-}
-
-class QuranYutlaApp extends StatelessWidget {
-  const QuranYutlaApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      title: BrandConfig.nameAr,
-      debugShowCheckedModeBanner: false,
-      locale: const Locale('ar', 'SA'),
-      supportedLocales: const [
-        Locale('ar', 'SA'),
-        Locale('en', 'US'),
-      ],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      theme: QuranYutlaTheme.light(),
-      darkTheme: QuranYutlaTheme.dark(),
-      themeMode: ThemeMode.system,
-      home: const RootShell(),
-    );
-  }
+  initializeAfterFirstFrame(<String, Future<void> Function()>{
+    'offline_clips': offlineClips.initialize,
+    'quran_downloads': quranDownloads.initialize,
+    'islamic_content': islamicContent.synchronizeInBackground,
+    'runtime_config': remoteConfig.refresh,
+    'local_reminders': () async {
+      // User-owned local schedules must not be cancelled by cloud feature flags.
+      await prayerReminders.start();
+      await adhkarReminders.start();
+    },
+    'push_notifications': pushNotifications.initialize,
+    'announcements': announcements.refresh,
+  });
 }

@@ -1,0 +1,173 @@
+openapi: 3.1.0
+info:
+  title: Tarteel API
+  version: 1.0.0-phase7
+  description: Backend contract for Tarteel public clients and Admin Panel.
+servers:
+  - url: /api/v1
+components:
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            request_id: {type: string, format: uuid}
+    PublicStation:
+      type: object
+      required: [id, slug, name_ar, station_source, stream_type]
+      properties:
+        id: {type: string, format: uuid}
+        slug: {type: string}
+        name_ar: {type: string}
+        name_en: {type: [string, 'null']}
+        logo_url: {type: [string, 'null']}
+        station_source: {type: string, enum: [INTERNAL, EXTERNAL]}
+        stream_type: {type: string}
+        playback_url: {type: [string, 'null']}
+    Surah:
+      type: object
+      required: [id, number, name_ar, name_en, ayah_count]
+      properties:
+        id: {type: integer}
+        number: {type: integer, minimum: 1, maximum: 114}
+        name_ar: {type: string}
+        name_en: {type: string}
+        ayah_count: {type: integer}
+  responses:
+    Error:
+      description: Normalized API error
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+paths:
+  /stations:
+    get:
+      summary: List playable public stations
+      responses:
+        '200': {description: Station list}
+  /stations/{slug}:
+    get:
+      summary: Get public station
+      parameters: [{in: path, name: slug, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: Station resource}
+        '404': {$ref: '#/components/responses/Error'}
+  /stations/{slug}/now-playing:
+    get:
+      summary: Get trusted playout state
+      parameters: [{in: path, name: slug, required: true, schema: {type: string}}]
+      responses: {'200': {description: Now Playing resource}}
+  /categories:
+    get: {summary: List categories, responses: {'200': {description: Category list}}}
+  /reciters:
+    get:
+      summary: List/search reciters
+      parameters:
+        - {in: query, name: q, schema: {type: string}}
+        - {in: query, name: page, schema: {type: integer, minimum: 1}}
+        - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100}}
+      responses: {'200': {description: Paginated reciters}}
+  /reciters/{id}:
+    get:
+      summary: Get reciter
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses: {'200': {description: Reciter}}
+  /reciters/{id}/surahs:
+    get:
+      summary: Get playable reciter/surah tracks
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses: {'200': {description: Safe track list}}
+  /surahs:
+    get: {summary: Return canonical 114 surahs, responses: {'200': {description: Surah catalog}}}
+  /featured:
+    get: {summary: Get Admin-managed featured content, responses: {'200': {description: Featured list}}}
+  /app-config:
+    get: {summary: Get safe public app configuration, responses: {'200': {description: Public config}}}
+  /search:
+    get:
+      summary: Search stations, reciters, and surahs
+      parameters: [{in: query, name: q, required: true, schema: {type: string, minLength: 2}}]
+      responses: {'200': {description: Search groups}}
+  /admin/auth/login:
+    post: {summary: Admin login, responses: {'200': {description: Session profile}, '401': {$ref: '#/components/responses/Error'}}}
+  /admin/auth/logout:
+    post: {summary: Admin logout, responses: {'200': {description: Logged out}}}
+  /admin/auth/me:
+    get: {summary: Current Admin permissions, responses: {'200': {description: Admin session}, '401': {$ref: '#/components/responses/Error'}}}
+  /admin/dashboard:
+    get: {summary: Operational dashboard data, responses: {'200': {description: Dashboard}}}
+  /admin/media:
+    get: {summary: List media, responses: {'200': {description: Media list}}}
+    post: {summary: Create UPLOADING media resource, responses: {'201': {description: Media created}}}
+  /admin/media/{id}:
+    patch:
+      summary: Edit/archive media metadata
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses: {'200': {description: Media updated}}
+  /admin/media/{id}/upload-intent:
+    post:
+      summary: Create secure signed upload intent
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses: {'201': {description: Upload intent}}
+  /admin/media/{id}/retry:
+    post:
+      summary: Retry failed processing according to policy
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses: {'202': {description: Processing queued}}
+  /admin/upload-intents/{id}/complete:
+    post:
+      summary: Verify and complete uploaded object
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses: {'200': {description: Upload completed}}
+  /admin/playlists:
+    get: {summary: List playlists, responses: {'200': {description: Playlist list}}}
+    post: {summary: Create playlist, responses: {'201': {description: Playlist created}}}
+  /admin/playlists/{id}:
+    patch: {summary: Update playlist, responses: {'200': {description: Playlist updated}}}
+    delete: {summary: Archive playlist, responses: {'200': {description: Playlist archived}}}
+  /admin/playlists/{id}/items:
+    post: {summary: Add READY media item, responses: {'201': {description: Item added}}}
+  /admin/playlists/{id}/reorder:
+    post: {summary: Deterministically reorder items, responses: {'200': {description: Reordered}}}
+  /admin/schedules:
+    get: {summary: List schedules, responses: {'200': {description: Schedule list}}}
+    post: {summary: Create Phase-6-compatible schedule, responses: {'201': {description: Schedule created}}}
+  /admin/schedules/{id}:
+    patch: {summary: Update schedule, responses: {'200': {description: Schedule updated}}}
+    delete: {summary: Disable/archive schedule, responses: {'200': {description: Schedule archived}}}
+  /admin/commands:
+    get: {summary: List recent radio commands, responses: {'200': {description: Command list}}}
+    post: {summary: Create trusted idempotent radio command, responses: {'202': {description: Command accepted}, '200': {description: Existing idempotent command}}}
+  /admin/commands/{id}:
+    get: {summary: Get command status, responses: {'200': {description: Command}}}
+  /admin/external-stations:
+    get: {summary: List external stations with rights metadata, responses: {'200': {description: External station list}}}
+    post: {summary: Create CUSTOM external station review-required by default, responses: {'201': {description: Created}}}
+  /admin/external-stations/{id}:
+    patch: {summary: Update external station; rights changes require rights.approve, responses: {'200': {description: Updated}}}
+  /admin/external-stations/{id}/health-test:
+    post: {summary: Queue stream health test, responses: {'202': {description: Health job queued}}}
+  /admin/reciters:
+    get: {summary: List reciters, responses: {'200': {description: List}}}
+    post: {summary: Create reciter, responses: {'201': {description: Created}}}
+  /admin/reciters/{id}:
+    patch: {summary: Update reciter, responses: {'200': {description: Updated}}}
+  /admin/reciters/{id}/tracks:
+    post: {summary: Add reciter/surah track, responses: {'201': {description: Created}}}
+  /admin/categories:
+    get: {summary: List categories, responses: {'200': {description: List}}}
+    post: {summary: Create category, responses: {'201': {description: Created}}}
+  /admin/categories/{id}:
+    patch: {summary: Update category, responses: {'200': {description: Updated}}}
+    delete: {summary: Archive non-system category, responses: {'200': {description: Archived}}}
+  /admin/settings:
+    get: {summary: List settings, responses: {'200': {description: Settings}}}
+    patch: {summary: Update allowlisted public settings, responses: {'200': {description: Setting updated}}}
+  /admin/audit:
+    get: {summary: Search audit records, responses: {'200': {description: Audit list}}}

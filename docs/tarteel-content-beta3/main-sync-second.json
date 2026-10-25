@@ -1,0 +1,48 @@
+{
+  "report": [
+    {
+      "provider": "mp3quran",
+      "discovered": 709,
+      "inserted": 0,
+      "matched": 708,
+      "rejected": 1,
+      "dead_links": 1,
+      "rights_rejected": 0,
+      "errors": 0
+    },
+    {
+      "provider": "quranenc",
+      "discovered": 76,
+      "inserted": 0,
+      "matched": 76,
+      "rejected": 0,
+      "dead_links": 0,
+      "rights_rejected": 0,
+      "errors": 0
+    },
+    {
+      "provider": "quran-foundation",
+      "skipped": "Developer credentials and Content Sync authorization required"
+    },
+    {
+      "provider": "tanzil",
+      "skipped": "Verification source only; existing Quran text retained"
+    },
+    {
+      "provider": "kfgqpc",
+      "skipped": "Per-asset rights and narration verification pending"
+    },
+    {
+      "provider": "quran-android",
+      "skipped": "GPL code and independently licensed data; no copying"
+    },
+    {
+      "provider": "islamic-radio",
+      "skipped": "Per-station redistribution rights pending"
+    },
+    {
+      "provider": "archive",
+      "skipped": "Item-specific license required"
+    }
+  ]
+}

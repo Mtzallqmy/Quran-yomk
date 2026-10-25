@@ -1,0 +1,99 @@
+name: Tarteel Mushaf Experimental APK (no release)
+on:
+  push:
+    branches:
+      - experiment/tarteel-mushaf-surah-2092
+    paths:
+      - 'apps/mobile/**'
+      - 'services/tarteel-content/**'
+      - 'database/neon/004_mushaf_experimental_read_views.sql'
+      - '.github/workflows/tarteel-mushaf-experiment.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tarteel-mushaf-experiment-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify-and-package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      TARTEEL_ISOLATED_TRIAL: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - name: Test read-only Neon content adapter
+        working-directory: services/tarteel-content
+        run: |
+          npm ci
+          npm test
+      - name: Fetch locked Flutter dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+      - name: Format trial sources in isolated runner
+        working-directory: apps/mobile
+        run: dart format lib test
+      - name: Static analysis
+        working-directory: apps/mobile
+        run: flutter analyze --no-fatal-infos
+      - name: Unit and widget tests
+        working-directory: apps/mobile
+        run: flutter test
+      - name: Prepare ephemeral trial-only Firebase build config
+        run: |
+          python3 - <<'PY'
+          import copy, json
+          from pathlib import Path
+          p = Path('apps/mobile/android/app/google-services.json')
+          doc = json.loads(p.read_text(encoding='utf-8'))
+          original = next(
+              c for c in doc['client']
+              if c['client_info']['android_client_info']['package_name'] == 'app.tarteel.tarteel'
+          )
+          trial = copy.deepcopy(original)
+          trial['client_info']['android_client_info']['package_name'] = 'app.tarteel.tarteel.trial'
+          doc['client'].append(trial)
+          p.write_text(json.dumps(doc), encoding='utf-8')
+          print('Temporary trial client compiled; this file is never committed.')
+          PY
+      - name: Build isolated installable trial APK
+        working-directory: apps/mobile
+        run: >-
+          flutter build apk --release --target-platform android-arm64
+          --dart-define=TARTEEL_ISOLATED_TRIAL=true
+          --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
+      - name: Inspect package and publish artifact only
+        run: |
+          set -euo pipefail
+          mkdir -p trial-artifacts
+          cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk trial-artifacts/Tarteel-Mushaf-TRIAL-ARM64.apk
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)
+          "$AAPT" dump badging trial-artifacts/*.apk > trial-artifacts/badging.txt
+          grep -q "package: name='app.tarteel.tarteel.trial'" trial-artifacts/badging.txt
+          sha256sum trial-artifacts/*.apk > trial-artifacts/SHA256SUMS.txt
+          cat > trial-artifacts/README.txt <<'EOF'
+          ISOLATED EXPERIMENT. NOT A RELEASE.
+          Package: app.tarteel.tarteel.trial
+          Installable side-by-side with app.tarteel.tarteel.
+          Release-optimized, trial/debug-key signed; NOT an upgrade for installed 2092.
+          No Releases publication or production database migration.
+          Push registration disabled to avoid collisions; existing production radio, audio and content backend restored.
+          Surah content is fetched read-only as a live experimental preview.
+          EOF
+          cat trial-artifacts/SHA256SUMS.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarteel-mushaf-trial-${{ github.sha }}
+          path: trial-artifacts
+          if-no-files-found: error
+          retention-days: 14

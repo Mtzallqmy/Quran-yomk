@@ -13,6 +13,34 @@ export function handler(pool){
     const status=await read('SELECT * FROM tarteel_mushaf.public_library_status');
     return json({editions,packages,status:status[0]??null});
    }
+   // Indexed Quran metadata only: immutable Quran text and large page assets
+   // remain under their separately verified/licensed providers.
+   const p=u.pathname.match(/^\/v1\/mushaf\/page\/([1-9][0-9]{0,2})$/);
+   if(p){
+    const page=Number(p[1]);
+    if(page>604)return json({error:'PAGE_OUT_OF_RANGE'},400);
+    const rows=await read(
+      'SELECT edition_id,verse_key,source_bounds FROM tarteel_mushaf.public_ayah_positions WHERE page=$1 ORDER BY verse_key',
+      [page]
+    );
+    return json({page,positions:rows,source:'tarteel_mushaf.mushaf_ayah_positions'});
+   }
+   const t=u.pathname.match(/^\/v1\/mushaf\/themes\/([1-9][0-9]{0,2})$/);
+   if(t){
+    const surah=Number(t[1]);
+    if(surah>114)return json({error:'SURAH_OUT_OF_RANGE'},400);
+    const rows=await read(
+      "SELECT r.verse_key,s.id,s.title_ar,s.source_id FROM tarteel_mushaf.public_thematic_ayahs r JOIN tarteel_mushaf.public_thematic_sections s ON s.id=r.section_id WHERE split_part(r.verse_key,':',1)::integer=$1 ORDER BY r.verse_key,s.id LIMIT 5000",
+      [surah]
+    );
+    return json({surah,themes:rows,kind:'tags-not-exclusive-contiguous-passages'});
+   }
+   if(u.pathname==='/v1/surah/projects'){
+    const projects=await read(
+      'SELECT slug,title,scope,source_url,policy,attribution,terms_url,permanent_storage_allowed,redistribution_allowed FROM surah_content.public_projects ORDER BY slug'
+    );
+    return json({projects,source:'surah_content.public_projects',offline_reuse_allowed:false});
+   }
    if(u.pathname==='/v1/catalog'){
     if(cached&&Date.now()<until)return json(cached);
     const rows=await read('SELECT id,kind,title_ar,language_code,edition,metadata FROM tarteel_catalog.public_catalog ORDER BY kind,id LIMIT 500');cached={data:rows};until=Date.now()+60000;return json(cached);

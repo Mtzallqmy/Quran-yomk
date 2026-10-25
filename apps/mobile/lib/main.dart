@@ -161,7 +161,9 @@ Future<void> main() async {
       await prayerReminders.start();
       await adhkarReminders.start();
     },
-    'push_notifications': pushNotifications.initialize,
+    'push_notifications': () => const bool.fromEnvironment('TARTEEL_ISOLATED_TRIAL', defaultValue: false)
+        ? Future<void>.value()
+        : pushNotifications.initialize(),
     'announcements': announcements.refresh,
   });
 }

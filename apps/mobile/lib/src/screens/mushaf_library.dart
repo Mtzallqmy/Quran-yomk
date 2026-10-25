@@ -33,6 +33,7 @@ class _MushafLibraryPageState extends ConsumerState<MushafLibraryPage> {
   void initState() {
     super.initState();
     _installed = _status();
+    _cloudStatus = _checkCloud();
   }
 
   Future<Map<MushafPageEdition, bool>> _status() async {
@@ -124,6 +125,46 @@ class _MushafLibraryPageState extends ConsumerState<MushafLibraryPage> {
               const Text(
                 'تستخدم الأنماط علامات القراءة نفسها. حزم الصفحات اختيارية، وفهرس الموضوعات متاح دون إنترنت.',
               ),
+              if (_cloudStatus != null)
+                FutureBuilder<Map<String, dynamic>>(
+                  future: _cloudStatus,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          'تعذر فهرس Neon مؤقتًا؛ القراءة عبر المصدر الحالي لا تزال متاحة.',
+                        ),
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: LinearProgressIndicator(),
+                      );
+                    }
+                    final editions = snapshot.data!['editions'] as List? ?? [];
+                    final packages = snapshot.data!['packages'] as List? ?? [];
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('فهرس المصاحف عبر Neon',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text('المصاحف المعتمدة: ${editions.length} • حزم التنزيل الاختيارية: ${packages.length}'),
+                            const Text(
+                              'اختر قراءة المصحف الآن عبر الإنترنت دون تنزيل كامل، '
+                              'أو نزّل الحزمة لاحقًا للعمل دون إنترنت. '
+                              'تُحمّل الصفحة المطلوبة فقط أثناء القراءة.',
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               const SizedBox(height: 16),
               for (final edition in MushafPageEdition.values)
                 _LibraryCard(
@@ -135,8 +176,8 @@ class _MushafLibraryPageState extends ConsumerState<MushafLibraryPage> {
                       ? 'حفص عن عاصم • 604 صفحات • رسم مجمع الملك فهد، تحويل SVG مثبت الإصدار. لم تُثبت مطابقة طبعة 1440هـ.'
                       : 'حفص • صفحات QCF V4 الملونة الحالية. حقوق إعادة توزيع هذا المورد غير موضحة في QUL؛ تبقى النسخة الحالية متاحة ولا نعتمد حزمة جديدة أو شروحًا آلية.',
                   status: snapshot.data?[edition] == true
-                      ? 'الحزمة كاملة ومتحقق منها محليًا'
-                      : 'قراءة عند الطلب؛ تتطلب الصفحات غير المحملة اتصالًا',
+                      ? 'محفوظ دون إنترنت؛ يمكن القراءة فورًا'
+                      : 'القراءة عبر الإنترنت دون تحميل المصحف كاملًا',
                   size: edition == MushafPageEdition.madinahHafsSvg
                       ? '121,620,792 بايت (~116 MiB)'
                       : '153,090,668 بايت (~146 MiB)',

@@ -47,5 +47,17 @@ class ContentCatalogApi {
 
   Future<Map<String, dynamic>> mushafLibrary() => _get('/v1/mushaf-library');
 
+  /// Metadata from Neon; large SVG page bytes remain in external asset storage.
+  Future<Map<String, dynamic>> mushafPageIndex(int page) {
+    if (page < 1 || page > 604) throw RangeError.range(page, 1, 604, 'page');
+    return _get('/v1/mushaf/page/$page');
+  }
+
+  Future<Map<String, dynamic>> thematicSurahIndex(int surah) {
+    if (surah < 1 || surah > 114) throw RangeError.range(surah, 1, 114, 'surah');
+    return _get('/v1/mushaf/themes/$surah');
+  }
+
+
   void dispose() => _client.close();
 }

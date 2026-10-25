@@ -87,7 +87,9 @@ class _RootShellState extends ConsumerState<RootShell>
         .pushNotifications
         .routes
         .listen(_handlePushRoute);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showPushConsent());
+    if (!const bool.fromEnvironment('TARTEEL_ISOLATED_TRIAL', defaultValue: false)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showPushConsent());
+    }
   }
 
   Future<void> _showPushConsent() async {

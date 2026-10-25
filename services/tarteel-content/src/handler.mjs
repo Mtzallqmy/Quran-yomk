@@ -7,6 +7,14 @@ export function handler(pool){
   const u=new URL(request.url);if(request.method!=='GET')return json({error:'METHOD_NOT_ALLOWED'},405);
   try{
    if(u.pathname==='/health')return json({service:'tarteel-content',status:'ok'});
+   if(u.pathname==='/v1/bootstrap'){
+    const releases=await read("SELECT * FROM tarteel_catalog.public_app_releases WHERE channel='preview' ORDER BY version_code DESC LIMIT 1");
+    return json({schema:1,release:releases[0]??null,
+     catalog:'/v1/catalog',mushafLibrary:'/v1/mushaf-library',surahProjects:'/v1/surah-projects',
+     prayer:{calculation:'device_offline',scheduling:'android_local',cloudRequired:false,preferencesBackup:'optional_explicit_consent',locationUploaded:false,audioUploaded:false},
+     surah:{contentAccess:'direct_official_api',contentStorage:'metadata_only',baseUrl:'https://dev.surahapp.com/api/v1'},
+     cloudBaseUrl:'https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech'});
+   }
    if(u.pathname==='/v1/mushaf-library'){
     const editions=await read('SELECT * FROM tarteel_mushaf.public_editions ORDER BY id');
     const packages=await read('SELECT * FROM tarteel_mushaf.public_packages ORDER BY id');

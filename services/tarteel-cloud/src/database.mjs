@@ -53,9 +53,20 @@ export class Database {
     });
   }
   async revoke(id) {
-    await this.scoped(id,c=>c.query('DELETE FROM tarteel_cloud.library_backups WHERE device_id=$1',[id]));
-    await this.pool.query('UPDATE tarteel_cloud.devices SET revoked_at=now() WHERE id=$1',[id]);
+    await this.scoped(id,async c=>{
+      await c.query('DELETE FROM tarteel_cloud.prayer_preferences WHERE device_id=$1',[id]);
+      await c.query('DELETE FROM tarteel_cloud.library_backups WHERE device_id=$1',[id]);
+      await c.query('RESET ROLE');
+      await c.query('UPDATE tarteel_cloud.devices SET revoked_at=now() WHERE id=$1',[id]);
+    });
   }
+  getPrayer(id){return this.scoped(id,async c=>(await c.query('SELECT revision,payload,updated_at FROM tarteel_cloud.prayer_preferences WHERE device_id=$1',[id])).rows[0]??null);}
+  putPrayer(id,revision,payload){return this.scoped(id,async c=>{
+    const result=revision===0
+      ?await c.query('INSERT INTO tarteel_cloud.prayer_preferences(device_id,revision,payload) VALUES($1,1,$2::jsonb) ON CONFLICT(device_id) DO NOTHING RETURNING revision,payload,updated_at',[id,JSON.stringify(payload)])
+      :await c.query('UPDATE tarteel_cloud.prayer_preferences SET revision=revision+1,payload=$3::jsonb,updated_at=now() WHERE device_id=$1 AND revision=$2::bigint RETURNING revision,payload,updated_at',[id,revision,JSON.stringify(payload)]);
+    return result.rows[0]??null;
+  });}
 }
 export function createDatabase(url) {
   if(!url) throw new Error('DATABASE_URL_REQUIRED');

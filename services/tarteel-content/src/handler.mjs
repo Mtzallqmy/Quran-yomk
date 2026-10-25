@@ -15,7 +15,7 @@ export function handler(pool){
    }
    // Indexed Quran metadata only: immutable Quran text and large page assets
    // remain under their separately verified/licensed providers.
-   const p=u.pathname.match(/^\\/v1\\/mushaf\\/page\\/([1-9][0-9]{0,2})$/);
+   const p=u.pathname.match(/^\/v1\/mushaf\/page\/([1-9][0-9]{0,2})$/);
    if(p){
     const page=Number(p[1]);
     if(page>604)return json({error:'PAGE_OUT_OF_RANGE'},400);
@@ -25,7 +25,7 @@ export function handler(pool){
     );
     return json({page,positions:rows,source:'tarteel_mushaf.mushaf_ayah_positions'});
    }
-   const t=u.pathname.match(/^\\/v1\\/mushaf\\/themes\\/([1-9][0-9]{0,2})$/);
+   const t=u.pathname.match(/^\/v1\/mushaf\/themes\/([1-9][0-9]{0,2})$/);
    if(t){
     const surah=Number(t[1]);
     if(surah>114)return json({error:'SURAH_OUT_OF_RANGE'},400);

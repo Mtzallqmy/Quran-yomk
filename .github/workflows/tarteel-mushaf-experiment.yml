@@ -5,6 +5,8 @@ on:
       - experiment/tarteel-mushaf-surah-2092
     paths:
       - 'apps/mobile/**'
+      - 'services/tarteel-content/**'
+      - 'database/neon/004_mushaf_experimental_read_views.sql'
       - '.github/workflows/tarteel-mushaf-experiment.yml'
   workflow_dispatch:
 permissions:
@@ -30,6 +32,11 @@ jobs:
           flutter-version: '3.47.2'
           channel: stable
           cache: true
+      - name: Test read-only Neon content adapter
+        working-directory: services/tarteel-content
+        run: |
+          npm ci
+          npm test
       - name: Fetch locked Flutter dependencies
         working-directory: apps/mobile
         run: flutter pub get

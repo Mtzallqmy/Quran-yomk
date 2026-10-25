@@ -9,12 +9,12 @@ void main() {
   test('discovers actual projects from nested response, without assumed slugs', () async {
     final client = SurahApiClient(client: MockClient((request) async {
       expect(request.url.path, '/api/v1/projects');
-      return http.Response(jsonEncode({
+      return http.Response.bytes(utf8.encode(jsonEncode({
         'data': [
           {'slug': 'tafsir-demo', 'name_ar': 'تفسير تجريبي', 'type': 'aya'},
           {'slug': 'word-demo', 'title': 'Words', 'type': 'word'}
         ]
-      }), 200);
+      })), 200);
     }));
     addTearDown(client.close);
     final projects = await client.projects();

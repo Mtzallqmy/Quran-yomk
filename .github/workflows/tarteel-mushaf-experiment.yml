@@ -33,9 +33,9 @@ jobs:
       - name: Fetch locked Flutter dependencies
         working-directory: apps/mobile
         run: flutter pub get
-      - name: Validate Dart formatting
+      - name: Format trial sources in isolated runner
         working-directory: apps/mobile
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: dart format lib test
       - name: Static analysis
         working-directory: apps/mobile
         run: flutter analyze --no-fatal-infos

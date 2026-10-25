@@ -97,6 +97,33 @@ void main() {
     },
   );
   test(
+    'live page-benefits shape supports string arrays and rejects unknown nested content',
+    () async {
+      var malformed = false;
+      final api = SurahApiClient(
+        policy: const SurahCachePolicy(ttl: Duration.zero),
+        client: MockClient((r) async {
+          if (r.url.path.endsWith('projects')) return response(catalog);
+          return response({
+            'page_number': 1,
+            'content': malformed
+                ? [
+                    {'unexpected': 'not text'},
+                  ]
+                : ['<p>فائدة أولى</p>', 'فائدة ثانية'],
+          });
+        }),
+      );
+      expect(
+        (await api.read('page', [1])).single.text,
+        'فائدة أولى\n\nفائدة ثانية',
+      );
+      malformed = true;
+      await expectLater(api.read('page', [1]), throwsFormatException);
+      api.close();
+    },
+  );
+  test(
     'wrong verse and duplicate references fail closed, not silently attached',
     () async {
       final api = SurahApiClient(

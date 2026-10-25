@@ -5,15 +5,21 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'repository.dart';
+import 'content_catalog.dart';
 
 /// Runtime configuration for content, flags and endpoints that may change
 /// without shipping a new APK. It never downloads or executes Dart code.
 class TarteelRemoteConfig extends ChangeNotifier {
-  TarteelRemoteConfig(this._repository, this._preferences);
+  TarteelRemoteConfig(
+    this._repository,
+    this._preferences, {
+    ContentCatalogApi? distribution,
+  }) : _distribution = distribution ?? ContentCatalogApi();
 
   static const _cacheKey = 'tarteel_remote_config:v1';
   final TarteelRepository _repository;
   final SharedPreferences _preferences;
+  final ContentCatalogApi _distribution;
   Map<String, dynamic> _values = <String, dynamic>{};
   bool _refreshing = false;
 
@@ -52,6 +58,8 @@ class TarteelRemoteConfig extends ChangeNotifier {
       stringValue('minimum_android_version', fallback: '0.0.0');
   String get latestAndroidVersion =>
       stringValue('latest_android_version', fallback: '0.0.0');
+  int get latestAndroidBuildNumber =>
+      intValue('latest_android_version_code', fallback: 0);
   String get recommendedAndroidVersion =>
       stringValue('recommended_android_version', fallback: '0.0.0');
   String get androidUpdateUrl => stringValue(
@@ -105,8 +113,16 @@ class TarteelRemoteConfig extends ChangeNotifier {
     _refreshing = true;
     if (notify) notifyListeners();
     try {
-      final incoming = await _repository.appConfig(refresh: true);
-      _values = Map<String, dynamic>.from(incoming);
+      // Preserve cached values if either optional source is unavailable.
+      final incoming = await Future.wait([
+        _repository
+            .appConfig(refresh: true)
+            .catchError((Object _) => <String, dynamic>{}),
+        _distribution.distributionConfig().catchError(
+          (Object _) => <String, dynamic>{},
+        ),
+      ]);
+      _values = {..._values, ...incoming[0], ...incoming[1]};
       await _preferences.setString(_cacheKey, jsonEncode(_values));
     } catch (_) {
       // Offline/stale startup must never block the application.
@@ -114,6 +130,12 @@ class TarteelRemoteConfig extends ChangeNotifier {
       _refreshing = false;
       if (notify) notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _distribution.dispose();
+    super.dispose();
   }
 
   bool boolValue(String key, {required bool fallback}) {

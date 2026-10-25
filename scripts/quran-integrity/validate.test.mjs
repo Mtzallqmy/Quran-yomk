@@ -8,8 +8,8 @@ import {
   validateCanonicalDataset,
 } from "./lib.mjs";
 
-const dataset = JSON.parse(await readFile("data/quran/canonical/v1/dataset.json", "utf8"));
-const manifest = JSON.parse(await readFile("data/quran/canonical/v1/manifest.json", "utf8"));
+const dataset = JSON.parse(await readFile("data/quran/canonical/v2/dataset.json", "utf8"));
+const manifest = JSON.parse(await readFile("data/quran/canonical/v2/manifest.json", "utf8"));
 const seed = await readSeedAyahCounts();
 
 function copy(value) {
@@ -29,7 +29,7 @@ function expectFailure(name, mutate, code) {
   });
 }
 
-test("approved canonical v1 passes", () => {
+test("official canonical v2 passes", () => {
   const result = validateCanonicalDataset(dataset, manifest, seed);
   assert.equal(result.sha256, manifest.sha256);
 });
@@ -80,3 +80,14 @@ expectFailure("source edition change without a new contract fails closed", (_d, 
 expectFailure("approval status downgrade fails closed", (_d, m) => {
   m.status = "CAPTURED";
 }, "QURAN_DATASET_NOT_APPROVED");
+
+expectFailure('foreign tajweed offsets cannot enter official Unicode corpus',(d,m)=>{
+ d.surahs[0].verses[0].text_tajweed='unreviewed layer';refreshChecksum(d,m);
+},'QURAN_UNVERIFIED_TAJWEED_LAYER');
+expectFailure('prefixed canonical identity must match its retained legacy key',(d,m)=>{
+ d.surahs[0].verses[0].canonical_id='hafs:2:1';refreshChecksum(d,m);
+},'QURAN_CANONICAL_ID_INVALID');
+
+expectFailure('changing text and forging manifest checksum still fails the independent official pin',(d,m)=>{
+ d.surahs[0].verses[0].text_uthmani += ' ';refreshChecksum(d,m);
+},'QURAN_APPROVED_TEXT_DIGEST_MISMATCH');

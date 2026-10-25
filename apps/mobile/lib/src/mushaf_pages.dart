@@ -195,6 +195,10 @@ class MushafPageRepository extends ChangeNotifier {
   Future<MushafPageAsset> page(int page, MushafPageEdition edition) async {
     _checkPage(page);
     await _ensureInitialized();
+    if (edition == MushafPageEdition.madinahTajweedQcfV4 &&
+        !await isPageCached(page, edition)) {
+      throw MushafAssetUnavailableOfflineException(page, edition);
+    }
     final manifest = await _loadManifestBestEffort(edition);
     final image = await _ensureFile(
       page,
@@ -266,6 +270,8 @@ class MushafPageRepository extends ChangeNotifier {
   }
 
   Future<void> downloadOfflinePack(MushafPageEdition edition) async {
+    if (edition == MushafPageEdition.madinahTajweedQcfV4)
+      throw StateError('TAJWEED_REDISTRIBUTION_RIGHTS_UNVERIFIED');
     await _ensureInitialized();
     if (_packActive) throw StateError("MUSHAF_DOWNLOAD_ALREADY_ACTIVE");
     _packActive = true;

@@ -69,11 +69,15 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('مكتبة المصاحف'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('المصحف الموضوعي'), 300);
+    await tester.scrollUntilVisible(
+      find.text('فهرس الموضوعات'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(tester.takeException(), isNull);
-    await tester.ensureVisible(find.byKey(const ValueKey('المصحف الموضوعي')));
+    await tester.ensureVisible(find.byKey(const ValueKey('فهرس الموضوعات')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('المصحف الموضوعي')));
+    await tester.tap(find.byKey(const ValueKey('فهرس الموضوعات')));
     await tester.pumpAndSettle();
     expect(find.text('فهرس الموضوعات القرآنية'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -92,7 +96,7 @@ void main() {
       final canonical =
           jsonDecode(
                 File(
-                  '../../data/quran/canonical/v1/dataset.json',
+                  '../../data/quran/canonical/v2/dataset.json',
                 ).readAsStringSync(),
               )
               as Map;

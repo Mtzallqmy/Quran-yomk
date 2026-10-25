@@ -46,7 +46,26 @@ class _MushafLibraryPageState extends ConsumerState<MushafLibraryPage> {
   Future<void> _read(MushafPageEdition edition) async {
     final store = ref.read(servicesProvider).mushaf;
     await store.backupBeforeLibraryUpgrade();
-    await store.setPageEdition(edition.name);
+    if (edition == MushafPageEdition.madinahTajweedQcfV4 &&
+        !await ref
+            .read(servicesProvider)
+            .mushafPages
+            .isOfflinePackAvailable(edition)) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'نسخة التجويد تتطلب حزمة محفوظة سابقًا؛ تنزيل حزمة جديدة ينتظر تحقق الحقوق.',
+            ),
+          ),
+        );
+      return;
+    }
+    await store.setUnifiedMode(
+      edition == MushafPageEdition.madinahHafsSvg
+          ? UnifiedMushafMode.madinah
+          : UnifiedMushafMode.tajweed,
+    );
     await store.setPresentation(MushafReaderPresentation.page);
     if (!mounted) return;
     await Navigator.pushNamed(
@@ -151,7 +170,7 @@ class _MushafLibraryPageState extends ConsumerState<MushafLibraryPage> {
                       : 'تنزيل كامل',
                 ),
               _LibraryCard(
-                title: 'المصحف الموضوعي',
+                title: 'فهرس الموضوعات',
                 icon: Icons.account_tree_outlined,
                 description:
                     'فهرس الموسوعة القرآنية • 6100 موضوع. موضوعات متداخلة تغطي 3673 آية، وليست تقسيمًا شاملًا متفقًا عليه لكل القرآن.',
@@ -164,6 +183,59 @@ class _MushafLibraryPageState extends ConsumerState<MushafLibraryPage> {
                     builder: (_) => const MushafTopicsPage(),
                   ),
                 ),
+              ),
+              _LibraryCard(
+                title: 'المصحف الموضوعي الملون',
+                icon: Icons.color_lens_outlined,
+                description:
+                    'تلوين مناطق الآيات بوسوم Quranpedia الموثقة؛ دون إسناد موضوع للآيات غير المصنفة.',
+                status: 'تغطية58.9% • النص الرسمي واحد',
+                size: 'لا نص إضافي أو تنزيل مكرر',
+                onRead: () async {
+                  final store = ref.read(servicesProvider).mushaf;
+                  await store.setUnifiedMode(UnifiedMushafMode.thematic);
+                  await store.setPresentation(MushafReaderPresentation.page);
+                  if (context.mounted)
+                    Navigator.pushNamed(
+                      context,
+                      MobileRoutes.reader,
+                      arguments: store.lastPosition?.pageNumber ?? 1,
+                    );
+                },
+              ),
+              _LibraryCard(
+                title: 'الموضوعي مع التجويد',
+                icon: Icons.layers_outlined,
+                description:
+                    'الطبقة الموضوعية فوق صفحات التجويد المحفوظة سابقًا، دون تغيير النص أو إزاحات حروف غير مطابقة.',
+                status:
+                    snapshot.data?[MushafPageEdition.madinahTajweedQcfV4] ==
+                        true
+                    ? 'متاح بالحزمة المحفوظة'
+                    : 'التنزيل الجديد غير معتمد حتى تحقق الحقوق',
+                size: 'يستخدم حزمة التجويد نفسها',
+                onRead: () async {
+                  if (snapshot.data?[MushafPageEdition.madinahTajweedQcfV4] !=
+                      true) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'لا تتوفر حزمة تجويد مرخصة للتنزيل الجديد.',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  final store = ref.read(servicesProvider).mushaf;
+                  await store.setUnifiedMode(UnifiedMushafMode.combined);
+                  await store.setPresentation(MushafReaderPresentation.page);
+                  if (context.mounted)
+                    Navigator.pushNamed(
+                      context,
+                      MobileRoutes.reader,
+                      arguments: store.lastPosition?.pageNumber ?? 1,
+                    );
+                },
               ),
               if (repository.offlineProgress case final progress?
                   when _busy) ...[

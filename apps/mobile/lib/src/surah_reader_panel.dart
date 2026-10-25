@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'surah_content.dart';
 import 'mushaf_store.dart';
+import 'content_catalog.dart';
 
 final surahContentProvider = Provider<SurahApiClient>((ref) {
-  final api = SurahApiClient();
+  final registry = ContentCatalogApi();
+  final api = SurahApiClient(projectCatalog: registry.surahProjects);
+  ref.onDispose(registry.dispose);
   ref.onDispose(api.close);
   return api;
 });
@@ -26,6 +30,7 @@ class SurahReaderPanel extends ConsumerStatefulWidget {
 class _SurahReaderPanelState extends ConsumerState<SurahReaderPanel> {
   late final Future<List<SurahProject>> _projects;
   String? _tafsir;
+  String? _wordProject;
   Future<List<SurahContentEntry>>? _reading;
   Future<List<SurahContentEntry>>? _words;
   Future<List<SurahContentEntry>>? _benefits;
@@ -35,6 +40,26 @@ class _SurahReaderPanelState extends ConsumerState<SurahReaderPanel> {
   void initState() {
     super.initState();
     _projects = ref.read(surahContentProvider).projects();
+  }
+
+  @override
+  void didUpdateWidget(covariant SurahReaderPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.surah != widget.surah ||
+        oldWidget.ayah != widget.ayah ||
+        oldWidget.page != widget.page) {
+      _tafsir = null;
+      _reading = null;
+      final api = ref.read(surahContentProvider);
+      _words = _words != null && _wordProject != null
+          ? api.read(_wordProject!, [widget.surah, widget.ayah, 1], end: 32)
+          : null;
+      _benefits = _benefits != null
+          ? api.read('fawaed-page', [widget.page])
+          : null;
+      _word = null;
+      _wordStart = 1;
+    }
   }
 
   Widget _entries(Future<List<SurahContentEntry>>? future) {
@@ -83,6 +108,12 @@ class _SurahReaderPanelState extends ConsumerState<SurahReaderPanel> {
       if (!snapshot.hasData) return const LinearProgressIndicator();
       final api = ref.read(surahContentProvider);
       final projects = snapshot.data!;
+      final wordProjects = projects
+          .where((p) => p.scope == SurahScope.word && p.slug != 'word-pic')
+          .toList();
+      _wordProject ??=
+          wordProjects.where((p) => p.slug == 'eerab-word').firstOrNull?.slug ??
+          wordProjects.firstOrNull?.slug;
       final tafsirs = projects
           .where(
             (p) => p.scope == SurahScope.aya && p.slug.startsWith('tafsir-'),
@@ -134,11 +165,9 @@ class _SurahReaderPanelState extends ConsumerState<SurahReaderPanel> {
           ExpansionTile(
             title: const Text('الكلمات والإعراب'),
             onExpansionChanged: (open) {
-              if (open &&
-                  _words == null &&
-                  projects.any((p) => p.slug == 'eerab-word'))
+              if (open && _words == null && _wordProject != null)
                 setState(() {
-                  _words = api.read('eerab-word', [
+                  _words = api.read(_wordProject!, [
                     widget.surah,
                     widget.ayah,
                     _wordStart,
@@ -146,13 +175,45 @@ class _SurahReaderPanelState extends ConsumerState<SurahReaderPanel> {
                 });
             },
             children: [
+              if (wordProjects.isNotEmpty)
+                DropdownButtonFormField<String>(
+                  key: const ValueKey('surah-word-project'),
+                  initialValue: _wordProject,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'مصدر الكلمات'),
+                  items: [
+                    for (final project in wordProjects)
+                      DropdownMenuItem(
+                        value: project.slug,
+                        child: Text(
+                          project.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _wordProject = value;
+                      _wordStart = 1;
+                      _word = null;
+                      _words = api.read(value, [
+                        widget.surah,
+                        widget.ayah,
+                        1,
+                      ], end: 32);
+                    });
+                  },
+                ),
               if (_words != null)
                 FutureBuilder<List<SurahContentEntry>>(
                   future: _words,
                   builder: (context, snapshot) {
                     if (snapshot.hasError)
                       return const Text('الكلمات غير متاحة حاليًا لهذا الموضع');
-                    if (!snapshot.hasData)
+                    if (snapshot.connectionState != ConnectionState.done ||
+                        !snapshot.hasData)
                       return const LinearProgressIndicator();
                     return Wrap(
                       spacing: 8,
@@ -175,34 +236,13 @@ class _SurahReaderPanelState extends ConsumerState<SurahReaderPanel> {
                   },
                 ),
               if (_word != null) SelectableText(_word!.text),
-              if (_word != null)
-                Wrap(
-                  children: [
-                    for (final slug in ['word-qeraat', 'word-tasreef'])
-                      if (projects.any((p) => p.slug == slug))
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _reading = api.read(slug, [
-                                widget.surah,
-                                widget.ayah,
-                                _word!.wordNumber!,
-                              ]);
-                            });
-                          },
-                          child: Text(
-                            projects.firstWhere((p) => p.slug == slug).title,
-                          ),
-                        ),
-                  ],
-                ),
               TextButton(
-                onPressed: _wordStart >= 161
+                onPressed: _wordProject == null || _wordStart >= 161
                     ? null
                     : () {
                         setState(() {
                           _wordStart += 32;
-                          _words = api.read('eerab-word', [
+                          _words = api.read(_wordProject!, [
                             widget.surah,
                             widget.ayah,
                             _wordStart,

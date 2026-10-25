@@ -1,20 +1,12 @@
-export const CANONICAL_QURAN_V1 = Object.freeze({
-  dataset: "tarteel-quran-canonical",
-  version: "1",
-  schemaVersion: 1,
-  status: "APPROVED",
-  datasetSha256: "cc9db6390358e1a98091f868b0e09c9b8ede3bee559e38fd67c4a839646f2946",
-  source: Object.freeze({
-    provider: "ALQURAN_CLOUD",
-    api: "https://api.alquran.cloud/v1",
-    uthmaniEdition: "quran-uthmani",
-    tajweedEdition: "quran-tajweed",
-    uthmaniResponseSha256: "0df03e1d6da4fc8138208fec1688f2b416f0dd4ebbd514179f3e5e0fbaf4195f",
-    tajweedResponseSha256: "a80dca6b11351b1d79bea1523c3ff8af3289c6df5e3e48a2e1e11074c80ccb31",
-    uthmaniResponseBytes: 2109200,
-    tajweedResponseBytes: 2488551,
-  }),
+import canonicalDataset from '../../../data/quran/canonical/v2/dataset.json' with { type: 'json' };
+
+export const TARTEEL_CANONICAL_QURAN = Object.freeze({
+ dataset:'tarteel-quran-canonical',version:'2',schemaVersion:1,status:'APPROVED',
+ datasetSha256:'132090d1264257ce816dfe1245014c422e3cd4c491f2397c78447efbe161ee8f',
+ source:Object.freeze({provider:'KFGQPC',url:'https://qurancomplex.gov.sa/quran-dev/',uthmaniEdition:'kfgqpc-hafs-v30',tajweedEdition:null})
 });
+// Export name retained for callers; it resolves only the new official edition.
+export const CANONICAL_QURAN_V1 = TARTEEL_CANONICAL_QURAN;
 
 const MAX_CANONICAL_RESPONSE_BYTES = 3_000_000;
 let canonicalSnapshotPromise = null;
@@ -143,18 +135,16 @@ export function selectCanonicalPassage(payload, mode, number) {
 }
 
 async function loadCanonicalQuranSnapshots() {
-  const source = CANONICAL_QURAN_V1.source;
-  const [uthmani, tajweed] = await Promise.all([
-    fetchVerifiedCanonicalJson(`${source.api}/quran/${source.uthmaniEdition}`, {
-      sha256: source.uthmaniResponseSha256,
-      bytes: source.uthmaniResponseBytes,
-    }),
-    fetchVerifiedCanonicalJson(`${source.api}/quran/${source.tajweedEdition}`, {
-      sha256: source.tajweedResponseSha256,
-      bytes: source.tajweedResponseBytes,
-    }),
-  ]);
-  return { uthmani, tajweed };
+ const bytes=new TextEncoder().encode(JSON.stringify(canonicalDataset,null,2)+'\n');
+ if(await sha256Hex(bytes)!==TARTEEL_CANONICAL_QURAN.datasetSha256)throw integrityError('QURAN_CANONICAL_SOURCE_REVISION_MISMATCH');
+ if(canonicalDataset.version!=='2'||canonicalDataset.source.provider!=='KFGQPC'||canonicalDataset.surahs.length!==114)throw integrityError('QURAN_CANONICAL_EDITION_MISMATCH');
+ let count=0;const identities=new Set();
+ const surahs=canonicalDataset.surahs.map(s=>({number:s.number,name:s.name_ar,englishName:s.name_en,ayahs:s.verses.map(v=>{
+   count++;if(v.verse_key!==`${s.number}:${v.ayah_number}`||identities.has(v.verse_key)||v.global_number!==count)throw integrityError('QURAN_CANONICAL_IDENTITY_MISMATCH');identities.add(v.verse_key);
+   return {number:v.global_number,numberInSurah:v.ayah_number,text:v.text_uthmani,juz:v.juz_number,page:v.page_number,ruku:v.ruku_number,hizbQuarter:v.hizb_quarter,sajda:v.sajda};
+ })}));
+ if(count!==6236)throw integrityError('QURAN_CANONICAL_AYAH_COUNT');
+ return {uthmani:{data:{surahs}},tajweed:null};
 }
 
 export async function canonicalQuranSnapshots() {

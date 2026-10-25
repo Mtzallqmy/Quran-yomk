@@ -123,7 +123,7 @@ function normalizePassage(
   return {
     mode,
     number,
-    source: "ALQURAN_CLOUD",
+    source: "KFGQPC",
     source_url: "https://alquran.cloud/api",
     canonical_dataset: CANONICAL_QURAN_V1.dataset,
     canonical_version: CANONICAL_QURAN_V1.version,
@@ -144,7 +144,7 @@ async function passage(mode: "surah" | "juz" | "page", number: number): Promise<
   }
   const snapshots = await canonicalQuranSnapshots();
   const uthmani = selectCanonicalPassage(snapshots.uthmani, mode, number) as Json;
-  const tajweed = selectCanonicalPassage(snapshots.tajweed, mode, number) as Json;
+  const tajweed = snapshots.tajweed ? selectCanonicalPassage(snapshots.tajweed, mode, number) as Json : null;
   return {
     data: normalizePassage(mode, number, uthmani, tajweed),
     cacheControl: "public, max-age=300, s-maxage=21600",

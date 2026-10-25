@@ -37,6 +37,34 @@ void main() {
     expect(features.routeAllowed('/adhkar'), isFalse);
     expect(features.updateRequirement, UpdateRequirement.recommended);
   });
+  test(
+    'preview split build codes distinguish releases with the same semantic core',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'tarteel_remote_config:v1':
+            '{"latest_android_version":"0.9.2-beta.3","latest_android_version_code":2095}',
+      });
+      final config = TarteelRemoteConfig(
+        _Repository(),
+        await SharedPreferences.getInstance(),
+      )..load();
+      final older = FeatureManager(
+        config: config,
+        installedVersion: '0.9.2-beta.2',
+        installedBuildNumber: '2094',
+      );
+      final current = FeatureManager(
+        config: config,
+        installedVersion: '0.9.2-beta.3',
+        installedBuildNumber: '2095',
+      );
+      expect(older.updateRequirement, UpdateRequirement.available);
+      expect(current.updateRequirement, UpdateRequirement.none);
+      older.dispose();
+      current.dispose();
+      config.dispose();
+    },
+  );
 }
 
 class _Repository implements TarteelRepository {

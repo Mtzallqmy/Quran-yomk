@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import {validatePrayerPreferences} from './prayer-preferences.mjs';
 
 export class ApiError extends Error {
   constructor(status, code) { super(code); this.status = status; this.code = code; }
@@ -72,11 +73,20 @@ export function createHandler(db) {
         await db.register(id,createHash('sha256').update(token).digest('hex'));
         return response({device_id:id,token},201);
       }
-      if (path!=='/v1/library-backup' && path!=='/v1/device') throw new ApiError(404,'NOT_FOUND');
+      if (path!=='/v1/library-backup' && path!=='/v1/device' && path!=='/v1/prayer-preferences') throw new ApiError(404,'NOT_FOUND');
       const id=await db.authenticate(bearer(request));
       if (!id) throw new ApiError(401,'INVALID_CREDENTIAL');
       await db.budget(id,60);
       if(path==='/v1/device' && request.method==='DELETE') { await db.revoke(id); return response({revoked:true}); }
+      if(path==='/v1/prayer-preferences' && request.method==='GET')return response({data:await db.getPrayer(id)});
+      if(path==='/v1/prayer-preferences' && request.method==='PUT'){
+        const body=await readJson(request);
+        if(body.consent!=='prayer-preferences-v1')throw new ApiError(422,'PRAYER_CONSENT_REQUIRED');
+        if(!Number.isSafeInteger(body.revision)||body.revision<0)throw new ApiError(422,'INVALID_REVISION');
+        const data=await db.putPrayer(id,body.revision,validatePrayerPreferences(body.payload));
+        if(!data)throw new ApiError(409,'REVISION_CONFLICT');
+        return response({data});
+      }
       if (path==='/v1/library-backup' && request.method==='GET') return response({data:await db.get(id)});
       if (path==='/v1/library-backup' && request.method==='PUT') {
         const body=await readJson(request);

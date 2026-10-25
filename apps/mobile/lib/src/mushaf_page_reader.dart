@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'islamic_content.dart';
 import 'mushaf_pages.dart';
 import 'mushaf_store.dart';
+import 'surah_experimental_sheet.dart';
 import 'quran_models.dart';
 
 class MushafPageReader extends StatefulWidget {
@@ -170,6 +171,24 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                 textDirection: TextDirection.rtl,
               ),
             ],
+            if (const bool.fromEnvironment('TARTEEL_ISOLATED_TRIAL',
+                defaultValue: false))
+              ListTile(
+                leading: const Icon(Icons.menu_book_outlined),
+                title: const Text('محتوى سورة — تجربة غير معتمدة'),
+                subtitle: const Text('قراءة مباشرة من API دون تخزين محلي'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  showModalBottomSheet<void>(
+                    context: this.context,
+                    isScrollControlled: true,
+                    builder: (_) => SurahExperimentalSheet(
+                      surahNumber: selected.surahNumber,
+                      ayahNumber: selected.ayahNumber,
+                    ),
+                  );
+                },
+              ),
             const Divider(height: 28),
             ListTile(
               leading: const Icon(Icons.play_circle_outline),

@@ -54,9 +54,18 @@ android {
             }
         }
         release {
+            if (System.getenv("TARTEEL_ISOLATED_TRIAL") == "1") {
+                applicationIdSuffix = ".trial"
+                versionNameSuffix = "-trial"
+                manifestPlaceholders["tarteelAppLabel"] = "ترتيل تجربة"
+                // Separate debug key for this side-by-side test, never the 2092 signing identity.
+                signingConfig = signingConfigs.getByName("debug")
+            }
             // Never silently create a new debug identity for an in-place update.
             // CI supplies the existing key and verifies its certificate against 2074.
-            signingConfig = signingConfigs.findByName("tarteelRelease")
+            if (System.getenv("TARTEEL_ISOLATED_TRIAL") != "1") {
+                signingConfig = signingConfigs.findByName("tarteelRelease")
+            }
         }
     }
 }

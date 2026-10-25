@@ -445,13 +445,9 @@ List<IslamicThemeSegment> parseIslamicThemeSegments(dynamic decoded) {
 Future<Map<String, String>> retireLegacyQuranTextFiles(Directory root) async {
   final removed = <String, String>{};
   final canonicalRoot = await root.resolveSymbolicLinks();
-  final paths = [
-    for (var s = 1; s <= 114; s++) ...[
-      'quran/chapters/ar/$s.json',
-      'quran/tajweed/$s.json',
-    ],
-    'tafseer/muyassar.json',
-  ];
+  // Only Arabic chapters have a fully verified licensed replacement. Keep old
+  // tajweed/Muyassar caches isolated until their own migration can be approved.
+  final paths = [for (var s = 1; s <= 114; s++) 'quran/chapters/ar/$s.json'];
   for (final relative in paths) {
     final file = File(p.join(root.path, relative));
     if (await FileSystemEntity.type(file.path, followLinks: false) !=

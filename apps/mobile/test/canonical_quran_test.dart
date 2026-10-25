@@ -221,7 +221,7 @@ void main() {
     },
   );
   test(
-    'file retirement removes only exact old text paths and preserves English and audio',
+    'file retirement removes replaced Arabic only and preserves unreplaced layers, English and audio',
     () async {
       final root = await Directory.systemTemp.createTemp('tarteel-migration-');
       try {
@@ -237,7 +237,9 @@ void main() {
           await f.writeAsString(name);
         }
         final removed = await retireLegacyQuranTextFiles(root);
-        expect(removed.length, 3);
+        expect(removed.length, 1);
+        expect(await File('${root.path}/quran/tajweed/1.json').exists(), true);
+        expect(await File('${root.path}/tafseer/muyassar.json').exists(), true);
         expect(
           await File('${root.path}/quran/chapters/en/1.json').exists(),
           true,

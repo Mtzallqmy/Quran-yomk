@@ -1,0 +1,14 @@
+{
+  "project": "proud-mountain-00920668",
+  "database": "tarteel_db",
+  "validation_branch": "br-lively-butterfly-barwq1np",
+  "migration_004_twice_on_validation_then_main": "PASS",
+  "projects": 20,
+  "content_fingerprint_entries": 13,
+  "permanent_content_bodies": 0,
+  "permanent_storage_grants": 0,
+  "public_view_select": true,
+  "raw_entries_select": false,
+  "repeated_reference_upsert_new_rows": [0,0],
+  "note": "Earlier successful request fingerprints retained; current source failures do not delete verified metadata."
+}

@@ -1,0 +1,727 @@
+import 'dart:async';
+
+import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart';
+import 'package:flutter/foundation.dart';
+import 'package:just_audio/just_audio.dart';
+
+import 'models.dart';
+import 'playback_progress.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'offline_clip_contract.dart';
+import 'quran_audio.dart';
+import 'virtual_radio.dart';
+
+abstract class PlaybackPort {
+  Stream<MediaItem?> get mediaItemStream;
+  Stream<PlaybackState> get playbackStateStream;
+  Stream<Duration> get positionStream;
+  Stream<Duration?> get durationStream;
+  Stream<Duration?> get sleepRemainingStream;
+  Stream<double> get volumeStream;
+  Stream<String> get errorStream;
+  bool get isLive;
+  Future<void> playStation(Station station);
+  Future<void> playVirtualRadio(VirtualRadioResolution resolution);
+  Future<void> updateVirtualMetadata(VirtualRadioResolution resolution);
+  Future<void> playTracks(
+    List<ReciterTrack> tracks,
+    int index,
+    Reciter reciter,
+  );
+  Future<void> playQuranAudio(List<QuranAudioMedia> media, int index);
+  Future<void> playOfflineClip(OfflineClip clip);
+  Future<void> play();
+  Future<void> pause();
+  Future<void> stop();
+  Future<void> seek(Duration position);
+  Future<void> skipToNext();
+  Future<void> skipToPrevious();
+  Future<void> setSpeed(double speed);
+  Future<void> setVolume(double volume);
+  Future<void> setRepeatOne(bool enabled);
+  Future<void> updateLiveMetadata(NowPlaying value);
+  void setSleepTimer(Duration duration);
+  void setSleepTimerAtEnd();
+  void cancelSleepTimer();
+}
+
+abstract class QueuePlaybackPort {
+  Stream<List<MediaItem>> get queueStream;
+  Future<void> selectQueueItem(int index);
+  Future<void> appendOfflineClip(OfflineClip clip);
+  void setStudyPause(Duration duration);
+}
+
+class TarteelAudioHandler extends BaseAudioHandler
+    with SeekHandler
+    implements PlaybackPort, QueuePlaybackPort {
+  TarteelAudioHandler() {
+    _player.playbackEventStream.listen((_) => _broadcastState());
+    _player.playingStream.listen((playing) {
+      if (playing) _reconnectAttempt = 0;
+      _broadcastState();
+    });
+    _player.processingStateStream.listen((state) {
+      if (state == ProcessingState.completed) unawaited(_completeItem());
+    });
+    _player.positionStream.listen((position) {
+      final bucket = position.inSeconds ~/ 5;
+      if (bucket != _lastSavedBucket &&
+          !_loadingMedia &&
+          _player.processingState == ProcessingState.ready) {
+        _lastSavedBucket = bucket;
+        unawaited(_saveProgress());
+      }
+    });
+    _player.errorStream.listen((_) {
+      _errors.add('PLAYBACK_ERROR');
+      _scheduleLiveReconnect();
+    });
+  }
+
+  final AudioPlayer _player = AudioPlayer();
+  final StreamController<Duration?> _sleepRemaining =
+      StreamController<Duration?>.broadcast();
+  final StreamController<String> _errors = StreamController<String>.broadcast();
+  Timer? _sleepTimer;
+  Timer? _reconnectTimer;
+  DateTime? _sleepDeadline;
+  bool _sleepAtEnd = false;
+  Station? _liveStation;
+  VirtualRadioResolution? _virtualRadio;
+  Reciter? _reciter;
+  List<ReciterTrack> _tracks = const <ReciterTrack>[];
+  List<QuranAudioMedia> _quranMedia = const <QuranAudioMedia>[];
+  int _trackIndex = 0;
+  int _reconnectAttempt = 0;
+  bool _shouldPlay = false;
+  PlaybackProgressStore? _progress;
+  int _lastSavedBucket = -1;
+  int _completionGeneration = 0;
+  Duration _studyPause = Duration.zero;
+  bool _loadingMedia = false;
+  double _speed = 1.0;
+  List<OfflineClip> _queuedClips = <OfflineClip>[];
+  int get _baseQueueLength =>
+      _quranMedia.isNotEmpty ? _quranMedia.length : _tracks.length;
+  int get _queueLength => _baseQueueLength + _queuedClips.length;
+  MediaItem _offlineItem(OfflineClip clip) => MediaItem(
+    id: 'offline:${clip.id}',
+    title: clip.stationNameAr,
+    artUri: clip.artworkUrl == null ? null : Uri.tryParse(clip.artworkUrl!),
+    duration: clip.duration,
+    isLive: false,
+    extras: <String, dynamic>{
+      'kind': 'offline_clip',
+      'entity_id': clip.id,
+      'path': clip.filePath,
+      'station_id': clip.stationId,
+    },
+  );
+  Future<void> _loadQueue(int index) async {
+    if (index < _baseQueueLength) {
+      if (_quranMedia.isNotEmpty) {
+        await _loadQuran(index);
+      } else {
+        await _loadTrack(index);
+      }
+    } else {
+      final clip = _queuedClips[index - _baseQueueLength];
+      _loadingMedia = true;
+      try {
+        _trackIndex = index;
+        mediaItem.add(_offlineItem(clip));
+        await _player.setFilePath(clip.filePath, preload: true);
+        await _player.setSpeed(_speed);
+      } finally {
+        _loadingMedia = false;
+      }
+      _broadcastState();
+    }
+  }
+
+  @override
+  Future<void> appendOfflineClip(OfflineClip clip) async {
+    if (isLive) throw StateError('LIVE_QUEUE_UNSUPPORTED');
+    if (_queueLength == 0) {
+      await playOfflineClip(clip);
+      return;
+    }
+    _queuedClips.add(clip);
+    queue.add([...queue.value, _offlineItem(clip)]);
+    _broadcastState();
+  }
+
+  @override
+  Stream<List<MediaItem>> get queueStream => queue.stream;
+  @override
+  void setStudyPause(Duration duration) =>
+      _studyPause = Duration(seconds: duration.inSeconds.clamp(0, 30));
+  Future<void> _saveProgress({bool completed = false}) async {
+    final item = mediaItem.value;
+    if (item == null ||
+        isLive ||
+        _loadingMedia ||
+        item.extras?['ayah_number'] != null)
+      return;
+    await _progress?.save(item.id, _player.position, completed: completed);
+  }
+
+  Future<void> _restoreProgress() async {
+    final item = mediaItem.value;
+    if (item == null || item.extras?['ayah_number'] != null) return;
+    final position =
+        _progress?.position(item.id, _player.duration) ?? Duration.zero;
+    if (position > Duration.zero) await _player.seek(position);
+  }
+
+  Future<void> _completeItem() async {
+    if (isLive || !_shouldPlay || _loadingMedia) return;
+    final generation = ++_completionGeneration;
+    await _saveProgress(completed: true);
+    if (generation != _completionGeneration) return;
+    if (_sleepAtEnd) {
+      cancelSleepTimer();
+      await pause();
+      return;
+    }
+    final length = _queueLength;
+    if (_trackIndex + 1 >= length) {
+      await pause();
+      return;
+    }
+    if (_studyPause > Duration.zero) await Future<void>.delayed(_studyPause);
+    if (generation == _completionGeneration && _shouldPlay) await skipToNext();
+  }
+
+  @override
+  Future<void> selectQueueItem(int index) async {
+    final length = _queueLength;
+    if (isLive || index < 0 || index >= length) return;
+    _completionGeneration++;
+    await _saveProgress();
+    await _loadQueue(index);
+    await play();
+  }
+
+  bool _resumeAfterInterruption = false;
+  double _volumeBeforeDuck = 1.0;
+
+  @override
+  bool get isLive => _liveStation != null;
+  @override
+  Stream<MediaItem?> get mediaItemStream => mediaItem.stream;
+  @override
+  Stream<PlaybackState> get playbackStateStream => playbackState.stream;
+  @override
+  Stream<Duration> get positionStream => _player.positionStream;
+  @override
+  Stream<Duration?> get durationStream => _player.durationStream;
+  @override
+  Stream<Duration?> get sleepRemainingStream => _sleepRemaining.stream;
+  @override
+  Stream<double> get volumeStream => _player.volumeStream;
+  @override
+  Stream<String> get errorStream => _errors.stream;
+
+  Future<void> initialize() async {
+    _progress = PlaybackProgressStore(await SharedPreferences.getInstance());
+    final session = await AudioSession.instance;
+    await session.configure(const AudioSessionConfiguration.music());
+    if (kIsWeb) await _player.setWebCrossOrigin(WebCrossOrigin.anonymous);
+    session.becomingNoisyEventStream.listen((_) => pause());
+    session.interruptionEventStream.listen((event) async {
+      if (event.begin) {
+        _resumeAfterInterruption = _player.playing;
+        if (event.type == AudioInterruptionType.pause ||
+            event.type == AudioInterruptionType.unknown) {
+          await pause();
+        }
+        if (event.type == AudioInterruptionType.duck) {
+          _volumeBeforeDuck = _player.volume;
+          await _player.setVolume((_volumeBeforeDuck * 0.35).clamp(0.0, 1.0));
+        }
+      } else {
+        if (event.type == AudioInterruptionType.duck) {
+          await _player.setVolume(_volumeBeforeDuck);
+        }
+        if (_resumeAfterInterruption &&
+            event.type == AudioInterruptionType.pause) {
+          await play();
+        }
+        _resumeAfterInterruption = false;
+      }
+    });
+  }
+
+  bool _secureUrl(String? url) =>
+      url != null && Uri.tryParse(url)?.scheme.toLowerCase() == 'https';
+
+  void _resetSourceState() {
+    _completionGeneration++;
+    _studyPause = Duration.zero;
+    _queuedClips = <OfflineClip>[];
+    _cancelReconnect();
+    _virtualRadio = null;
+    _liveStation = null;
+    _reciter = null;
+    _tracks = const <ReciterTrack>[];
+    _quranMedia = const <QuranAudioMedia>[];
+    _trackIndex = 0;
+    _reconnectAttempt = 0;
+  }
+
+  @override
+  Future<void> playStation(Station station) async {
+    if (!station.isPlayable) throw StateError('STATION_UNAVAILABLE');
+    if (!_secureUrl(station.playbackUrl)) throw StateError('STREAM_INSECURE');
+    await _saveProgress();
+    cancelSleepTimer();
+    _resetSourceState();
+    _liveStation = station;
+    _shouldPlay = true;
+    queue.add(const <MediaItem>[]);
+    mediaItem.add(_stationItem(station));
+    await _loadUrl(station.playbackUrl!);
+    await _player.setSpeed(1.0);
+    unawaited(_player.play());
+    _broadcastState();
+  }
+
+  @override
+  Future<void> playQuranAudio(List<QuranAudioMedia> media, int index) async {
+    if (media.isEmpty) throw StateError('NO_QURAN_AUDIO');
+    if (index < 0 || index >= media.length) {
+      throw RangeError.index(index, media);
+    }
+    await _saveProgress();
+    cancelSleepTimer();
+    _resetSourceState();
+    await _player.setLoopMode(LoopMode.off);
+    _quranMedia = List<QuranAudioMedia>.unmodifiable(media);
+    _trackIndex = index;
+    _shouldPlay = true;
+    queue.add(_quranMedia.map(_quranItem).toList(growable: false));
+    await _loadQuran(_trackIndex);
+    await _restoreProgress();
+    unawaited(_player.play());
+    _broadcastState();
+  }
+
+  MediaItem _quranItem(QuranAudioMedia media) => MediaItem(
+    id: 'quran:${media.id}',
+    title: media.ayahInSurah == null
+        ? media.surah.nameAr
+        : '${media.surah.nameAr} — ${media.ayahInSurah}',
+    artist: media.reciter.nameAr,
+    isLive: false,
+    extras: <String, dynamic>{
+      'kind': 'quran_audio',
+      'entity_id': media.id,
+      'provider': media.provider.name,
+      'reciter_id': media.reciter.id,
+      'edition': media.reciter.edition,
+      'riwayah': media.reciter.riwayah,
+      'bitrate_kbps': media.bitrateKbps,
+      'surah_number': media.surah.number,
+      'ayah_number': media.ayahInSurah,
+      'url': media.playbackUri.toString(),
+      'local': media.isLocal,
+    },
+  );
+
+  Future<void> _loadQuran(int index) async {
+    _loadingMedia = true;
+    try {
+      final media = _quranMedia[index];
+      _trackIndex = index;
+      mediaItem.add(_quranItem(media));
+      if (media.localPath != null) {
+        await _player.setFilePath(media.localPath!, preload: true);
+      } else {
+        if (!_secureUrl(media.playbackUri.toString())) {
+          throw StateError('QURAN_AUDIO_INSECURE');
+        }
+        await _loadUrl(media.playbackUri.toString());
+      }
+      await _player.setSpeed(_speed);
+      _broadcastState();
+    } finally {
+      _loadingMedia = false;
+    }
+  }
+
+  @override
+  Future<void> playVirtualRadio(VirtualRadioResolution resolution) async {
+    final station = resolution.station;
+    if (!resolution.available || station == null || !station.isPlayable) {
+      throw StateError('NO_VIRTUAL_SOURCE_AVAILABLE');
+    }
+    if (!_secureUrl(station.playbackUrl)) throw StateError('STREAM_INSECURE');
+    await _saveProgress();
+    cancelSleepTimer();
+    _resetSourceState();
+    _virtualRadio = resolution;
+    _liveStation = station;
+    _shouldPlay = true;
+    queue.add(const <MediaItem>[]);
+    mediaItem.add(_virtualItem(resolution));
+    await _loadUrl(station.playbackUrl!);
+    await _player.setSpeed(1.0);
+    unawaited(_player.play());
+    _broadcastState();
+  }
+
+  @override
+  Future<void> updateVirtualMetadata(VirtualRadioResolution resolution) async {
+    if (_virtualRadio == null ||
+        resolution.channelId != _virtualRadio!.channelId) {
+      return;
+    }
+    _virtualRadio = resolution;
+    mediaItem.add(_virtualItem(resolution));
+  }
+
+  MediaItem _stationItem(Station station, {String? title, String? subtitle}) =>
+      MediaItem(
+        id: 'station:${station.id}',
+        title: title ?? station.nameAr,
+        artist: subtitle,
+        artUri: station.logoUrl == null ? null : Uri.tryParse(station.logoUrl!),
+        isLive: true,
+        extras: <String, dynamic>{
+          'kind': 'station',
+          'entity_id': station.id,
+          'slug': station.slug,
+          'url': station.playbackUrl,
+          'station_name': station.nameAr,
+          'provider': station.provider,
+        },
+      );
+
+  MediaItem _virtualItem(VirtualRadioResolution resolution) {
+    final source = resolution.station;
+    return MediaItem(
+      id: 'virtual:${resolution.channelId}',
+      title: resolution.channelNameAr,
+      artist: resolution.program?.titleAr,
+      artUri: resolution.artworkUrl == null
+          ? null
+          : Uri.tryParse(resolution.artworkUrl!),
+      isLive: true,
+      extras: <String, dynamic>{
+        'kind': 'virtual_radio',
+        'entity_id': resolution.channelId,
+        'slug': resolution.channelSlug,
+        'url': source?.playbackUrl,
+        'source_station_id': source?.id,
+        'source_station_name': source?.nameAr,
+        'provider': source?.provider,
+        'program_title': resolution.program?.titleAr,
+        'next_change_at': resolution.nextChangeAt?.toIso8601String(),
+      },
+    );
+  }
+
+  @override
+  Future<void> updateLiveMetadata(NowPlaying value) async {
+    if (_virtualRadio != null) return;
+    final station = _liveStation;
+    if (station == null || station.id != value.stationId) return;
+    mediaItem.add(
+      _stationItem(
+        station,
+        title: value.title ?? station.nameAr,
+        subtitle: value.subtitle,
+      ),
+    );
+  }
+
+  @override
+  Future<void> playTracks(
+    List<ReciterTrack> tracks,
+    int index,
+    Reciter reciter,
+  ) async {
+    final playable = tracks
+        .where((track) => track.isPlayable)
+        .toList(growable: false);
+    if (playable.isEmpty) throw StateError('NO_PLAYABLE_TRACKS');
+    if (index < 0 || index >= tracks.length)
+      throw RangeError.index(index, tracks);
+    final selected = tracks[index];
+    final mappedIndex = playable.indexWhere((track) => track.id == selected.id);
+    await _saveProgress();
+    cancelSleepTimer();
+    _resetSourceState();
+    await _player.setLoopMode(LoopMode.off);
+    _reciter = reciter;
+    _tracks = playable;
+    _trackIndex = mappedIndex < 0 ? 0 : mappedIndex;
+    _shouldPlay = true;
+    queue.add(
+      playable
+          .map((track) => _trackItem(track, reciter))
+          .toList(growable: false),
+    );
+    await _loadTrack(_trackIndex);
+    await _player.setSpeed(_speed);
+    await _restoreProgress();
+    unawaited(_player.play());
+    _broadcastState();
+  }
+
+  MediaItem _trackItem(ReciterTrack track, Reciter reciter) => MediaItem(
+    id: 'track:${track.id}',
+    title: track.surah.nameAr,
+    artist: reciter.nameAr,
+    duration: track.durationMs == null
+        ? null
+        : Duration(milliseconds: track.durationMs!),
+    isLive: false,
+    extras: <String, dynamic>{
+      'kind': 'track',
+      'entity_id': track.id,
+      'url': track.playbackUrl,
+      'surah_number': track.surah.number,
+      'reciter_id': reciter.id,
+    },
+  );
+
+  Future<void> _loadTrack(int index) async {
+    _loadingMedia = true;
+    try {
+      final track = _tracks[index];
+      final reciter = _reciter;
+      if (reciter == null || track.playbackUrl == null) return;
+      _trackIndex = index;
+      mediaItem.add(_trackItem(track, reciter));
+      await _loadUrl(track.playbackUrl!);
+      _broadcastState();
+    } finally {
+      _loadingMedia = false;
+    }
+  }
+
+  @override
+  Future<void> playOfflineClip(OfflineClip clip) async {
+    if (kIsWeb) throw UnsupportedError('OFFLINE_CLIP_PLAYBACK_UNSUPPORTED');
+    await _saveProgress();
+    cancelSleepTimer();
+    _resetSourceState();
+    await _player.setLoopMode(LoopMode.off);
+    _queuedClips = [clip];
+    _shouldPlay = true;
+    queue.add([_offlineItem(clip)]);
+    await _loadQueue(0);
+    await _restoreProgress();
+    unawaited(_player.play());
+    _broadcastState();
+  }
+
+  Future<void> _loadUrl(String url) => _player.setUrl(url, preload: true);
+
+  @override
+  Future<void> play() async {
+    _shouldPlay = true;
+    if (_player.processingState == ProcessingState.completed && !isLive) {
+      await seek(Duration.zero);
+    }
+    unawaited(_player.play());
+    _broadcastState();
+  }
+
+  @override
+  Future<void> pause() async {
+    _completionGeneration++;
+    await _saveProgress();
+    _shouldPlay = false;
+    await _player.pause();
+    _broadcastState();
+  }
+
+  @override
+  Future<void> stop() async {
+    _completionGeneration++;
+    await _saveProgress();
+    _shouldPlay = false;
+    _cancelReconnect();
+    cancelSleepTimer();
+    await _player.stop();
+    await super.stop();
+  }
+
+  @override
+  Future<void> seek(Duration position) async {
+    _completionGeneration++;
+    if (!isLive) await _player.seek(position);
+  }
+
+  @override
+  Future<void> skipToNext() async {
+    if (isLive || (_queueLength == 0)) return;
+    _completionGeneration++;
+    final next = _trackIndex + 1;
+    final length = _queueLength;
+    if (next >= length) return;
+    await _loadQueue(next);
+    if (_shouldPlay) unawaited(_player.play());
+  }
+
+  @override
+  Future<void> skipToPrevious() async {
+    if (isLive || (_queueLength == 0)) return;
+    if (_player.position > const Duration(seconds: 5)) {
+      _completionGeneration++;
+      await _player.seek(Duration.zero);
+      return;
+    }
+    _completionGeneration++;
+    final previous = _trackIndex - 1;
+    if (previous < 0) return;
+    await _loadQueue(previous);
+    if (_shouldPlay) unawaited(_player.play());
+  }
+
+  @override
+  Future<void> setSpeed(double speed) async {
+    if (isLive) return;
+    _speed = speed.clamp(0.75, 2.0);
+    await _player.setSpeed(_speed);
+    _broadcastState();
+  }
+
+  @override
+  Future<void> setVolume(double volume) =>
+      _player.setVolume(volume.clamp(0.0, 1.0));
+
+  @override
+  Future<void> setRepeatOne(bool enabled) async {
+    if (isLive) return;
+    await _player.setLoopMode(enabled ? LoopMode.one : LoopMode.off);
+    playbackState.add(
+      playbackState.value.copyWith(
+        repeatMode: enabled
+            ? AudioServiceRepeatMode.one
+            : AudioServiceRepeatMode.none,
+      ),
+    );
+  }
+
+  @override
+  void setSleepTimer(Duration duration) {
+    cancelSleepTimer();
+    _sleepDeadline = DateTime.now().add(duration);
+    _sleepRemaining.add(duration);
+    _sleepTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      final deadline = _sleepDeadline;
+      if (deadline == null) return;
+      final remaining = deadline.difference(DateTime.now());
+      if (remaining <= Duration.zero) {
+        cancelSleepTimer();
+        await pause();
+      } else {
+        _sleepRemaining.add(remaining);
+      }
+    });
+  }
+
+  @override
+  void setSleepTimerAtEnd() {
+    if (isLive) return;
+    cancelSleepTimer();
+    _sleepAtEnd = true;
+    unawaited(_player.setLoopMode(LoopMode.off));
+    _sleepTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      final duration = _player.duration;
+      if (!_sleepAtEnd || duration == null || duration == Duration.zero) {
+        _sleepRemaining.add(null);
+        return;
+      }
+      final remaining = duration - _player.position;
+      if (_player.processingState == ProcessingState.completed) {
+        cancelSleepTimer();
+        await pause();
+      } else {
+        _sleepRemaining.add(remaining);
+      }
+    });
+  }
+
+  @override
+  void cancelSleepTimer() {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    _sleepDeadline = null;
+    _sleepAtEnd = false;
+    _sleepRemaining.add(null);
+  }
+
+  void _scheduleLiveReconnect() {
+    final station = _liveStation;
+    if (station == null ||
+        !_shouldPlay ||
+        station.playbackUrl == null ||
+        _reconnectTimer != null) {
+      return;
+    }
+    const backoff = <int>[2, 4, 8];
+    if (_reconnectAttempt >= backoff.length) return;
+    final delay = Duration(seconds: backoff[_reconnectAttempt++]);
+    _reconnectTimer = Timer(delay, () async {
+      _reconnectTimer = null;
+      if (_liveStation?.id != station.id || !_shouldPlay) return;
+      try {
+        await _loadUrl(station.playbackUrl!);
+        unawaited(_player.play());
+      } catch (_) {
+        _errors.add('LIVE_RECONNECT_FAILED');
+        _scheduleLiveReconnect();
+      }
+    });
+  }
+
+  void _cancelReconnect() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _reconnectAttempt = 0;
+  }
+
+  void _broadcastState() {
+    final processing = switch (_player.processingState) {
+      ProcessingState.idle => AudioProcessingState.idle,
+      ProcessingState.loading => AudioProcessingState.loading,
+      ProcessingState.buffering => AudioProcessingState.buffering,
+      ProcessingState.ready => AudioProcessingState.ready,
+      ProcessingState.completed => AudioProcessingState.completed,
+    };
+    playbackState.add(
+      PlaybackState(
+        controls: <MediaControl>[
+          if (!isLive && (_queueLength > 0)) MediaControl.skipToPrevious,
+          _player.playing ? MediaControl.pause : MediaControl.play,
+          MediaControl.stop,
+          if (!isLive && (_queueLength > 0)) MediaControl.skipToNext,
+        ],
+        systemActions: isLive
+            ? const <MediaAction>{}
+            : const <MediaAction>{MediaAction.seek},
+        androidCompactActionIndices: isLive
+            ? const <int>[0, 1]
+            : _tracks.isEmpty && _quranMedia.isEmpty
+            ? const <int>[0, 1]
+            : const <int>[0, 1, 3],
+        processingState: processing,
+        playing: _player.playing,
+        updatePosition: _player.position,
+        bufferedPosition: _player.bufferedPosition,
+        speed: _player.speed,
+        queueIndex: !isLive && (_queueLength > 0) ? _trackIndex : null,
+        repeatMode: _player.loopMode == LoopMode.one
+            ? AudioServiceRepeatMode.one
+            : AudioServiceRepeatMode.none,
+      ),
+    );
+  }
+}

@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Run Fail-Closed Checksum & Data Validation
         run: |
@@ -38,19 +38,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: 'apps/admin/package-lock.json'
 
       - name: Install Admin Dependencies
         run: |
           cd apps/admin
-          npm install
+          npm ci
 
       - name: Typecheck Admin Next.js
         run: |
           cd apps/admin
-          npx tsc --noEmit
+          npm run typecheck
 
   backend-services-gate:
     name: Audio Worker & Radio Engine Unit Gate
@@ -62,9 +62,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Verify Audio Worker & Radio Engine TypeScript
         run: |
-          cd services/audio-worker && npm install && npx tsc --noEmit
-          cd ../radio-engine && npm install && npx tsc --noEmit
+          cd services/audio-worker && npm ci && npm run build
+          cd ../radio-engine && npm ci && npm run build

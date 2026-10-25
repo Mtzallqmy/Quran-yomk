@@ -26,14 +26,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
-      - name: Install dependencies
-        run: npm ci || npm install
-      - name: Lint and Typecheck
+          cache-dependency-path: apps/admin/package-lock.json
+      - name: Install locked admin dependencies
+        working-directory: apps/admin
+        run: npm ci
+      - name: Admin typecheck, tests and build
+        working-directory: apps/admin
         run: |
-          npm run lint --workspaces --if-present
-          npm run typecheck --workspaces --if-present
+          npm run typecheck
+          npm test
+          npm run build
 
   mobile-flutter:
     name: Flutter Mobile (Test & Analyze)
@@ -42,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.x'
+          flutter-version: '3.47.2'
           channel: 'stable'
       - name: Analyze & Test Mobile
         working-directory: apps/mobile

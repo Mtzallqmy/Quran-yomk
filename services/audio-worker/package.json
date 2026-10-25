@@ -1,24 +1,24 @@
 {
-  "name": "@quran-yutla/audio-worker",
+  "name": "@tarteel/audio-worker",
   "version": "0.1.0",
   "private": true,
-  "description": "FFmpeg and ffprobe audio normalization (-16 LUFS) and waveform extraction worker",
-  "main": "dist/index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
-    "lint": "eslint src --ext .ts",
-    "test": "jest"
+    "build": "tsc -p tsconfig.json",
+    "check:dependencies": "node dist/src/cli.js check-dependencies",
+    "fixtures": "bash test/fixtures/generate.sh",
+    "test": "npm run build && npm run fixtures && node --test dist/test/*.test.js",
+    "start": "node dist/src/cli.js run",
+    "run:once": "node dist/src/cli.js run-once"
   },
   "dependencies": {
-    "@quran-yutla/api-types": "workspace:*",
-    "@supabase/supabase-js": "^2.39.0",
-    "dotenv": "^16.4.5"
+    "@supabase/supabase-js": "2.112.4"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "typescript": "^5.4.0",
-    "ts-node": "^10.9.2"
+    "@types/node": "24.10.1",
+    "typescript": "5.9.3"
   }
 }

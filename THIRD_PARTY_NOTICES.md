@@ -1,22 +1,43 @@
-# Third-Party Notices & Attribution — Quran Yutla (قرآن يتلى)
+# Third-Party Content Notices
 
-Quran Yutla incorporates or interfaces with open-source software, institutional Waqf datasets, and public cultural broadcasts under their respective licenses and terms:
+This notice covers externally streamed Quran/Islamic audio content surfaced by Tarteel and Quran text/assets used by Tarteel. It is separate from software dependency license notices.
 
-## 1. Quranic Text & Data Sources
-- **King Fahd Glorious Quran Printing Complex (مجمع الملك فهد لطباعة المصحف الشريف)**:
-  - Canonical Uthmanic Text according to the narration of Hafs from Asim (حفص عن عاصم).
-  - Medina Mushaf page alignments (604 pages).
-  - Used under Islamic public educational waqf guidelines for religious preservation and non-commercial dissemination.
+- **Bundled adhan audio** — `apps/mobile/assets/audio/adhan.ogg` is adapted from “Adhan.ogg” by Aishatu98, dedicated to the public domain under CC0 1.0. Source: https://commons.wikimedia.org/wiki/File:Adhan.ogg.
 
-## 2. Audio Broadcasts & Provenance
-- **Cairo Radio Archive (أرشيف إذاعة القرآن الكريم من القاهرة)**:
-  - Public heritage recitations of Sheikh Abdulbasit Abdussamad, Sheikh Mohamed Siddiq El-Minshawi, and Sheikh Mahmoud Khalil Al-Hussary.
-- **Haramain Recordings (تسجيلات الرئاسة العامة لشؤون الحرمين الشريفين)**:
-  - Official recordings of the Two Holy Mosques in Mecca and Medina.
+- **Islamic Radio API** — Tarteel periodically synchronizes the station catalog published by `uthumany/islamic-radio-api` from `client/public/api/stations.json`. The upstream README states that the API/catalog is provided under CC0-1.0. Tarteel records this as a **catalog metadata** license only; it does not infer that every indexed third-party broadcast/audio stream is CC0, owned by Tarteel, or endorsed by its broadcaster. Listener audio connects directly to the normalized station's external provider URL.
+- **Qurango** — External Quran, reciter, tafseer, hadith, seerah, adhkar, ruqyah, fatwa, translation, and selected-surah streams. Attribution: Qurango. Integration basis recorded as `PERMISSION_DOCUMENTED`. Reference: https://www.mp3quran.net/privacy-en.html. Tarteel does not claim ownership of the content or Qurango marks.
+- **MP3Quran** — Dynamic radio catalog obtained from the public developer API at `https://www.mp3quran.net/api/v3/radios?language=ar`. Attribution: MP3Quran. Integration basis recorded as `PUBLIC_API`. Reference: https://www.mp3quran.net/privacy-en.html. Stable Tarteel station IDs are used independently of provider URLs.
+- **AlQuran Cloud / Islamic Network audio** — Quran audio by surah and ayah is streamed directly from `cdn.islamic.network`, or downloaded directly to the listener's device for offline playback. Tarteel stores metadata pointers only and does not relay these MP3 files through Supabase. Attribution and edition/reciter identity are retained. Terms: https://alquran.cloud/terms-and-conditions.
+- **AlQuran Cloud Quran text (`quran-uthmani`, `quran-tajweed`)** — Tarteel's canonical Quran v1 is a verbatim, no-mutation snapshot of the two editions already used by the public API. The manifest records raw-response SHA-256 values, the normalized dataset SHA-256, source identifiers, generation/verification timestamps, and an explicit `APPROVED` status. AlQuran Cloud's current terms allow reproduction/storage/display of Quran text while requiring faithful preservation and attribution; AlQuran Cloud identifies Tanzil and other curators among its sources. Tanzil permits verbatim copying/distribution of its Quran text with source attribution and prohibits changing the text. Tarteel therefore applies `VERBATIM_SNAPSHOT_NO_TEXT_MUTATION`: no AI/fuzzy correction, no silent refresh, and any approved-version change requires a new dataset version and review. References: https://alquran.cloud/terms-and-conditions and https://tanzil.net/docs/Text_License.
+- **MP3Quran reciters** — Reciter, moshaf/riwayah, and available-surah metadata comes from API v3. Audio streams and offline downloads connect directly to the provider URL; Supabase stores metadata only. Attribution: MP3Quran and the named reciter. Reference: https://www.mp3quran.net/privacy-en.html.
+- **QuranPedia Quran SVG / KFQC Mushaf al-Madinah** — The normal Mushaf reader displays the 604 static Hafs/KFQC SVG page artworks without redrawing Quran text. QuranPedia's ayah polygon/JSON layer is CC0 1.0; the repository documents KFQC permission for digital, software, web, and media use and the restriction on commercial physical-Mushaf printing. Source revision: `b91d39e1065b57bdda3e94aca8ecf3575e50e1e6`. Reference: https://github.com/quranpedia/quran-svg.
+- **QCF V4 Tajweed page assets** — Tarteel pre-renders the 604 page-specific QCF V4 Tajweed fonts supplied through Tarteel AI's Quranic Universal Library into transparent WebP pages. The render tooling is MIT licensed; the Quran font/artwork remains attributed to the King Fahd Glorious Quran Printing Complex and Dar Al Maarifah. Every release is pinned, checksumed, matched page-by-page to the Hafs verse map, and visually exercised on Android before acceptance. References: https://qul.tarteel.ai/resources/font/240 and https://github.com/NedaaDevs/quran-image-generator.
+- **Islamic Library Data — Open Source Islamic Dataset** — Quran metadata, thematic segments, Tafseer Muyassar, hadith collections, adhkar, Prophet stories/quizzes, Names of Allah, and the book catalog are read directly from revision `4beafb9f6c9e05e7a1f1573b856dbc511859f716` at https://github.com/mohammed-2-5/islamic-library-data. Verified JSON is cached on-device; it is not re-hosted through Supabase. The upstream revision has no root `LICENSE` file, so Tarteel preserves per-resource provenance and does not collapse fonts, translations, audio, or books under a single license.
+- **MP3Quran / Holol Live** — Quran and Sunnah HLS links published through the MP3Quran API. Attribution: MP3Quran / Holol Live. Release rights for the underlying live broadcaster/CDN remain independently gated; no public-domain claim is made.
+- **Saudi Quran Radio / Radiojar** — Public stream link `https://stream.radiojar.com/0tpy1h0kxtzuv`. Attribution: Saudi Quran Radio / Radiojar. Public accessibility is recorded as `PUBLIC_STREAM` and is not treated as proof of copyright waiver or commercial-use permission.
 
-## 3. Open Source Software
-- **Supabase**: Apache License 2.0.
-- **ExoPlayer / AndroidX Media3**: Apache License 2.0.
-- **Liquidsoap**: GPL-2.0.
-- **Icecast**: GPL-2.0.
-- **Next.js & React**: MIT License.
+External streams connect the listener device directly to provider infrastructure. They are not relayed through the Tarteel internal radio engine, Liquidsoap, Icecast, or a Supabase continuous-audio proxy.
+
+`إذاعة ترتيل` in Phase 11 is a logical curated channel: Tarteel resolves a scheduled eligible source, while the device still connects directly to the selected external broadcaster/provider. This indexing/selection does not transfer ownership of the underlying audio to Tarteel.
+
+## Stage 0 user interface font
+
+Noto Sans Arabic is bundled solely as the UI font. Quran text/page fonts and
+content licensing are unchanged. Source:
+https://github.com/google/fonts/tree/main/ofl/notosansarabic
+SIL Open Font License 1.1 is included verbatim at
+`apps/mobile/assets/fonts/OFL-NotoSansArabic.txt` and registered in Android's
+Flutter license registry. Font SHA-256:
+`63111b5b2e074dd48cc67692e0a2726d86ee94c1c37fe8598257b7b4e87e869e`.
+
+## Offline local reminder sound (2026-10-23)
+
+`apps/mobile/assets/audio/reminder.wav` is an original synthesized two-tone
+notification chime created for this update, with no recorded voice or samples.
+The generator `scripts/generate_tarteel_reminder.py` and its generated sound
+are dedicated under CC0 1.0. The sound is a short notification, not an adhan or
+a spoken dhikr. `apps/mobile/assets/audio/manifest.json` records checksums and
+provenance for both offline assets. The existing bundled adhan is a 42-second
+announcement sample; it is not described as a verified complete full-length
+adhan. Wikimedia Commons source revision 1248174278 was checked on 2026-10-23
+and explicitly identifies Aishatu98's own work under CC0 1.0.

@@ -20,7 +20,7 @@ def api(path):
     return json.loads(subprocess.check_output(['gh','api',f'repos/{REPO}/{path}'],text=True))
 
 
-def publish(metadata_path,build_tools,output):
+def publish(metadata_path,build_tools,output,prepare_only=False,upgrade_evidence=None):
     metadata=json.loads(metadata_path.read_text())
     commit=metadata['candidate_commit']
     source=metadata['source_commit']
@@ -30,7 +30,7 @@ def publish(metadata_path,build_tools,output):
         if type(metadata[key]) is not int or metadata[key]<=0:
             raise ValueError('Invalid Actions identity')
     # The only release this reviewed workflow is authorized to publish.
-    if metadata['tag']!='v0.9.1-beta.2-preview.2093':
+    if metadata['tag']!='v0.9.2-beta.2-preview.2094':
         raise ValueError('Unexpected release tag')
     run=api(f"actions/runs/{metadata['candidate_run_id']}")
     if run['head_sha']!=commit or run['conclusion']!='success' or run['event']!='pull_request' or run['name']!='Tarteel local prayer upgrade':
@@ -59,8 +59,8 @@ def publish(metadata_path,build_tools,output):
         entries=[n for n in package.namelist() if n=='UNSIGNED-tarteel-arm64-v8a.apk']
         if len(entries)!=1:raise ValueError('Unexpected APK artifact layout')
         before=package.read(entries[0])
-    envelope=json.loads((metadata_path.parent/'preview-2093-envelope.json').read_text())
-    apk=output/'Tarteel-0.9.1-beta.2-2093-ARM64-PREVIEW.apk'
+    envelope=json.loads((metadata_path.parent/'preview-2094-envelope.json').read_text())
+    apk=output/'Tarteel-0.9.2-beta.2-2094-ARM64-PREVIEW.apk'
     apk.write_bytes(reconstruct(before,envelope))
     with zipfile.ZipFile(apk) as signed_package:
         if source.encode() not in signed_package.read('lib/arm64-v8a/libapp.so'):
@@ -69,13 +69,21 @@ def publish(metadata_path,build_tools,output):
     subprocess.run(['python3',str(Path(__file__).with_name('verify_preview_apk.py')),str(apk),
         '--aapt',str(build_tools/'aapt'),'--apksigner',str(build_tools/'apksigner'),
         '--zipalign',str(build_tools/'zipalign'),'--source-commit',source,'--output',str(verification)],check=True)
+    if prepare_only:
+        print('Verified signed candidate prepared; publication awaits real2092 upgrade acceptance.')
+        return
+    if upgrade_evidence is None:
+        raise ValueError('Actual signed2092 install-r evidence is required')
+    acceptance=json.loads(upgrade_evidence.read_text())
+    if acceptance.get('status')!='PASS' or acceptance.get('version_code')!=2094 or acceptance.get('apk_sha256')!=hashlib.sha256(apk.read_bytes()).hexdigest() or not acceptance.get('bookmarks_retained') or not acceptance.get('recording_retained'):
+        raise ValueError('Signed upgrade acceptance did not pass for this exact APK')
     # Refuse overwrites, and never mark this preview as the latest production release.
     exists=subprocess.run(['gh','release','view',metadata['tag'],'--repo',REPO],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     if exists.returncode==0:raise ValueError('Release already exists; refusing overwrite')
     subprocess.run(['gh','release','create',metadata['tag'],str(apk),str(verification/'SHA256SUMS.txt'),str(verification/'preview-metadata.json'),
         '--repo',REPO,'--target',source,'--prerelease','--latest=false',
-        '--title','ترتيل 0.9.1-beta.2 — معاينة 2093',
-        '--notes-file','docs/surah-api/RELEASE_NOTES.md'],check=True)
+        '--title','ترتيل 0.9.2-beta.2 — معاينة 2094',
+        '--notes-file','docs/mushaf/RELEASE_NOTES.md'],check=True)
     release=api('releases/tags/'+metadata['tag'])
     assets=[a for a in release['assets'] if a['name']==apk.name]
     if len(assets)!=1 or assets[0]['size']!=apk.stat().st_size or not release['prerelease']:
@@ -89,5 +97,7 @@ if __name__=='__main__':
     parser.add_argument('--metadata',type=Path,required=True)
     parser.add_argument('--build-tools',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--prepare-only',action='store_true')
+    parser.add_argument('--upgrade-evidence',type=Path)
     args=parser.parse_args()
-    publish(args.metadata,args.build_tools,args.output)
+    publish(args.metadata,args.build_tools,args.output,args.prepare_only,args.upgrade_evidence)

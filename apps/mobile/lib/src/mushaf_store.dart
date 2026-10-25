@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'quran_models.dart';
+import 'canonical_quran.dart';
+import 'canonical_navigation.dart';
 
 enum MushafReaderPresentation { page, text }
 
@@ -207,7 +209,7 @@ class MushafStore extends ChangeNotifier {
         final value = jsonDecode(rawPosition);
         if (value is Map) {
           lastPosition = MushafPosition.fromJson(
-            Map<String, dynamic>.from(value),
+            reconcileLegacyQuranPage(Map<String, dynamic>.from(value)),
           );
         }
       } catch (_) {}
@@ -221,7 +223,7 @@ class MushafStore extends ChangeNotifier {
           for (final value in values) {
             if (value is! Map) continue;
             final bookmark = MushafBookmark.fromJson(
-              Map<String, dynamic>.from(value),
+              reconcileLegacyQuranPage(Map<String, dynamic>.from(value)),
             );
             if (bookmark.verseKey.isNotEmpty) {
               _bookmarks[bookmark.verseKey] = bookmark;
@@ -239,6 +241,69 @@ class MushafStore extends ChangeNotifier {
       orElse: () => MushafReaderPresentation.page,
     );
     pageEdition = _prefs.getString(_pageEditionKey) ?? 'madinahHafsSvg';
+  }
+
+  /// Correct only56 known old page boundaries; preserve unknown user fields.
+  /// Disk writes wait for full official-corpus verification. Load uses the same
+  /// pinned navigation metadata so startup does not wait on optional work.
+  Future<bool> reconcileCanonicalPositions(TarteelCanonicalQuran source) async {
+    for (final entry in legacyQuranPageCorrections.entries) {
+      if (source.ayah(entry.key)?.pageNumber != entry.value[1])
+        throw StateError('CANONICAL_NAVIGATION_MISMATCH');
+    }
+    final oldPosition = _prefs.getString(_positionKey),
+        oldBookmarks = _prefs.getString(_bookmarksKey);
+    String? position, bookmarks;
+    try {
+      if (oldPosition != null) {
+        final decoded = jsonDecode(oldPosition);
+        if (decoded is Map) {
+          final raw = Map<String, dynamic>.from(decoded);
+          final fixed = reconcileLegacyQuranPage(raw);
+          if (!identical(raw, fixed)) position = jsonEncode(fixed);
+        }
+      }
+    } on FormatException {
+      /* Preserve malformed original verbatim. */
+    }
+    try {
+      if (oldBookmarks != null) {
+        final decoded = jsonDecode(oldBookmarks);
+        if (decoded is List) {
+          var changed = false;
+          final fixed = [
+            for (final value in decoded)
+              if (value is Map)
+                (() {
+                  final raw = Map<String, dynamic>.from(value);
+                  final result = reconcileLegacyQuranPage(raw);
+                  changed = changed || !identical(result, raw);
+                  return result;
+                })()
+              else
+                value,
+          ];
+          if (changed) bookmarks = jsonEncode(fixed);
+        }
+      }
+    } on FormatException {
+      /* Preserve malformed original verbatim. */
+    }
+    if (position == null && bookmarks == null) return false;
+    const backup = 'mushaf:pre-canonical-v2-backup:v1';
+    if (!_prefs.containsKey(backup) &&
+        !await _prefs.setString(
+          backup,
+          jsonEncode({'position': oldPosition, 'bookmarks': oldBookmarks}),
+        ))
+      throw StateError('MUSHAF_BACKUP_FAILED');
+    if (position != null && !await _prefs.setString(_positionKey, position))
+      throw StateError('MUSHAF_POSITION_WRITE_FAILED');
+    if (bookmarks != null && !await _prefs.setString(_bookmarksKey, bookmarks))
+      throw StateError('MUSHAF_BOOKMARK_WRITE_FAILED');
+    load();
+    notifyListeners();
+    return true;
   }
 
   bool isBookmarked(String verseKey) => _bookmarks.containsKey(verseKey);

@@ -15,6 +15,48 @@ import 'package:tarteel/src/tajweed.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
+    '2092 boundary bookmarks keep ayah identity and map121 to official120 with exact rollback',
+    () async {
+      const position =
+          '{"mode":"page","number":121,"verse_key":"5:77","page_number":121}';
+      const bookmarks =
+          '[{"verse_key":"5:77","surah_number":5,"ayah_number":77,"page_number":121,"created_at":"2026-10-24T00:00:00Z"},{"custom":"preserve"}]';
+      SharedPreferences.setMockInitialValues({
+        'mushaf:last-position:v1': position,
+        'mushaf:bookmarks:v1': bookmarks,
+        'prayer:fixture': 'kept',
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final store = MushafStore(prefs)..load();
+      expect(store.lastPosition!.pageNumber, 120);
+      expect(store.bookmarks.single.pageNumber, 120);
+      expect(prefs.getString('mushaf:last-position:v1'), position);
+      expect(
+        await store.reconcileCanonicalPositions(
+          await TarteelCanonicalQuran.load(),
+        ),
+        true,
+      );
+      expect(store.lastPosition!.verseKey, '5:77');
+      final rows = jsonDecode(prefs.getString('mushaf:bookmarks:v1')!) as List;
+      expect(rows.length, 2);
+      expect(rows[0]['page_number'], 120);
+      expect(rows[1], {'custom': 'preserve'});
+      final backup =
+          jsonDecode(prefs.getString('mushaf:pre-canonical-v2-backup:v1')!)
+              as Map;
+      expect(backup['position'], position);
+      expect(backup['bookmarks'], bookmarks);
+      expect(prefs.getString('prayer:fixture'), 'kept');
+      expect(
+        await store.reconcileCanonicalPositions(
+          await TarteelCanonicalQuran.load(),
+        ),
+        false,
+      );
+    },
+  );
+  test(
     'study presentation excludes the verse-end numeral without changing source text',
     () async {
       final q = await TarteelCanonicalQuran.load();

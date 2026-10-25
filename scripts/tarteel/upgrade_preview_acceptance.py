@@ -20,7 +20,7 @@ def main(a):
  adb('shell','am','force-stop',PACKAGE)
  device='/data/data/'+PACKAGE+'/shared_prefs/FlutterSharedPreferences.xml';local=private/'baseline-prefs.xml';adb('pull',device,str(local))
  tree=ET.parse(local);root=tree.getroot()
- fixtures={'flutter.mushaf:last-position:v1':json.dumps(dict(mode='page',number=604,verse_key='112:1',surah_number=112,ayah_number=1,page_number=604)), 'flutter.mushaf:bookmarks:v1':json.dumps([dict(verse_key='112:1',surah_number=112,ayah_number=1,page_number=604,created_at='2026-10-25T00:00:00Z')])}
+ fixtures={'flutter.mushaf:last-position:v1':json.dumps(dict(mode='page',number=121,verse_key='5:77',surah_number=5,ayah_number=77,page_number=121)), 'flutter.mushaf:bookmarks:v1':json.dumps([dict(verse_key='5:77',surah_number=5,ayah_number=77,page_number=121,created_at='2026-10-25T00:00:00Z')])}
  for key,value in fixtures.items():
   for child in list(root):
    if child.get('name')==key:root.remove(child)
@@ -38,12 +38,17 @@ def main(a):
  logs=adb('logcat','-d','--pid='+pid);assert not re.search(r'FATAL EXCEPTION|Unhandled Exception|Fatal signal',logs)
  package=adb('shell','dumpsys','package',PACKAGE);assert 'versionCode=2094' in package
  after=private/'upgraded-prefs.xml';adb('pull',device,str(after));values={c.get('name'):c.text for c in ET.parse(after).getroot()}
- for key,value in fixtures.items():assert values.get(key)==value,'Lost2092 reading/bookmark data: '+key
+ for key,value in fixtures.items():
+  expected=json.loads(value)
+  if key.endswith('last-position:v1'):expected.update(number=120,page_number=120)
+  else:expected[0]['page_number']=120
+  assert json.loads(values[key])==expected,'Lost2092 reading/bookmark identity: '+key
+ backup=json.loads(values['flutter.mushaf:pre-canonical-v2-backup:v1']);assert backup['position']==fixtures['flutter.mushaf:last-position:v1'] and backup['bookmarks']==fixtures['flutter.mushaf:bookmarks:v1']
  retained=a.output/'retained-recording.mp3';adb('pull',target,str(retained));assert retained.read_bytes()==audio
  adb('shell','uiautomator','dump','/sdcard/tarteel-upgrade-ui.xml');adb('pull','/sdcard/tarteel-upgrade-ui.xml',str(a.output/'ui.xml'))
  assert PACKAGE in (a.output/'ui.xml').read_text()
  (a.output/'launch.txt').write_text(launch);(a.output/'logcat.txt').write_text(logs);(a.output/'package.txt').write_text(package)
- report=dict(status='PASS',baseline_version_code=2092,version_code=2094,baseline_sha256=BASE_SHA,apk_sha256=hashlib.sha256(a.candidate.read_bytes()).hexdigest(),certificate_sha256=CERT,emulator_abis=abis,reading_position_retained=True,bookmarks_retained=True,recording_sha256=hashlib.sha256(audio).hexdigest(),recording_retained=True)
+ report=dict(status='PASS',baseline_version_code=2092,version_code=2094,baseline_sha256=BASE_SHA,apk_sha256=hashlib.sha256(a.candidate.read_bytes()).hexdigest(),certificate_sha256=CERT,emulator_abis=abis,reading_position_retained=True,bookmarks_retained=True,legacy_page=121,official_page=120,verse_identity='5:77',rollback_snapshot_verified=True,recording_sha256=hashlib.sha256(audio).hexdigest(),recording_retained=True)
  (a.output/'acceptance.json').write_text(json.dumps(report,indent=2)+'\n');shutil.rmtree(private);print(json.dumps(report))
 if __name__=='__main__':
  p=argparse.ArgumentParser();p.add_argument('--baseline',type=Path,required=True);p.add_argument('--candidate',type=Path,required=True);p.add_argument('--apksigner',type=Path,required=True);p.add_argument('--output',type=Path,required=True);main(p.parse_args())

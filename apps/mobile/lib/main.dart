@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'src/api.dart';
+import 'src/canonical_quran.dart';
 import 'src/adhan_audio.dart';
 import 'src/adhan_library.dart';
 import 'src/announcements.dart';
@@ -155,6 +156,11 @@ Future<void> main() async {
     'offline_clips': offlineClips.initialize,
     'quran_downloads': quranDownloads.initialize,
     'islamic_content': islamicContent.synchronizeInBackground,
+    'mushaf_positions': () async {
+      await mushaf.reconcileCanonicalPositions(
+        await TarteelCanonicalQuran.load(),
+      );
+    },
     'runtime_config': remoteConfig.refresh,
     'local_reminders': () async {
       // User-owned local schedules must not be cancelled by cloud feature flags.

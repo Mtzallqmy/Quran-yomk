@@ -62,14 +62,14 @@ jobs:
       - name: Build isolated installable trial APK
         working-directory: apps/mobile
         run: >-
-          flutter build apk --debug
+          flutter build apk --release --target-platform android-arm64
           --dart-define=TARTEEL_ISOLATED_TRIAL=true
-          --dart-define=TARTEEL_API_BASE_URL=https://api.tarteel.invalid/api/v1
+          --dart-define=TARTEEL_API_BASE_URL=https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
       - name: Inspect package and publish artifact only
         run: |
           set -euo pipefail
           mkdir -p trial-artifacts
-          cp apps/mobile/build/app/outputs/flutter-apk/app-debug.apk trial-artifacts/Tarteel-Mushaf-TRIAL-ARM64-compatible.apk
+          cp apps/mobile/build/app/outputs/flutter-apk/app-release.apk trial-artifacts/Tarteel-Mushaf-TRIAL-ARM64.apk
           AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)
           "$AAPT" dump badging trial-artifacts/*.apk > trial-artifacts/badging.txt
           grep -q "package: name='app.tarteel.tarteel.trial'" trial-artifacts/badging.txt
@@ -78,9 +78,9 @@ jobs:
           ISOLATED EXPERIMENT. NOT A RELEASE.
           Package: app.tarteel.tarteel.trial
           Installable side-by-side with app.tarteel.tarteel.
-          Debug signed; NOT an upgrade for the installed 2092 APK.
+          Release-optimized, trial/debug-key signed; NOT an upgrade for installed 2092.
           No Releases publication or production database migration.
-          Push registration disabled; legacy backend intentionally unavailable.
+          Push registration disabled to avoid collisions; existing production radio, audio and content backend restored.
           Surah content is fetched read-only as a live experimental preview.
           EOF
           cat trial-artifacts/SHA256SUMS.txt >> "$GITHUB_STEP_SUMMARY"

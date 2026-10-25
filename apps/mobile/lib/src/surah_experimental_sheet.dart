@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 import 'surah_api_client.dart';
@@ -31,6 +29,7 @@ class _SurahExperimentalSheetState extends State<SurahExperimentalSheet> {
     super.initState();
     _api = SurahApiClient();
     _projects = _api.projects();
+    _content = _api.aya('tafsir-mokhtasar', widget.surahNumber, widget.ayahNumber);
   }
 
   @override
@@ -88,7 +87,7 @@ class _SurahExperimentalSheetState extends State<SurahExperimentalSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('محتوى سورة — معاينة تجريبية',
+            Text('تفسير الآية — محتوى سورة',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 6),
             const Text(
@@ -120,7 +119,7 @@ class _SurahExperimentalSheetState extends State<SurahExperimentalSheet> {
                 if (!snapshot.hasData) {
                   return const LinearProgressIndicator();
                 }
-                final projects = snapshot.data!;
+                final projects = snapshot.data!.where((p) => p.slug.startsWith('tafsir-')).toList();
                 if (projects.isEmpty) {
                   return const Text('لم تُكتشف مشاريع متاحة حاليًا');
                 }
@@ -154,7 +153,7 @@ class _SurahExperimentalSheetState extends State<SurahExperimentalSheet> {
             Expanded(
               child: _content == null
                   ? const Center(
-                      child: Text('اختر مشروعًا لعرض محتواه عند هذه الآية'))
+                      child: Text('اختر تفسيرًا أو أعد الاتصال'))
                   : FutureBuilder<Object?>(
                       future: _content,
                       builder: (context, snapshot) {
@@ -172,8 +171,7 @@ class _SurahExperimentalSheetState extends State<SurahExperimentalSheet> {
                         return SingleChildScrollView(
                           child: SelectableText(
                             text.isEmpty
-                                ? 'استجابة المصدر تحتاج إلى محول خاص بهذا المشروع:\n'
-                                    '${jsonEncode(snapshot.data)}'
+                                ? 'المحتوى غير متاح بهذا الشكل من المصدر'
                                 : text,
                             textDirection: TextDirection.rtl,
                           ),

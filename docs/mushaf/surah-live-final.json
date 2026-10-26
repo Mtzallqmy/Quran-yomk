@@ -1,0 +1,31 @@
+{
+  "projects": 20,
+  "tafsir-mokhtasar": {
+    "status": "VERIFIED",
+    "rows": 1,
+    "hashes": [
+      "079be1ea2f146f9121070dd458b33b740b9ffa7bc2eca05f60c22d5f8a847943"
+    ]
+  },
+  "fawaed-page": {
+    "status": "VERIFIED",
+    "rows": 1,
+    "hashes": [
+      "48b70826e6725a3ed8bfd8077354c3549f083af4352ff594e627acdf1c98bc99"
+    ]
+  },
+  "eerab-word": {
+    "status": "VERIFIED",
+    "rows": 1,
+    "hashes": [
+      "bba1a572f59635be442ce9727055ae52833234148d2b09210df93291a188226a"
+    ]
+  },
+  "asmaa-sowar": {
+    "status": "VERIFIED",
+    "rows": 1,
+    "hashes": [
+      "d2cc1dfc680551c7e0995ec1764181a70c981afb0e57b387c27e5a8ee1cad48e"
+    ]
+  }
+}

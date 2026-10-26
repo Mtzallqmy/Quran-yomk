@@ -375,6 +375,19 @@ class PrayerSettingsStore extends ChangeNotifier {
 
   Future<void> updateLocation(PrayerSettings settings) => _save(settings);
 
+  /// Called only by explicit restore after validating the complete payload.
+  Future<void> restorePreferences(PrayerSettings settings) async {
+    final before = _preferences.getString(_storageKey);
+    if (before != null &&
+        !await _preferences.setString(
+          'settings:prayer:before-cloud-restore:v1',
+          before,
+        )) {
+      throw StateError('PRAYER_BACKUP_FAILED');
+    }
+    await _save(settings);
+  }
+
   Future<void> setReminderMinutes(
     PrayerKind prayer, {
     int? before,

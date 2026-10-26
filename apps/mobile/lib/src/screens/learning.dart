@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../learning.dart';
+import '../canonical_quran.dart';
 import '../quran_audio.dart';
 import '../quran_models.dart';
 import '../services.dart';
@@ -253,15 +254,14 @@ class _ThematicMushafPageState extends ConsumerState<ThematicMushafPage> {
                   child: Text(
                     verses
                         .map(
-                          (verse) =>
-                              '${verse.textUthmani} ﴿${verse.ayahNumber}﴾',
+                          (verse) => '${verse.studyText} ﴿${verse.ayahNumber}﴾',
                         )
                         .join(' '),
                     textDirection: TextDirection.rtl,
                     textAlign: TextAlign.justify,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       height: 2.1,
-                      fontFamily: 'serif',
+                      fontFamily: 'TarteelQuran',
                     ),
                   ),
                 );
@@ -537,7 +537,7 @@ class _MemorizationSessionPageState
                   verses
                       .map(
                         (verse) =>
-                            '${_displayText(verse.textUthmani)} ﴿${verse.ayahNumber}﴾',
+                            '${_displayText(verse.studyText)} ﴿${verse.ayahNumber}﴾',
                       )
                       .join('\n'),
                   textDirection: TextDirection.rtl,
@@ -815,8 +815,8 @@ class _LearningTestsPageState extends ConsumerState<LearningTestsPage> {
                 padding: const EdgeInsets.all(18),
                 child: Text(
                   _blanks
-                      ? presentationBlank(current.textUthmani)
-                      : current.textUthmani,
+                      ? presentationBlank(current.studyText)
+                      : current.studyText,
                   textDirection: TextDirection.rtl,
                   textAlign: TextAlign.center,
                   style: Theme.of(
@@ -841,7 +841,7 @@ class _LearningTestsPageState extends ConsumerState<LearningTestsPage> {
                 child: Padding(
                   padding: const EdgeInsets.all(18),
                   child: Text(
-                    answer.textUthmani,
+                    answer.studyText,
                     textDirection: TextDirection.rtl,
                     textAlign: TextAlign.center,
                     style: Theme.of(

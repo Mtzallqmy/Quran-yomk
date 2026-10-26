@@ -4,6 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import 'storage.dart';
+import 'prayer_settings.dart';
+import 'prayer_backup.dart';
 
 /// Optional, explicitly requested library backup. Never called by prayer/startup.
 class CloudBackupClient {
@@ -143,6 +145,46 @@ class CloudBackupClient {
   Future<void> disconnectAndDelete() async {
     await _request('DELETE', '/v1/device', token: await _token());
     await _storage.delete(key: _credentialKey);
+  }
+
+  Future<void> uploadPrayerPreferences(PrayerSettings value) async {
+    final token = await _token();
+    final data = (await _request(
+      'GET',
+      '/v1/prayer-preferences',
+      token: token,
+    ))['data'];
+    final revision = data == null
+        ? 0
+        : data is Map
+        ? int.tryParse('${data['revision']}')
+        : null;
+    if (revision == null || revision < 0)
+      throw const FormatException('INVALID_CLOUD_REVISION');
+    await _request(
+      'PUT',
+      '/v1/prayer-preferences',
+      token: token,
+      body: {
+        'consent': 'prayer-preferences-v1',
+        'revision': revision,
+        'payload': PrayerBackup.encode(value),
+      },
+    );
+  }
+
+  Future<void> restorePrayerPreferences(PrayerSettingsStore store) async {
+    final data = (await _request(
+      'GET',
+      '/v1/prayer-preferences',
+      token: await _token(),
+    ))['data'];
+    if (data == null) throw StateError('CLOUD_BACKUP_EMPTY');
+    final restored = PrayerBackup.decode(
+      data is Map ? data['payload'] : null,
+      store.value,
+    );
+    await store.restorePreferences(restored);
   }
 
   void close() => _client.close();

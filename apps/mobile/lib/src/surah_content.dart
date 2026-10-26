@@ -53,7 +53,13 @@ class SurahContentEntry {
   final Uri sourceUrl;
   int? get wordNumber => (data['word_number'] as num?)?.toInt();
   String get word => plain('${data['word'] ?? ''}');
-  String get text => plain('${data['content'] ?? ''}');
+  String get text {
+    final content = data['content'];
+    return content is List
+        ? content.cast<String>().map(plain).join('\n\n')
+        : plain('${content ?? ''}');
+  }
+
   String get sha256Hex =>
       sha256.convert(utf8.encode(jsonEncode(data))).toString();
   static String plain(String value) {
@@ -81,6 +87,7 @@ class SurahApiClient {
     this.timeout = const Duration(seconds: 20),
     this.policy = const SurahCachePolicy(),
     DateTime Function()? clock,
+    this.projectCatalog,
   }) : _client = client ?? http.Client(),
        _clock = clock ?? DateTime.now;
   static const base = 'https://dev.surahapp.com/api/v1';
@@ -88,6 +95,9 @@ class SurahApiClient {
   final Duration timeout;
   final SurahCachePolicy policy;
   final DateTime Function() _clock;
+
+  /// Optional Neon metadata registry. Educational bodies stay at the official API.
+  final Future<List<Map<String, dynamic>>> Function()? projectCatalog;
   final _cache = <String, _SessionEntry>{};
   final _pending = <String, Future<dynamic>>{};
   final _aborts = <Completer<void>>{};
@@ -119,7 +129,7 @@ class SurahApiClient {
         );
         request.headers.addAll({
           'Accept': 'application/json',
-          'User-Agent': 'Tarteel/0.9.1',
+          'User-Agent': 'Tarteel/0.9.3',
           if (cached?.etag != null) 'If-None-Match': cached!.etag!,
         });
         final response =
@@ -178,6 +188,37 @@ class SurahApiClient {
   }
 
   Future<List<SurahProject>> projects([SurahScope? scope]) async {
+    if (projectCatalog != null) {
+      try {
+        final rows = await projectCatalog!().timeout(timeout);
+        if (rows.isEmpty || rows.length > 100)
+          throw const FormatException('INVALID_CATALOG');
+        final values = <SurahProject>[];
+        final seen = <String>{};
+        for (final row in rows) {
+          final p = SurahProject.parse({...row, 'type': row['scope']});
+          if (p == null ||
+              !seen.add(p.slug) ||
+              row['source_url'] != '$base/project/${p.slug}' ||
+              row['permanent_storage_allowed'] != false ||
+              row['redistribution_allowed'] != false ||
+              row['policy'] == 'metadata_only' && p.slug != 'word-pic' ||
+              ![
+                'direct_session_only',
+                'metadata_only',
+              ].contains(row['policy'])) {
+            throw const FormatException('INVALID_SURAH_REGISTRY');
+          }
+          values.add(p);
+        }
+        _projects = values;
+        return scope == null
+            ? values
+            : values.where((p) => p.scope == scope).toList();
+      } catch (_) {
+        // A registry outage must not disable the official provider.
+      }
+    }
     final result = await _get(
       scope == null ? 'projects' : 'projects/${scope.name}',
     );
@@ -213,6 +254,7 @@ class SurahApiClient {
     String slug,
     List<int> location, {
     int? end,
+    bool refresh = false,
   }) async {
     final project = await _published(slug);
     final count = switch (project.scope) {
@@ -237,11 +279,16 @@ class SurahApiClient {
     if (slug == 'word-pic') throw StateError('MEDIA_RIGHTS_UNVERIFIED');
     final path =
         '${project.scope.name}/$slug/${[...location, if (end != null) end].join('/')}';
+    if (refresh) _cache.remove(path);
     final raw = await _get(path);
     final rows = raw is List ? raw : [raw];
     final seen = <String>{};
     return rows.map((row) {
-      if (row is! Map || row['content'] is! String)
+      if (row is! Map ||
+          !(row['content'] is String ||
+              (project.scope == SurahScope.page &&
+                  row['content'] is List &&
+                  (row['content'] as List).every((v) => v is String))))
         throw const FormatException('INVALID_CONTENT');
       final keys = switch (project.scope) {
         SurahScope.sura => ['sura_number'],

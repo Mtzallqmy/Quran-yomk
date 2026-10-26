@@ -192,9 +192,9 @@ class SettingsPage extends ConsumerWidget {
             ),
             ListTile(
               leading: const Icon(Icons.cloud_outlined),
-              title: const Text('نسخة المفضلة الاختيارية'),
+              title: const Text('النسخ السحابي الاختياري'),
               subtitle: const Text(
-                'Neon • موافقة صريحة • دون إرسال الموقع أو الصلاة',
+                'مفضلة وإعدادات أذان • بموافقتك • دون الموقع وملفات الصوت',
               ),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(

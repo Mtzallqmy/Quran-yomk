@@ -13,7 +13,7 @@ function arg(name, fallback = null) {
   return index >= 0 ? process.argv[index + 1] : fallback;
 }
 
-const version = arg("--version", "1");
+const version = arg("--version", "2");
 const datasetPath = arg("--dataset", `data/quran/canonical/v${version}/dataset.json`);
 const manifestPath = arg("--manifest", `data/quran/canonical/v${version}/manifest.json`);
 const baseRef = arg("--base-ref", process.env.QURAN_INTEGRITY_BASE_REF ?? "");

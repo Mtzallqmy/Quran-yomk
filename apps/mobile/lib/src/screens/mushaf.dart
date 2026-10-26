@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +13,9 @@ import '../quran_models.dart';
 import '../services.dart';
 import '../download_progress.dart';
 import '../tajweed.dart';
+import '../canonical_quran.dart';
+import '../thematic_quran.dart';
+import '../mushaf_library.dart';
 import '../surah_reader_panel.dart';
 
 class MushafPage extends ConsumerStatefulWidget {
@@ -31,11 +36,35 @@ class _MushafPageState extends ConsumerState<MushafPage> {
   QuranAudioCatalogReciter? _selectedReciter;
   int _bitrateKbps = 128;
   bool _audioBusy = false;
+  int _loadGeneration = 0;
+  String? _playingKey;
+  StreamSubscription<dynamic>? _media;
+  @override
+  void dispose() {
+    _media?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
     final services = ref.read(servicesProvider);
+    _media = services.playback.mediaItemStream.listen((item) {
+      final extras = item?.extras;
+      final surah = extras?['surah_number'], ayah = extras?['ayah_number'];
+      final key =
+          extras?['kind'] == 'quran_audio' &&
+              surah is int &&
+              ayah is int &&
+              surah > 0 &&
+              ayah > 0
+          ? '$surah:$ayah'
+          : null;
+      if (mounted && key != _playingKey)
+        setState(() {
+          _playingKey = key;
+        });
+    });
     final last = services.mushaf.lastPosition;
     if (last != null) {
       _mode = QuranBrowseMode.page;
@@ -78,6 +107,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     int number, {
     bool refresh = false,
   }) async {
+    final generation = ++_loadGeneration;
     final next = _clampNumber(mode, number);
     setState(() {
       _mode = mode;
@@ -88,9 +118,14 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           .repository
           .quranPassage(mode, next, refresh: refresh);
     });
-    final passage = await _passageFuture;
-    if (!mounted || passage.verses.isEmpty) return;
-    await _remember(passage.verses.first);
+    try {
+      final passage = await _passageFuture;
+      if (!mounted || generation != _loadGeneration || passage.verses.isEmpty)
+        return;
+      await _remember(passage.verses.first);
+    } catch (_) {
+      // FutureBuilder owns the error and its retry action.
+    }
   }
 
   Future<void> _remember(QuranVerse verse) => ref
@@ -145,6 +180,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
   }
 
   Future<void> _pageChanged(int page) async {
+    ++_loadGeneration;
     _mode = QuranBrowseMode.page;
     _number = page;
     _passageFuture = ref
@@ -162,90 +198,123 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     }
   }
 
-  Future<void> _chooseReciter(int surahNumber) async {
+  Future<QuranAudioCatalogReciter?> _chooseReciter(
+    int surahNumber, {
+    bool ayahOnly = false,
+  }) async {
     final l10n = context.l10n;
-    final future = ref
+    var future = ref
         .read(servicesProvider)
         .quranAudio
         .reciters(surahNumber: surahNumber);
     final selected = await showModalBottomSheet<QuranAudioCatalogReciter>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: FutureBuilder<List<QuranAudioCatalogReciter>>(
-          future: future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const SizedBox(
-                height: 260,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasError) {
-              return SizedBox(
-                height: 260,
-                child: ErrorPane(
-                  error: snapshot.error!,
-                  onRetry: () => Navigator.pop(context),
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => SafeArea(
+          child: FutureBuilder<List<QuranAudioCatalogReciter>>(
+            future: future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const SizedBox(
+                  height: 260,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (snapshot.hasError) {
+                return SizedBox(
+                  height: 260,
+                  child: ErrorPane(
+                    error: snapshot.error!,
+                    onRetry: () => update(() {
+                      future = ref
+                          .read(servicesProvider)
+                          .quranAudio
+                          .reciters(surahNumber: surahNumber, refresh: true);
+                    }),
+                  ),
+                );
+              }
+              final values =
+                  (snapshot.data ?? const <QuranAudioCatalogReciter>[])
+                      .where((r) => !ayahOnly || r.supportsAyahAudio)
+                      .toList();
+              if (values.isEmpty) {
+                return SizedBox(
+                  height: 260,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(l10n.noReciters),
+                      TextButton.icon(
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('إعادة المحاولة'),
+                        onPressed: () => update(() {
+                          future = ref
+                              .read(servicesProvider)
+                              .quranAudio
+                              .reciters(
+                                surahNumber: surahNumber,
+                                refresh: true,
+                              );
+                        }),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return DraggableScrollableSheet(
+                expand: false,
+                initialChildSize: 0.72,
+                minChildSize: 0.45,
+                maxChildSize: 0.92,
+                builder: (context, controller) => ListView.builder(
+                  controller: controller,
+                  itemCount: values.length,
+                  itemBuilder: (context, index) {
+                    final reciter = values[index];
+                    final english =
+                        Localizations.localeOf(context).languageCode == 'en';
+                    return ListTile(
+                      leading: const Icon(Icons.record_voice_over_outlined),
+                      title: Text(
+                        english && reciter.nameEn.isNotEmpty
+                            ? reciter.nameEn
+                            : reciter.nameAr,
+                      ),
+                      subtitle: Text(
+                        <String>[
+                          if (reciter.riwayah != null) reciter.riwayah!,
+                          reciter.provider ==
+                                  QuranAudioProviderKind.alQuranCloud
+                              ? 'AlQuran Cloud'
+                              : 'MP3Quran',
+                        ].join(' • '),
+                      ),
+                      trailing: const Icon(Icons.chevron_left),
+                      onTap: () => Navigator.pop(context, reciter),
+                    );
+                  },
                 ),
               );
-            }
-            final values = snapshot.data ?? const <QuranAudioCatalogReciter>[];
-            if (values.isEmpty) {
-              return SizedBox(
-                height: 260,
-                child: EmptyPane(message: l10n.noReciters),
-              );
-            }
-            return DraggableScrollableSheet(
-              expand: false,
-              initialChildSize: 0.72,
-              minChildSize: 0.45,
-              maxChildSize: 0.92,
-              builder: (context, controller) => ListView.builder(
-                controller: controller,
-                itemCount: values.length,
-                itemBuilder: (context, index) {
-                  final reciter = values[index];
-                  final english =
-                      Localizations.localeOf(context).languageCode == 'en';
-                  return ListTile(
-                    leading: const Icon(Icons.record_voice_over_outlined),
-                    title: Text(
-                      english && reciter.nameEn.isNotEmpty
-                          ? reciter.nameEn
-                          : reciter.nameAr,
-                    ),
-                    subtitle: Text(
-                      <String>[
-                        if (reciter.riwayah != null) reciter.riwayah!,
-                        reciter.provider == QuranAudioProviderKind.alQuranCloud
-                            ? 'AlQuran Cloud'
-                            : 'MP3Quran',
-                      ].join(' • '),
-                    ),
-                    trailing: const Icon(Icons.chevron_left),
-                    onTap: () => Navigator.pop(context, reciter),
-                  );
-                },
-              ),
-            );
-          },
+            },
+          ),
         ),
       ),
     );
     if (selected != null && mounted)
       setState(() => _selectedReciter = selected);
+    return selected;
   }
 
   Future<void> _playSurah(int surahNumber) async {
+    if (_audioBusy) return;
     final l10n = context.l10n;
     var reciter = _selectedReciter;
     if (reciter == null || !reciter.availableSurahs.contains(surahNumber)) {
-      await _chooseReciter(surahNumber);
-      reciter = _selectedReciter;
+      reciter = await _chooseReciter(surahNumber);
     }
-    if (reciter == null) return;
+    if (reciter == null || !mounted) return;
     setState(() => _audioBusy = true);
     try {
       final services = ref.read(servicesProvider);
@@ -257,6 +326,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           bitrateKbps: _bitrateKbps,
         ),
       );
+      if (!mounted) return;
       await services.playback.playQuranAudio(<QuranAudioMedia>[media], 0);
     } catch (_) {
       if (!mounted) return;
@@ -274,13 +344,13 @@ class _MushafPageState extends ConsumerState<MushafPage> {
   }
 
   Future<void> _playAyah(QuranVerse verse) async {
+    if (_audioBusy) return;
     final services = ref.read(servicesProvider);
     var reciter = _selectedReciter;
     if (reciter == null || !reciter.supportsAyahAudio) {
-      await _chooseReciter(verse.surahNumber);
-      reciter = _selectedReciter;
+      reciter = await _chooseReciter(verse.surahNumber, ayahOnly: true);
     }
-    if (reciter == null) return;
+    if (reciter == null || !mounted) return;
     setState(() => _audioBusy = true);
     try {
       final media = await services.quranAudio.resolve(
@@ -292,6 +362,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           ayahInSurah: verse.ayahNumber,
         ),
       );
+      if (!mounted) return;
       await services.playback.playQuranAudio(<QuranAudioMedia>[media], 0);
       await _remember(verse);
     } catch (_) {
@@ -304,14 +375,34 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     }
   }
 
+  Future<void> _showPagePresentation() async {
+    final generation = _loadGeneration;
+    try {
+      final passage = await _passageFuture;
+      if (!mounted || generation != _loadGeneration || passage.verses.isEmpty)
+        return;
+      final page = passage.verses.first.pageNumber;
+      await _load(QuranBrowseMode.page, page);
+      if (!mounted || _mode != QuranBrowseMode.page || _number != page) return;
+      await ref
+          .read(servicesProvider)
+          .mushaf
+          .setPresentation(MushafReaderPresentation.page);
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر تحديد صفحة الآية. أعد المحاولة.')),
+        );
+    }
+  }
+
   Future<void> _downloadSurah(int surahNumber) async {
     final services = ref.read(servicesProvider);
     var reciter = _selectedReciter;
-    if (reciter == null) {
-      await _chooseReciter(surahNumber);
-      reciter = _selectedReciter;
+    if (reciter == null || !reciter.availableSurahs.contains(surahNumber)) {
+      reciter = await _chooseReciter(surahNumber);
     }
-    if (reciter == null) return;
+    if (reciter == null || !mounted) return;
     try {
       final media = await services.quranAudio.resolve(
         QuranAudioRequest(
@@ -342,6 +433,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
         if (mushaf.presentation == MushafReaderPresentation.page) {
           return MushafPageReader(
             repository: services.mushafPages,
+            playingVerseKey: _playingKey,
             contentRepository: services.islamicContent,
             store: mushaf,
             initialPage: _number,
@@ -381,9 +473,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                           child: SizedBox(
                             width: double.infinity,
                             child: FilledButton.icon(
-                              onPressed: () => mushaf.setPresentation(
-                                MushafReaderPresentation.page,
-                              ),
+                              onPressed: _showPagePresentation,
                               icon: const Icon(Icons.auto_stories),
                               label: const Text('عرض صفحات المصحف'),
                             ),
@@ -463,6 +553,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                             _QuranText(
                               passage: passage,
                               store: mushaf,
+                              playingVerseKey: _playingKey,
                               onRemember: (verse) async {
                                 await _remember(verse);
                                 await mushaf.backupBeforeLibraryUpgrade();
@@ -484,6 +575,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                                                 Text('الآية ${verse.verseKey}'),
                                                 SelectableText(
                                                   verse.textUthmani,
+                                                ),
+                                                ThematicAyahPanel(
+                                                  verseKey: verse.verseKey,
                                                 ),
                                                 SurahReaderPanel(
                                                   surah: verse.surahNumber,
@@ -771,7 +865,9 @@ class _AudioAndReadingControls extends ConsumerWidget {
                 value: store.showThemes,
                 onChanged: store.setShowThemes,
                 title: Text(l10n.showThemes),
-                subtitle: Text(l10n.thematicRukuNote),
+                subtitle: const Text(
+                  'وسوم Quranpedia الموثقة؛ تغطية58.9%، وليست تقسيمًا متصلًا شاملًا.',
+                ),
               ),
             ],
           ),
@@ -787,128 +883,133 @@ class _QuranText extends StatelessWidget {
     required this.store,
     required this.onRemember,
     required this.onPlayAyah,
+    this.playingVerseKey,
   });
 
   final QuranPassage passage;
+  final String? playingVerseKey;
   final MushafStore store;
   final ValueChanged<QuranVerse> onRemember;
   final ValueChanged<QuranVerse> onPlayAyah;
 
   @override
-  Widget build(BuildContext context) {
-    final base =
-        Theme.of(context).textTheme.headlineSmall?.copyWith(
-          height: 2.05,
-          fontSize: 25 * store.fontScale,
-          fontFamily: 'serif',
-        ) ??
-        TextStyle(fontSize: 25 * store.fontScale, height: 2.05);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Directionality(
-        textDirection: TextDirection.rtl,
-        child: Column(
-          children: passage.verses
-              .map((verse) {
-                final section = passage.themeSections
-                    .where((item) => item.contains(verse))
-                    .firstOrNull;
-                final color = store.showThemes && section != null
-                    ? _themeColor(context, section.rukuNumber)
-                    : Colors.transparent;
-                final tajweed =
-                    store.showTajweed &&
-                    passage.tajweedAvailable &&
-                    verse.textTajweed != null &&
-                    verse.textTajweed!.isNotEmpty;
-                final spans = tajweed
-                    ? TajweedMarkup.spans(
-                        verse.textTajweed!,
-                        base,
-                        Theme.of(context).colorScheme,
-                      )
-                    : <InlineSpan>[
-                        TextSpan(text: verse.textUthmani, style: base),
-                      ];
-                return Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.symmetric(vertical: 3),
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Expanded(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: () => onRemember(verse),
-                          child: RichText(
-                            textAlign: TextAlign.justify,
-                            textDirection: TextDirection.rtl,
-                            text: TextSpan(
-                              children: <InlineSpan>[
-                                ...spans,
-                                TextSpan(
-                                  text:
-                                      '  ﴿${arabicIndicNumber(verse.ayahNumber)}﴾',
-                                  style: base.copyWith(
-                                    fontSize: 20 * store.fontScale,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
+  Widget build(BuildContext context) => FutureBuilder<MushafTopicIndex>(
+    future: store.showThemes ? MushafTopicIndex.load() : null,
+    builder: (context, topicSnapshot) {
+      final marks = topicSnapshot.hasData
+          ? ThematicPassageResolver(
+              topicSnapshot.data!,
+            ).marks(passage.verses.map((v) => v.verseKey))
+          : <String, ThematicMark>{};
+      final base =
+          Theme.of(context).textTheme.headlineSmall?.copyWith(
+            height: 2.05,
+            fontSize: 25 * store.fontScale,
+            fontFamily: 'TarteelQuran',
+          ) ??
+          TextStyle(fontSize: 25 * store.fontScale, height: 2.05);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Column(
+            children: passage.verses
+                .map((verse) {
+                  final mark = marks[verse.verseKey];
+                  final color = store.showThemes && mark != null
+                      ? Color(
+                          mark.colorValue,
+                        ).withValues(alpha: store.themeOpacity)
+                      : Colors.transparent;
+                  final tajweed =
+                      store.showTajweed &&
+                      passage.tajweedAvailable &&
+                      verse.textTajweed != null &&
+                      verse.textTajweed!.isNotEmpty;
+                  final spans = tajweed
+                      ? TajweedMarkup.spans(
+                          verse.textTajweed!,
+                          base,
+                          Theme.of(context).colorScheme,
+                        )
+                      : <InlineSpan>[
+                          TextSpan(text: verse.textUthmani, style: base),
+                        ];
+                  return Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(vertical: 3),
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                    decoration: BoxDecoration(
+                      color: color,
+                      border: verse.verseKey == playingVerseKey
+                          ? Border.all(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2,
+                            )
+                          : null,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Expanded(
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => onRemember(verse),
+                            child: RichText(
+                              textAlign: TextAlign.justify,
+                              textDirection: TextDirection.rtl,
+                              text: TextSpan(
+                                children: <InlineSpan>[
+                                  ...spans,
+                                  TextSpan(
+                                    text: verse.hasEmbeddedAyahNumber
+                                        ? ''
+                                        : '  ﴿${arabicIndicNumber(verse.ayahNumber)}﴾',
+                                    style: base.copyWith(
+                                      fontSize: 20 * store.fontScale,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      Column(
-                        children: <Widget>[
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            tooltip: context.l10n.play,
-                            onPressed: () => onPlayAyah(verse),
-                            icon: const Icon(Icons.play_circle_outline),
-                          ),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            tooltip: store.isBookmarked(verse.verseKey)
-                                ? context.l10n.removeBookmark
-                                : context.l10n.bookmark,
-                            onPressed: () => store.toggleBookmark(verse),
-                            icon: Icon(
-                              store.isBookmarked(verse.verseKey)
-                                  ? Icons.bookmark
-                                  : Icons.bookmark_border,
+                        Column(
+                          children: <Widget>[
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: context.l10n.play,
+                              onPressed: () => onPlayAyah(verse),
+                              icon: const Icon(Icons.play_circle_outline),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              })
-              .toList(growable: false),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: store.isBookmarked(verse.verseKey)
+                                  ? context.l10n.removeBookmark
+                                  : context.l10n.bookmark,
+                              onPressed: () => store.toggleBookmark(verse),
+                              icon: Icon(
+                                store.isBookmarked(verse.verseKey)
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                })
+                .toList(growable: false),
+          ),
         ),
-      ),
-    );
-  }
-
-  Color _themeColor(BuildContext context, int ruku) {
-    final scheme = Theme.of(context).colorScheme;
-    return switch (ruku % 6) {
-      0 => scheme.primaryContainer.withValues(alpha: 0.26),
-      1 => scheme.secondaryContainer.withValues(alpha: 0.26),
-      2 => scheme.tertiaryContainer.withValues(alpha: 0.26),
-      3 => scheme.surfaceContainerHighest.withValues(alpha: 0.7),
-      4 => scheme.primaryContainer.withValues(alpha: 0.16),
-      _ => scheme.secondaryContainer.withValues(alpha: 0.16),
-    };
-  }
+      );
+    },
+  );
 }
 
 class _NavigationControls extends StatelessWidget {

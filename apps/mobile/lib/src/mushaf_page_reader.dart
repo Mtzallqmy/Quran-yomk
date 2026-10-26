@@ -10,6 +10,8 @@ import 'mushaf_pages.dart';
 import 'mushaf_store.dart';
 import 'quran_models.dart';
 import 'surah_reader_panel.dart';
+import 'mushaf_library.dart';
+import 'thematic_quran.dart';
 
 class MushafPageReader extends StatefulWidget {
   const MushafPageReader({
@@ -26,8 +28,10 @@ class MushafPageReader extends StatefulWidget {
     required this.onShowText,
     required this.onImmersiveChanged,
     required this.resolveVerse,
+    this.playingVerseKey,
   });
 
+  final String? playingVerseKey;
   final MushafPageRepository repository;
   final IslamicContentRepository contentRepository;
   final MushafStore store;
@@ -66,6 +70,24 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   }
 
   @override
+  void didUpdateWidget(covariant MushafPageReader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final target = widget.initialPage.clamp(1, mushafPageCount);
+    if (oldWidget.initialPage != widget.initialPage && target != _page) {
+      _page = target;
+      _selected = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pages.hasClients && _page == target)
+          _pages.jumpToPage(target - 1);
+      });
+    }
+    _edition = MushafPageEdition.values.firstWhere(
+      (value) => value.name == widget.store.pageEdition,
+      orElse: () => MushafPageEdition.madinahHafsSvg,
+    );
+  }
+
+  @override
   void dispose() {
     _controlsTimer?.cancel();
     _pages.dispose();
@@ -88,13 +110,80 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     if (_controlsVisible) _scheduleControlsHide();
   }
 
-  Future<void> _setEdition(MushafPageEdition edition) async {
-    if (_edition == edition) return;
+  Future<void> _setMode(UnifiedMushafMode mode) async {
+    final edition =
+        (mode == UnifiedMushafMode.tajweed ||
+            mode == UnifiedMushafMode.combined)
+        ? MushafPageEdition.madinahTajweedQcfV4
+        : MushafPageEdition.madinahHafsSvg;
+    if (edition == MushafPageEdition.madinahTajweedQcfV4 &&
+        !await widget.repository.isOfflinePackAvailable(edition)) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'يلزم مصدر تجويد مرخص قبل تنزيل نسخة جديدة. يمكن استخدام الحزمة المحفوظة سابقًا.',
+            ),
+          ),
+        );
+      return;
+    }
+    await widget.store.setUnifiedMode(mode);
+    if (!mounted) return;
     setState(() {
       _edition = edition;
     });
-    await widget.store.setPageEdition(edition.name);
     _scheduleControlsHide();
+  }
+
+  Future<void> _readerOptions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('إعدادات المصحف'),
+                  SwitchListTile(
+                    value: widget.store.showThemes,
+                    onChanged: (value) async {
+                      await widget.store.setShowThemes(value);
+                      if (context.mounted) update(() {});
+                    },
+                    title: const Text('إظهار التلوين الموضوعي'),
+                  ),
+                  const Text('شفافية الألوان الهادئة'),
+                  Slider(
+                    value: widget.store.themeOpacity,
+                    min: 0.08,
+                    max: 0.65,
+                    onChanged: (value) async {
+                      await widget.store.setThemeOpacity(value);
+                      if (context.mounted) update(() {});
+                    },
+                  ),
+                  SwitchListTile(
+                    value: widget.store.autoTafsirPanel,
+                    onChanged: (value) async {
+                      await widget.store.setAutoTafsirPanel(value);
+                      if (context.mounted) update(() {});
+                    },
+                    title: const Text('فتح لوحة التفسير عند تحديد الآية'),
+                  ),
+                  const Text(
+                    'موضوعات موثقة لـ3673 من6236آية (58.9%). الآيات غير المصنفة تبقى دون لون.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _select(MushafAyahRegion region) async {
@@ -104,6 +193,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     });
     widget.onImmersiveChanged(false);
     _scheduleControlsHide();
+    if (widget.store.autoTafsirPanel) await _showSelectedActions();
   }
 
   Future<void> _playSelected() async {
@@ -147,6 +237,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               'الآية ${selected.verseKey}',
               style: Theme.of(context).textTheme.titleLarge,
             ),
+            ThematicAyahPanel(verseKey: selected.verseKey),
             SurahReaderPanel(
               surah: selected.surahNumber,
               ayah: selected.ayahNumber,
@@ -198,7 +289,11 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               title: const Text('إظهار أحكام التجويد'),
               onTap: () {
                 Navigator.pop(context);
-                _setEdition(MushafPageEdition.madinahTajweedQcfV4);
+                _setMode(
+                  widget.store.showThemes
+                      ? UnifiedMushafMode.combined
+                      : UnifiedMushafMode.tajweed,
+                );
               },
             ),
           ],
@@ -313,7 +408,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               repository: widget.repository,
               contentRepository: widget.contentRepository,
               showThemes: widget.store.showThemes,
-              selectedVerseKey: _selected?.verseKey,
+              themeOpacity: widget.store.themeOpacity,
+              selectedVerseKey: widget.playingVerseKey ?? _selected?.verseKey,
               onRegionTap: _select,
               onBackgroundTap: _toggleControls,
             ),
@@ -350,22 +446,24 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                         icon: const Icon(Icons.text_fields),
                       ),
                       Expanded(
-                        child: SegmentedButton<MushafPageEdition>(
-                          showSelectedIcon: false,
-                          segments: [
-                            for (final edition in MushafPageEdition.values)
-                              ButtonSegment(
-                                value: edition,
-                                label: Text(
-                                  edition == MushafPageEdition.madinahHafsSvg
-                                      ? 'عادي'
-                                      : 'تجويد',
+                        child: DropdownButton<UnifiedMushafMode>(
+                          isExpanded: true,
+                          value: widget.store.unifiedMode,
+                          underline: const SizedBox.shrink(),
+                          items: [
+                            for (final mode in UnifiedMushafMode.values)
+                              DropdownMenuItem(
+                                value: mode,
+                                child: Text(
+                                  mode.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                           ],
-                          selected: {_edition},
-                          onSelectionChanged: (value) =>
-                              _setEdition(value.first),
+                          onChanged: (value) {
+                            if (value != null) _setMode(value);
+                          },
                         ),
                       ),
                       IconButton(
@@ -516,9 +614,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                                 case 'pack':
                                   _offlinePack();
                                 case 'themes':
-                                  widget.store.setShowThemes(
-                                    !widget.store.showThemes,
-                                  );
+                                  _readerOptions();
                               }
                             },
                             itemBuilder: (_) => [
@@ -566,6 +662,7 @@ class _PageSurface extends StatefulWidget {
     required this.repository,
     required this.contentRepository,
     required this.showThemes,
+    required this.themeOpacity,
     required this.selectedVerseKey,
     required this.onRegionTap,
     required this.onBackgroundTap,
@@ -576,6 +673,7 @@ class _PageSurface extends StatefulWidget {
   final MushafPageRepository repository;
   final IslamicContentRepository contentRepository;
   final bool showThemes;
+  final double themeOpacity;
   final String? selectedVerseKey;
   final ValueChanged<MushafAyahRegion> onRegionTap;
   final VoidCallback onBackgroundTap;
@@ -611,10 +709,10 @@ class _PageSurfaceState extends State<_PageSurface> {
   Future<_MushafPageData> _load() async {
     final asset = await widget.repository.page(widget.page, widget.edition);
     final themes = widget.showThemes
-        ? await widget.contentRepository.themesForVerseKeys(
-            asset.regions.map((region) => region.verseKey),
-          )
-        : const <String, IslamicThemeSegment>{};
+        ? ThematicPassageResolver(
+            await MushafTopicIndex.load(),
+          ).marks(asset.regions.map((region) => region.verseKey))
+        : const <String, ThematicMark>{};
     return _MushafPageData(asset: asset, themes: themes);
   }
 
@@ -740,6 +838,7 @@ class _PageSurfaceState extends State<_PageSurface> {
                           painter: _RegionPainter(
                             regions: asset.regions,
                             selectedVerseKey: widget.selectedVerseKey,
+                            opacity: widget.themeOpacity,
                             nativeSize: Size(asset.width, asset.height),
                             themes: data.themes,
                           ),
@@ -762,13 +861,15 @@ class _RegionPainter extends CustomPainter {
     required this.regions,
     required this.selectedVerseKey,
     required this.nativeSize,
+    required this.opacity,
     required this.themes,
   });
 
   final List<MushafAyahRegion> regions;
   final String? selectedVerseKey;
   final Size nativeSize;
-  final Map<String, IslamicThemeSegment> themes;
+  final double opacity;
+  final Map<String, ThematicMark> themes;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -781,7 +882,7 @@ class _RegionPainter extends CustomPainter {
       final paint = Paint()
         ..color = selected
             ? const Color(0x5077a95c)
-            : Color(theme!.colorValue).withValues(alpha: 0.22)
+            : Color(theme!.colorValue).withValues(alpha: opacity)
         ..style = PaintingStyle.fill;
       for (final rect in region.rects) {
         canvas.drawRect(
@@ -799,6 +900,7 @@ class _RegionPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _RegionPainter oldDelegate) =>
+      oldDelegate.opacity != opacity ||
       oldDelegate.selectedVerseKey != selectedVerseKey ||
       oldDelegate.regions != regions ||
       oldDelegate.nativeSize != nativeSize ||
@@ -809,7 +911,7 @@ class _MushafPageData {
   const _MushafPageData({required this.asset, required this.themes});
 
   final MushafPageAsset asset;
-  final Map<String, IslamicThemeSegment> themes;
+  final Map<String, ThematicMark> themes;
 }
 
 class _OfflinePackSheet extends StatefulWidget {

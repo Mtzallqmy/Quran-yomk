@@ -298,11 +298,15 @@ class QuranAudioRepository {
     final key = '${surahNumber ?? 0}';
     final cached = _catalogCache[key];
     if (!refresh && cached != null) return cached;
+    if (refresh) _catalogCache.remove(key);
+    var providerFailed = false;
     final settled = await Future.wait(
       _providers.map(
-        (provider) => provider
-            .reciters(surahNumber: surahNumber)
-            .catchError((_) => <QuranAudioCatalogReciter>[]),
+        (provider) =>
+            provider.reciters(surahNumber: surahNumber).catchError((_) {
+              providerFailed = true;
+              return <QuranAudioCatalogReciter>[];
+            }),
       ),
     );
     final values = settled
@@ -319,7 +323,8 @@ class QuranAudioRepository {
           reciter.identityKey: reciter,
       for (final reciter in values) reciter.identityKey: reciter,
     }.values.toList(growable: false);
-    _catalogCache[key] = merged;
+    // A temporary outage must not pin an empty/partial catalog for the session.
+    if (!providerFailed && merged.isNotEmpty) _catalogCache[key] = merged;
     return merged;
   }
 

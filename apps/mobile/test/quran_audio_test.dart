@@ -17,6 +17,48 @@ void main() {
   );
 
   test(
+    'a provider outage does not permanently cache an empty reciter list',
+    () async {
+      var online = false;
+      var calls = 0;
+      final provider = AlQuranCloudAudioProvider(
+        client: MockClient((_) async {
+          calls++;
+          if (!online) return http.Response('', 503);
+          return http.Response(
+            jsonEncode({
+              'data': [
+                {
+                  'identifier': 'ar.alafasy',
+                  'language': 'ar',
+                  'name': 'Reciter',
+                  'englishName': 'Reciter',
+                  'format': 'audio',
+                  'type': 'versebyverse',
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+      final repository = QuranAudioRepository(
+        providers: [provider],
+        localLookup: _NullLocalLookup(),
+      );
+      expect(await repository.reciters(surahNumber: 1), isEmpty);
+      online = true;
+      expect(
+        (await repository.reciters(surahNumber: 1)).single.supportsAyahAudio,
+        true,
+      );
+      final afterRecovery = calls;
+      await repository.reciters(surahNumber: 1);
+      expect(calls, afterRecovery);
+    },
+  );
+
+  test(
     'AlQuran Cloud maps editions and resolves surah and ayah CDN URLs',
     () async {
       final provider = AlQuranCloudAudioProvider(

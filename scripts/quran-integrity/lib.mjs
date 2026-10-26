@@ -4,8 +4,8 @@ import { readFile } from "node:fs/promises";
 export const DATASET_NAME = "tarteel-quran-canonical";
 export const SCHEMA_VERSION = 1;
 export const EXPECTED_EDITIONS = Object.freeze({
-  uthmani: "quran-uthmani",
-  tajweed: "quran-tajweed",
+  uthmani: "kfgqpc-hafs-v30",
+  tajweed: "NONE_MATCHING_VERIFIED_TEXT",
 });
 
 export function sha256(value) {
@@ -108,137 +108,6 @@ export async function readSeedAyahCounts(seedPath = "supabase/seed/03_surahs.sql
   return counts;
 }
 
-function editionIdentifier(payload, label) {
-  const data = asObject(payload.data, `QURAN_${label}_DATA_INVALID`);
-  const edition = asObject(data.edition, `QURAN_${label}_EDITION_INVALID`);
-  return nonEmptyText(edition.identifier, `QURAN_${label}_EDITION_ID_INVALID`);
-}
-
-function indexTajweed(payload) {
-  const data = asObject(payload.data, "QURAN_TAJWEED_DATA_INVALID");
-  const surahs = asArray(data.surahs, "QURAN_TAJWEED_SURAHS_INVALID");
-  const byGlobal = new Map();
-  for (const rawSurah of surahs) {
-    const surah = asObject(rawSurah, "QURAN_TAJWEED_SURAH_INVALID");
-    const surahNumber = positiveInteger(surah.number, "QURAN_TAJWEED_SURAH_NUMBER_INVALID");
-    for (const rawAyah of asArray(surah.ayahs, "QURAN_TAJWEED_AYAHS_INVALID")) {
-      const ayah = asObject(rawAyah, "QURAN_TAJWEED_AYAH_INVALID");
-      const globalNumber = positiveInteger(ayah.number, "QURAN_TAJWEED_GLOBAL_NUMBER_INVALID");
-      invariant(!byGlobal.has(globalNumber), "QURAN_TAJWEED_DUPLICATE_GLOBAL_NUMBER", String(globalNumber));
-      byGlobal.set(globalNumber, {
-        surahNumber,
-        ayahNumber: positiveInteger(ayah.numberInSurah, "QURAN_TAJWEED_AYAH_NUMBER_INVALID"),
-        text: nonEmptyText(ayah.text, "QURAN_TAJWEED_TEXT_EMPTY"),
-      });
-    }
-  }
-  return byGlobal;
-}
-
-export function buildCanonicalDataset({ version, uthmaniPayload, tajweedPayload, seedAyahCounts }) {
-  invariant(/^\d+$/.test(String(version)), "QURAN_DATASET_VERSION_INVALID", String(version));
-  invariant(editionIdentifier(uthmaniPayload, "UTHMANI") === EXPECTED_EDITIONS.uthmani,
-    "QURAN_UTHMANI_EDITION_MISMATCH", editionIdentifier(uthmaniPayload, "UTHMANI"));
-  invariant(editionIdentifier(tajweedPayload, "TAJWEED") === EXPECTED_EDITIONS.tajweed,
-    "QURAN_TAJWEED_EDITION_MISMATCH", editionIdentifier(tajweedPayload, "TAJWEED"));
-
-  const uthmaniData = asObject(uthmaniPayload.data, "QURAN_UTHMANI_DATA_INVALID");
-  const uthmaniSurahs = asArray(uthmaniData.surahs, "QURAN_UTHMANI_SURAHS_INVALID");
-  invariant(uthmaniSurahs.length === 114, "QURAN_SURAH_COUNT_INVALID", String(uthmaniSurahs.length));
-  const tajweedByGlobal = indexTajweed(tajweedPayload);
-  const seenVerseKeys = new Set();
-  const seenGlobals = new Set();
-  const seenPages = new Set();
-  const seenJuz = new Set();
-  let previousGlobal = 0;
-  let previousPage = 0;
-  let previousJuz = 0;
-
-  const surahs = uthmaniSurahs.map((rawSurah, index) => {
-    const surah = asObject(rawSurah, "QURAN_UTHMANI_SURAH_INVALID");
-    const surahNumber = positiveInteger(surah.number, "QURAN_SURAH_NUMBER_INVALID");
-    invariant(surahNumber === index + 1, "QURAN_SURAH_ORDER_INVALID", String(surahNumber));
-    const ayahs = asArray(surah.ayahs, "QURAN_UTHMANI_AYAHS_INVALID");
-    const expectedCount = seedAyahCounts.get(surahNumber);
-    invariant(Number.isInteger(expectedCount), "QURAN_SEED_SURAH_MISSING", String(surahNumber));
-    invariant(ayahs.length === expectedCount, "QURAN_AYAH_COUNT_MISMATCH", `${surahNumber}:${ayahs.length}!=${expectedCount}`);
-
-    const verses = ayahs.map((rawAyah, ayahIndex) => {
-      const ayah = asObject(rawAyah, "QURAN_UTHMANI_AYAH_INVALID");
-      const globalNumber = positiveInteger(ayah.number, "QURAN_GLOBAL_NUMBER_INVALID");
-      const ayahNumber = positiveInteger(ayah.numberInSurah, "QURAN_AYAH_NUMBER_INVALID");
-      invariant(ayahNumber === ayahIndex + 1, "QURAN_AYAH_ORDER_INVALID", `${surahNumber}:${ayahNumber}`);
-      invariant(globalNumber === previousGlobal + 1, "QURAN_GLOBAL_ORDER_INVALID", String(globalNumber));
-      previousGlobal = globalNumber;
-      invariant(!seenGlobals.has(globalNumber), "QURAN_DUPLICATE_GLOBAL_NUMBER", String(globalNumber));
-      seenGlobals.add(globalNumber);
-
-      const verseKey = `${surahNumber}:${ayahNumber}`;
-      invariant(!seenVerseKeys.has(verseKey), "QURAN_DUPLICATE_VERSE_KEY", verseKey);
-      seenVerseKeys.add(verseKey);
-
-      const tajweed = tajweedByGlobal.get(globalNumber);
-      invariant(Boolean(tajweed), "QURAN_TAJWEED_VERSE_MISSING", verseKey);
-      invariant(tajweed.surahNumber === surahNumber && tajweed.ayahNumber === ayahNumber,
-        "QURAN_TAJWEED_IDENTITY_MISMATCH", verseKey);
-
-      const page = positiveInteger(ayah.page, "QURAN_PAGE_INVALID");
-      const juz = positiveInteger(ayah.juz, "QURAN_JUZ_INVALID");
-      invariant(page >= previousPage, "QURAN_PAGE_ORDER_INVALID", verseKey);
-      invariant(juz >= previousJuz, "QURAN_JUZ_ORDER_INVALID", verseKey);
-      previousPage = page;
-      previousJuz = juz;
-      seenPages.add(page);
-      seenJuz.add(juz);
-
-      return {
-        global_number: globalNumber,
-        ayah_number: ayahNumber,
-        verse_key: verseKey,
-        text_uthmani: nonEmptyText(ayah.text, "QURAN_UTHMANI_TEXT_EMPTY"),
-        text_tajweed: tajweed.text,
-        juz_number: juz,
-        page_number: page,
-        ruku_number: positiveInteger(ayah.ruku, "QURAN_RUKU_INVALID"),
-        hizb_quarter: positiveInteger(ayah.hizbQuarter, "QURAN_HIZB_QUARTER_INVALID"),
-        sajda: normalizeSajda(ayah.sajda),
-      };
-    });
-
-    return {
-      number: surahNumber,
-      name_ar: nonEmptyText(surah.name, "QURAN_SURAH_AR_NAME_EMPTY"),
-      name_en: nonEmptyText(surah.englishName, "QURAN_SURAH_EN_NAME_EMPTY"),
-      ayah_count: expectedCount,
-      verses,
-    };
-  });
-
-  invariant(tajweedByGlobal.size === seenGlobals.size, "QURAN_TAJWEED_CARDINALITY_MISMATCH",
-    `${tajweedByGlobal.size}!=${seenGlobals.size}`);
-  invariant(seenPages.size === 604, "QURAN_PAGE_SET_INVALID", String(seenPages.size));
-  for (let page = 1; page <= 604; page += 1) invariant(seenPages.has(page), "QURAN_PAGE_MISSING", String(page));
-  invariant(seenJuz.size === 30, "QURAN_JUZ_SET_INVALID", String(seenJuz.size));
-  for (let juz = 1; juz <= 30; juz += 1) invariant(seenJuz.has(juz), "QURAN_JUZ_MISSING", String(juz));
-
-  const expectedVerseTotal = [...seedAyahCounts.values()].reduce((sum, count) => sum + count, 0);
-  invariant(seenVerseKeys.size === expectedVerseTotal, "QURAN_VERSE_TOTAL_MISMATCH",
-    `${seenVerseKeys.size}!=${expectedVerseTotal}`);
-
-  return {
-    schema_version: SCHEMA_VERSION,
-    dataset: DATASET_NAME,
-    version: String(version),
-    source: {
-      provider: "ALQURAN_CLOUD",
-      api: "https://api.alquran.cloud/v1",
-      uthmani_edition: EXPECTED_EDITIONS.uthmani,
-      tajweed_edition: EXPECTED_EDITIONS.tajweed,
-    },
-    surahs,
-  };
-}
-
 export function validateCanonicalDataset(dataset, manifest, seedAyahCounts) {
   asObject(dataset, "QURAN_DATASET_INVALID");
   asObject(manifest, "QURAN_MANIFEST_INVALID");
@@ -252,8 +121,8 @@ export function validateCanonicalDataset(dataset, manifest, seedAyahCounts) {
   invariant(manifest.source?.tajweed_edition === EXPECTED_EDITIONS.tajweed, "QURAN_MANIFEST_TAJWEED_EDITION_INVALID");
   invariant(/^[a-f0-9]{64}$/.test(manifest.source_revision?.uthmani_response_sha256 ?? ""),
     "QURAN_SOURCE_REVISION_UTHMANI_INVALID");
-  invariant(/^[a-f0-9]{64}$/.test(manifest.source_revision?.tajweed_response_sha256 ?? ""),
-    "QURAN_SOURCE_REVISION_TAJWEED_INVALID");
+  invariant(manifest.source?.provider === 'KFGQPC' && dataset.source?.provider === 'KFGQPC', 'QURAN_PUBLISHER_MISMATCH');
+  invariant(manifest.source_revision?.archive_sha256 === '227e6b1564d980f2bd09c2c35ebfb0330ac268c79a7c247cd1ab665bc635f245', 'QURAN_OFFICIAL_ARCHIVE_MISMATCH');
 
   const surahs = asArray(dataset.surahs, "QURAN_DATASET_SURAHS_INVALID");
   invariant(surahs.length === 114, "QURAN_SURAH_COUNT_INVALID", String(surahs.length));
@@ -280,7 +149,8 @@ export function validateCanonicalDataset(dataset, manifest, seedAyahCounts) {
       invariant(!globals.has(verse.global_number), "QURAN_DUPLICATE_GLOBAL_NUMBER", String(verse.global_number));
       globals.add(verse.global_number);
       invariant(typeof verse.text_uthmani === "string" && verse.text_uthmani.length > 0, "QURAN_UTHMANI_TEXT_EMPTY", verse.verse_key);
-      invariant(typeof verse.text_tajweed === "string" && verse.text_tajweed.length > 0, "QURAN_TAJWEED_TEXT_EMPTY", verse.verse_key);
+      invariant(verse.text_tajweed === null, "QURAN_UNVERIFIED_TAJWEED_LAYER", verse.verse_key);
+      invariant(verse.canonical_id === `hafs:${verse.verse_key}`, "QURAN_CANONICAL_ID_INVALID", verse.verse_key);
       invariant(Number.isInteger(verse.page_number) && verse.page_number >= 1 && verse.page_number <= 604,
         "QURAN_PAGE_INVALID", verse.verse_key);
       invariant(verse.page_number >= previousPage, "QURAN_PAGE_ORDER_INVALID", verse.verse_key);
@@ -299,5 +169,7 @@ export function validateCanonicalDataset(dataset, manifest, seedAyahCounts) {
 
   const contentSha = sha256(canonicalJson(dataset));
   invariant(manifest.sha256 === contentSha, "QURAN_CHECKSUM_MISMATCH", `${manifest.sha256}!=${contentSha}`);
+  invariant(manifest.source_revision.uthmani_response_sha256 === 'd7adf8aeeef5a7b6798060706a55735dffbcdb542b290a3907bd9f70c498f4d3', 'QURAN_OFFICIAL_JSON_REVISION_MISMATCH');
+  invariant(contentSha === '132090d1264257ce816dfe1245014c422e3cd4c491f2397c78447efbe161ee8f', 'QURAN_APPROVED_TEXT_DIGEST_MISMATCH');
   return { verseCount: expectedVerseTotal, sha256: contentSha };
 }

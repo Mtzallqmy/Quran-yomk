@@ -70,6 +70,21 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   }
 
   @override
+  void didUpdateWidget(covariant MushafPageReader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final target = widget.initialPage.clamp(1, mushafPageCount);
+    if (oldWidget.initialPage != widget.initialPage && target != _page) {
+      _page = target;
+      _selected = null;
+      if (_pages.hasClients) _pages.jumpToPage(target - 1);
+    }
+    _edition = MushafPageEdition.values.firstWhere(
+      (value) => value.name == widget.store.pageEdition,
+      orElse: () => MushafPageEdition.madinahHafsSvg,
+    );
+  }
+
+  @override
   void dispose() {
     _controlsTimer?.cancel();
     _pages.dispose();
@@ -412,9 +427,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                   margin: const EdgeInsets.all(8),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surface.withValues(alpha: 0.94),
+                    color: Theme.of(context).colorScheme.surface
+                        .withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: const <BoxShadow>[
                       BoxShadow(color: Colors.black26, blurRadius: 12),
@@ -475,9 +489,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                   margin: const EdgeInsets.all(8),
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surface.withValues(alpha: 0.94),
+                    color: Theme.of(context).colorScheme.surface
+                        .withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: const <BoxShadow>[
                       BoxShadow(color: Colors.black26, blurRadius: 12),
@@ -691,9 +704,8 @@ class _PageSurfaceState extends State<_PageSurface> {
   Future<_MushafPageData> _load() async {
     final asset = await widget.repository.page(widget.page, widget.edition);
     final themes = widget.showThemes
-        ? ThematicPassageResolver(
-            await MushafTopicIndex.load(),
-          ).marks(asset.regions.map((region) => region.verseKey))
+        ? ThematicPassageResolver(await MushafTopicIndex.load())
+              .marks(asset.regions.map((region) => region.verseKey))
         : const <String, ThematicMark>{};
     return _MushafPageData(asset: asset, themes: themes);
   }

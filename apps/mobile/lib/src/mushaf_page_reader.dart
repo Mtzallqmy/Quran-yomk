@@ -76,7 +76,10 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     if (oldWidget.initialPage != widget.initialPage && target != _page) {
       _page = target;
       _selected = null;
-      if (_pages.hasClients) _pages.jumpToPage(target - 1);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pages.hasClients && _page == target)
+          _pages.jumpToPage(target - 1);
+      });
     }
     _edition = MushafPageEdition.values.firstWhere(
       (value) => value.name == widget.store.pageEdition,
@@ -427,8 +430,9 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                   margin: const EdgeInsets.all(8),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface
-                        .withValues(alpha: 0.94),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surface.withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: const <BoxShadow>[
                       BoxShadow(color: Colors.black26, blurRadius: 12),
@@ -489,8 +493,9 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                   margin: const EdgeInsets.all(8),
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface
-                        .withValues(alpha: 0.94),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surface.withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: const <BoxShadow>[
                       BoxShadow(color: Colors.black26, blurRadius: 12),
@@ -704,8 +709,9 @@ class _PageSurfaceState extends State<_PageSurface> {
   Future<_MushafPageData> _load() async {
     final asset = await widget.repository.page(widget.page, widget.edition);
     final themes = widget.showThemes
-        ? ThematicPassageResolver(await MushafTopicIndex.load())
-              .marks(asset.regions.map((region) => region.verseKey))
+        ? ThematicPassageResolver(
+            await MushafTopicIndex.load(),
+          ).marks(asset.regions.map((region) => region.verseKey))
         : const <String, ThematicMark>{};
     return _MushafPageData(asset: asset, themes: themes);
   }

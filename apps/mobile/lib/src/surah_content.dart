@@ -129,7 +129,7 @@ class SurahApiClient {
         );
         request.headers.addAll({
           'Accept': 'application/json',
-          'User-Agent': 'Tarteel/0.9.1',
+          'User-Agent': 'Tarteel/0.9.3',
           if (cached?.etag != null) 'If-None-Match': cached!.etag!,
         });
         final response =
@@ -190,7 +190,7 @@ class SurahApiClient {
   Future<List<SurahProject>> projects([SurahScope? scope]) async {
     if (projectCatalog != null) {
       try {
-        final rows = await projectCatalog!();
+        final rows = await projectCatalog!().timeout(timeout);
         if (rows.isEmpty || rows.length > 100)
           throw const FormatException('INVALID_CATALOG');
         final values = <SurahProject>[];
@@ -254,6 +254,7 @@ class SurahApiClient {
     String slug,
     List<int> location, {
     int? end,
+    bool refresh = false,
   }) async {
     final project = await _published(slug);
     final count = switch (project.scope) {
@@ -278,6 +279,7 @@ class SurahApiClient {
     if (slug == 'word-pic') throw StateError('MEDIA_RIGHTS_UNVERIFIED');
     final path =
         '${project.scope.name}/$slug/${[...location, if (end != null) end].join('/')}';
+    if (refresh) _cache.remove(path);
     final raw = await _get(path);
     final rows = raw is List ? raw : [raw];
     final seen = <String>{};

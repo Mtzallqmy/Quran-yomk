@@ -311,8 +311,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
       await services.playback.playQuranAudio(<QuranAudioMedia>[media], 0);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.noAudioForSurah)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.noAudioForSurah)));
     } finally {
       if (mounted) setState(() => _audioBusy = false);
     }
@@ -346,8 +347,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
       await _remember(verse);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(context.l10n.noAudioForSurah)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.noAudioForSurah)));
     } finally {
       if (mounted) setState(() => _audioBusy = false);
     }
@@ -394,8 +396,9 @@ class _MushafPageState extends ConsumerState<MushafPage> {
       await showDownloadProgress(context, services.quranDownloads, media);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('تعذر بدء تنزيل السورة')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تعذر بدء تنزيل السورة')));
     }
   }
 
@@ -874,8 +877,9 @@ class _QuranText extends StatelessWidget {
     future: store.showThemes ? MushafTopicIndex.load() : null,
     builder: (context, topicSnapshot) {
       final marks = topicSnapshot.hasData
-          ? ThematicPassageResolver(topicSnapshot.data!)
-                .marks(passage.verses.map((v) => v.verseKey))
+          ? ThematicPassageResolver(
+              topicSnapshot.data!,
+            ).marks(passage.verses.map((v) => v.verseKey))
           : <String, ThematicMark>{};
       final base =
           Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -893,8 +897,9 @@ class _QuranText extends StatelessWidget {
                 .map((verse) {
                   final mark = marks[verse.verseKey];
                   final color = store.showThemes && mark != null
-                      ? Color(mark.colorValue)
-                            .withValues(alpha: store.themeOpacity)
+                      ? Color(
+                          mark.colorValue,
+                        ).withValues(alpha: store.themeOpacity)
                       : Colors.transparent;
                   final tajweed =
                       store.showTajweed &&
@@ -943,9 +948,9 @@ class _QuranText extends StatelessWidget {
                                         : '  ﴿${arabicIndicNumber(verse.ayahNumber)}﴾',
                                     style: base.copyWith(
                                       fontSize: 20 * store.fontScale,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
                                     ),
                                   ),
                                 ],

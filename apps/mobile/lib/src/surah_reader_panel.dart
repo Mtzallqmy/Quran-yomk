@@ -221,6 +221,13 @@ class _SurahReadingSectionState extends State<_SurahReadingSection> {
                 padding: EdgeInsets.all(12),
                 child: LinearProgressIndicator(),
               );
+            if (snapshot.error is StateError &&
+                (snapshot.error! as StateError).message ==
+                    'CONTENT_NOT_AVAILABLE')
+              return const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('لا يتوفر محتوى لهذا الموضع في المصدر المختار.'),
+              );
             if (snapshot.hasError)
               return Column(
                 children: [

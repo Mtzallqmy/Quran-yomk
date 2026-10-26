@@ -11,3 +11,6 @@ The discovered public Surah catalog does not supply a full downloadable canonica
 
 ## Verification status
 Canonical integrity validation and Node integrity tests pass locally. Flutter regression tests and Android acceptance are enforced by the existing PR workflow. Release publication requires its actual passing artifact, the previous preview certificate and signed upgrade acceptance. This file is a candidate record, not a claim of published APK or completed phone testing.
+
+## Additional recovery and live evidence
+Temporary audio-provider failures no longer cache an empty/partial reciter catalog for the session; the chooser can retry. Live source probes passed for the 20-project registry, tajweed explanation, aya grammar, page benefits and word ranges. `maqased-sowar/1` returned provider404 and is rendered as unavailable content, not substituted. See `surah-live-2096.json` for hashes and shapes only.

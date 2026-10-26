@@ -1,8 +1,8 @@
-"""Actual signed2094 -> signed2095 install-r and data-retention acceptance."""
+"""Actual signed2095 -> signed2096 install-r and data-retention acceptance."""
 import argparse,hashlib,json,re,subprocess,time,xml.etree.ElementTree as ET,zipfile,tempfile,shutil
 from pathlib import Path
 PACKAGE='app.tarteel.tarteel'
-BASE_SHA='18f7103c3ef8efde6577872e6ee5cacfe5788cf80a43949fa7e8023e0e050429'
+BASE_SHA='e3e8c6815f9a64cdff9328ef1120d706f66cecd86272e8090f4609f6528e713f'
 CERT='5e2a2a7412c93c8a0e9e28917195534b726c9c1ae3a35232e9fd0aeb5fa718b8'
 def command(*args):return subprocess.check_output(list(args),text=True,stderr=subprocess.STDOUT,timeout=120)
 def adb(*args):return command('adb',*args)
@@ -16,7 +16,7 @@ def main(a):
  assert 'Success' in adb('install',str(a.baseline))
  if int(adb('shell','getprop','ro.build.version.sdk').strip())>=33:adb('shell','pm','grant',PACKAGE,'android.permission.POST_NOTIFICATIONS')
  adb('shell','am','start','-W','-n',PACKAGE+'/.MainActivity');time.sleep(15)
- assert 'versionCode=2094' in adb('shell','dumpsys','package',PACKAGE)
+ assert 'versionCode=2095' in adb('shell','dumpsys','package',PACKAGE)
  adb('shell','am','force-stop',PACKAGE)
  device='/data/data/'+PACKAGE+'/shared_prefs/FlutterSharedPreferences.xml';local=private/'baseline-prefs.xml';adb('pull',device,str(local))
  tree=ET.parse(local);root=tree.getroot()
@@ -46,20 +46,20 @@ def main(a):
  adb('logcat','-c');launch=adb('shell','am','start','-W','-n',PACKAGE+'/.MainActivity');time.sleep(25)
  pid=adb('shell','pidof',PACKAGE).strip().split()[0];assert pid
  logs=adb('logcat','-d','--pid='+pid);assert not re.search(r'FATAL EXCEPTION|Unhandled Exception|Fatal signal',logs)
- package=adb('shell','dumpsys','package',PACKAGE);assert 'versionCode=2095' in package
+ package=adb('shell','dumpsys','package',PACKAGE);assert 'versionCode=2096' in package
  after=private/'upgraded-prefs.xml';adb('pull',device,str(after));values={c.get('name'):c.text for c in ET.parse(after).getroot()}
  for key,value in fixtures.items():
   expected=json.loads(value)
   if key.endswith('last-position:v1'):expected.update(number=120,page_number=120)
   else:expected[0]['page_number']=120
-  assert json.loads(values[key])==expected,'Lost2094 reading/bookmark identity: '+key
+  assert json.loads(values[key])==expected,'Lost2095 reading/bookmark identity: '+key
  assert values[rollback_key]==rollback_value, 'Existing rollback snapshot changed'
  assert json.loads(values[prayer_key])==json.loads(prayer_value), 'Local prayer settings changed during update'
  retained=a.output/'retained-recording.mp3';adb('pull',target,str(retained));assert retained.read_bytes()==audio
  adb('shell','uiautomator','dump','/sdcard/tarteel-upgrade-ui.xml');adb('pull','/sdcard/tarteel-upgrade-ui.xml',str(a.output/'ui.xml'))
  assert PACKAGE in (a.output/'ui.xml').read_text()
  (a.output/'launch.txt').write_text(launch);(a.output/'logcat.txt').write_text(logs);(a.output/'package.txt').write_text(package)
- report=dict(status='PASS',baseline_version_code=2094,version_code=2095,baseline_sha256=BASE_SHA,apk_sha256=hashlib.sha256(a.candidate.read_bytes()).hexdigest(),certificate_sha256=CERT,emulator_abis=abis,reading_position_retained=True,bookmarks_retained=True,prayer_settings_retained=True,baseline_page=120,official_page=120,verse_identity='5:77',rollback_snapshot_verified=True,recording_sha256=hashlib.sha256(audio).hexdigest(),recording_retained=True)
+ report=dict(status='PASS',baseline_version_code=2095,version_code=2096,baseline_sha256=BASE_SHA,apk_sha256=hashlib.sha256(a.candidate.read_bytes()).hexdigest(),certificate_sha256=CERT,emulator_abis=abis,reading_position_retained=True,bookmarks_retained=True,prayer_settings_retained=True,baseline_page=120,official_page=120,verse_identity='5:77',rollback_snapshot_verified=True,recording_sha256=hashlib.sha256(audio).hexdigest(),recording_retained=True)
  (a.output/'acceptance.json').write_text(json.dumps(report,indent=2)+'\n');shutil.rmtree(private);print(json.dumps(report))
 if __name__=='__main__':
  p=argparse.ArgumentParser();p.add_argument('--baseline',type=Path,required=True);p.add_argument('--candidate',type=Path,required=True);p.add_argument('--apksigner',type=Path,required=True);p.add_argument('--output',type=Path,required=True);main(p.parse_args())

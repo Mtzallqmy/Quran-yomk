@@ -230,7 +230,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                       future = ref
                           .read(servicesProvider)
                           .quranAudio
-                          .reciters(surahNumber: surahNumber);
+                          .reciters(surahNumber: surahNumber, refresh: true);
                     }),
                   ),
                 );
@@ -242,7 +242,25 @@ class _MushafPageState extends ConsumerState<MushafPage> {
               if (values.isEmpty) {
                 return SizedBox(
                   height: 260,
-                  child: EmptyPane(message: l10n.noReciters),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(l10n.noReciters),
+                      TextButton.icon(
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('إعادة المحاولة'),
+                        onPressed: () => update(() {
+                          future = ref
+                              .read(servicesProvider)
+                              .quranAudio
+                              .reciters(
+                                surahNumber: surahNumber,
+                                refresh: true,
+                              );
+                        }),
+                      ),
+                    ],
+                  ),
                 );
               }
               return DraggableScrollableSheet(
@@ -308,6 +326,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           bitrateKbps: _bitrateKbps,
         ),
       );
+      if (!mounted) return;
       await services.playback.playQuranAudio(<QuranAudioMedia>[media], 0);
     } catch (_) {
       if (!mounted) return;
@@ -343,6 +362,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           ayahInSurah: verse.ayahNumber,
         ),
       );
+      if (!mounted) return;
       await services.playback.playQuranAudio(<QuranAudioMedia>[media], 0);
       await _remember(verse);
     } catch (_) {

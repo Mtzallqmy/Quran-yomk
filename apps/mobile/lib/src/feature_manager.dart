@@ -54,13 +54,16 @@ class FeatureManager extends ChangeNotifier {
   FeatureManager({
     required TarteelRemoteConfig config,
     required String installedVersion,
+    String? installedBuildNumber,
   }) : _config = config,
-       _installedVersion = SemanticVersion.safe(installedVersion) {
+       _installedVersion = SemanticVersion.safe(installedVersion),
+       _installedBuildNumber = int.tryParse(installedBuildNumber ?? '') {
     _config.addListener(_changed);
   }
 
   final TarteelRemoteConfig _config;
   final SemanticVersion _installedVersion;
+  final int? _installedBuildNumber;
 
   bool enabled(TarteelFeature feature) => switch (feature) {
     TarteelFeature.radio => _config.radioEnabled,
@@ -84,6 +87,11 @@ class FeatureManager extends ChangeNotifier {
       return UpdateRequirement.recommended;
     }
     if (_installedVersion.compareTo(latest) < 0) {
+      return UpdateRequirement.available;
+    }
+    if (_installedBuildNumber != null &&
+        _installedVersion.compareTo(latest) == 0 &&
+        _config.latestAndroidBuildNumber > _installedBuildNumber) {
       return UpdateRequirement.available;
     }
     return UpdateRequirement.none;

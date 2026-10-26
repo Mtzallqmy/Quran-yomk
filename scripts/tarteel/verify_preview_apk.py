@@ -21,7 +21,7 @@ if __name__ == '__main__':
     subprocess.run(['python3', str(Path(__file__).with_name('inspect_unsigned_apk.py')), str(args.apk), '--aapt', args.aapt, '--output', str(args.output)], check=True, stdout=subprocess.DEVNULL)
     metadata_path = args.output / 'unsigned-build-metadata.json'
     metadata = json.loads(metadata_path.read_text())
-    if metadata['versionCode'] != 2093:
+    if metadata['versionCode'] != 2096:
         raise ValueError('Unexpected actual ARM64 split code')
     signature = subprocess.check_output([args.apksigner, 'verify', '--verbose', '--print-certs', str(args.apk)], text=True)
     if re.findall(r'certificate SHA-256 digest: ([0-9a-fA-F]+)', signature) != [PREVIEW_CERT]:

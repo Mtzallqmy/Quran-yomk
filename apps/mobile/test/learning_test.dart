@@ -43,12 +43,12 @@ void main() {
       final manifest =
           jsonDecode(
                 File(
-                  '../../data/quran/canonical/v1/manifest.json',
+                  '../../data/quran/canonical/v2/manifest.json',
                 ).readAsStringSync(),
               )
               as Map<String, dynamic>;
       final dataset = File(
-        '../../data/quran/canonical/v1/dataset.json',
+        '../../data/quran/canonical/v2/dataset.json',
       ).readAsBytesSync();
       expect(sha256.convert(dataset).toString(), manifest['sha256']);
       expect(manifest['verses'], 6236);

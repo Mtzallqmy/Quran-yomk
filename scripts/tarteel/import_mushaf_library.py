@@ -24,12 +24,12 @@ def payload(assets_root):
     package = (ROOT / 'apps/mobile/assets/mushaf_library/topics-2026-10-24.json.gz').read_bytes()
     assert digest(package) == TOPIC_SHA
     topics = json.loads(gzip.decompress(package))['data']
-    corpus_bytes = (ROOT / 'data/quran/canonical/v1/dataset.json').read_bytes()
-    canonical_manifest = json.loads((ROOT / 'data/quran/canonical/v1/manifest.json').read_text())
+    corpus_bytes = (ROOT / 'data/quran/canonical/v2/dataset.json').read_bytes()
+    canonical_manifest = json.loads((ROOT / 'data/quran/canonical/v2/manifest.json').read_text())
     assert digest(corpus_bytes) == canonical_manifest['sha256']
     corpus = json.loads(corpus_bytes)
     verses = [dict(verse_key=v['verse_key'], surah=s['number'], ayah=v['ayah_number'],
-                   text_sha256=digest(v['text_uthmani'].encode()), version_id='canonical-v1',
+                   text_sha256=digest(v['text_uthmani'].encode()), version_id='canonical-v2-kfgqpc',
                    juz=v['juz_number'], hizb_quarter=v['hizb_quarter'])
               for s in corpus['surahs'] for v in s['verses']]
     assert len(corpus['surahs']) == 114 and len(verses) == 6236
@@ -96,7 +96,7 @@ def queries(data):
     q = [dict(query="SELECT pg_advisory_xact_lock(91833407)", params=[]),
          dict(query="SELECT set_config('tarteel.topic_before',((SELECT count(*) FROM tarteel_mushaf.thematic_sections)+(SELECT count(*) FROM tarteel_mushaf.thematic_ayah_ranges))::text,true)",params=[])]
     q.append(insert('mushaf_sources', dict(id='text',name='text',url='text'), [
-        dict(id='canonical',name='Existing Tarteel canonical Hafs snapshot',url='https://github.com/Mtzallqmy/Quran-yomk/tree/feat/tarteel-local-prayer-neon-2074/data/quran/canonical/v1'),
+        dict(id='canonical',name='KFGQPC official Hafs Unicode edition',url='https://github.com/Mtzallqmy/Quran-yomk/tree/feat/tarteel-local-prayer-neon-2074/data/quran/canonical/v2'),
         dict(id='quranpedia',name='الموسوعة القرآنية Quranpedia',url='https://quranpedia.net/dumps'),
         dict(id='hafs-svg',name='KFQC artwork via pinned Quranpedia SVG',url='https://github.com/quranpedia/quran-svg/tree/b91d39e1065b57bdda3e94aca8ecf3575e50e1e6')]))
     q.append(insert('mushaf_licenses',dict(id='text',source_id='text',url='text',notice='text',status='text'),[
@@ -104,11 +104,11 @@ def queries(data):
         dict(id='hafs-svg-original',source_id='hafs-svg',url='https://github.com/quranpedia/quran-svg/blob/b91d39e1065b57bdda3e94aca8ecf3575e50e1e6/LICENSE',notice='Pinned original SVG source terms and KFQC digital-software usage terms; no 1440 edition assertion.',status='approved')]))
     q.append(insert('mushaf_riwayat',dict(id='text',name_ar='text',ayah_count='integer'),[dict(id='hafs',name_ar='حفص عن عاصم',ayah_count=6236)]))
     q.append(insert('mushaf_versions',dict(id='text',source_id='text',version='text',sha256='text'),[
-        dict(id='canonical-v1',source_id='canonical',version='v1',sha256=data['corpus_sha']),
+        dict(id='canonical-v2-kfgqpc',source_id='canonical',version='v2',sha256=data['corpus_sha']),
         dict(id='topics-2026-10-24',source_id='quranpedia',version='2026-10-24',sha256=TOPIC_SHA),
         dict(id='hafs-svg-v1',source_id='hafs-svg',version='b91d39e1065b57bdda3e94aca8ecf3575e50e1e6',sha256=data['manifest_sha'])]))
     q.append(insert('mushaf_editions',dict(id='text',riwayah_id='text',source_id='text',license_id='text',version_id='text',publisher='text',edition='text',text_version='text',page_layout='text',content_type='text',title_ar='text',fingerprint='text'),[
-        dict(id='madinah-hafs-svg-v1',riwayah_id='hafs',source_id='hafs-svg',license_id='hafs-svg-original',version_id='hafs-svg-v1',publisher='KFQC artwork / Quranpedia SVG',edition='Pinned SVG v1; print year not independently verified',text_version='canonical-v1',page_layout='604-pages-hafs-svg',content_type='page-layout',title_ar='مصحف المدينة — حفص',fingerprint=HAFS_PACK_SHA)]))
+        dict(id='madinah-hafs-svg-v1',riwayah_id='hafs',source_id='hafs-svg',license_id='hafs-svg-original',version_id='hafs-svg-v1',publisher='KFQC artwork / Quranpedia SVG',edition='Pinned SVG v1; print year not independently verified',text_version='canonical-v2-kfgqpc',page_layout='604-pages-hafs-svg',content_type='page-layout',title_ar='مصحف المدينة — حفص',fingerprint=HAFS_PACK_SHA)]))
     specs = [
         ('canonical_ayahs',dict(verse_key='text',surah='integer',ayah='integer',text_sha256='text',version_id='text',juz='integer',hizb_quarter='integer'),'verses'),
         ('mushaf_pages',dict(edition_id='text',page='integer'),'pages'),

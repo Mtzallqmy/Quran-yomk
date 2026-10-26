@@ -1,0 +1,17 @@
+{
+  "url": "https://br-curly-salad-bajy1evn-tarteelcontent.compute.c-8.eu-central-1.aws.neon.tech/v1/mushaf-library",
+  "editions": [
+    {
+      "id": "madinah-hafs-svg-v1",
+      "text_version": "canonical-v2-kfgqpc"
+    }
+  ],
+  "status": {
+    "canonical_ayahs": "6236",
+    "topics": "6100",
+    "covered_ayahs": "3673",
+    "topic_version": "2026-10-24",
+    "topic_source": "https://quranpedia.net/dumps",
+    "complete_reviewed_tajweed_available": false
+  }
+}

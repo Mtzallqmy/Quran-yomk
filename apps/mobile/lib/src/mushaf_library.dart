@@ -25,6 +25,21 @@ class MushafTopicIndex {
   static const version = '2026-10-24';
   final List<MushafTopic> topics;
   final Map<int, MushafTopic> byId;
+  late final Map<String, List<MushafTopic>> _byVerse = _indexVerses();
+
+  Map<String, List<MushafTopic>> _indexVerses() {
+    final index = <String, List<MushafTopic>>{};
+    for (final topic in topics) {
+      for (final key in topic.verseKeys) {
+        (index[key] ??= <MushafTopic>[]).add(topic);
+      }
+    }
+    return {
+      for (final entry in index.entries)
+        entry.key: List.unmodifiable(entry.value),
+    };
+  }
+
   static Future<MushafTopicIndex>? _bundled;
   static MushafTopicIndex? _cached;
 
@@ -103,7 +118,7 @@ class MushafTopicIndex {
   }
 
   List<MushafTopic> forVerse(String key) =>
-      topics.where((topic) => topic.verseKeys.contains(key)).toList();
+      _byVerse[key] ?? const <MushafTopic>[];
 
   String ancestry(MushafTopic topic) {
     final parts = <String>[];

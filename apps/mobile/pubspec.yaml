@@ -51,6 +51,7 @@ flutter:
       fonts:
         - asset: assets/fonts/kfgqpc_hafs_v30.ttf
   assets:
+    - assets/legal/documents.json
     - assets/canonical/hafs-v2.json.gz
     - assets/fonts/NOTICE-KFGQPC.txt
     - assets/fonts/OFL-NotoSansArabic.txt

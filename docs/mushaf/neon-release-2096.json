@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "api_base": "https://br-curly-salad-bajy1evn-tarteelcontent.compute.c-8.eu-central-1.aws.neon.tech",
+  "release": {
+    "application_id": "app.tarteel.tarteel",
+    "version_code": 2096,
+    "version_name": "0.9.3-beta.1",
+    "architecture": "arm64-v8a",
+    "minimum_sdk": 26,
+    "apk_url": "https://github.com/Mtzallqmy/Quran-yomk/releases/download/v0.9.3-beta.1-preview.2096/Tarteel-0.9.3-beta.1-2096-ARM64-PREVIEW.apk",
+    "apk_sha256": "fb8f751aa008d10ffa50b746967724153dac04bad13c9b9f9ec3d729b6abe93e",
+    "certificate_sha256": "5e2a2a7412c93c8a0e9e28917195534b726c9c1ae3a35232e9fd0aeb5fa718b8",
+    "channel": "preview",
+    "published_at": "2026-10-26T13:20:44.000Z"
+  },
+  "surah": {
+    "contentAccess": "direct_official_api",
+    "contentStorage": "metadata_only",
+    "baseUrl": "https://dev.surahapp.com/api/v1"
+  },
+  "prayer": {
+    "calculation": "device_offline",
+    "scheduling": "android_local",
+    "cloudRequired": false,
+    "preferencesBackup": "optional_explicit_consent",
+    "locationUploaded": false,
+    "audioUploaded": false
+  },
+  "published_apk_download_sha256_verified": true
+}

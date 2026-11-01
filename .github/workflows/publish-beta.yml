@@ -1,0 +1,78 @@
+name: Publish verified Tarteel beta
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful Tarteel local prayer upgrade run containing the signed candidate
+        required: true
+        type: string
+      device_acceptance_json:
+        description: Actual physical-device results with sourceCommit, sha256, upgradedFrom2074, favoritesRetained, offlineScreenOffAlarm, device, testedAt
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    environment: tarteel-beta
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact successful signed candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CANDIDATE_RUN_ID" > run.json
+          jq -e '.conclusion == "success" and .name == "Tarteel local prayer upgrade" and .head_repository.full_name == .repository.full_name' run.json
+          source_sha=$(jq -r .head_sha run.json)
+          [[ "$source_sha" =~ ^[a-f0-9]{40}$ ]]
+          gh run download "$CANDIDATE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "tarteel-signed-candidate-$source_sha" --dir candidate
+          echo "CANDIDATE_SHA=$source_sha" >> "$GITHUB_ENV"
+      - name: Check signature, package and actual physical-device acceptance
+        env:
+          DEVICE_ACCEPTANCE: ${{ inputs.device_acceptance_json }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, re
+          from datetime import datetime
+          from pathlib import Path
+          p = Path('candidate')
+          m = json.loads((p/'release-metadata.json').read_text())
+          apk = p/'tarteel-0.9.0-beta.2-arm64-v8a.apk'
+          checksum = hashlib.sha256(apk.read_bytes()).hexdigest()
+          assert m['sourceCommit'] == os.environ['CANDIDATE_SHA']
+          assert m['sha256'] == checksum
+          assert m['applicationId'] == 'app.tarteel.tarteel' and m['versionCode'] > 2074
+          assert m['versionName'] == '0.9.0-beta.2' and m['abis'] == ['arm64-v8a']
+          assert m['certificateSha256'] == 'b93cac8e6b74a7aa33ebc0a151a778fd2bd3b8452badf0161b0ef78b862ac4b8'
+          signature = (p/'signature.txt').read_text()
+          assert re.findall(r'certificate SHA-256 digest: ([a-f0-9]+)',signature) == [m['certificateSha256']]
+          evidence = json.loads(os.environ['DEVICE_ACCEPTANCE'])
+          assert evidence['sourceCommit'] == m['sourceCommit'] and evidence['sha256'] == checksum
+          for check in ['upgradedFrom2074','favoritesRetained','offlineScreenOffAlarm']:
+              assert evidence[check] is True, check
+          assert isinstance(evidence['device'],str) and len(evidence['device'].strip()) >= 3
+          assert datetime.fromisoformat(evidence['testedAt'].replace('Z','+00:00')).tzinfo is not None
+          (p/'device-acceptance.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n')
+          PY
+          cd candidate
+          sha256sum -c SHA256SUMS.txt
+      - name: Publish gated beta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > notes.md <<'NOTES'
+          ترتيل Flutter — مواقيت وتنبيهات محلية، مكتبة صوت مدمجة، وتحسين الواجهة العربية، ونسخ مفضلة اختياري على Neon.
+          Android 8+، arm64-v8a، الحزمة app.tarteel.tarteel؛ شهادة التوقيع تطابق APK المنشور 2074.
+          راجع release-metadata.json وdevice-acceptance.json لنتائج التحقق ومصدر البناء.
+          تسجيلات أذان محلية لمكة والمدينة وشالقار مع توثيق المصدر والترخيص، واستيراد أصوات الهاتف.
+          سياسات البطارية والصلاحيات الخاصة بالهاتف قد تقيد التنبيه؛ تعرض شاشة الحالة التفاصيل.
+          NOTES
+          gh release create v0.9.0-beta.2 candidate/*.apk candidate/SHA256SUMS.txt candidate/badging.txt candidate/signature.txt candidate/release-metadata.json candidate/device-acceptance.json --repo "$GITHUB_REPOSITORY" --target "$CANDIDATE_SHA" --title 'ترتيل 0.9.0-beta.2 — الصلاة والتنبيهات المحلية' --notes-file notes.md --prerelease

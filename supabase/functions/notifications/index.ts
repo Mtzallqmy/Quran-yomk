@@ -1,325 +1,99 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import { fetchJsonResponse, UpstreamHttpError } from '../_shared/http.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+type Env=(name:string)=>string|undefined;
+type Json=Record<string,unknown>;
+const routes=new Set(['/','/home','/prayer-times','/adhkar','/radio','/reciters','/quran','/library','/custom-reminders']);
+const types=new Set(['admin_announcements','content_updates','quran_content','radio','prayer_related','adhkar','memorization_review','personal_reminders','important_system']);
+const targets=new Set(['all','user','device','segment']);
+const preferenceKeys=['admin_announcements','content_updates','quran_content','radio','prayer_related','adhkar','memorization_review','personal_reminders','important_system'];
+const consentNoticeVersion='notifications-v1';
 
-// Strict Allow-list of client navigation routes
-const ALLOWED_ROUTES = new Set([
-  '/',
-  '/home',
-  '/radio',
-  '/reciters',
-  '/quran',
-  '/library',
-  '/adhkar',
-  '/prayer-times',
-  '/custom-reminders',
-  '/settings'
-]);
+class HttpError extends Error { status:number;code:string;constructor(status:number,code:string){super(code);this.status=status;this.code=code;} }
+const bounded=(value:unknown,max:number)=>typeof value==='string'&&value.trim().length>0&&value.trim().length<=max?value.trim():null;
+const uuid=(value:unknown)=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)?value:null;
+function response(status:number,id:string,data:Json){return Response.json(status<400?{data,request_id:id}:{error:{code:String(data.code??'INTERNAL_ERROR'),request_id:id}},{status,headers:{'cache-control':'no-store','x-request-id':id}});}
+async function jsonBody(request:Request,max=16_384){const text=await request.text();if(new TextEncoder().encode(text).length>max)throw new HttpError(413,'PAYLOAD_TOO_LARGE');try{const value=JSON.parse(text||'{}');if(!value||typeof value!=='object'||Array.isArray(value))throw 0;return value as Json;}catch{throw new HttpError(422,'INVALID_JSON');}}
+async function sha256(value:string){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+async function rateLimit(store:Store,key:string,limit:number){const allowed=await store.rpc('consume_rate_limit',{p_bucket_key:await sha256(key),p_limit:limit,p_window_ms:60_000});if(allowed!==true)throw new HttpError(429,'RATE_LIMITED');}
 
-function isRouteAllowed(route?: string): boolean {
-  if (!route) return true;
-  if (ALLOWED_ROUTES.has(route)) return true;
-  if (/^\/quran\/surah\/([1-9]|[1-9][0-9]|10[0-9]|11[0-4])$/.test(route)) return true;
-  return false;
+class Store {
+  env:Env;constructor(env:Env){this.env=env;}
+  get url(){const value=this.env('SUPABASE_URL')?.replace(/\/$/,'');if(!value)throw new HttpError(503,'SERVER_NOT_CONFIGURED');return value;}
+  get key(){const value=this.env('SUPABASE_SERVICE_ROLE_KEY');if(!value)throw new HttpError(503,'SERVER_NOT_CONFIGURED');return value;}
+  async call(path:string,init:RequestInit={},schema='app'){
+    const headers=new Headers(init.headers);headers.set('apikey',this.key);headers.set('authorization',`Bearer ${this.key}`);headers.set('accept-profile',schema);headers.set('content-profile',schema);if(init.body)headers.set('content-type','application/json');if(!headers.has('prefer'))headers.set('prefer','return=representation');
+    const result=await fetchJsonResponse(`${this.url}/rest/v1/${path}`,{...init,headers},{maxBytes:1024*1024,timeoutMs:12_000});
+    if(!result.ok)throw new HttpError(result.status===409?409:502,'DATABASE_ERROR');
+    return await result.json();
+  }
+  rpc(name:string,args:Json){return this.call(`rpc/${name}`,{method:'POST',body:JSON.stringify(args)});}
+  async count(path:string){const result=await globalThis.fetch(`${this.url}/rest/v1/${path}`,{method:'HEAD',headers:{apikey:this.key,authorization:`Bearer ${this.key}`,'accept-profile':'app',prefer:'count=exact',range:'0-0'},redirect:'error',signal:AbortSignal.timeout(10_000)});if(!result.ok)throw new HttpError(502,'DATABASE_ERROR');const value=Number(result.headers.get('content-range')?.split('/')[1]);return Number.isFinite(value)?value:0;}
+  async user(token:string){const result=await fetchJsonResponse(`${this.url}/auth/v1/user`,{headers:{apikey:this.key,authorization:`Bearer ${token}`}},{maxBytes:32_768,timeoutMs:10_000});if(!result.ok)throw new HttpError(401,'AUTH_REQUIRED');const user=await result.json();const id=uuid(user?.id);if(!id)throw new HttpError(401,'AUTH_REQUIRED');return id;}
+  async permitted(userId:string,permission:string){const value=await this.rpc('managed_radio_authorized',{p_user_id:userId,p_permission:permission});if(value!==true)throw new HttpError(403,'FORBIDDEN');}
 }
 
-/**
- * Base64URL encoder helper
- */
-function base64UrlEncode(str: string | Uint8Array): string {
-  const bytes = typeof str === 'string' ? new TextEncoder().encode(str) : str;
-  let base64 = btoa(String.fromCharCode(...bytes));
-  return base64.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-}
+function bearer(request:Request){const header=request.headers.get('authorization')??'';return header.startsWith('Bearer ')?header.slice(7):'';}
+async function actor(request:Request,store:Store,permission:string){const token=bearer(request);if(!token)throw new HttpError(401,'AUTH_REQUIRED');let id:string|null=null;if(token===store.key)id=uuid(request.headers.get('x-admin-user-id'));else id=await store.user(token);if(!id)throw new HttpError(401,'AUTH_REQUIRED');await store.permitted(id,permission);return id;}
+async function audit(store:Store,actorId:string,action:string,resource:string,resourceId:string|null,requestId:string,metadata:Json={}){await store.call('audit_logs',{method:'POST',body:JSON.stringify({actor_id:actorId,action,resource_type:resource,resource_id:resourceId,request_id:requestId,metadata:{source:'notification_edge',...metadata}})});}
+async function retireDevice(store:Store,id:unknown){const deviceId=uuid(id);if(!deviceId)return;await store.call(`user_devices?id=eq.${deviceId}`,{method:'PATCH',body:JSON.stringify({user_id:null,revoked_at:new Date().toISOString(),notifications_enabled:false,fcm_token:`revoked:${crypto.randomUUID()}`,consent_notice_version:null,consented_at:null})});}
 
-/**
- * Generate Google OAuth2 Access Token for FCM HTTP v1 using Web Crypto RSA-SHA256
- */
-async function getFcmAccessToken(clientEmail: string, privateKeyRaw: string): Promise<string> {
-  const formattedKey = privateKeyRaw.replace(/\\n/g, '\n');
+async function register(request:Request,store:Store){const body=await jsonBody(request);const installation=uuid(body.installation_id);const secret=bounded(body.installation_secret,256);const token=bounded(body.fcm_token,4096);const platform=body.platform==='android'||body.platform==='ios'?body.platform:null;const version=bounded(body.app_version,40);const consentVersion=bounded(body.consent_notice_version,80);const consentedAt=new Date(String(body.consented_at??''));if(!installation||!secret||secret.length<32||!token||!platform||!version||body.consent_granted!==true||consentVersion!==consentNoticeVersion||Number.isNaN(consentedAt.getTime())||consentedAt.getTime()>Date.now()+300_000)throw new HttpError(422,'CONSENT_REQUIRED');
+  await rateLimit(store,`device:${installation}`,60);const hash=await sha256(secret);const existing=await store.call(`user_devices?installation_id=eq.${installation}&select=id,installation_secret_hash` ) as Json[];if(existing[0]&&existing[0].installation_secret_hash!==hash)throw new HttpError(403,'DEVICE_SECRET_INVALID');const tokenOwner=await store.call(`user_devices?fcm_token=eq.${encodeURIComponent(token)}&select=id,installation_id`) as Json[];if(tokenOwner[0]&&tokenOwner[0].installation_id!==installation)await retireDevice(store,tokenOwner[0].id);
+  let userId:string|null=null;const auth=bearer(request);if(auth&&auth!==store.key){try{userId=await store.user(auth);}catch{/* Guest registration remains available. */}}
+  const row={installation_id:installation,installation_secret_hash:hash,fcm_token:token,platform,app_version:version,locale:bounded(body.locale,16)??'ar',timezone:bounded(body.timezone,80)??'Asia/Aden',notifications_enabled:body.notifications_enabled!==false,consent_notice_version:consentVersion,consented_at:consentedAt.toISOString(),last_seen_at:new Date().toISOString(),revoked_at:null,...(userId?{user_id:userId}:{})};
+  const saved=await store.call('user_devices?on_conflict=installation_id',{method:'POST',headers:{prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(row)}) as Json[];const device=saved[0];if(!device)throw new HttpError(502,'DEVICE_REGISTRATION_FAILED');const preferences:Json={device_id:device.id};for(const key of preferenceKeys)preferences[key]=typeof body[key]==='boolean'?body[key]:true;await store.call('notification_preferences?on_conflict=device_id',{method:'POST',headers:{prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(preferences)});return {device_id:device.id};}
 
-  // Convert PEM to DER ArrayBuffer
-  const pemHeader = "-----BEGIN PRIVATE KEY-----";
-  const pemFooter = "-----END PRIVATE KEY-----";
-  const pemContents = formattedKey
-    .replace(pemHeader, "")
-    .replace(pemFooter, "")
-    .replace(/\s+/g, "");
-  
-  const binaryDerString = atob(pemContents);
-  const derBuffer = new Uint8Array(binaryDerString.length);
-  for (let i = 0; i < binaryDerString.length; i++) {
-    derBuffer[i] = binaryDerString.charCodeAt(i);
-  }
+async function deviceMutation(request:Request,store:Store,kind:'revoke'|'unlink'|'preferences'){const body=await jsonBody(request);const installation=uuid(body.installation_id);const secret=bounded(body.installation_secret,256);if(!installation||!secret)throw new HttpError(422,'VALIDATION_ERROR');const hash=await sha256(secret);const devices=await store.call(`user_devices?installation_id=eq.${installation}&installation_secret_hash=eq.${hash}&select=id,revoked_at,consent_notice_version`) as Json[];const device=devices[0];const id=device?.id;if(!id)throw new HttpError(403,'DEVICE_SECRET_INVALID');if(kind==='revoke'){await retireDevice(store,id);return {revoked:true};}if(kind==='unlink'){await store.call(`user_devices?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({user_id:null})});return {unlinked:true};}if(device.revoked_at||device.consent_notice_version!==consentNoticeVersion)throw new HttpError(422,'CONSENT_REQUIRED');
+  const values:Json={device_id:id};for(const key of preferenceKeys)if(typeof body[key]==='boolean')values[key]=body[key];await store.call('notification_preferences?on_conflict=device_id',{method:'POST',headers:{prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(values)});return {updated:true};}
 
-  const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8",
-    derBuffer.buffer,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
+const receiptRank:Record<string,number>={accepted_by_fcm:1,received_by_app:2,displayed:3,opened:4};
+async function recordReceipt(request:Request,store:Store){const body=await jsonBody(request);const installation=uuid(body.installation_id);const secret=bounded(body.installation_secret,256);const deliveryId=Number(body.delivery_id);const event=bounded(body.event,40);if(!installation||!secret||!Number.isSafeInteger(deliveryId)||deliveryId<=0||!event||!['received_by_app','displayed','opened'].includes(event))throw new HttpError(422,'VALIDATION_ERROR');await rateLimit(store,`receipt:${installation}`,120);const hash=await sha256(secret);const devices=await store.call(`user_devices?installation_id=eq.${installation}&installation_secret_hash=eq.${hash}&select=id,revoked_at`) as Json[];const device=devices[0];if(!device?.id||device.revoked_at)throw new HttpError(403,'DEVICE_SECRET_INVALID');const rows=await store.call(`notification_deliveries?id=eq.${deliveryId}&device_id=eq.${device.id}&select=id,status,accepted_at,received_at,displayed_at,opened_at`) as Json[];const delivery=rows[0];if(!delivery)throw new HttpError(404,'DELIVERY_NOT_FOUND');const current=String(delivery.status??'');if(receiptRank[current]&&receiptRank[event]<receiptRank[current])return {delivery_id:deliveryId,status:current,duplicate:true};const now=new Date().toISOString();const patch:Json={status:event};if(!delivery.accepted_at)patch.accepted_at=now;if(event==='received_by_app'&&!delivery.received_at)patch.received_at=now;if(event==='displayed'&&!delivery.displayed_at)patch.displayed_at=now;if(event==='opened'&&!delivery.opened_at)patch.opened_at=now;await store.call(`notification_deliveries?id=eq.${deliveryId}&device_id=eq.${device.id}`,{method:'PATCH',body:JSON.stringify(patch)});return {delivery_id:deliveryId,status:event};}
 
-  const header = { alg: "RS256", typ: "JWT" };
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: clientEmail,
-    scope: "https://www.googleapis.com/auth/firebase.messaging",
-    aud: "https://oauth2.googleapis.com/token",
-    exp: now + 3600,
-    iat: now,
-  };
+async function testDevice(request:Request,store:Store,env:Env){const body=await jsonBody(request);const installation=uuid(body.installation_id);const secret=bounded(body.installation_secret,256);if(!installation||!secret)throw new HttpError(422,'VALIDATION_ERROR');await rateLimit(store,`device-test:${installation}`,5);const hash=await sha256(secret);const devices=await store.call(`user_devices?installation_id=eq.${installation}&installation_secret_hash=eq.${hash}&revoked_at=is.null&notifications_enabled=eq.true&consent_notice_version=eq.${consentNoticeVersion}&select=id,fcm_token`) as Json[];const device=devices[0];const token=bounded(device?.fcm_token,4096);if(!device?.id||!token)throw new HttpError(404,'ACTIVE_DEVICE_NOT_FOUND');const auth=await firebaseAccessToken(env);const testId=crypto.randomUUID();const result=await fetchJsonResponse(`https://fcm.googleapis.com/v1/projects/${auth.project}/messages:send`,{method:'POST',headers:{authorization:`Bearer ${auth.token}`,'content-type':'application/json'},body:JSON.stringify(fcmMessage(token,{title:'اختبار إشعارات ترتيل',body:'إذا ظهر هذا الإشعار فمسار Firebase يعمل.',payload:{route:'/home'}},testId))},{maxBytes:32_768,timeoutMs:12_000});const value=await result.json();if(!result.ok){const code=classifyFcmError(result.status,value);if(code==='UNREGISTERED')await retireDevice(store,device.id);throw new HttpError(code==='UNREGISTERED'?410:502,code);}return {status:'accepted_by_fcm',test_id:testId,provider_message_id:bounded(value?.name,512)};}
 
-  const encodedHeader = base64UrlEncode(JSON.stringify(header));
-  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
-  const unsignedToken = `${encodedHeader}.${encodedPayload}`;
+function targetFilters(type:string,value:unknown){if(type==='all')return {};if(type==='user')return {user_id:uuid(value)};if(type==='device')return {device_id:uuid(value)};const raw=value&&typeof value==='object'&&!Array.isArray(value)?value as Json:{};const out:Json={};if(raw.platform==='android'||raw.platform==='ios')out.platform=raw.platform;if(bounded(raw.locale,16))out.locale=bounded(raw.locale,16);if(bounded(raw.app_version,40))out.app_version=bounded(raw.app_version,40);return out;}
+async function createNotification(request:Request,store:Store,id:string,actorId:string){await rateLimit(store,`notification:${actorId}`,20);const body=await jsonBody(request);const title=bounded(body.title,120),message=bounded(body.body,500),type=String(body.type??''),target=String(body.target_type??''),idem=bounded(request.headers.get('idempotency-key')??body.idempotency_key,200);if(!title||!message||!types.has(type)||!targets.has(target)||!idem||idem.length<8)throw new HttpError(422,'VALIDATION_ERROR');if(target==='all'&&body.confirm_all!==true)throw new HttpError(422,'SEND_ALL_CONFIRMATION_REQUIRED');const payload=body.payload&&typeof body.payload==='object'&&!Array.isArray(body.payload)?body.payload as Json:{};const route=payload.route===undefined?'/home':bounded(payload.route,80);if(!route||!routes.has(route))throw new HttpError(422,'INVALID_DEEP_LINK');const filters=targetFilters(target,body.target);if(target!=='all'&&Object.values(filters).some(value=>!value)||target==='segment'&&!Object.keys(filters).length)throw new HttpError(422,'INVALID_TARGET');const when=body.scheduled_at?new Date(String(body.scheduled_at)):new Date();if(Number.isNaN(when.getTime()))throw new HttpError(422,'INVALID_SCHEDULE');if(when.getTime()>Date.now()+10_000)await store.permitted(actorId,'notifications.schedule');const status='scheduled';let created:Json[];try{created=await store.call('admin_notifications',{method:'POST',body:JSON.stringify({title,body:message,type,payload:{route,...payload},target_type:target,target_filters:filters,scheduled_at:when.toISOString(),status,idempotency_key:idem,created_by:actorId,approved_by:target==='all'?actorId:null})}) as Json[];}catch(error){if(error instanceof HttpError&&error.status===409){return (await store.call(`admin_notifications?idempotency_key=eq.${encodeURIComponent(idem)}&select=*` ) as Json[])[0]??{};}throw error;}const item=created[0]??{};await audit(store,actorId,target==='all'?'notification.send_all.created':'notification.created','admin_notification',String(item.id??''),id,{target_type:target});return item;}
 
-  const signature = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    cryptoKey,
-    new TextEncoder().encode(unsignedToken)
-  );
+const b64url=(bytes:Uint8Array|string)=>{const value=typeof bytes==='string'?new TextEncoder().encode(bytes):bytes;let binary='';for(const byte of value)binary+=String.fromCharCode(byte);return btoa(binary).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');};
+async function firebaseAccessToken(env:Env){const raw=env('FIREBASE_SERVICE_ACCOUNT_JSON');if(!raw)throw new HttpError(503,'FIREBASE_CREDENTIAL_MISSING');let credential:Json;try{credential=JSON.parse(raw);}catch{throw new HttpError(503,'FIREBASE_CREDENTIAL_INVALID');}const email=bounded(credential.client_email,320),project=bounded(credential.project_id,120),pem=bounded(credential.private_key,10_000);if(!email||!project||!pem)throw new HttpError(503,'FIREBASE_CREDENTIAL_INVALID');if(project!=='tarteel-b755d')throw new HttpError(503,'FCM_PROJECT_MISMATCH');try{const now=Math.floor(Date.now()/1000);const head=b64url(JSON.stringify({alg:'RS256',typ:'JWT'}));const claims=b64url(JSON.stringify({iss:email,scope:'https://www.googleapis.com/auth/firebase.messaging',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+3600}));const der=Uint8Array.from(atob(pem.replace(/-----[^-]+-----|\s/g,'')),c=>c.charCodeAt(0));const key=await crypto.subtle.importKey('pkcs8',der,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);const signature=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,new TextEncoder().encode(`${head}.${claims}`));const assertion=`${head}.${claims}.${b64url(new Uint8Array(signature))}`;const result=await fetchJsonResponse('https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion}).toString()},{maxBytes:32_768,timeoutMs:10_000});if(!result.ok)throw new HttpError(503,'FCM_AUTH_FAILED');const value=await result.json();const token=bounded(value?.access_token,4096);if(!token)throw new HttpError(503,'FCM_AUTH_FAILED');return {token,project};}catch(error){if(error instanceof HttpError)throw error;throw new HttpError(503,'FIREBASE_CREDENTIAL_INVALID');}}
 
-  const jwt = `${unsignedToken}.${base64UrlEncode(new Uint8Array(signature))}`;
+export function classifyFcmError(status:number,value:unknown){const body=value&&typeof value==='object'?value as Json:{};const error=body.error&&typeof body.error==='object'?body.error as Json:{};const details=Array.isArray(error.details)?error.details:[];const detail=details.find(item=>item&&typeof item==='object'&&bounded((item as Json).errorCode,80)) as Json|undefined;const provider=bounded(detail?.errorCode,80)??bounded(error.status,80);const known=new Set(['UNREGISTERED','INVALID_ARGUMENT','SENDER_ID_MISMATCH','THIRD_PARTY_AUTH_ERROR','QUOTA_EXCEEDED','UNAVAILABLE','INTERNAL','PERMISSION_DENIED']);if(provider&&known.has(provider))return provider;if(status===401||status===403)return 'FCM_PERMISSION_DENIED';if(status===429)return 'QUOTA_EXCEEDED';return 'FCM_PROVIDER_FAILURE';}
 
-  // Exchange JWT for OAuth access token
-  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt,
-    }),
-  });
+async function firebaseHealth(env:Env){try{const auth=await firebaseAccessToken(env);return {configured:true,authenticated:true,project_id:auth.project,error_code:null};}catch(error){const code=error instanceof HttpError?error.code:'FCM_PROVIDER_FAILURE';return {configured:Boolean(env('FIREBASE_SERVICE_ACCOUNT_JSON')),authenticated:false,project_id:'tarteel-b755d',error_code:code};}}
 
-  const tokenData = await tokenResponse.json();
-  if (!tokenResponse.ok) {
-    throw new Error(`Google OAuth error: ${tokenData.error_description || tokenData.error}`);
-  }
+export function fcmMessage(token:string,notification:Json,notificationId:string,deliveryId?:unknown){return {message:{token,notification:{title:notification.title,body:notification.body},data:{route:String((notification.payload as Json)?.route??'/home'),notification_id:notificationId,...(deliveryId===undefined?{}:{delivery_id:String(deliveryId)})},android:{priority:'HIGH',notification:{channel_id:'tarteel_remote_notifications',notification_priority:'PRIORITY_HIGH',visibility:'PRIVATE',default_sound:true,default_vibrate_timings:true}}}};}
+async function deliver(store:Store,env:Env,notification:Json){const notificationId=uuid(notification.id);if(!notificationId)return;await store.rpc('prepare_notification_deliveries',{p_notification_id:notificationId});const deliveries=await store.call(`notification_deliveries?notification_id=eq.${notificationId}&status=eq.scheduled&select=id,device_id,retry_count,user_devices!inner(fcm_token)&limit=1000`) as Json[];if(!deliveries.length){await store.call(`admin_notifications?id=eq.${notificationId}`,{method:'PATCH',body:JSON.stringify({status:'sent',sent_at:new Date().toISOString()})});return;}let auth:{token:string;project:string};try{auth=await firebaseAccessToken(env);}catch(error){await store.call(`admin_notifications?id=eq.${notificationId}`,{method:'PATCH',body:JSON.stringify({status:'failed'})});throw error;}let accepted=0;for(const delivery of deliveries){const token=bounded((delivery.user_devices as Json)?.fcm_token,4096);let status='failed',code='FCM_PROVIDER_FAILURE',providerId:null|string=null,acceptedAt:null|string=null;try{if(!token)throw new HttpError(422,'TOKEN_MISSING');await store.call(`notification_deliveries?id=eq.${delivery.id}`,{method:'PATCH',body:JSON.stringify({status:'processing'})});const result=await fetchJsonResponse(`https://fcm.googleapis.com/v1/projects/${auth.project}/messages:send`,{method:'POST',headers:{authorization:`Bearer ${auth.token}`,'content-type':'application/json'},body:JSON.stringify(fcmMessage(token,notification,notificationId,delivery.id))},{maxBytes:32_768,timeoutMs:12_000});const value=await result.json();if(result.ok){providerId=bounded(value?.name,512);status='accepted_by_fcm';acceptedAt=new Date().toISOString();code='';accepted++;}else{code=classifyFcmError(result.status,value);if(code==='UNREGISTERED')await retireDevice(store,delivery.device_id);}}catch(error){code=error instanceof UpstreamHttpError?error.code:error instanceof HttpError?error.code:'FCM_PROVIDER_FAILURE';}await store.call(`notification_deliveries?id=eq.${delivery.id}&status=in.(scheduled,processing)`,{method:'PATCH',body:JSON.stringify({status,provider_message_id:providerId,error_code:code||null,accepted_at:acceptedAt,attempted_at:new Date().toISOString(),retry_count:Number(delivery.retry_count??0)+1})});}
+  const finalStatus=accepted===deliveries.length?'sent':accepted>0?'partially_failed':'failed';await store.call(`admin_notifications?id=eq.${notificationId}`,{method:'PATCH',body:JSON.stringify({status:finalStatus,sent_at:new Date().toISOString()})});}
 
-  return tokenData.access_token;
-}
+async function dispatch(store:Store,env:Env){const items=await store.rpc('claim_due_notifications',{p_limit:10}) as Json[];for(const item of items){try{await deliver(store,env,item);}catch{/* Status is persisted; next item may proceed. */}}return {processed:items.length};}
 
-/**
- * Send single message via FCM HTTP v1 API
- */
-async function sendFcmV1Message(
-  projectId: string,
-  accessToken: string,
-  token: string,
-  title: string,
-  body: string,
-  targetRoute: string,
-  deliveryId: string
-): Promise<{ success: boolean; error?: string }> {
-  const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
-  
-  const payload = {
-    message: {
-      token: token,
-      notification: {
-        title: title,
-        body: body,
-      },
-      data: {
-        title: title,
-        body: body,
-        targetRoute: targetRoute,
-        delivery_id: deliveryId,
-      },
-      android: {
-        priority: "HIGH",
-        notification: {
-          channel_id: "quran_yutla_fcm_channel",
-          sound: "default",
-        },
-      },
-      apns: {
-        payload: {
-          aps: {
-            alert: { title: title, body: body },
-            sound: "default",
-          },
-        },
-      },
-    },
-  };
+async function deliverNow(store:Store,env:Env,item:Json){const id=uuid(item.id);if(!id)return item;const claimed=await store.rpc('claim_notification',{p_notification_id:id}) as Json[];if(!claimed[0])return item;await deliver(store,env,claimed[0]);const rows=await store.call(`admin_notifications?id=eq.${id}&select=*,notification_deliveries(status,error_code)`) as Json[];return rows[0]??item;}
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+export function validPushRoute(value:unknown){return typeof value==='string'&&routes.has(value);}
+export function notificationPath(url:string){const pathname=new URL(url).pathname;const deployed='/functions/v1/notifications';if(pathname===deployed)return '/';if(pathname.startsWith(`${deployed}/`))return pathname.slice(deployed.length);const local='/notifications';if(pathname===local)return '/';if(pathname.startsWith(`${local}/`))return pathname.slice(local.length);return pathname;}
+const runtimeKeys=new Set(['radio_enabled','offline_downloads_enabled','prayer_features_enabled','adhkar_enabled','maintenance_mode','maintenance_message','announcement_banner','minimum_android_version','recommended_android_version','latest_android_version','android_update_url','android_update_message']);
+function validateRuntime(updates:unknown){if(!updates||typeof updates!=='object'||Array.isArray(updates))throw new HttpError(422,'VALIDATION_ERROR');const out:Json={};for(const [key,value] of Object.entries(updates)){if(!runtimeKeys.has(key))throw new HttpError(422,'CONFIG_KEY_NOT_ALLOWED');if(['radio_enabled','offline_downloads_enabled','prayer_features_enabled','adhkar_enabled','maintenance_mode'].includes(key)){if(typeof value!=='boolean')throw new HttpError(422,'VALIDATION_ERROR');}else if(typeof value!=='string'||value.length>500)throw new HttpError(422,'VALIDATION_ERROR');out[key]=value;}if(!Object.keys(out).length)throw new HttpError(422,'VALIDATION_ERROR');return out;}
+function announcementValues(body:Json,partial=false){const out:Json={};const title=bounded(body.title,120),message=bounded(body.body,500),deepLink=body.deep_link===null?null:bounded(body.deep_link,80);if(!partial||body.title!==undefined){if(!title)throw new HttpError(422,'VALIDATION_ERROR');out.title=title;}if(!partial||body.body!==undefined){if(!message)throw new HttpError(422,'VALIDATION_ERROR');out.body=message;}if(body.priority!==undefined){const priority=Number(body.priority);if(!Number.isInteger(priority)||priority<0||priority>100)throw new HttpError(422,'VALIDATION_ERROR');out.priority=priority;}if(body.dismissible!==undefined){if(typeof body.dismissible!=='boolean')throw new HttpError(422,'VALIDATION_ERROR');out.dismissible=body.dismissible;}if(body.deep_link!==undefined){if(deepLink!==null&&!routes.has(deepLink))throw new HttpError(422,'INVALID_DEEP_LINK');out.deep_link=deepLink;}for(const key of ['start_at','end_at'])if(body[key]!==undefined){const date=new Date(String(body[key]));if(Number.isNaN(date.getTime()))throw new HttpError(422,'INVALID_SCHEDULE');out[key]=date.toISOString();}if(!partial&&(!out.start_at||!out.end_at))throw new HttpError(422,'INVALID_SCHEDULE');if(out.start_at&&out.end_at&&new Date(String(out.end_at))<=new Date(String(out.start_at)))throw new HttpError(422,'INVALID_SCHEDULE');if(body.is_active!==undefined){if(typeof body.is_active!=='boolean')throw new HttpError(422,'VALIDATION_ERROR');out.is_active=body.is_active;}return out;}
+export async function handleNotifications(request:Request,env:Env){const id=crypto.randomUUID();try{const store=new Store(env);const path=notificationPath(request.url);if(request.method==='POST'&&path==='/devices/register')return response(200,id,await register(request,store));if(request.method==='POST'&&path==='/devices/revoke')return response(200,id,await deviceMutation(request,store,'revoke'));if(request.method==='POST'&&path==='/devices/unlink')return response(200,id,await deviceMutation(request,store,'unlink'));if(request.method==='PUT'&&path==='/devices/preferences')return response(200,id,await deviceMutation(request,store,'preferences'));if(request.method==='POST'&&path==='/devices/receipts')return response(200,id,await recordReceipt(request,store));if(request.method==='POST'&&path==='/devices/test')return response(200,id,await testDevice(request,store,env));
+    if(request.method==='POST'&&path==='/dispatch'){if(await store.rpc('authorize_notification_dispatch',{p_token:bearer(request)})!==true)throw new HttpError(403,'FORBIDDEN');return response(200,id,await dispatch(store,env));}
+    if(path==='/announcements'&&request.method==='GET'){const now=encodeURIComponent(new Date().toISOString());return response(200,id,{items:await store.call(`in_app_announcements?is_active=eq.true&start_at=lte.${now}&end_at=gt.${now}&select=id,title,body,priority,dismissible,deep_link,start_at,end_at&order=priority.desc,start_at.desc&limit=20`)});}
+    if(path==='/admin/session'&&request.method==='GET'){const admin=await actor(request,store,'dashboard.read');const session=await store.rpc('admin_session_context',{p_user_id:admin}) as Json;return response(200,id,{user_id:admin,roles:Array.isArray(session.roles)?session.roles:[],permissions:Array.isArray(session.permissions)?session.permissions:[]});}
+    if(path==='/admin/health'&&request.method==='GET'){await actor(request,store,'dashboard.read');const statuses=['scheduled','processing','accepted_by_fcm','received_by_app','displayed','opened','failed'];const [firebase,system,...counts]=await Promise.all([firebaseHealth(env),store.rpc('notification_system_status',{}),...statuses.map(status=>store.count(`notification_deliveries?status=eq.${status}&select=id`))]);return response(200,id,{supabase_reachable:true,notifications_function_reachable:true,firebase,...(system as Json),deliveries:Object.fromEntries(statuses.map((status,index)=>[status,counts[index]]))});}
+    if(path==='/admin/overview'&&request.method==='GET'){await actor(request,store,'notifications.read');const activeFilter='revoked_at=is.null&notifications_enabled=eq.true&consent_notice_version=eq.notifications-v1';const [registrations,active,revoked,notifications,system]=await Promise.all([store.count('user_devices?select=id'),store.count(`user_devices?${activeFilter}&select=id`),store.count('user_devices?revoked_at=not.is.null&select=id'),store.call('admin_notifications?select=id,status&order=created_at.desc&limit=100'),store.rpc('notification_system_status',{})]);return response(200,id,{historical_registrations:registrations,active_devices:active,revoked_devices:revoked,notifications,fcm_configured:Boolean(env('FIREBASE_SERVICE_ACCOUNT_JSON')),...(system as Json)});}
+    if(path==='/admin/notifications'&&request.method==='GET'){await actor(request,store,'notifications.read');return response(200,id,{items:await store.call('admin_notifications?select=*,notification_deliveries(status)&order=created_at.desc&limit=100')});}
+    if(path==='/admin/devices'&&request.method==='GET'){await actor(request,store,'devices.read');const history=new URL(request.url).searchParams.get('history')==='true';const filter=history?'':'revoked_at=is.null&notifications_enabled=eq.true&consent_notice_version=eq.notifications-v1&';return response(200,id,{scope:history?'history':'active',items:await store.call(`user_devices?${filter}select=id,user_id,platform,app_version,locale,timezone,notifications_enabled,last_seen_at,revoked_at,created_at,updated_at&order=last_seen_at.desc&limit=200`)});}
+    if(path==='/admin/runtime-config'&&request.method==='GET'){await actor(request,store,'runtime_config.read');return response(200,id,{items:await store.call(`app_config?key=in.(${[...runtimeKeys].join(',')})&select=key,value,value_type,is_public,description,updated_at&order=key`)});}
+    if(path==='/admin/runtime-config'&&request.method==='PUT'){const admin=await actor(request,store,'runtime_config.write');const values=validateRuntime((await jsonBody(request)).updates);const items=await store.rpc('update_runtime_config',{p_updates:values,p_actor:admin,p_request_id:id});return response(200,id,{items});}
+    if(path==='/admin/announcements'&&request.method==='GET'){await actor(request,store,'announcements.read');return response(200,id,{items:await store.call('in_app_announcements?select=id,title,body,priority,dismissible,deep_link,start_at,end_at,is_active,created_by,created_at,updated_at&order=created_at.desc&limit=100')});}
+    if(path==='/admin/announcements'&&request.method==='POST'){const admin=await actor(request,store,'announcements.write');const values=announcementValues(await jsonBody(request));const rows=await store.call('in_app_announcements',{method:'POST',body:JSON.stringify({...values,created_by:admin})}) as Json[];const item=rows[0];await audit(store,admin,'announcement.created','in_app_announcement',String(item?.id??''),id);return response(201,id,{item});}
+    const announcement=path.match(/^\/admin\/announcements\/([0-9a-f-]+)$/i);if(announcement&&request.method==='PUT'){const admin=await actor(request,store,'announcements.write');const announcementId=uuid(announcement[1]);if(!announcementId)throw new HttpError(422,'VALIDATION_ERROR');const values=announcementValues(await jsonBody(request),true);if(!Object.keys(values).length)throw new HttpError(422,'VALIDATION_ERROR');const rows=await store.call(`in_app_announcements?id=eq.${announcementId}`,{method:'PATCH',body:JSON.stringify(values)}) as Json[];if(!rows.length)throw new HttpError(404,'NOT_FOUND');await audit(store,admin,'announcement.updated','in_app_announcement',announcementId,id,{keys:Object.keys(values)});return response(200,id,{item:rows[0]});}
+    if(announcement&&request.method==='DELETE'){const admin=await actor(request,store,'announcements.write');const announcementId=uuid(announcement[1]);if(!announcementId)throw new HttpError(422,'VALIDATION_ERROR');const rows=await store.call(`in_app_announcements?id=eq.${announcementId}`,{method:'PATCH',body:JSON.stringify({is_active:false})}) as Json[];if(!rows.length)throw new HttpError(404,'NOT_FOUND');await audit(store,admin,'announcement.archived','in_app_announcement',announcementId,id);return response(200,id,{archived:true});}
+    if(path==='/admin/audit'&&request.method==='GET'){await actor(request,store,'audit.read');return response(200,id,{items:await store.call('audit_logs?select=id,actor_id,action,resource_type,resource_id,request_id,metadata,created_at&order=created_at.desc&limit=100')});}
+    if(path==='/admin/notifications'&&request.method==='POST'){const admin=await actor(request,store,'notifications.send');let item=await createNotification(request,store,id,admin);if(new Date(String(item.scheduled_at)).getTime()<=Date.now())item=await deliverNow(store,env,item);return response(201,id,{item});}
+    const cancel=path.match(/^\/admin\/notifications\/([0-9a-f-]+)\/cancel$/i);if(cancel&&request.method==='POST'){const admin=await actor(request,store,'notifications.cancel');const notificationId=uuid(cancel[1]);if(!notificationId)throw new HttpError(422,'VALIDATION_ERROR');const rows=await store.call(`admin_notifications?id=eq.${notificationId}&status=eq.scheduled`,{method:'PATCH',body:JSON.stringify({status:'cancelled'})}) as Json[];if(!rows.length)throw new HttpError(409,'INVALID_STATE');await audit(store,admin,'notification.cancel','admin_notification',notificationId,id);return response(200,id,{cancelled:true});}
+    const retry=path.match(/^\/admin\/notifications\/([0-9a-f-]+)\/retry$/i);if(retry&&request.method==='POST'){const admin=await actor(request,store,'notifications.send');const notificationId=uuid(retry[1]);if(!notificationId)throw new HttpError(422,'VALIDATION_ERROR');await store.call(`notification_deliveries?notification_id=eq.${notificationId}&status=eq.failed`,{method:'PATCH',body:JSON.stringify({status:'scheduled',error_code:null,provider_message_id:null,accepted_at:null,received_at:null,displayed_at:null,opened_at:null,attempted_at:null})});const rows=await store.call(`admin_notifications?id=eq.${notificationId}&status=in.(failed,partially_failed)`,{method:'PATCH',body:JSON.stringify({status:'scheduled',scheduled_at:new Date().toISOString(),sent_at:null})}) as Json[];if(!rows.length)throw new HttpError(409,'INVALID_STATE');await audit(store,admin,'notification.retry','admin_notification',notificationId,id);return response(200,id,{item:await deliverNow(store,env,rows[0])});}
+    if(path==='/admin/test'&&request.method==='POST'){const admin=await actor(request,store,'notifications.send');const body=await jsonBody(request);const devices=await store.call(`user_devices?user_id=eq.${admin}&revoked_at=is.null&notifications_enabled=eq.true&select=id&order=last_seen_at.desc&limit=1`) as Json[];if(!devices[0])throw new HttpError(404,'ADMIN_DEVICE_NOT_REGISTERED');body.target_type='device';body.target=devices[0].id;body.confirm_all=false;body.scheduled_at=new Date().toISOString();const copy=new Request(request.url,{method:'POST',headers:request.headers,body:JSON.stringify(body)});let item=await createNotification(copy,store,id,admin);item=await deliverNow(store,env,item);return response(201,id,{item});}
+    throw new HttpError(404,'NOT_FOUND');
+  }catch(error){const known=error instanceof HttpError?error:error instanceof UpstreamHttpError?new HttpError(error.status,error.code):new HttpError(500,'INTERNAL_ERROR');if(known.status>=500)console.error(JSON.stringify({event:known.code,request_id:id}));return response(known.status,id,{code:known.code});}}
 
-  if (res.ok) {
-    return { success: true };
-  } else {
-    const errorJson = await res.json();
-    return { success: false, error: JSON.stringify(errorJson) };
-  }
-}
-
-serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const firebasePrivateKey = Deno.env.get('FIREBASE_PRIVATE_KEY') ?? '';
-  const firebaseClientEmail = Deno.env.get('FIREBASE_CLIENT_EMAIL') ?? '';
-  const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID') ?? '';
-
-  if (!supabaseServiceKey) {
-    return new Response(JSON.stringify({ error: 'Service role key unconfigured' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const authHeader = req.headers.get('Authorization') || '';
-  const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
-  // Verify caller identity & administrator authorization
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized: Valid Admin JWT required' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const body = await req.json();
-  const {
-    title,
-    body: messageBody,
-    targetRoute = '/home',
-    targetType = 'all', // 'sendToInstallation', 'sendToDevice', 'sendToSegment', 'sendTest', 'sendBroadcast'
-    testInstallationId,
-    fcmTokenDirect
-  } = body;
-
-  if (!title || !messageBody) {
-    return new Response(JSON.stringify({ error: 'title and body are required' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const sanitizedRoute = isRouteAllowed(targetRoute) ? targetRoute : '/home';
-
-  const isFcmConfigured = Boolean(firebaseProjectId && firebaseClientEmail && firebasePrivateKey);
-  if (!isFcmConfigured && targetType === 'sendTest') {
-    return new Response(JSON.stringify({
-      error: 'FIREBASE_CONFIG_MISSING',
-      message: 'FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY must be set in Supabase Secrets.'
-    }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Target resolution from app.installations table
-  let query = adminClient
-    .schema('app')
-    .from('installations')
-    .select('id, platform, firebase_token_encrypted, notifications_enabled')
-    .eq('notifications_enabled', true)
-    .is('revoked_at', null);
-
-  if ((targetType === 'sendToDevice' || targetType === 'sendTest' || targetType === 'sendToInstallation') && testInstallationId) {
-    query = query.eq('id', testInstallationId);
-  }
-
-  const { data: installations, error: dbError } = await query;
-  if (dbError) {
-    return new Response(JSON.stringify({ error: dbError.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const targetTokens: { id: string; token: string }[] = [];
-  if (fcmTokenDirect) {
-    targetTokens.push({ id: testInstallationId || 'direct', token: fcmTokenDirect });
-  } else if (installations) {
-    for (const inst of installations) {
-      if (inst.firebase_token_encrypted) {
-        targetTokens.push({ id: inst.id, token: inst.firebase_token_encrypted });
-      }
-    }
-  }
-
-  let successCount = 0;
-  let failureCount = 0;
-  const deliveryId = crypto.randomUUID();
-
-  if (isFcmConfigured && targetTokens.length > 0) {
-    try {
-      const accessToken = await getFcmAccessToken(firebaseClientEmail, firebasePrivateKey);
-      for (const target of targetTokens) {
-        const result = await sendFcmV1Message(
-          firebaseProjectId,
-          accessToken,
-          target.token,
-          title,
-          messageBody,
-          sanitizedRoute,
-          deliveryId
-        );
-        if (result.success) {
-          successCount++;
-        } else {
-          failureCount++;
-        }
-      }
-    } catch (e: any) {
-      return new Response(JSON.stringify({
-        error: 'FCM_DISPATCH_FAILED',
-        details: e?.message || String(e)
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-  }
-
-  // Audit Trail Logging (Never log raw FCM token or private key)
-  await adminClient.rpc('create_audit_event', {
-    p_action: targetType === 'sendTest' ? 'NOTIFICATION_TEST_SEND' : 'NOTIFICATION_DISPATCH',
-    p_resource_type: 'app.notification_campaigns',
-    p_resource_id: testInstallationId || 'broadcast',
-    p_request_id: deliveryId,
-    p_metadata: {
-      title,
-      targetType,
-      targetRoute: sanitizedRoute,
-      targetedRecipients: targetTokens.length,
-      successCount,
-      failureCount,
-    }
-  });
-
-  return new Response(JSON.stringify({
-    success: true,
-    targetedRecipients: targetTokens.length,
-    successCount,
-    failureCount,
-    fcmConfigured: isFcmConfigured,
-    mode: isFcmConfigured ? 'FCM_V1_LIVE' : 'DRY_RUN_ACCEPTED',
-    deliveryId,
-    dispatchedAt: new Date().toISOString(),
-  }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-});
+if(typeof Deno!=='undefined')Deno.serve(request=>handleNotifications(request,name=>Deno.env.get(name)));

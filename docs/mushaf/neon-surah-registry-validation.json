@@ -1,0 +1,21 @@
+{
+  "rounds": [
+    {
+      "discovered": 20,
+      "inserted": 0,
+      "matched": 20,
+      "rejected": 0,
+      "body_storage": false
+    },
+    {
+      "discovered": 20,
+      "inserted": 0,
+      "matched": 20,
+      "rejected": 0,
+      "body_storage": false
+    }
+  ],
+  "projects": 20,
+  "content_storage": "metadata_only",
+  "educational_bodies_stored": false
+}

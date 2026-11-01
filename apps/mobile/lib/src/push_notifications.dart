@@ -1,0 +1,879 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'local_notifications.dart';
+
+const _backend =
+    'https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/notifications';
+const _publishableKey = 'sb_publishable_dLYCid35ZkeIE95xqiyHoQ_bEhWWISK';
+const notificationConsentNoticeVersion = 'notifications-v1';
+const pushPreferenceKeys = <String>[
+  'admin_announcements',
+  'content_updates',
+  'quran_content',
+  'radio',
+  'prayer_related',
+  'adhkar',
+  'memorization_review',
+  'personal_reminders',
+  'important_system',
+];
+const safePushRoutes = <String>{
+  '/',
+  '/home',
+  '/prayer-times',
+  '/adhkar',
+  '/radio',
+  '/reciters',
+  '/quran',
+  '/library',
+  '/custom-reminders',
+};
+
+String? notificationRoutePath(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  final uri = Uri.tryParse(value);
+  if (uri == null || uri.hasScheme || uri.hasAuthority) return null;
+  return safePushRoutes.contains(uri.path) ? uri.path : null;
+}
+
+@pragma('vm:entry-point')
+Future<void> tarteelFirebaseBackgroundHandler(RemoteMessage message) async {
+  try {
+    await Firebase.initializeApp();
+    final deliveryId = int.tryParse('${message.data['delivery_id'] ?? ''}');
+    if (deliveryId == null) return;
+    final preferences = await SharedPreferences.getInstance();
+    final installationId = preferences.getString('push:installation_id');
+    final registered = preferences.getBool('push:registered') ?? false;
+    const storage = FlutterSecureStorage();
+    final secret = await storage.read(key: 'tarteel_push_installation_secret');
+    if (!registered || installationId == null || secret == null) return;
+    await http
+        .post(
+          Uri.parse('$_backend/devices/receipts'),
+          headers: const <String, String>{
+            'apikey': _publishableKey,
+            'content-type': 'application/json',
+          },
+          body: jsonEncode(<String, dynamic>{
+            'installation_id': installationId,
+            'installation_secret': secret,
+            'delivery_id': deliveryId,
+            'event': 'received_by_app',
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+    await preferences.setString(
+      'push:last_received',
+      DateTime.now().toUtc().toIso8601String(),
+    );
+  } catch (_) {
+    // Android can still display the provider notification. Never crash worker.
+  }
+}
+
+class PushMessage {
+  const PushMessage({required this.data, this.title, this.body});
+  final Map<String, dynamic> data;
+  final String? title;
+  final String? body;
+}
+
+abstract class PushGateway {
+  Future<void> initialize();
+  Future<bool> requestPermission();
+  Future<bool> permissionGranted();
+  Future<String?> token();
+  Future<void> deleteToken();
+  Stream<String> get tokenRefresh;
+  Stream<PushMessage> get foregroundMessages;
+  Stream<PushMessage> get openedMessages;
+  Future<PushMessage?> initialMessage();
+}
+
+class FirebasePushGateway implements PushGateway {
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
+
+  PushMessage _convert(RemoteMessage message) => PushMessage(
+    data: Map<String, dynamic>.from(message.data),
+    title: message.notification?.title,
+    body: message.notification?.body,
+  );
+
+  @override
+  Future<void> initialize() async {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(tarteelFirebaseBackgroundHandler);
+  }
+
+  @override
+  Future<bool> requestPermission() async =>
+      (await _messaging.requestPermission()).authorizationStatus ==
+      AuthorizationStatus.authorized;
+
+  @override
+  Future<bool> permissionGranted() async {
+    final status =
+        (await _messaging.getNotificationSettings()).authorizationStatus;
+    return status == AuthorizationStatus.authorized ||
+        status == AuthorizationStatus.provisional;
+  }
+
+  @override
+  Future<String?> token() => _messaging.getToken();
+
+  @override
+  Future<void> deleteToken() => _messaging.deleteToken();
+
+  @override
+  Stream<String> get tokenRefresh => _messaging.onTokenRefresh;
+
+  @override
+  Stream<PushMessage> get foregroundMessages =>
+      FirebaseMessaging.onMessage.map(_convert);
+
+  @override
+  Stream<PushMessage> get openedMessages =>
+      FirebaseMessaging.onMessageOpenedApp.map(_convert);
+
+  @override
+  Future<PushMessage?> initialMessage() async {
+    final message = await _messaging.getInitialMessage();
+    return message == null ? null : _convert(message);
+  }
+}
+
+abstract class DeviceRegistrationApi {
+  Future<void> register(Map<String, dynamic> payload, {String? bearer});
+  Future<void> revoke(Map<String, dynamic> payload);
+  Future<void> unlink(Map<String, dynamic> payload);
+  Future<void> preferences(Map<String, dynamic> payload);
+  Future<void> receipt(Map<String, dynamic> payload);
+  Future<void> test(Map<String, dynamic> payload);
+}
+
+class HttpDeviceRegistrationApi implements DeviceRegistrationApi {
+  HttpDeviceRegistrationApi({http.Client? client})
+    : _client = client ?? http.Client();
+  final http.Client _client;
+
+  Future<void> _send(
+    String path,
+    String method,
+    Map<String, dynamic> payload, {
+    String? bearer,
+  }) async {
+    final response = await _client
+        .send(
+          http.Request(method, Uri.parse('$_backend$path'))
+            ..headers.addAll(<String, String>{
+              'apikey': _publishableKey,
+              'content-type': 'application/json',
+              if (bearer != null) 'authorization': 'Bearer $bearer',
+            })
+            ..body = jsonEncode(payload),
+        )
+        .timeout(const Duration(seconds: 12));
+    final bytes = await response.stream.toBytes();
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      var code = 'DEVICE_REGISTRATION_FAILED';
+      if (bytes.length <= 65536) {
+        try {
+          final value = jsonDecode(utf8.decode(bytes));
+          final error = value is Map ? value['error'] : null;
+          if (error is Map && error['code'] is String) {
+            code = error['code'] as String;
+          }
+        } catch (_) {
+          // A malformed backend response remains a bounded registration error.
+        }
+      }
+      throw PushRegistrationException(code);
+    }
+  }
+
+  @override
+  Future<void> register(Map<String, dynamic> payload, {String? bearer}) =>
+      _send('/devices/register', 'POST', payload, bearer: bearer);
+
+  @override
+  Future<void> revoke(Map<String, dynamic> payload) =>
+      _send('/devices/revoke', 'POST', payload);
+
+  @override
+  Future<void> unlink(Map<String, dynamic> payload) =>
+      _send('/devices/unlink', 'POST', payload);
+
+  @override
+  Future<void> preferences(Map<String, dynamic> payload) =>
+      _send('/devices/preferences', 'PUT', payload);
+
+  @override
+  Future<void> receipt(Map<String, dynamic> payload) =>
+      _send('/devices/receipts', 'POST', payload);
+
+  @override
+  Future<void> test(Map<String, dynamic> payload) =>
+      _send('/devices/test', 'POST', payload);
+}
+
+class PushRegistrationException implements Exception {
+  const PushRegistrationException(this.code);
+  final String code;
+}
+
+abstract class InstallationSecretStore {
+  Future<String?> read();
+  Future<void> write(String value);
+}
+
+class SecureInstallationSecretStore implements InstallationSecretStore {
+  const SecureInstallationSecretStore();
+  static const _storage = FlutterSecureStorage();
+  static const _key = 'tarteel_push_installation_secret';
+
+  @override
+  Future<String?> read() => _storage.read(key: _key);
+
+  @override
+  Future<void> write(String value) => _storage.write(key: _key, value: value);
+}
+
+const pushErrorMessages = <String, String>{
+  'FIREBASE_INITIALIZATION_FAILED': 'تعذر تهيئة Firebase للإشعارات',
+  'FCM_TOKEN_FAILED': 'تعذر الحصول على رمز الإشعارات من Firebase',
+  'NOTIFICATION_PERMISSION_FAILED': 'تعذر التحقق من إذن الإشعارات',
+  'INSTALLATION_STORAGE_FAILED': 'تعذر حفظ هوية تثبيت التطبيق بأمان',
+  'DEVICE_REGISTRATION_FAILED': 'تعذر تسجيل الجهاز في الخادم',
+  'PERMISSION_DENIED': 'إذن الإشعارات مرفوض من إعدادات النظام',
+  'BACKEND_UNAVAILABLE': 'خادم الإشعارات غير متاح حاليًا',
+  'CONSENT_REQUIRED': 'يجب الموافقة على إشعار الخصوصية أولًا',
+};
+
+class PushNotificationService extends ChangeNotifier {
+  PushNotificationService({
+    required SharedPreferences preferences,
+    required LocalNotificationService localNotifications,
+    PushGateway? gateway,
+    DeviceRegistrationApi? registration,
+    InstallationSecretStore? secretStore,
+    Future<String> Function()? appVersion,
+  }) : _preferences = preferences,
+       _localNotifications = localNotifications,
+       _gateway = gateway ?? FirebasePushGateway(),
+       _registration = registration ?? HttpDeviceRegistrationApi(),
+       _secretStore = secretStore ?? const SecureInstallationSecretStore(),
+       _appVersion =
+           appVersion ??
+           (() async => (await PackageInfo.fromPlatform()).version);
+
+  static const _enabledKey = 'push:enabled';
+  static const _consentKey = 'push:consent';
+  static const _consentNoticeKey = 'push:consent_notice_version';
+  static const _consentedAtKey = 'push:consented_at';
+  static const _registeredKey = 'push:registered';
+  static const _lastSyncKey = 'push:last_sync';
+  static const _lastTokenRefreshKey = 'push:last_token_refresh';
+  static const _lastReceivedKey = 'push:last_received';
+  static const _lastDisplayedKey = 'push:last_displayed';
+  static const _lastOpenedKey = 'push:last_opened';
+  static const _installationKey = 'push:installation_id';
+  final SharedPreferences _preferences;
+  final LocalNotificationService _localNotifications;
+  final PushGateway _gateway;
+  final DeviceRegistrationApi _registration;
+  final InstallationSecretStore _secretStore;
+  final Future<String> Function() _appVersion;
+  final StreamController<String> _routes = StreamController<String>.broadcast();
+  final List<StreamSubscription<Object?>> _subscriptions =
+      <StreamSubscription<Object?>>[];
+  bool _ready = false;
+  bool _busy = false;
+  bool _registered = false;
+  bool _hasToken = false;
+  bool _permissionGranted = false;
+  bool _permissionChecked = false;
+  String? _lastErrorCode;
+  String? _userBearer;
+
+  bool get requested => _preferences.getBool(_enabledKey) ?? false;
+  bool get enabled =>
+      requested && _permissionGranted && _registered && _hasToken;
+  bool get consentDecided =>
+      _preferences.containsKey(_consentKey) &&
+      _preferences.getString(_consentNoticeKey) ==
+          notificationConsentNoticeVersion;
+  bool get consentGranted =>
+      consentDecided && _preferences.getString(_consentKey) == 'allowed';
+  bool get needsConsent => !consentDecided;
+  bool get ready => _ready;
+  bool get busy => _busy;
+  bool get registered => _registered;
+  bool get systemPermissionGranted => _permissionGranted;
+  bool get systemPermissionChecked => _permissionChecked;
+  bool get hasToken => _hasToken;
+  bool get linkedToUser => _userBearer != null;
+  DateTime? get lastSyncedAt =>
+      DateTime.tryParse(_preferences.getString(_lastSyncKey) ?? '');
+  DateTime? get lastTokenRefreshAt =>
+      DateTime.tryParse(_preferences.getString(_lastTokenRefreshKey) ?? '');
+  DateTime? get lastReceivedAt =>
+      DateTime.tryParse(_preferences.getString(_lastReceivedKey) ?? '');
+  DateTime? get lastDisplayedAt =>
+      DateTime.tryParse(_preferences.getString(_lastDisplayedKey) ?? '');
+  DateTime? get lastOpenedAt =>
+      DateTime.tryParse(_preferences.getString(_lastOpenedKey) ?? '');
+  String get maskedInstallationId {
+    final value = _installationId;
+    return value.length < 13
+        ? '***'
+        : '${value.substring(0, 8)}…${value.substring(value.length - 4)}';
+  }
+
+  String? get lastErrorCode => _lastErrorCode;
+  Stream<String> get routes => _routes.stream;
+
+  String get errorMessage =>
+      pushErrorMessages[_lastErrorCode] ?? _lastErrorCode ?? '';
+
+  void _failure(String code) {
+    _lastErrorCode = code;
+    if (kDebugMode) debugPrint('PUSH_SETUP_FAILED:$code');
+  }
+
+  String _errorCode(Object error) {
+    if (error is PushRegistrationException) return error.code;
+    if (error is TimeoutException || error is http.ClientException) {
+      return 'BACKEND_UNAVAILABLE';
+    }
+    return 'DEVICE_REGISTRATION_FAILED';
+  }
+
+  Future<bool> _readPermission() async {
+    bool? firebaseGranted;
+    bool? systemGranted;
+    try {
+      firebaseGranted = await _gateway.permissionGranted();
+    } catch (_) {
+      // The Android notification manager remains an authoritative fallback.
+    }
+    try {
+      systemGranted = await _localNotifications.permissionGranted();
+    } catch (_) {
+      // Some OEM/plugin combinations cannot query the notification manager.
+    }
+    if (firebaseGranted == null && systemGranted == null) {
+      throw const PushRegistrationException('NOTIFICATION_PERMISSION_FAILED');
+    }
+    _permissionGranted =
+        (firebaseGranted ?? systemGranted!) &&
+        (systemGranted ?? firebaseGranted!);
+    _permissionChecked = true;
+    return _permissionGranted;
+  }
+
+  Future<bool> _requestPermission() async {
+    bool? firebaseGranted;
+    bool? systemGranted;
+    try {
+      firebaseGranted = await _gateway.requestPermission();
+    } catch (_) {
+      // Fall back to the local notification plugin's Android permission API.
+    }
+    try {
+      systemGranted = await _localNotifications.requestPermission();
+    } catch (_) {
+      // Firebase Messaging remains authoritative when the local plugin fails.
+    }
+    if (firebaseGranted == null && systemGranted == null) {
+      throw const PushRegistrationException('NOTIFICATION_PERMISSION_FAILED');
+    }
+    _permissionGranted =
+        (firebaseGranted ?? systemGranted!) &&
+        (systemGranted ?? firebaseGranted!);
+    _permissionChecked = true;
+    return _permissionGranted;
+  }
+
+  Future<void> _initializeFirebase() async {
+    if (_ready) return;
+    try {
+      await _gateway.initialize();
+    } catch (_) {
+      throw const PushRegistrationException('FIREBASE_INITIALIZATION_FAILED');
+    }
+    _ready = true;
+    _subscriptions.add(_gateway.tokenRefresh.listen(_tokenRefreshed));
+    _subscriptions.add(_gateway.foregroundMessages.listen(_foreground));
+    _subscriptions.add(_gateway.openedMessages.listen(_open));
+    _subscriptions.add(_localNotifications.payloads.listen(_localOpened));
+    final initial = await _gateway.initialMessage();
+    if (initial != null) _open(initial);
+  }
+
+  Future<String> _requiredToken() async {
+    try {
+      final value = await _gateway.token();
+      if (value == null || value.isEmpty) {
+        throw const PushRegistrationException('FCM_TOKEN_FAILED');
+      }
+      return value;
+    } catch (error) {
+      if (error is PushRegistrationException) rethrow;
+      throw const PushRegistrationException('FCM_TOKEN_FAILED');
+    }
+  }
+
+  String _randomUuid() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes.map((e) => e.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+  }
+
+  String get _installationId {
+    final current = _preferences.getString(_installationKey);
+    if (current != null) return current;
+    final value = _randomUuid();
+    _preferences.setString(_installationKey, value);
+    return value;
+  }
+
+  Future<String> get _installationSecret async {
+    try {
+      final current = await _secretStore.read();
+      if (current != null && current.length == 64) return current;
+      final value = List<int>.generate(
+        32,
+        (_) => Random.secure().nextInt(256),
+      ).map((e) => e.toRadixString(16).padLeft(2, '0')).join();
+      await _secretStore.write(value);
+      return value;
+    } catch (_) {
+      throw const PushRegistrationException('INSTALLATION_STORAGE_FAILED');
+    }
+  }
+
+  Future<void> initialize() async {
+    if (!consentGranted) return;
+    try {
+      await _initializeFirebase();
+      if (!await _readPermission()) {
+        _failure('PERMISSION_DENIED');
+        return;
+      }
+      final token = await _requiredToken();
+      _hasToken = true;
+      await _register(
+        token,
+        notificationsEnabled: requested && _permissionGranted,
+      );
+    } catch (error) {
+      _failure(_errorCode(error));
+    }
+    notifyListeners();
+  }
+
+  Future<void> deferConsent() async {
+    await _preferences.setString(_consentKey, 'later');
+    await _preferences.setString(
+      _consentNoticeKey,
+      notificationConsentNoticeVersion,
+    );
+    await _preferences.setBool(_enabledKey, false);
+    notifyListeners();
+  }
+
+  Future<void> _tokenRefreshed(String token) async {
+    if (!consentGranted || !requested) return;
+    try {
+      await _preferences.setString(
+        _lastTokenRefreshKey,
+        DateTime.now().toUtc().toIso8601String(),
+      );
+      await _register(
+        token,
+        notificationsEnabled: requested && _permissionGranted,
+      );
+    } catch (error) {
+      _failure(_errorCode(error));
+      notifyListeners();
+    }
+  }
+
+  Future<bool> registerCurrentDevice({bool requestPermission = false}) async {
+    _busy = true;
+    notifyListeners();
+    try {
+      if (!requestPermission && !consentGranted) {
+        _failure('CONSENT_REQUIRED');
+        return false;
+      }
+      if (requestPermission) {
+        await _preferences.setString(_consentKey, 'allowed');
+        await _preferences.setString(
+          _consentNoticeKey,
+          notificationConsentNoticeVersion,
+        );
+        await _preferences.setString(
+          _consentedAtKey,
+          DateTime.now().toUtc().toIso8601String(),
+        );
+        await _preferences.setBool(_enabledKey, true);
+        await _initializeFirebase();
+        if (!await _requestPermission()) {
+          _failure('PERMISSION_DENIED');
+          return false;
+        }
+      }
+      if (!_ready) await _initializeFirebase();
+      if (!_ready) return false;
+      if (!requestPermission) {
+        await _readPermission();
+      }
+      if (requestPermission && !_permissionGranted) {
+        _failure('PERMISSION_DENIED');
+        return false;
+      }
+      final token = await _requiredToken();
+      _hasToken = true;
+      await _register(
+        token,
+        notificationsEnabled: requested && _permissionGranted,
+      );
+      return true;
+    } catch (error) {
+      _failure(_errorCode(error));
+      return false;
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> setEnabled(bool value) async {
+    _busy = true;
+    notifyListeners();
+    try {
+      if (value) {
+        await _preferences.setString(_consentKey, 'allowed');
+        await _preferences.setString(
+          _consentNoticeKey,
+          notificationConsentNoticeVersion,
+        );
+        await _preferences.setString(
+          _consentedAtKey,
+          DateTime.now().toUtc().toIso8601String(),
+        );
+        await _preferences.setBool(_enabledKey, true);
+        await _initializeFirebase();
+        if (!await _requestPermission()) {
+          _failure('PERMISSION_DENIED');
+          return false;
+        }
+        await initialize();
+        if (!_ready) return false;
+        if (!_permissionGranted) {
+          _failure('PERMISSION_DENIED');
+          return false;
+        }
+        if (_registered && _hasToken) return true;
+        final token = await _requiredToken();
+        _hasToken = true;
+        try {
+          await _register(token, notificationsEnabled: true);
+        } catch (_) {
+          rethrow;
+        }
+      } else {
+        final hadRegistration =
+            _registered || (_preferences.getBool(_registeredKey) ?? false);
+        await _preferences.setString(_consentKey, 'denied');
+        await _preferences.setString(
+          _consentNoticeKey,
+          notificationConsentNoticeVersion,
+        );
+        await _preferences.remove(_consentedAtKey);
+        await _preferences.setBool(_enabledKey, false);
+        _registered = false;
+        _hasToken = false;
+        await _preferences.setBool(_registeredKey, false);
+        Object? revocationError;
+        if (hadRegistration) {
+          try {
+            await _registration.revoke(<String, dynamic>{
+              'installation_id': _installationId,
+              'installation_secret': await _installationSecret,
+            });
+          } catch (error) {
+            revocationError = error;
+          }
+          try {
+            await _gateway.deleteToken();
+          } catch (error) {
+            revocationError ??= error;
+          }
+        }
+        if (revocationError != null) throw revocationError;
+      }
+      return true;
+    } catch (error) {
+      _failure(_errorCode(error));
+      return false;
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> updatePreferences(Map<String, bool> values) =>
+      _savePreferences(values);
+
+  Future<bool> sendServerTest() async {
+    if (!enabled) {
+      _failure('CONSENT_REQUIRED');
+      notifyListeners();
+      return false;
+    }
+    try {
+      await _registration.test(<String, dynamic>{
+        'installation_id': _installationId,
+        'installation_secret': await _installationSecret,
+      });
+      _lastErrorCode = null;
+      notifyListeners();
+      return true;
+    } catch (error) {
+      _failure(_errorCode(error));
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> _savePreferences(Map<String, bool> values) async {
+    if (!consentGranted || !_registered) {
+      throw const PushRegistrationException('CONSENT_REQUIRED');
+    }
+    await _registration.preferences(<String, dynamic>{
+      'installation_id': _installationId,
+      'installation_secret': await _installationSecret,
+      ...values,
+    });
+    for (final entry in values.entries) {
+      await _preferences.setBool('push:preference:${entry.key}', entry.value);
+    }
+    notifyListeners();
+  }
+
+  bool preference(String key) =>
+      _preferences.getBool('push:preference:$key') ?? true;
+
+  Future<void> _register(
+    String token, {
+    required bool notificationsEnabled,
+  }) async {
+    final consentedAt = _preferences.getString(_consentedAtKey);
+    if (!consentGranted || consentedAt == null) {
+      throw const PushRegistrationException('CONSENT_REQUIRED');
+    }
+    await _registration.register(<String, dynamic>{
+      'installation_id': _installationId,
+      'installation_secret': await _installationSecret,
+      'fcm_token': token,
+      'platform': defaultTargetPlatform == TargetPlatform.iOS
+          ? 'ios'
+          : 'android',
+      'app_version': await _appVersion(),
+      'locale': 'ar',
+      'timezone': 'Asia/Aden',
+      'notifications_enabled': notificationsEnabled,
+      'consent_granted': true,
+      'consent_notice_version': notificationConsentNoticeVersion,
+      'consented_at': consentedAt,
+      for (final key in pushPreferenceKeys) key: preference(key),
+    }, bearer: _userBearer);
+    _registered = true;
+    await _preferences.setBool(_registeredKey, true);
+    await _preferences.setString(
+      _lastSyncKey,
+      DateTime.now().toUtc().toIso8601String(),
+    );
+    _lastErrorCode = null;
+  }
+
+  Future<void> refreshPermissionState() async {
+    if (!consentGranted) return;
+    try {
+      await _initializeFirebase();
+      await _readPermission();
+    } catch (error) {
+      _failure(_errorCode(error));
+      notifyListeners();
+      return;
+    }
+    if (!_permissionGranted) {
+      _failure('PERMISSION_DENIED');
+      try {
+        final token = await _requiredToken();
+        _hasToken = true;
+        await _register(token, notificationsEnabled: false);
+      } catch (_) {
+        // Keep the permission error primary; registration will retry on resume.
+      }
+      _failure('PERMISSION_DENIED');
+      notifyListeners();
+      return;
+    }
+    if (!_ready) {
+      await initialize();
+      return;
+    }
+    try {
+      final token = await _requiredToken();
+      _hasToken = true;
+      await _register(
+        token,
+        notificationsEnabled: requested && _permissionGranted,
+      );
+    } catch (error) {
+      _failure(_errorCode(error));
+    }
+    notifyListeners();
+  }
+
+  Future<void> attachAuthenticatedUser(String? bearer) async {
+    final wasAuthenticated = _userBearer != null;
+    _userBearer = bearer;
+    final hadRegistration =
+        _registered || (_preferences.getBool(_registeredKey) ?? false);
+    if (bearer == null && wasAuthenticated && hadRegistration) {
+      try {
+        await _registration.unlink(<String, dynamic>{
+          'installation_id': _installationId,
+          'installation_secret': await _installationSecret,
+        });
+      } catch (error) {
+        _failure(_errorCode(error));
+      }
+    }
+    if (bearer != null && !_ready && consentGranted && requested) {
+      await initialize();
+    }
+    if (bearer != null && _ready && consentGranted && requested) {
+      final token = await _requiredToken();
+      await _register(
+        token,
+        notificationsEnabled: requested && _permissionGranted,
+      );
+    }
+  }
+
+  int? _deliveryId(PushMessage message) =>
+      int.tryParse('${message.data['delivery_id'] ?? ''}');
+
+  Future<void> _receipt(int? deliveryId, String event) async {
+    if (deliveryId == null || !consentGranted || !_registered) return;
+    try {
+      await _registration.receipt(<String, dynamic>{
+        'installation_id': _installationId,
+        'installation_secret': await _installationSecret,
+        'delivery_id': deliveryId,
+        'event': event,
+      });
+    } catch (error) {
+      _failure(_errorCode(error));
+    }
+  }
+
+  void _open(PushMessage message) {
+    unawaited(_recordOpened(_deliveryId(message)));
+    final route = notificationRoutePath(message.data['route']);
+    if (route != null && consentGranted && requested) _routes.add(route);
+  }
+
+  Future<void> _recordOpened(int? deliveryId) async {
+    await _preferences.setString(
+      _lastOpenedKey,
+      DateTime.now().toUtc().toIso8601String(),
+    );
+    await _receipt(deliveryId, 'opened');
+    notifyListeners();
+  }
+
+  void _localOpened(String payload) {
+    try {
+      final value = jsonDecode(payload);
+      if (value is! Map || value['source'] != 'remote_push') return;
+      final route = notificationRoutePath(value['route']);
+      final deliveryId = int.tryParse('${value['delivery_id'] ?? ''}');
+      unawaited(_recordOpened(deliveryId));
+      if (route != null && consentGranted && requested) _routes.add(route);
+    } catch (_) {
+      // Non-push local reminders intentionally use their route as payload.
+    }
+  }
+
+  void _foreground(PushMessage message) {
+    if (!enabled) return;
+    final title = message.title;
+    final body = message.body;
+    if (title == null || body == null) return;
+    final route = notificationRoutePath(message.data['route']) ?? '/home';
+    final deliveryId = _deliveryId(message);
+    unawaited(
+      (() async {
+        await _preferences.setString(
+          _lastReceivedKey,
+          DateTime.now().toUtc().toIso8601String(),
+        );
+        await _receipt(deliveryId, 'received_by_app');
+        await _localNotifications.show(
+          LocalNotificationRequest(
+            id:
+                900000 +
+                (message.data['notification_id']?.hashCode ?? body.hashCode)
+                        .abs() %
+                    99999,
+            title: title,
+            body: body,
+            scheduledAt: DateTime.now(),
+            timezone: 'Asia/Aden',
+            payload: jsonEncode(<String, dynamic>{
+              'source': 'remote_push',
+              'route': route,
+              if (deliveryId != null) 'delivery_id': deliveryId,
+            }),
+            channel: LocalNotificationChannel.remotePush,
+          ),
+        );
+        await _preferences.setString(
+          _lastDisplayedKey,
+          DateTime.now().toUtc().toIso8601String(),
+        );
+        await _receipt(deliveryId, 'displayed');
+        notifyListeners();
+      })(),
+    );
+  }
+
+  @override
+  void dispose() {
+    for (final subscription in _subscriptions) {
+      unawaited(subscription.cancel());
+    }
+    unawaited(_routes.close());
+    super.dispose();
+  }
+}

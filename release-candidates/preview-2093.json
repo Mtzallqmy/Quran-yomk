@@ -1,0 +1,8 @@
+{
+  "candidate_commit": "69d67ca0c267682f6342beacee6b8ace7fb682c3",
+  "source_commit": "de04acb6503717a262ff485eb646dcf3ea4bf31a",
+  "candidate_run_id": 40157272149,
+  "artifact_id": 12584772659,
+  "artifact_sha256": "88a8a0f3d6ffacacd462ebc6e234f298f67859aa4131f9192f8be1ee206a9599",
+  "tag": "v0.9.1-beta.2-preview.2093"
+}

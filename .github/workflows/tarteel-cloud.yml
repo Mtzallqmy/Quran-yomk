@@ -1,0 +1,25 @@
+name: Tarteel optional cloud API
+on:
+  push:
+    branches: [main, feat/tarteel-local-prayer-neon-2074]
+    paths: ['services/tarteel-cloud/**', '.github/workflows/tarteel-cloud.yml']
+  pull_request:
+    paths: ['services/tarteel-cloud/**', '.github/workflows/tarteel-cloud.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: services/tarteel-cloud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: services/tarteel-cloud/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run build

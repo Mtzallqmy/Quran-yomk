@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "api_base": "https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech",
+  "authenticated_read_write": true,
+  "isolation": true,
+  "stale_revision_conflict": true,
+  "separate_consent": true,
+  "location_rejected": true,
+  "private_audio_paths_rejected": true,
+  "cloud_required_for_alarms": false
+}

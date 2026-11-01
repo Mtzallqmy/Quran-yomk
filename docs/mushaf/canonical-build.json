@@ -1,0 +1,15 @@
+{
+  "old_path": "data/quran/canonical/v1/dataset.json",
+  "old_sha256": "cc9db6390358e1a98091f868b0e09c9b8ede3bee559e38fd67c4a839646f2946",
+  "official_archive_sha256": "227e6b1564d980f2bd09c2c35ebfb0330ac268c79a7c247cd1ab665bc635f245",
+  "official_json_sha256": "d7adf8aeeef5a7b6798060706a55735dffbcdb542b290a3907bd9f70c498f4d3",
+  "canonical_dataset_sha256": "132090d1264257ce816dfe1245014c422e3cd4c491f2397c78447efbe161ee8f",
+  "bundle_sha256": "d5b4d84c28b67c69e4bf22a7ee67964caee0dd85207a435650f5c89b0021414e",
+  "bundle_bytes": 473092,
+  "font_bytes": 301204,
+  "surahs": 114,
+  "ayahs": 6236,
+  "raw_strings_changed": 6236,
+  "diagnostic_marker_only_changes": 54,
+  "selection_policy": "Whole official source; no hybrid text, normalization, similarity selection or AI correction."
+}

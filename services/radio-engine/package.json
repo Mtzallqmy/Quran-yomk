@@ -1,23 +1,15 @@
 {
-  "name": "@quran-yutla/radio-engine",
+  "name": "@tarteel/radio-engine",
   "version": "0.1.0",
   "private": true,
-  "description": "Continuous 24/7 radio broadcast scheduler and playlist rotating engine",
-  "main": "dist/index.js",
+  "type": "module",
+  "engines": { "node": ">=22.0.0" },
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
-    "lint": "eslint src --ext .ts"
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "start": "node dist/src/cli.js",
+    "check:dependencies": "node dist/src/cli.js check-dependencies"
   },
-  "dependencies": {
-    "@quran-yutla/api-types": "workspace:*",
-    "@supabase/supabase-js": "^2.39.0",
-    "dotenv": "^16.4.5"
-  },
-  "devDependencies": {
-    "@types/node": "^20.11.0",
-    "typescript": "^5.4.0",
-    "ts-node": "^10.9.2"
-  }
+  "dependencies": { "@supabase/supabase-js": "2.112.4" },
+  "devDependencies": { "@types/node": "24.10.1", "typescript": "5.9.3" }
 }

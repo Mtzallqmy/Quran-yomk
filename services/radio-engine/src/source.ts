@@ -7,11 +7,15 @@ function liq(value:string):string{return JSON.stringify(value);}
 export function buildLiquidsoapScript(config:Config,playlistPath:string):string{
   return `${config.liquidsoapAllowRoot?'settings.init.allow_root := true\n':''}settings.log.stdout := true\nsettings.log.file := false\n`+
     `settings.server.telnet := true\nsettings.server.telnet.bind_addr := "127.0.0.1"\nsettings.server.telnet.port := ${config.liquidsoapControlPort}\n`+
-    `main = playlist(mode="normal", reload=60, ${liq(playlistPath)})\n`+
+    `main = playlist(id="main", mode="normal", reload=60, ${liq(playlistPath)})\n`+
     `automation = request.queue(id="automation")\n`+
-    `def track_started(m) = print("TARTEEL_EVENT TRACK_START #{metadata.json.stringify(m)}") end\n`+
+    `def tarteel_clear_automation(_) = automation.set_queue([]); "OK" end\n`+
+    `server.register(namespace="tarteel", description="Clear pending automation requests", "clear_automation", tarteel_clear_automation)\n`+
+    `def track_started(m)\n`+
+    `  payload = {tarteel_index=m["tarteel_index"], media_id=m["media_id"], queue_entry_id=m["queue_entry_id"]}\n`+
+    `  print("TARTEEL_EVENT TRACK_START #{json.stringify(compact=true, payload)}")\nend\n`+
     `emergency = single(${liq(config.fallbackPath)})\n`+
-    `radio = fallback(track_sensitive=false, [automation, main, emergency])\n`+
+    `radio = fallback(track_sensitive=true, [automation, main, emergency])\n`+
     `radio.on_track(track_started)\n`+
     `def source_connected() = print("TARTEEL_EVENT SOURCE_CONNECTED") end\n`+
     `def source_disconnected() = print("TARTEEL_EVENT SOURCE_DISCONNECTED") end\n`+
@@ -34,6 +38,7 @@ export class LiquidsoapSource {
     child.once('error',error=>onLog(redact(error.message)));
   }
   stop(signal:NodeJS.Signals='SIGTERM'):void{this.child?.kill(signal);}
+  async clearAutomation():Promise<void>{await liquidsoapCommand(this.config.liquidsoapControlPort,'tarteel.clear_automation');}
   async reloadPlaylist(interrupt=false):Promise<void>{await liquidsoapCommand(this.config.liquidsoapControlPort,'main.reload');if(interrupt)await liquidsoapCommand(this.config.liquidsoapControlPort,'main.skip');}
   async pushTrack(path:string,mediaId:string|null,queueEntryId:string|null,interrupt=false,activeSource:'main'|'automation'='main'):Promise<void>{
     if(!path.startsWith('/')||/[\0\r\n]/.test(path))throw new Error('invalid automation path');

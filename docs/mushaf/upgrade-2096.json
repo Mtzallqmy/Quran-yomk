@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "baseline_version_code": 2095,
+  "version_code": 2096,
+  "baseline_sha256": "e3e8c6815f9a64cdff9328ef1120d706f66cecd86272e8090f4609f6528e713f",
+  "apk_sha256": "fb8f751aa008d10ffa50b746967724153dac04bad13c9b9f9ec3d729b6abe93e",
+  "certificate_sha256": "5e2a2a7412c93c8a0e9e28917195534b726c9c1ae3a35232e9fd0aeb5fa718b8",
+  "emulator_abis": "x86_64,arm64-v8a",
+  "reading_position_retained": true,
+  "bookmarks_retained": true,
+  "prayer_settings_retained": true,
+  "baseline_page": 120,
+  "official_page": 120,
+  "verse_identity": "5:77",
+  "rollback_snapshot_verified": true,
+  "recording_sha256": "92dc60b51d048a568f643910ad5ea81c8ed6f8af836b691c92bcbf7f5db9d2c3",
+  "recording_retained": true
+}

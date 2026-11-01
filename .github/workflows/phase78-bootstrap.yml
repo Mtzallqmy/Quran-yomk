@@ -1,0 +1,218 @@
+name: Phase 7-11 Acceptance
+
+on:
+  push:
+    branches:
+      - main
+      - phase7-8-backend-admin-brand
+      - phase9-10-flutter-release
+      - feature/quran-radio-real-integration
+  pull_request:
+    paths:
+      - 'apps/admin/**'
+      - 'services/audio-worker/**'
+      - 'services/radio-engine/**'
+      - 'supabase/functions/_shared/http.ts'
+      - '.github/workflows/phase78-bootstrap.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-admin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install admin dependencies
+        working-directory: apps/admin
+        run: npm ci --ignore-scripts
+      - name: Backend contract tests
+        working-directory: apps/admin
+        run: npm test
+      - name: TypeScript strict gate
+        working-directory: apps/admin
+        run: npm run typecheck
+      - name: Next.js production build
+        working-directory: apps/admin
+        env:
+          TARTEEL_ENVIRONMENT: development
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_placeholder
+          SUPABASE_SECRET_KEY: sb_secret_build_placeholder
+          TARTEEL_PUBLIC_STREAM_BASE_URL: https://stream.invalid
+          TARTEEL_INTERNAL_MOUNT: /tarteel.mp3
+          TARTEEL_COOKIE_SECURE: 'true'
+        run: npm run build
+      - name: Client secret guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -RIE --exclude='*.example' --exclude='*.md' --exclude-dir=node_modules --exclude-dir=.next 'sb_secret_[A-Za-z0-9_-]{20,}|service_role[^[:space:]]{20,}|ICECAST_(SOURCE|ADMIN)_PASSWORD=.+' apps/admin
+          ! grep -RIE --exclude='*.md' --exclude-dir=node_modules --exclude-dir=.next 'SUPABASE_SECRET_KEY|ICECAST_SOURCE_PASSWORD|ICECAST_ADMIN_PASSWORD' apps/admin/app
+      - name: Phase 11 admin contract guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f apps/admin/lib/phase11-api.ts
+          test -f apps/admin/app/phase11/page.tsx
+          grep -q 'virtual-radio' apps/admin/lib/phase11-api.ts
+          grep -q 'islamic-radio-api' apps/admin/lib/phase11-api.ts
+          grep -q 'إدارة إذاعة ترتيل الافتراضية' apps/admin/app/page.tsx
+      - name: Brand and prior admin contract guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'PROVISIONAL' docs/BRAND.md
+          grep -q 'معتز العلقمي' docs/BRAND.md
+          grep -q 'تعز، اليمن' docs/BRAND.md
+          grep -q 'dir="rtl"' apps/admin/app/layout.tsx
+          grep -q '/api/v1/admin/commands' apps/admin/app/admin-client.tsx
+          grep -q '/api/v1/admin/media' apps/admin/app/admin-client.tsx
+          grep -q 'upload-intent' apps/admin/app/admin-client.tsx
+
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install audio regression runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Radio Engine regression (dormant infrastructure only)
+        working-directory: services/radio-engine
+        run: npm ci && npm test
+      - name: Audio Worker regression
+        working-directory: services/audio-worker
+        run: npm ci && npm test
+
+  mobile-release:
+    if: github.ref == 'refs/heads/phase9-10-flutter-release' || github.ref == 'refs/heads/feature/quran-radio-real-integration'
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Toolchain identity
+        run: |
+          flutter --version
+          dart --version
+          java -version
+      - name: Generate and harden Android/iOS platform scaffolding
+        working-directory: apps/mobile
+        run: bash tool/bootstrap_platforms.sh
+      - name: Commit reproducible platform scaffolding once
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$(git status --porcelain apps/mobile/android apps/mobile/ios)" ]]; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add apps/mobile/android apps/mobile/ios
+            git commit -m 'chore(mobile): add Flutter platform scaffolding'
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+      - name: Resolve dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+      - name: Format source
+        working-directory: apps/mobile
+        run: dart format lib test
+      - name: Commit formatter output once
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$(git status --porcelain apps/mobile/lib apps/mobile/test)" ]]; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add apps/mobile/lib apps/mobile/test
+            git commit -m 'style(mobile): apply dart format'
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+      - name: Format gate
+        working-directory: apps/mobile
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Analyze
+        working-directory: apps/mobile
+        run: flutter analyze
+      - name: Unit and widget tests
+        working-directory: apps/mobile
+        run: flutter test
+      - name: Mobile architecture and secret guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -RIE --exclude='*.md' --exclude-dir=build --exclude-dir=.dart_tool 'sb_secret_[A-Za-z0-9_-]{20,}|service_role|SUPABASE_SECRET_KEY|ICECAST_SOURCE_PASSWORD|ICECAST_ADMIN_PASSWORD|private backend secret' apps/mobile
+          grep -q 'minSdk = 26' apps/mobile/android/app/build.gradle.kts
+          grep -q 'android:usesCleartextTraffic="false"' apps/mobile/android/app/src/main/AndroidManifest.xml
+          grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' apps/mobile/android/app/src/main/AndroidManifest.xml
+          grep -q 'audio_service' apps/mobile/pubspec.yaml
+          grep -q 'playVirtualRadio' apps/mobile/lib/src/playback.dart
+          grep -q 'TARTEEL_ENABLE_LIVE_TRANSCRIPTION' apps/mobile/lib/src/transcription.dart
+          ! grep -RIE 'Icecast|Liquidsoap|PLAY_NOW' apps/mobile/lib/src/virtual_radio.dart
+      - name: Build universal release APK
+        working-directory: apps/mobile
+        run: flutter build apk --release --dart-define=TARTEEL_API_BASE_URL=https://api.tarteel.invalid/api/v1
+      - name: Build ABI-specific release APKs
+        working-directory: apps/mobile
+        run: flutter build apk --release --split-per-abi --dart-define=TARTEEL_API_BASE_URL=https://api.tarteel.invalid/api/v1
+      - name: Build release AAB
+        working-directory: apps/mobile
+        run: flutter build appbundle --release --dart-define=TARTEEL_API_BASE_URL=https://api.tarteel.invalid/api/v1
+      - name: Collect APK evidence and verify ARM64
+        working-directory: apps/mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release/evidence
+          cp build/app/outputs/flutter-apk/app-release.apk release/evidence/tarteel-release-universal.apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk release/evidence/tarteel-release-arm64-v8a.apk
+          cp build/app/outputs/bundle/release/app-release.aab release/evidence/tarteel-release.aab
+          cp -r release/phase11 release/evidence/phase11-api 2>/dev/null || true
+          cp -r release/external-radio release/evidence/external-radio 2>/dev/null || true
+          unzip -l release/evidence/tarteel-release-universal.apk > release/evidence/universal-apk-files.txt
+          unzip -l release/evidence/tarteel-release-arm64-v8a.apk > release/evidence/arm64-apk-files.txt
+          grep -q 'lib/arm64-v8a/' release/evidence/universal-apk-files.txt
+          grep -q 'lib/arm64-v8a/' release/evidence/arm64-apk-files.txt
+          ! grep -q 'lib/armeabi-v7a/' release/evidence/arm64-apk-files.txt
+          sha256sum release/evidence/*.apk release/evidence/*.aab | tee release/evidence/SHA256SUMS
+          stat -c '%n %s bytes' release/evidence/*.apk release/evidence/*.aab | tee release/evidence/SIZES.txt
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n1)
+          "$AAPT" dump badging release/evidence/tarteel-release-universal.apk | tee release/evidence/APK_BADGING.txt
+          grep -q "sdkVersion:'26'" release/evidence/APK_BADGING.txt
+          grep -q "native-code:.*'arm64-v8a'" release/evidence/APK_BADGING.txt
+          {
+            flutter --version
+            dart --version 2>&1
+            java -version 2>&1
+            echo
+            echo 'Gradle:'
+            (cd android && ./gradlew --version)
+          } > release/evidence/TOOLCHAIN.txt
+      - name: Upload Android release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: tarteel-phase11-android-release
+          path: apps/mobile/release/evidence
+          retention-days: 30

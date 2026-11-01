@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "verifiedAt": "2026-10-23",
+  "assets": [
+    {
+      "path": "assets/audio/adhan.ogg",
+      "sha256": "549a0b35c46f2c3d6214218155df28129c5391fe35527ae4cff06d3bfd8251d2",
+      "kind": "adhan_sample",
+      "durationSeconds": 42.097778,
+      "author": "Aishatu98",
+      "source": "https://commons.wikimedia.org/wiki/File:Adhan.ogg",
+      "sourceRevision": "https://commons.wikimedia.org/w/index.php?title=File:Adhan.ogg&oldid=1248174278",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "notes": "Existing adapted mono 22050 Hz recording. Short adhan announcement sample; not represented as a complete full-length adhan."
+    },
+    {
+      "path": "assets/audio/reminder.wav",
+      "sha256": "60d0a32bdddb470b5dbbe4a868e373fb0e0cb9f0c9484367d1eb64b624b0da9a",
+      "kind": "notification_chime",
+      "durationSeconds": 1.25,
+      "author": "Tarteel project, generated during 2026-10-23 update",
+      "source": "scripts/generate_tarteel_reminder.py",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "notes": "Original synthesized two-tone PCM notification sound. Contains no sampled recording, voice, or recitation."
+    },
+    {
+      "path": "assets/audio/adhan_makkah.ogg",
+      "sha256": "cc032cc6b3813db2b91e2e5bfa3c9d1a1f00855ba2793ad0493ae861bc82dbc2",
+      "kind": "adhan_recording",
+      "title": "أذان الحرم المكي",
+      "durationSeconds": 197.103741,
+      "author": "Seyfula Islam",
+      "source": "https://commons.wikimedia.org/wiki/File:Adhan,_Great_Mosque_of_Mecca_-_Jan_21,_2013.webm",
+      "license": "CC-BY-3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+      "notes": "Audio extracted; normalized to -18 LUFS, mono 44.1 kHz Vorbis. No phrases intentionally trimmed. Field recording; no named muezzin attribution beyond the source. Adapted audio distributed under the stated license."
+    },
+    {
+      "path": "assets/audio/adhan_madinah.ogg",
+      "sha256": "8bcf97faf1d22a26d99d79b7d7c93259e5405b142926c36ce524b2c73361ef4c",
+      "kind": "adhan_recording",
+      "title": "أذان المسجد النبوي",
+      "durationSeconds": 186.576009,
+      "author": "ejaz215",
+      "source": "https://commons.wikimedia.org/wiki/File:33937_ejaz215_call-to-prayer-from-the-prophet-s-mo.ogg",
+      "license": "CC-BY-3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+      "notes": "Audio extracted; normalized to -18 LUFS, mono 44.1 kHz Vorbis. No phrases intentionally trimmed. Field recording; no named muezzin attribution beyond the source. Adapted audio distributed under the stated license."
+    },
+    {
+      "path": "assets/audio/adhan_kazakhstan.ogg",
+      "sha256": "beede450ebb19b86da721e83419c606f64d349320b26816c1b7eec01b80e6656",
+      "kind": "adhan_recording",
+      "title": "أذان مسجد شالقار — كازاخستان",
+      "durationSeconds": 155.412086,
+      "author": "Esetok",
+      "source": "https://commons.wikimedia.org/wiki/File:Adhan_in_Shalqar_mosque.webm",
+      "license": "CC-BY-SA-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "notes": "Audio extracted; normalized to -18 LUFS, mono 44.1 kHz Vorbis. No phrases intentionally trimmed. Field recording; no named muezzin attribution beyond the source. Adapted audio distributed under the stated license."
+    },
+    {
+      "path": "assets/audio/adhan_sweden_fajr.ogg",
+      "sha256": "a1c1a576b8c36ece5e1fc676500add1dc12c65c7fa1daa725d012d5ca18fbd82",
+      "kind": "adhan_recording",
+      "title": "أذان الفجر — مسجد مالمو، السويد",
+      "durationSeconds": 247.602902,
+      "author": "Islamic Center Malmö; muezzin Besim Azemi",
+      "source": "https://commons.wikimedia.org/wiki/File:Eid_al-Fitr_Fajr_azan_at_Malmö_Mosque_-_19_August_2012.webm",
+      "license": "CC-BY-3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+      "notes": "Fajr field recording. Audio extracted; normalized to -18 LUFS, mono 44.1 kHz Vorbis. No phrases intentionally trimmed. Adapted audio remains CC BY 3.0."
+    },
+    {
+      "path": "assets/audio/user_makkah.mp3",
+      "sha256": "92dc60b51d048a568f643910ad5ea81c8ed6f8af836b691c92bcbf7f5db9d2c3",
+      "kind": "user_provided_adhan",
+      "title": "أذان مكة المكرمة — التسجيل المضاف",
+      "durationSeconds": 201,
+      "author": "الاسم حسب الملف الذي قدمه صاحب المشروع؛ حقوق التسجيل لأصحابه",
+      "source": "https://praytimes.org/audio/sunni/Adhan-Makkah.mp3",
+      "license": "USER-PROVIDED-PERMISSION",
+      "licenseUrl": "",
+      "permissionBasis": "Uploaded by the project owner with an explicit statement that use in Tarteel is permitted, 2026-10-24. Not represented as Creative Commons or public domain.",
+      "notes": "Original MP3 supplied by user, unchanged. Labels follow supplied README; no independent geographic/muezzin verification is claimed."
+    },
+    {
+      "path": "assets/audio/user_madinah.mp3",
+      "sha256": "839038913cf6d3056f2344f329c1046d87bdabb592434f5cde5db0d5dd889452",
+      "kind": "user_provided_adhan",
+      "title": "أذان المدينة المنورة — التسجيل المضاف",
+      "durationSeconds": 96,
+      "author": "الاسم حسب الملف الذي قدمه صاحب المشروع؛ حقوق التسجيل لأصحابه",
+      "source": "https://praytimes.org/audio/sunni/Adhan-Madinah.mp3",
+      "license": "USER-PROVIDED-PERMISSION",
+      "licenseUrl": "",
+      "permissionBasis": "Uploaded by the project owner with an explicit statement that use in Tarteel is permitted, 2026-10-24. Not represented as Creative Commons or public domain.",
+      "notes": "Original MP3 supplied by user, unchanged. Labels follow supplied README; no independent geographic/muezzin verification is claimed."
+    },
+    {
+      "path": "assets/audio/user_egypt.mp3",
+      "sha256": "049a005d21013849d013e42d1ad15b79a89e91a8bc41549a46fc13168ec2138e",
+      "kind": "user_provided_adhan",
+      "title": "أذان الإذاعة المصرية",
+      "durationSeconds": 183,
+      "author": "الاسم حسب الملف الذي قدمه صاحب المشروع؛ حقوق التسجيل لأصحابه",
+      "source": "https://praytimes.org/audio/sunni/Adhan-Egypt.mp3",
+      "license": "USER-PROVIDED-PERMISSION",
+      "licenseUrl": "",
+      "permissionBasis": "Uploaded by the project owner with an explicit statement that use in Tarteel is permitted, 2026-10-24. Not represented as Creative Commons or public domain.",
+      "notes": "Original MP3 supplied by user, unchanged. Labels follow supplied README; no independent geographic/muezzin verification is claimed."
+    },
+    {
+      "path": "assets/audio/user_abdul_basit.mp3",
+      "sha256": "416aa02ac87d5161880d7af03d183e5b926864563618cda8f974bdf3e4db7bed",
+      "kind": "user_provided_adhan",
+      "title": "أذان عبد الباسط عبد الصمد",
+      "durationSeconds": 206,
+      "author": "الاسم حسب الملف الذي قدمه صاحب المشروع؛ حقوق التسجيل لأصحابه",
+      "source": "https://praytimes.org/audio/sunni/Abdul-Basit.mp3",
+      "license": "USER-PROVIDED-PERMISSION",
+      "licenseUrl": "",
+      "permissionBasis": "Uploaded by the project owner with an explicit statement that use in Tarteel is permitted, 2026-10-24. Not represented as Creative Commons or public domain.",
+      "notes": "Original MP3 supplied by user, unchanged. Labels follow supplied README; no independent geographic/muezzin verification is claimed."
+    },
+    {
+      "path": "assets/audio/user_minshawi.mp3",
+      "sha256": "8855a6b34f7e999e9fdb6385c589ce85bca6445585d95e184cb8a5a8b48b7f21",
+      "kind": "user_provided_adhan",
+      "title": "أذان محمد صديق المنشاوي",
+      "durationSeconds": 235,
+      "author": "الاسم حسب الملف الذي قدمه صاحب المشروع؛ حقوق التسجيل لأصحابه",
+      "source": "https://praytimes.org/audio/sunni/Minshawi.mp3",
+      "license": "USER-PROVIDED-PERMISSION",
+      "licenseUrl": "",
+      "permissionBasis": "Uploaded by the project owner with an explicit statement that use in Tarteel is permitted, 2026-10-24. Not represented as Creative Commons or public domain.",
+      "notes": "Original MP3 supplied by user, unchanged. Labels follow supplied README; no independent geographic/muezzin verification is claimed."
+    }
+  ]
+}

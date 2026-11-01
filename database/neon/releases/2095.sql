@@ -1,0 +1,3 @@
+-- Public APK verified after passing signed2094 upgrade. No credentials.
+INSERT INTO tarteel_catalog.app_releases(application_id,version_code,version_name,architecture,minimum_sdk,apk_url,apk_sha256,certificate_sha256,channel,published_at)
+VALUES('app.tarteel.tarteel',2095,'0.9.2-beta.3','arm64-v8a',26,'https://github.com/Mtzallqmy/Quran-yomk/releases/download/v0.9.2-beta.3-preview.2095/Tarteel-0.9.2-beta.3-2095-ARM64-PREVIEW.apk','e3e8c6815f9a64cdff9328ef1120d706f66cecd86272e8090f4609f6528e713f','5e2a2a7412c93c8a0e9e28917195534b726c9c1ae3a35232e9fd0aeb5fa718b8','preview','2026-10-25T22:01:16Z') ON CONFLICT DO NOTHING RETURNING version_code;

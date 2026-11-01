@@ -1,0 +1,16 @@
+{
+  "verses": 6236,
+  "pages": 604,
+  "assets": 1208,
+  "positions": 6236,
+  "categories": 1516,
+  "sections": 6100,
+  "links": 19117,
+  "sync_1": {
+    "inserted": 0
+  },
+  "sync_2": {
+    "inserted": 0
+  },
+  "status": "APPLIED_TWICE_NO_DUPLICATES"
+}

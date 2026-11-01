@@ -1,0 +1,6 @@
+مجمع الملك فهد لطباعة المصحف الشريف — King Fahd Glorious Quran Printing Complex.
+Official package: kfgqpc_hafs_v30.zip, including the original Unicode Hafs font.
+https://qurancomplex.gov.sa/quran-dev/
+https://download.qurancomplex.gov.sa/resources_dev/kfgqpc_hafs_v30.zip
+The official developer platform provides these resources for developing applications and software. Source text and font remain unmodified. All source rights are retained; no broader open-source license or print1440 edition claim is made.
+Archive SHA256:227e6b1564d980f2bd09c2c35ebfb0330ac268c79a7c247cd1ab665bc635f245

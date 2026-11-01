@@ -1,10 +1,10 @@
-name: Android Release Build Gate
+name: Legacy Quran Yutla native build (separate application)
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*.*.*'
+      - 'quran-yutla-v*.*.*'
 
 jobs:
   build-android-release:

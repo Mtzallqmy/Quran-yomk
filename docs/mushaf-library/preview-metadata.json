@@ -1,0 +1,14 @@
+{
+  "applicationId": "app.tarteel.tarteel",
+  "versionCode": 2092,
+  "versionName": "0.9.1-beta.1",
+  "minSdk": 26,
+  "abis": [
+    "arm64-v8a"
+  ],
+  "sha256": "46c0ddd6cf99122192473ef8b409a70b1862ef764f6ef2b4ae885420ded2e10b",
+  "status": "SIGNED_PREVIEW_COMPATIBLE_WITH_BETA2_NOT_2074",
+  "certificateSha256": "5e2a2a7412c93c8a0e9e28917195534b726c9c1ae3a35232e9fd0aeb5fa718b8",
+  "sourceCommit": "8d174003e4f1337c0d58f8b0a37bb373f5c981a2",
+  "physicalDeviceAcceptance": "PENDING"
+}

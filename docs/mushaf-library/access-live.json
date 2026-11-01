@@ -1,0 +1,14 @@
+{
+  "public_status": {
+    "GET /v1/mushaf-library": 200,
+    "POST /v1/mushaf-library": 405,
+    "POST /admin/sync": 401
+  },
+  "reader_permissions": {
+    "can_read": "t",
+    "can_write": "f",
+    "raw_access": "f"
+  },
+  "pending_fixture_excluded_on_validation": true,
+  "production_has_no_test_fixture": true
+}

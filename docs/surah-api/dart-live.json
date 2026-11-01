@@ -1,0 +1,19 @@
+{
+  "projects": 20,
+  "tafsir-mokhtasar": {
+    "status": "UNAVAILABLE",
+    "error": "TimeoutException"
+  },
+  "fawaed-page": {
+    "status": "UNAVAILABLE",
+    "error": "TimeoutException"
+  },
+  "eerab-word": {
+    "status": "UNAVAILABLE",
+    "error": "StateError"
+  },
+  "asmaa-sowar": {
+    "status": "UNAVAILABLE",
+    "error": "StateError"
+  }
+}

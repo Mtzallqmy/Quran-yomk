@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "api_base": "https://br-curly-salad-bajy1evn-tarteelcontent.compute.c-8.eu-central-1.aws.neon.tech",
+  "release_code": 2094,
+  "surah_projects": 20,
+  "canonical_text_unchanged": true,
+  "prayer_local": true,
+  "surah_bodies_stored": false
+}

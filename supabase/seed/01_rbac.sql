@@ -42,7 +42,7 @@ insert into app.permissions (code, description) values
   ('audit.read', 'Read audit trail')
 on conflict (code) do update set description = excluded.description;
 
--- SUPER_ADMIN receives every current permission. Adding a permission later still requires a reviewed seed update.
+-- The seed synchronizes current permissions; a database trigger grants future permissions automatically.
 insert into app.role_permissions (role_id, permission_id)
 select r.id, p.id from app.roles r cross join app.permissions p where r.code = 'SUPER_ADMIN'
 on conflict do nothing;

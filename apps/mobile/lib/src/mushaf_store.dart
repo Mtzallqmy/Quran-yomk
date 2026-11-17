@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'quran_models.dart';
+import 'reading_annotations.dart';
+import 'reading_journey.dart';
 import 'canonical_quran.dart';
 import 'canonical_navigation.dart';
 
@@ -165,6 +167,16 @@ class MushafStore extends ChangeNotifier {
   }
 
   final SharedPreferences _prefs;
+  late final ReadingAnnotations annotations = ReadingAnnotations(_prefs);
+  late final ReadingJourneyStore journey = ReadingJourneyStore(_prefs);
+
+  @override
+  void dispose() {
+    annotations.dispose();
+    journey.dispose();
+    super.dispose();
+  }
+
   final Map<String, MushafBookmark> _bookmarks = <String, MushafBookmark>{};
 
   MushafPosition? lastPosition;

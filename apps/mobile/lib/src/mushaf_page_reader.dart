@@ -10,6 +10,7 @@ import 'mushaf_pages.dart';
 import 'mushaf_store.dart';
 import 'quran_models.dart';
 import 'surah_reader_panel.dart';
+import 'screens/reading_annotations.dart';
 import 'mushaf_library.dart';
 import 'thematic_quran.dart';
 
@@ -29,9 +30,11 @@ class MushafPageReader extends StatefulWidget {
     required this.onImmersiveChanged,
     required this.resolveVerse,
     this.playingVerseKey,
+    this.initialVerseKey,
   });
 
   final String? playingVerseKey;
+  final String? initialVerseKey;
   final MushafPageRepository repository;
   final IslamicContentRepository contentRepository;
   final MushafStore store;
@@ -55,17 +58,39 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   late int _page;
   bool _controlsVisible = true;
   MushafAyahRegion? _selected;
+  String? _focusedKey;
   Timer? _controlsTimer;
 
   @override
   void initState() {
     super.initState();
     _page = widget.initialPage.clamp(1, mushafPageCount);
+    _focusedKey = widget.initialVerseKey;
     _pages = PageController(initialPage: _page - 1);
     _edition = MushafPageEdition.values.firstWhere(
       (value) => value.name == widget.store.pageEdition,
       orElse: () => MushafPageEdition.madinahHafsSvg,
     );
+    _scheduleControlsHide();
+  }
+
+  Future<void> _togglePageRead() async {
+    final page = _page;
+    final journey = widget.store.journey;
+    final saved = await journey.togglePage(page);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          !saved
+              ? 'تعذر حفظ تقدم القراءة.'
+              : journey.hasRead(page)
+              ? 'أُضيفت الصفحة $page إلى وردك.'
+              : 'أُزيلت الصفحة $page من وردك.',
+        ),
+      ),
+    );
+    setState(() {});
     _scheduleControlsHide();
   }
 
@@ -76,6 +101,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     if (oldWidget.initialPage != widget.initialPage && target != _page) {
       _page = target;
       _selected = null;
+      _focusedKey = widget.initialVerseKey;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _pages.hasClients && _page == target)
           _pages.jumpToPage(target - 1);
@@ -189,6 +215,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
   Future<void> _select(MushafAyahRegion region) async {
     setState(() {
       _selected = region;
+      _focusedKey = null;
       _controlsVisible = true;
     });
     widget.onImmersiveChanged(false);
@@ -245,6 +272,10 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               preferences: widget.store,
             ),
             const Divider(height: 28),
+            AyahAnnotationTile(
+              verse: verse,
+              annotations: widget.store.annotations,
+            ),
             ListTile(
               leading: const Icon(Icons.play_circle_outline),
               title: const Text('تشغيل التلاوة'),
@@ -397,6 +428,7 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               setState(() {
                 _page = index + 1;
                 _selected = null;
+                _focusedKey = null;
               });
               widget.onPageChanged(_page);
               _scheduleControlsHide();
@@ -409,7 +441,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
               contentRepository: widget.contentRepository,
               showThemes: widget.store.showThemes,
               themeOpacity: widget.store.themeOpacity,
-              selectedVerseKey: widget.playingVerseKey ?? _selected?.verseKey,
+              selectedVerseKey:
+                  widget.playingVerseKey ?? _selected?.verseKey ?? _focusedKey,
               onRegionTap: _select,
               onBackgroundTap: _toggleControls,
             ),
@@ -607,6 +640,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                             tooltip: 'خيارات المصحف',
                             onSelected: (action) {
                               switch (action) {
+                                case 'read':
+                                  unawaited(_togglePageRead());
                                 case 'surah':
                                   widget.onPlaySurah();
                                 case 'download':
@@ -618,6 +653,14 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                               }
                             },
                             itemBuilder: (_) => [
+                              PopupMenuItem(
+                                value: 'read',
+                                child: Text(
+                                  widget.store.journey.hasRead(_page)
+                                      ? 'إلغاء إتمام قراءة الصفحة'
+                                      : 'إتمام قراءة الصفحة',
+                                ),
+                              ),
                               const PopupMenuItem(
                                 value: 'surah',
                                 child: Text('تشغيل السورة'),

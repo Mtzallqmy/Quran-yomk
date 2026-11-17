@@ -17,11 +17,13 @@ if __name__ == '__main__':
     parser.add_argument('--zipalign', required=True)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--source-commit', required=True)
+    parser.add_argument('--version-code', type=int, default=2096)
+    parser.add_argument('--version-name', default='0.9.3-beta.1')
     args = parser.parse_args()
-    subprocess.run(['python3', str(Path(__file__).with_name('inspect_unsigned_apk.py')), str(args.apk), '--aapt', args.aapt, '--output', str(args.output)], check=True, stdout=subprocess.DEVNULL)
+    subprocess.run(['python3', str(Path(__file__).with_name('inspect_unsigned_apk.py')), str(args.apk), '--aapt', args.aapt, '--output', str(args.output), '--version-code', str(args.version_code), '--version-name', args.version_name], check=True, stdout=subprocess.DEVNULL)
     metadata_path = args.output / 'unsigned-build-metadata.json'
     metadata = json.loads(metadata_path.read_text())
-    if metadata['versionCode'] != 2096:
+    if metadata['versionCode'] != args.version_code:
         raise ValueError('Unexpected actual ARM64 split code')
     signature = subprocess.check_output([args.apksigner, 'verify', '--verbose', '--print-certs', str(args.apk)], text=True)
     if re.findall(r'certificate SHA-256 digest: ([0-9a-fA-F]+)', signature) != [PREVIEW_CERT]:
@@ -35,6 +37,9 @@ if __name__ == '__main__':
             original = (Path(__file__).parents[2] / 'apps/mobile/assets/audio' / name).read_bytes()
             if packaged != original:
                 raise ValueError('Packaged user recording differs: ' + name)
+    with zipfile.ZipFile(args.apk) as archive:
+        if args.source_commit.encode() not in archive.read('lib/arm64-v8a/libapp.so'):
+            raise ValueError('APK does not embed the expected source commit')
     metadata.update(status='SIGNED_PREVIEW_COMPATIBLE_WITH_BETA2_NOT_2074', certificateSha256=PREVIEW_CERT,
                     sourceCommit=args.source_commit, physicalDeviceAcceptance='PENDING')
     (args.output / 'preview-metadata.json').write_text(json.dumps(metadata, indent=2) + '\n')

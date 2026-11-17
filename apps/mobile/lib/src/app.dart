@@ -14,6 +14,7 @@ import 'screens/quran_index.dart';
 import 'screens/home.dart';
 import 'screens/islamic_library.dart';
 import 'screens/learning.dart';
+import 'screens/worship.dart';
 import 'screens/notification_settings.dart';
 import 'screens/player.dart';
 import 'screens/prayer_times.dart';
@@ -317,9 +318,17 @@ class _RootShellState extends ConsumerState<RootShell>
               _RootAction.offline => _open(const QuranOfflinePage()),
               _RootAction.library => _open(const IslamicLibraryPage()),
               _RootAction.learning => _open(const LearningCenterPage()),
+              _RootAction.worship => _open(const WorshipPage()),
               _RootAction.settings => _open(const SettingsPage()),
             },
             itemBuilder: (_) => <PopupMenuEntry<_RootAction>>[
+              PopupMenuItem<_RootAction>(
+                value: _RootAction.worship,
+                child: ListTile(
+                  leading: const Icon(Icons.mosque_outlined),
+                  title: Text(english ? 'Worship' : 'عبادتي'),
+                ),
+              ),
               PopupMenuItem<_RootAction>(
                 value: _RootAction.learning,
                 child: ListTile(
@@ -469,7 +478,7 @@ class _RootShellState extends ConsumerState<RootShell>
   }
 }
 
-enum _RootAction { learning, playlists, offline, library, settings }
+enum _RootAction { worship, learning, playlists, offline, library, settings }
 
 class _MaintenanceScreen extends StatelessWidget {
   const _MaintenanceScreen({required this.message, required this.onRefresh});

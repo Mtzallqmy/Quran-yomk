@@ -58,6 +58,19 @@ class PrayerSnapshot {
 class PrayerTimesService {
   Future<void>? _initialization;
 
+  /// Bearing clockwise from true north using the locally configured location.
+  double? qiblaBearing(PrayerSettings settings) {
+    final lat = settings.latitude;
+    final lon = settings.longitude;
+    final kaaba = adhan.Qibla.makkah;
+    if (lat.abs() == 90 ||
+        ((lat - kaaba.latitude).abs() < 0.000001 &&
+            (lon - kaaba.longitude).abs() < 0.000001)) {
+      return null;
+    }
+    return adhan.Qibla.qibla(adhan.Coordinates(lat, lon));
+  }
+
   Future<void> initialize() => _initialization ??= Future<void>(() {
     tz_data.initializeTimeZones();
   });

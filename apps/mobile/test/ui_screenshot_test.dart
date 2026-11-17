@@ -5,12 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tarteel/src/app.dart';
+import 'package:tarteel/src/canonical_quran.dart';
 import 'package:tarteel/src/l10n.dart';
 import 'package:tarteel/src/navigation.dart';
+import 'package:tarteel/src/screens/home.dart';
 import 'package:tarteel/src/screens/settings.dart';
 import 'package:tarteel/src/screens/player.dart';
 import 'package:tarteel/src/services.dart';
 import 'package:tarteel/src/theme.dart';
+
 import 'ui_fixture.dart';
 
 /// Goldens deliberately cover deterministic offline/idle states. Quran page
@@ -18,8 +21,10 @@ import 'ui_fixture.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
+    await TarteelCanonicalQuran.load();
     for (final (family, asset) in [
       ('TarteelUI', 'assets/fonts/NotoSansArabic.ttf'),
+      ('TarteelQuran', 'assets/fonts/kfgqpc_hafs_v30.ttf'),
       ('MaterialIcons', 'fonts/MaterialIcons-Regular.otf'),
     ]) {
       final loader = FontLoader(family)..addFont(rootBundle.load(asset));
@@ -122,11 +127,20 @@ void main() {
         }
         await tester.pumpWidget(
           ProviderScope(
-            overrides: [servicesProvider.overrideWithValue(services)],
+            overrides: [
+              servicesProvider.overrideWithValue(services),
+              homeClockProvider.overrideWithValue(() => DateTime(2026, 11, 18)),
+            ],
             child: RepaintBoundary(key: const ValueKey('screen'), child: child),
           ),
         );
+        if (scene.startsWith('home_')) {
+          await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        }
         await tester.pumpAndSettle();
+        if (scene.startsWith('home_')) {
+          expect(find.text('آية للتدبر'), findsOneWidget);
+        }
         expect(tester.takeException(), isNull);
         await expectLater(
           find.byKey(const ValueKey('screen')),

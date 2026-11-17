@@ -8,7 +8,7 @@ This notice covers externally streamed Quran/Islamic audio content surfaced by T
 - **Qurango** — External Quran, reciter, tafseer, hadith, seerah, adhkar, ruqyah, fatwa, translation, and selected-surah streams. Attribution: Qurango. Integration basis recorded as `PERMISSION_DOCUMENTED`. Reference: https://www.mp3quran.net/privacy-en.html. Tarteel does not claim ownership of the content or Qurango marks.
 - **MP3Quran** — Dynamic radio catalog obtained from the public developer API at `https://www.mp3quran.net/api/v3/radios?language=ar`. Attribution: MP3Quran. Integration basis recorded as `PUBLIC_API`. Reference: https://www.mp3quran.net/privacy-en.html. Stable Tarteel station IDs are used independently of provider URLs.
 - **AlQuran Cloud / Islamic Network audio** — Quran audio by surah and ayah is streamed directly from `cdn.islamic.network`, or downloaded directly to the listener's device for offline playback. Tarteel stores metadata pointers only and does not relay these MP3 files through Supabase. Attribution and edition/reciter identity are retained. Terms: https://alquran.cloud/terms-and-conditions.
-- **AlQuran Cloud Quran text (`quran-uthmani`, `quran-tajweed`)** — Tarteel's canonical Quran v1 is a verbatim, no-mutation snapshot of the two editions already used by the public API. The manifest records raw-response SHA-256 values, the normalized dataset SHA-256, source identifiers, generation/verification timestamps, and an explicit `APPROVED` status. AlQuran Cloud's current terms allow reproduction/storage/display of Quran text while requiring faithful preservation and attribution; AlQuran Cloud identifies Tanzil and other curators among its sources. Tanzil permits verbatim copying/distribution of its Quran text with source attribution and prohibits changing the text. Tarteel therefore applies `VERBATIM_SNAPSHOT_NO_TEXT_MUTATION`: no AI/fuzzy correction, no silent refresh, and any approved-version change requires a new dataset version and review. References: https://alquran.cloud/terms-and-conditions and https://tanzil.net/docs/Text_License.
+- **AlQuran Cloud Quran text (`quran-uthmani`, `quran-tajweed`)** — The historical canonical Quran v1 (not the current mobile reader) is a verbatim, no-mutation snapshot of the two editions already used by the public API. The manifest records raw-response SHA-256 values, the normalized dataset SHA-256, source identifiers, generation/verification timestamps, and an explicit `APPROVED` status. AlQuran Cloud's current terms allow reproduction/storage/display of Quran text while requiring faithful preservation and attribution; AlQuran Cloud identifies Tanzil and other curators among its sources. Tanzil permits verbatim copying/distribution of its Quran text with source attribution and prohibits changing the text. Tarteel therefore applies `VERBATIM_SNAPSHOT_NO_TEXT_MUTATION`: no AI/fuzzy correction, no silent refresh, and any approved-version change requires a new dataset version and review. References: https://alquran.cloud/terms-and-conditions and https://tanzil.net/docs/Text_License.
 - **MP3Quran reciters** — Reciter, moshaf/riwayah, and available-surah metadata comes from API v3. Audio streams and offline downloads connect directly to the provider URL; Supabase stores metadata only. Attribution: MP3Quran and the named reciter. Reference: https://www.mp3quran.net/privacy-en.html.
 - **QuranPedia Quran SVG / KFQC Mushaf al-Madinah** — The normal Mushaf reader displays the 604 static Hafs/KFQC SVG page artworks without redrawing Quran text. QuranPedia's ayah polygon/JSON layer is CC0 1.0; the repository documents KFQC permission for digital, software, web, and media use and the restriction on commercial physical-Mushaf printing. Source revision: `b91d39e1065b57bdda3e94aca8ecf3575e50e1e6`. Reference: https://github.com/quranpedia/quran-svg.
 - **QCF V4 Tajweed page assets** — Tarteel pre-renders the 604 page-specific QCF V4 Tajweed fonts supplied through Tarteel AI's Quranic Universal Library into transparent WebP pages. The render tooling is MIT licensed; the Quran font/artwork remains attributed to the King Fahd Glorious Quran Printing Complex and Dar Al Maarifah. Every release is pinned, checksumed, matched page-by-page to the Hafs verse map, and visually exercised on Android before acceptance. References: https://qul.tarteel.ai/resources/font/240 and https://github.com/NedaaDevs/quran-image-generator.
@@ -41,3 +41,22 @@ provenance for both offline assets. The existing bundled adhan is a 42-second
 announcement sample; it is not described as a verified complete full-length
 adhan. Wikimedia Commons source revision 1248174278 was checked on 2026-10-23
 and explicitly identifies Aishatu98's own work under CC0 1.0.
+
+## Current embedded Quran v2 (2026-11-01)
+
+The active Flutter reader uses the unmodified KFGQPC Hafs v30 text and font,
+not the historical v1 snapshot. Publisher: King Fahd Glorious Quran Printing
+Complex. Source: https://qurancomplex.gov.sa/quran-dev/ . Original package:
+https://download.qurancomplex.gov.sa/resources_dev/kfgqpc_hafs_v30.zip .
+The original notice is bundled at `apps/mobile/assets/fonts/NOTICE-KFGQPC.txt`;
+canonical identity and checksums are in `data/quran/canonical/v2/manifest.json`.
+Do not infer a blanket open-source license or printing permission from access.
+
+Surah educational projects are attributed to Surah / Tafsir Center. Source and
+API terms: https://dev.surahapp.com/api/docs . The current integration stores
+project metadata and uses direct session access; it does not infer permission
+to redistribute complete commentary databases. QuranEnc translation metadata
+and translator/version attribution remain separate from Quran text.
+
+Privacy and terms are maintained under `docs/legal/`, bundled for offline
+access and exposed by `/legal/privacy` and `/legal/terms` on the web app.

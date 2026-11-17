@@ -13,12 +13,14 @@ if __name__ == '__main__':
     parser.add_argument('apk', type=Path)
     parser.add_argument('--aapt', required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--version-code', type=int, default=2096)
+    parser.add_argument('--version-name', default='0.9.3-beta.1')
     args = parser.parse_args()
     badging = subprocess.check_output([args.aapt, 'dump', 'badging', str(args.apk)], text=True)
     package = re.search(r"^package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'", badging, re.M)
-    if not package or package[1] != 'app.tarteel.tarteel' or int(package[2]) != 2096 or package[3] != '0.9.3-beta.1':
+    if not package or package[1] != 'app.tarteel.tarteel' or int(package[2]) != args.version_code or package[3] != args.version_name:
         raise ValueError('Unexpected Tarteel package or actual split APK version')
-    if "sdkVersion:'26'" not in badging:
+    if not re.search(r"^(?:minSdkVersion|sdkVersion):'26'$", badging, re.M):
         raise ValueError('Expected Android 8 API26 minimum')
     with zipfile.ZipFile(args.apk) as archive:
         abis = sorted({p.split('/')[1] for p in archive.namelist() if p.startswith('lib/') and p.endswith('.so')})

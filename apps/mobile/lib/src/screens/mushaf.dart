@@ -17,12 +17,19 @@ import '../canonical_quran.dart';
 import '../thematic_quran.dart';
 import '../mushaf_library.dart';
 import '../surah_reader_panel.dart';
+import 'reading_annotations.dart';
 
 class MushafPage extends ConsumerStatefulWidget {
-  const MushafPage({super.key, this.onImmersiveChanged, this.initialPage});
+  const MushafPage({
+    super.key,
+    this.onImmersiveChanged,
+    this.initialPage,
+    this.initialVerseKey,
+  });
 
   final ValueChanged<bool>? onImmersiveChanged;
   final int? initialPage;
+  final String? initialVerseKey;
 
   @override
   ConsumerState<MushafPage> createState() => _MushafPageState();
@@ -38,6 +45,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
   bool _audioBusy = false;
   int _loadGeneration = 0;
   String? _playingKey;
+  String? _focusedKey;
   StreamSubscription<dynamic>? _media;
   @override
   void dispose() {
@@ -82,12 +90,17 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     }
     _surahsFuture = services.repository.surahs();
     _passageFuture = services.repository.quranPassage(_mode, _number);
-    // Persist the verified initial page as well as pages reached by swiping.
     final initialPage = _number;
+    _focusedKey =
+        widget.initialVerseKey ??
+        (last?.pageNumber == initialPage ? last?.verseKey : null);
     _passageFuture
         .then((passage) {
-          if (mounted && _number == initialPage && passage.verses.isNotEmpty) {
-            return _remember(passage.verses.first);
+          if (mounted && _loadGeneration == 0 && passage.verses.isNotEmpty) {
+            final focused = passage.verses
+                .where((verse) => verse.verseKey == _focusedKey)
+                .firstOrNull;
+            return _remember(focused ?? passage.verses.first);
           }
         })
         .catchError((Object _) {});
@@ -112,6 +125,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     setState(() {
       _mode = mode;
       _number = next;
+      _focusedKey = null;
       _selectedReciter = null;
       _passageFuture = ref
           .read(servicesProvider)
@@ -183,6 +197,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
     ++_loadGeneration;
     _mode = QuranBrowseMode.page;
     _number = page;
+    _focusedKey = null;
     _passageFuture = ref
         .read(servicesProvider)
         .repository
@@ -434,6 +449,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
           return MushafPageReader(
             repository: services.mushafPages,
             playingVerseKey: _playingKey,
+            initialVerseKey: _focusedKey,
             contentRepository: services.islamicContent,
             store: mushaf,
             initialPage: _number,
@@ -553,7 +569,7 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                             _QuranText(
                               passage: passage,
                               store: mushaf,
-                              playingVerseKey: _playingKey,
+                              playingVerseKey: _playingKey ?? _focusedKey,
                               onRemember: (verse) async {
                                 await _remember(verse);
                                 await mushaf.backupBeforeLibraryUpgrade();
@@ -575,6 +591,11 @@ class _MushafPageState extends ConsumerState<MushafPage> {
                                                 Text('الآية ${verse.verseKey}'),
                                                 SelectableText(
                                                   verse.textUthmani,
+                                                ),
+                                                AyahAnnotationTile(
+                                                  verse: verse,
+                                                  annotations:
+                                                      mushaf.annotations,
                                                 ),
                                                 ThematicAyahPanel(
                                                   verseKey: verse.verseKey,

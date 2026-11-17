@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,7 @@ import 'screens/quran_index.dart';
 import 'screens/quran_offline.dart';
 import 'screens/quran_playlists.dart';
 import 'screens/radio.dart';
+import 'screens/reading_journey.dart';
 import 'screens/reciters.dart';
 import 'screens/search.dart';
 import 'screens/settings.dart';
@@ -32,6 +34,12 @@ List<MobileDestination> mobileDestinations({required bool radioEnabled}) => [
   MobileDestination.library,
 ];
 
+class ReaderTarget {
+  const ReaderTarget({required this.page, required this.verseKey});
+  final int page;
+  final String verseKey;
+}
+
 abstract final class MobileRoutes {
   static const quran = '/quran';
   static const reader = '/quran/reader';
@@ -42,6 +50,7 @@ abstract final class MobileRoutes {
   static const bookmarks = '/quran/bookmarks';
   static const radio = '/radio';
   static const library = '/my-library';
+  static const readingJourney = '/reading-journey';
   static const downloads = '/downloads';
   static const favorites = '/favorites';
   static const playlists = '/playlists';
@@ -53,7 +62,14 @@ abstract final class MobileRoutes {
   static Route<void>? generate(RouteSettings routeSettings) {
     final page = switch (routeSettings.name) {
       quran => const _Secondary(title: 'المصحف', child: QuranIndexPage()),
-      reader => _ReaderRoute(page: routeSettings.arguments as int?),
+      reader => switch (routeSettings.arguments) {
+        final ReaderTarget target => _ReaderRoute(
+          page: target.page,
+          verseKey: target.verseKey,
+        ),
+        final int page => _ReaderRoute(page: page),
+        _ => const _ReaderRoute(),
+      },
       bookmarks => const _Secondary(
         title: 'العلامات المرجعية',
         child: QuranIndexPage(initialSection: 3),
@@ -74,6 +90,7 @@ abstract final class MobileRoutes {
         feature: TarteelFeature.radio,
         child: _Secondary(title: 'الإذاعات', child: RadioPage()),
       ),
+      readingJourney => const ReadingJourneyPage(),
       library => const _Secondary(title: 'مكتبتي', child: LibraryPage()),
       downloads => const _FeatureRoute(
         feature: TarteelFeature.offlineDownloads,
@@ -113,8 +130,9 @@ class _Secondary extends StatelessWidget {
 }
 
 class _ReaderRoute extends StatefulWidget {
-  const _ReaderRoute({this.page});
+  const _ReaderRoute({this.page, this.verseKey});
   final int? page;
+  final String? verseKey;
   @override
   State<_ReaderRoute> createState() => _ReaderRouteState();
 }
@@ -132,6 +150,7 @@ class _ReaderRouteState extends State<_ReaderRoute> {
     appBar: immersive ? null : AppBar(title: const Text('المصحف')),
     body: MushafPage(
       initialPage: widget.page,
+      initialVerseKey: widget.verseKey,
       onImmersiveChanged: (value) {
         if (mounted && immersive != value) {
           WidgetsBinding.instance.addPostFrameCallback((_) {

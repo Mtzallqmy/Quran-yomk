@@ -7,6 +7,7 @@ import '../l10n.dart';
 import '../models.dart';
 import '../services.dart';
 import 'content_sources.dart';
+import 'legal.dart';
 
 class AboutPage extends ConsumerWidget {
   const AboutPage({super.key});
@@ -81,22 +82,27 @@ class AboutPage extends ConsumerWidget {
               textAlign: TextAlign.start,
             ),
           ),
+          for (final entry in {
+            'privacy': l10n.privacyPolicy,
+            'terms': l10n.terms,
+          }.entries)
+            ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: Text(entry.value),
+              subtitle: const Text('متاحة دون اتصال • 2026-11-01'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => LegalPage(documentId: entry.key),
+                ),
+              ),
+            ),
           FutureBuilder<JsonMap>(
             future: services.repository.appConfig(),
             builder: (context, snapshot) {
               final config = snapshot.data ?? const <String, dynamic>{};
               return Column(
                 children: <Widget>[
-                  _LegalTile(
-                    title: l10n.privacyPolicy,
-                    value: config['privacy_url'],
-                    unavailable: l10n.notAvailable,
-                  ),
-                  _LegalTile(
-                    title: l10n.terms,
-                    value: config['terms_url'],
-                    unavailable: l10n.notAvailable,
-                  ),
                   _LegalTile(
                     title: l10n.support,
                     value: config['support_url'],

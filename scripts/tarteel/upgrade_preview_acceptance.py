@@ -1,4 +1,4 @@
-"""Actual signed2095 -> signed2096 install-r and data-retention acceptance."""
+"""Install a pinned signed baseline and verify an in-place signed upgrade."""
 import argparse,hashlib,json,re,subprocess,time,xml.etree.ElementTree as ET,zipfile,tempfile,shutil
 from pathlib import Path
 PACKAGE='app.tarteel.tarteel'
@@ -9,14 +9,14 @@ def adb(*args):return command('adb',*args)
 def main(a):
  a.output.mkdir(parents=True,exist_ok=True)
  private=Path(tempfile.mkdtemp(prefix='tarteel-upgrade-private-'))
- assert hashlib.sha256(a.baseline.read_bytes()).hexdigest()==BASE_SHA
+ assert hashlib.sha256(a.baseline.read_bytes()).hexdigest()==a.baseline_sha256
  for apk in [a.baseline,a.candidate]:assert re.findall(r'certificate SHA-256 digest: ([0-9a-fA-F]+)',command(str(a.apksigner),'verify','--print-certs',str(apk)))==[CERT]
  abis=adb('shell','getprop','ro.product.cpu.abilist').strip();assert 'arm64-v8a' in abis, 'System image cannot execute actual ARM64 APK; refusing ABI override'
  adb('root');adb('wait-for-device')
  assert 'Success' in adb('install',str(a.baseline))
  if int(adb('shell','getprop','ro.build.version.sdk').strip())>=33:adb('shell','pm','grant',PACKAGE,'android.permission.POST_NOTIFICATIONS')
  adb('shell','am','start','-W','-n',PACKAGE+'/.MainActivity');time.sleep(15)
- assert 'versionCode=2095' in adb('shell','dumpsys','package',PACKAGE)
+ assert f'versionCode={a.baseline_version} ' in adb('shell','dumpsys','package',PACKAGE)
  adb('shell','am','force-stop',PACKAGE)
  device='/data/data/'+PACKAGE+'/shared_prefs/FlutterSharedPreferences.xml';local=private/'baseline-prefs.xml';adb('pull',device,str(local))
  tree=ET.parse(local);root=tree.getroot()
@@ -46,20 +46,31 @@ def main(a):
  adb('logcat','-c');launch=adb('shell','am','start','-W','-n',PACKAGE+'/.MainActivity');time.sleep(25)
  pid=adb('shell','pidof',PACKAGE).strip().split()[0];assert pid
  logs=adb('logcat','-d','--pid='+pid);assert not re.search(r'FATAL EXCEPTION|Unhandled Exception|Fatal signal',logs)
- package=adb('shell','dumpsys','package',PACKAGE);assert 'versionCode=2096' in package
+ package=adb('shell','dumpsys','package',PACKAGE);assert f'versionCode={a.candidate_version} ' in package
  after=private/'upgraded-prefs.xml';adb('pull',device,str(after));values={c.get('name'):c.text for c in ET.parse(after).getroot()}
  for key,value in fixtures.items():
   expected=json.loads(value)
   if key.endswith('last-position:v1'):expected.update(number=120,page_number=120)
   else:expected[0]['page_number']=120
-  assert json.loads(values[key])==expected,'Lost2095 reading/bookmark identity: '+key
+  assert json.loads(values[key])==expected,'Lost prior reading/bookmark identity: '+key
  assert values[rollback_key]==rollback_value, 'Existing rollback snapshot changed'
  assert json.loads(values[prayer_key])==json.loads(prayer_value), 'Local prayer settings changed during update'
  retained=a.output/'retained-recording.mp3';adb('pull',target,str(retained));assert retained.read_bytes()==audio
  adb('shell','uiautomator','dump','/sdcard/tarteel-upgrade-ui.xml');adb('pull','/sdcard/tarteel-upgrade-ui.xml',str(a.output/'ui.xml'))
  assert PACKAGE in (a.output/'ui.xml').read_text()
  (a.output/'launch.txt').write_text(launch);(a.output/'logcat.txt').write_text(logs);(a.output/'package.txt').write_text(package)
- report=dict(status='PASS',baseline_version_code=2095,version_code=2096,baseline_sha256=BASE_SHA,apk_sha256=hashlib.sha256(a.candidate.read_bytes()).hexdigest(),certificate_sha256=CERT,emulator_abis=abis,reading_position_retained=True,bookmarks_retained=True,prayer_settings_retained=True,baseline_page=120,official_page=120,verse_identity='5:77',rollback_snapshot_verified=True,recording_sha256=hashlib.sha256(audio).hexdigest(),recording_retained=True)
+ report=dict(status='PASS',baseline_version_code=a.baseline_version,version_code=a.candidate_version,baseline_sha256=a.baseline_sha256,apk_sha256=hashlib.sha256(a.candidate.read_bytes()).hexdigest(),certificate_sha256=CERT,emulator_abis=abis,reading_position_retained=True,bookmarks_retained=True,prayer_settings_retained=True,baseline_page=120,official_page=120,verse_identity='5:77',rollback_snapshot_verified=True,recording_sha256=hashlib.sha256(audio).hexdigest(),recording_retained=True)
  (a.output/'acceptance.json').write_text(json.dumps(report,indent=2)+'\n');shutil.rmtree(private);print(json.dumps(report))
-if __name__=='__main__':
- p=argparse.ArgumentParser();p.add_argument('--baseline',type=Path,required=True);p.add_argument('--candidate',type=Path,required=True);p.add_argument('--apksigner',type=Path,required=True);p.add_argument('--output',type=Path,required=True);main(p.parse_args())
+if __name__ == '__main__':
+ parser = argparse.ArgumentParser()
+ parser.add_argument('--baseline', type=Path, required=True)
+ parser.add_argument('--candidate', type=Path, required=True)
+ parser.add_argument('--apksigner', type=Path, required=True)
+ parser.add_argument('--output', type=Path, required=True)
+ parser.add_argument('--baseline-sha256', default=BASE_SHA)
+ parser.add_argument('--baseline-version', type=int, default=2095)
+ parser.add_argument('--candidate-version', type=int, default=2096)
+ args = parser.parse_args()
+ if args.candidate_version <= args.baseline_version:
+  parser.error('candidate version must exceed baseline version')
+ main(args)

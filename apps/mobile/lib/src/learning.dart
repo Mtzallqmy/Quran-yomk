@@ -276,6 +276,7 @@ class LearningStore extends ChangeNotifier {
 
   static const _recordsKey = 'learning:records:v1';
   static const _planKey = 'learning:plan:v1';
+  static const _tasbihKey = 'learning:tasbih-count:v1';
   static const _adhkarDateKey = 'learning:adhkar:date';
   static const _adhkarCountsKey = 'learning:adhkar:counts';
   static const _reminderPrefix = 'learning:adhkar:reminder:';
@@ -285,6 +286,16 @@ class LearningStore extends ChangeNotifier {
       <String, MemorizationRecord>{};
   final Map<String, int> _adhkarCounts = <String, int>{};
   MemorizationPlan? plan;
+
+  int get tasbihCount => _preferences.getInt(_tasbihKey) ?? 0;
+
+  Future<bool> setTasbihCount(int count) async {
+    try {
+      return await _preferences.setInt(_tasbihKey, count);
+    } on Exception {
+      return false;
+    }
+  }
 
   List<MemorizationRecord> get records => List.unmodifiable(_records.values);
 

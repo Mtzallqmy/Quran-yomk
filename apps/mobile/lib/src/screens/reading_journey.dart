@@ -6,6 +6,7 @@ import '../reading_journey.dart';
 import '../services.dart';
 import '../theme.dart';
 import 'learning.dart';
+import 'reading_annotations.dart';
 
 class ReadingJourneyPage extends ConsumerWidget {
   const ReadingJourneyPage({super.key});
@@ -159,6 +160,18 @@ class ReadingJourneyPage extends ConsumerWidget {
                       title: const Text('العلامات المرجعية'),
                       onTap: () =>
                           Navigator.pushNamed(context, MobileRoutes.bookmarks),
+                    ),
+                  ),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.edit_note_outlined),
+                      title: const Text('مواضعي وملاحظاتي'),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ReadingAnnotationsPage(),
+                        ),
+                      ),
                     ),
                   ),
                   Card(

@@ -108,7 +108,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(services.mushaf.journey.hasRead(1), isTrue);
 
-    await tester.pageBack();
+    await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('1 من 604 صفحة'), findsOneWidget);
     expect(find.text('1 من 3 صفحة'), findsOneWidget);

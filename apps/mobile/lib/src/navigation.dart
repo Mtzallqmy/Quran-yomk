@@ -34,6 +34,12 @@ List<MobileDestination> mobileDestinations({required bool radioEnabled}) => [
   MobileDestination.library,
 ];
 
+class ReaderTarget {
+  const ReaderTarget({required this.page, required this.verseKey});
+  final int page;
+  final String verseKey;
+}
+
 abstract final class MobileRoutes {
   static const quran = '/quran';
   static const reader = '/quran/reader';
@@ -56,7 +62,14 @@ abstract final class MobileRoutes {
   static Route<void>? generate(RouteSettings routeSettings) {
     final page = switch (routeSettings.name) {
       quran => const _Secondary(title: 'المصحف', child: QuranIndexPage()),
-      reader => _ReaderRoute(page: routeSettings.arguments as int?),
+      reader => switch (routeSettings.arguments) {
+        final ReaderTarget target => _ReaderRoute(
+          page: target.page,
+          verseKey: target.verseKey,
+        ),
+        final int page => _ReaderRoute(page: page),
+        _ => const _ReaderRoute(),
+      },
       bookmarks => const _Secondary(
         title: 'العلامات المرجعية',
         child: QuranIndexPage(initialSection: 3),
@@ -117,8 +130,9 @@ class _Secondary extends StatelessWidget {
 }
 
 class _ReaderRoute extends StatefulWidget {
-  const _ReaderRoute({this.page});
+  const _ReaderRoute({this.page, this.verseKey});
   final int? page;
+  final String? verseKey;
   @override
   State<_ReaderRoute> createState() => _ReaderRouteState();
 }
@@ -136,6 +150,7 @@ class _ReaderRouteState extends State<_ReaderRoute> {
     appBar: immersive ? null : AppBar(title: const Text('المصحف')),
     body: MushafPage(
       initialPage: widget.page,
+      initialVerseKey: widget.verseKey,
       onImmersiveChanged: (value) {
         if (mounted && immersive != value) {
           WidgetsBinding.instance.addPostFrameCallback((_) {

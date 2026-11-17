@@ -539,7 +539,10 @@ class _DailyVerseCard extends StatelessWidget {
                 onPressed: () => Navigator.pushNamed(
                   context,
                   MobileRoutes.reader,
-                  arguments: verse.pageNumber,
+                  arguments: ReaderTarget(
+                    page: verse.pageNumber,
+                    verseKey: verse.verseKey,
+                  ),
                 ),
                 icon: const Icon(Icons.open_in_new),
                 label: const Text('افتح الصفحة في المصحف'),

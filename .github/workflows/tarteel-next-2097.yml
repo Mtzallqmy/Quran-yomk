@@ -1,0 +1,209 @@
+name: Tarteel preview 2097
+on:
+  push:
+    branches: [feat/tarteel-next-premium-2097]
+  workflow_dispatch:
+    inputs:
+      sign:
+        description: Build with the original preview signing certificate
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tarteel-preview-2097-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_SUPPRESS_ANALYTICS: 'true'
+  CONTENT_URL: https://br-curly-salad-bajy1evn-tarteelcontent.compute.c-8.eu-central-1.aws.neon.tech
+  CLOUD_URL: https://br-wispy-paper-bahpwe0x-tarteelcloud.compute.c-8.eu-central-1.aws.neon.tech
+  EDGE_URL: https://qkroecnecdxghcqvvoxn.supabase.co/functions/v1/tarteel-api
+  PREVIEW_CERT_SHA256: 5e2a2a7412c93c8a0e9e28917195534b726c9c1ae3a35232e9fd0aeb5fa718b8
+
+jobs:
+  quality:
+    if: github.ref == 'refs/heads/feat/tarteel-next-premium-2097'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - name: Verify source and rights
+        run: |
+          node scripts/quran-integrity/validate.mjs --version 2
+          node --test scripts/quran-integrity/*.test.mjs
+          node scripts/verify-legal.mjs
+          python3 scripts/tarteel/verify_audio_assets.py
+      - name: Analyze and test Flutter
+        working-directory: apps/mobile
+        run: |
+          flutter pub get --enforce-lockfile
+          git diff --exit-code -- pubspec.lock
+          flutter analyze --no-pub --no-fatal-infos
+          flutter test --no-pub
+      - name: Compile Android instrumentation
+        working-directory: apps/mobile
+        run: |
+          flutter build apk --debug --no-pub
+          cd android
+          ./gradlew :app:assembleDebugAndroidTest
+      - name: Compile ARM64 release without a signing key
+        working-directory: apps/mobile
+        run: >-
+          flutter build apk --release --split-per-abi --target-platform android-arm64 --no-pub
+          --dart-define=GIT_SHA=${{ github.sha }}
+          --dart-define=TARTEEL_CONTENT_BASE_URL="$CONTENT_URL"
+          --dart-define=TARTEEL_CLOUD_BASE_URL="$CLOUD_URL"
+          --dart-define=TARTEEL_API_BASE_URL="$EDGE_URL"
+      - name: Inspect candidate identity and bundled Quran
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;36.0.0"
+          mkdir -p preview-candidate
+          cp apps/mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk preview-candidate/UNSIGNED-Tarteel-2097-ARM64.apk
+          python3 scripts/tarteel/inspect_unsigned_apk.py preview-candidate/UNSIGNED-Tarteel-2097-ARM64.apk \
+            --aapt "$ANDROID_HOME/build-tools/36.0.0/aapt2" --output preview-candidate \
+            --version-code 2097 --version-name 0.9.4-beta.1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarteel-2097-unsigned-${{ github.sha }}
+          path: preview-candidate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarteel-2097-native-tests
+          path: |
+            apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+            apps/mobile/build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: error
+
+  native:
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 36]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: tarteel-2097-native-tests
+          path: android-tests
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            set -eu
+            adb install "$(find android-tests -name app-debug.apk -print -quit)"
+            adb install "$(find android-tests -name app-debug-androidTest.apk -print -quit)"
+            adb shell pm grant app.tarteel.tarteel android.permission.POST_NOTIFICATIONS || true
+            adb shell pm grant app.tarteel.tarteel android.permission.RECORD_AUDIO
+            adb shell appops set app.tarteel.tarteel SCHEDULE_EXACT_ALARM allow || true
+            adb shell am start -W -n app.tarteel.tarteel/.MainActivity
+            adb shell am instrument -w app.tarteel.tarteel.test/androidx.test.runner.AndroidJUnitRunner > native-tests.txt
+            cat native-tests.txt
+            grep -q '^OK (' native-tests.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tarteel-2097-android-api-${{ matrix.api }}
+          path: native-tests.txt
+
+  signed-upgrade:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.sign) ||
+      (github.event_name == 'push' && vars.TARTEEL_PREVIEW_SIGNING_ENABLED == 'true')
+    environment: tarteel-preview-signing
+    needs: [quality, native]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/download-artifact@v4
+        with:
+          name: tarteel-2097-unsigned-${{ github.sha }}
+          path: preview-candidate
+      - name: Install APK inspection and signing tools
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;36.0.0"'
+      - name: Sign and verify the exact candidate
+        env:
+          KEYSTORE_BASE64: ${{ secrets.TARTEEL_PREVIEW_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.TARTEEL_PREVIEW_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.TARTEEL_PREVIEW_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.TARTEEL_PREVIEW_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64" && test -n "$KEYSTORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD"
+          sdk_tools="$ANDROID_HOME/build-tools/36.0.0"
+          key_dir="$(mktemp -d)"
+          trap 'rm -rf "$key_dir"' EXIT
+          chmod 700 "$key_dir"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$key_dir/signer.keystore"
+          keytool -exportcert -keystore "$key_dir/signer.keystore" -storepass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" -file "$key_dir/signer.der"
+          echo "$PREVIEW_CERT_SHA256  $key_dir/signer.der" | sha256sum --check
+          mkdir -p signed-evidence
+          candidate=signed-evidence/Tarteel-0.9.4-beta.1-2097-ARM64-PREVIEW.apk
+          "$sdk_tools/apksigner" sign --ks "$key_dir/signer.keystore" --ks-pass env:KEYSTORE_PASSWORD \
+            --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASSWORD \
+            --out "$candidate" preview-candidate/UNSIGNED-Tarteel-2097-ARM64.apk
+          python3 scripts/tarteel/verify_preview_apk.py "$candidate" --aapt "$sdk_tools/aapt2" \
+            --apksigner "$sdk_tools/apksigner" --zipalign "$sdk_tools/zipalign" --output signed-evidence/verification \
+            --source-commit "$GITHUB_SHA" --version-code 2097 --version-name 0.9.4-beta.1
+      - name: Download the pinned signed 2096 baseline
+        run: |
+          curl --fail --location --retry 2 --output baseline2096.apk 'https://github.com/Mtzallqmy/Quran-yomk/releases/download/v0.9.3-beta.1-preview.2096/Tarteel-0.9.3-beta.1-2096-ARM64-PREVIEW.apk'
+          echo 'fb8f751aa008d10ffa50b746967724153dac04bad13c9b9f9ec3d729b6abe93e  baseline2096.apk' | sha256sum --check
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Launch the signed build and verify the actual upgrade from 2096
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            python3 scripts/tarteel/upgrade_preview_acceptance.py --baseline baseline2096.apk \
+              --candidate signed-evidence/Tarteel-0.9.4-beta.1-2097-ARM64-PREVIEW.apk \
+              --baseline-version 2096 --candidate-version 2097 \
+              --baseline-sha256 fb8f751aa008d10ffa50b746967724153dac04bad13c9b9f9ec3d729b6abe93e \
+              --apksigner "$ANDROID_HOME/build-tools/36.0.0/apksigner" --output signed-evidence/upgrade
+            adb uninstall app.tarteel.tarteel
+            adb install signed-evidence/Tarteel-0.9.4-beta.1-2097-ARM64-PREVIEW.apk
+            adb shell am start -W -n app.tarteel.tarteel/.MainActivity > signed-evidence/clean-launch.txt
+            grep -q 'Status: ok' signed-evidence/clean-launch.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarteel-2097-signed-upgrade-evidence-${{ github.sha }}
+          path: signed-evidence

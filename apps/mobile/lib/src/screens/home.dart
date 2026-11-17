@@ -3,16 +3,21 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../canonical_quran.dart';
 import '../feature_manager.dart';
 import '../models.dart';
 import '../navigation.dart';
 import '../playback_ui.dart';
 import '../prayer_settings.dart';
 import '../prayer_times.dart';
+import '../quran_models.dart';
 import '../services.dart';
 import '../reading_card.dart';
 import '../theme.dart';
+import 'learning.dart';
 import 'prayer_times.dart';
+
+final homeClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -21,13 +26,13 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  late Future<List<Station>> _stations;
+  Future<List<Station>>? _stations;
+  final _dailyVerse = TarteelCanonicalQuran.load().then(
+    (quran) => quran.ayahs
+        .where((verse) => verse.textUthmani.length <= 120)
+        .toList(growable: false),
+  );
   bool _busy = false;
-  @override
-  void initState() {
-    super.initState();
-    _stations = ref.read(servicesProvider).repository.stations();
-  }
 
   Future<void> _action(Future<void> Function() action) async {
     if (_busy) return;
@@ -49,124 +54,194 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final services = ref.watch(servicesProvider);
+    final journey = services.mushaf.journey;
+    final today = ref.watch(homeClockProvider)();
     return AnimatedBuilder(
       animation: Listenable.merge([
         services.mushaf,
         services.quranPlayback,
         services.features,
+        journey,
       ]),
-      builder: (context, _) => ListView(
-        key: const PageStorageKey('home-dashboard'),
-        padding: const EdgeInsets.all(16),
-        children: [
-          const _HomeWelcome(),
-          const SizedBox(height: 16),
-          if (services.features.enabled(TarteelFeature.prayer))
-            const DashboardPrayerTimes(),
-          const SizedBox(height: 8),
-          ContinueReadingCard(
-            position: services.mushaf.lastPosition,
-            onOpen: () {
-              final last = services.mushaf.lastPosition;
-              Navigator.pushNamed(
+      builder: (context, _) {
+        final radio = services.features.enabled(TarteelFeature.radio);
+        final prayer = services.features.enabled(TarteelFeature.prayer);
+        final last = services.mushaf.lastPosition;
+        final reading = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ContinueReadingCard(
+              highlighted: true,
+              position: last,
+              onOpen: () => Navigator.pushNamed(
                 context,
                 last == null ? MobileRoutes.quran : MobileRoutes.reader,
                 arguments: last?.pageNumber,
-              );
-            },
-          ),
-          if (services.quranPlayback.last case final session?)
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.headphones),
-                title: const Text('استكمل الاستماع'),
-                subtitle: Text(
-                  'السورة ${session.surahNumber} • ${session.reciterName}\n${session.position.inMinutes}:${(session.position.inSeconds % 60).toString().padLeft(2, '0')}',
-                ),
-                trailing: IconButton(
-                  tooltip: 'استكمال التشغيل',
-                  icon: const Icon(Icons.play_arrow),
-                  onPressed: _busy
-                      ? null
-                      : () => _action(
-                          () => resumeQuranListening(services, session),
-                        ),
-                ),
               ),
             ),
-          if (services.features.enabled(TarteelFeature.radio))
-            FutureBuilder<List<Station>>(
-              future: _stations,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData)
-                  return snapshot.hasError
-                      ? Card(
-                          child: ListTile(
-                            title: const Text('البث غير متاح حاليًا'),
-                            trailing: IconButton(
-                              tooltip: 'إعادة المحاولة',
-                              icon: const Icon(Icons.refresh),
-                              onPressed: () => setState(() {
-                                _stations = services.repository.stations(
-                                  refresh: true,
-                                );
-                              }),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.calendar_month_outlined),
+                title: const Text('رحلتي مع القرآن'),
+                subtitle: Text(
+                  'ورد اليوم · ${journey.pagesReadToday} من ${journey.dailyGoal} صفحة',
+                ),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () =>
+                    Navigator.pushNamed(context, MobileRoutes.readingJourney),
+              ),
+            ),
+            _DailyVerseCard(quran: _dailyVerse, today: today),
+          ],
+        );
+        final servicesColumn = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (prayer) const DashboardPrayerTimes(),
+            if (services.quranPlayback.last case final session?)
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.headphones_outlined),
+                  title: const Text('استكمل الاستماع'),
+                  subtitle: Text(
+                    'السورة ${session.surahNumber} • ${session.reciterName}\n${session.position.inMinutes}:${(session.position.inSeconds % 60).toString().padLeft(2, '0')}',
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'استكمال التشغيل',
+                    icon: const Icon(Icons.play_arrow),
+                    onPressed: _busy
+                        ? null
+                        : () => _action(
+                            () => resumeQuranListening(services, session),
+                          ),
+                  ),
+                ),
+              ),
+            if (radio) _radioCard(services),
+          ],
+        );
+        return Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1040),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final split = constraints.maxWidth >= 700;
+                return ListView(
+                  key: const PageStorageKey('home-dashboard'),
+                  padding: EdgeInsets.all(split ? 24 : 16),
+                  children: [
+                    const _HomeWelcome(),
+                    const SizedBox(height: 16),
+                    if (split)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 6, child: reading),
+                          const SizedBox(width: 20),
+                          Expanded(flex: 5, child: servicesColumn),
+                        ],
+                      )
+                    else ...[
+                      reading,
+                      servicesColumn,
+                    ],
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _shortcut(
+                          'المصحف',
+                          Icons.menu_book,
+                          MobileRoutes.quran,
+                        ),
+                        _shortcut(
+                          'التلاوات',
+                          Icons.headphones,
+                          MobileRoutes.reciters,
+                        ),
+                        if (radio)
+                          _shortcut(
+                            'الإذاعات',
+                            Icons.radio_outlined,
+                            MobileRoutes.radio,
+                          ),
+                        if (services.features.enabled(TarteelFeature.adhkar))
+                          ActionChip(
+                            avatar: const Icon(Icons.wb_twilight),
+                            label: const Text('أذكاري'),
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const AdhkarPage(),
+                              ),
                             ),
                           ),
-                        )
-                      : const SizedBox.shrink();
-                final values = snapshot.data!.where(
-                  (station) => station.isPlayable,
-                );
-                if (values.isEmpty) return const SizedBox.shrink();
-                final featured = values.where((station) => station.isFeatured);
-                final station = featured.isEmpty
-                    ? values.first
-                    : featured.first;
-                return Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.radio),
-                    title: Text(station.nameAr),
-                    subtitle: const Text('بث مباشر • LIVE'),
-                    trailing: IconButton(
-                      tooltip: 'تشغيل المحطة',
-                      icon: const Icon(Icons.play_arrow),
-                      onPressed: _busy
-                          ? null
-                          : () => _action(
-                              () => services.playback.playStation(station),
-                            ),
+                        if (services.features.enabled(
+                          TarteelFeature.offlineDownloads,
+                        ))
+                          _shortcut(
+                            'التنزيلات',
+                            Icons.download_outlined,
+                            MobileRoutes.downloads,
+                          ),
+                        _shortcut(
+                          'المفضلة',
+                          Icons.favorite_border,
+                          MobileRoutes.favorites,
+                        ),
+                      ],
                     ),
-                  ),
+                  ],
                 );
               },
             ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _shortcut('المصحف', Icons.menu_book, MobileRoutes.quran),
-              _shortcut('التلاوات', Icons.headphones, MobileRoutes.reciters),
-              if (services.features.enabled(TarteelFeature.radio))
-                _shortcut('الإذاعات', Icons.radio_outlined, MobileRoutes.radio),
-              if (services.features.enabled(TarteelFeature.offlineDownloads))
-                _shortcut(
-                  'التنزيلات',
-                  Icons.download_outlined,
-                  MobileRoutes.downloads,
-                ),
-              _shortcut(
-                'المفضلة',
-                Icons.favorite_border,
-                MobileRoutes.favorites,
-              ),
-            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
+
+  Widget _radioCard(AppServices services) => FutureBuilder<List<Station>>(
+    future: _stations ??= services.repository.stations(),
+    builder: (context, snapshot) {
+      final playable = snapshot.data?.where((station) => station.isPlayable);
+      final station =
+          playable?.where((s) => s.isFeatured).firstOrNull ??
+          playable?.firstOrNull;
+      if (station == null) {
+        if (!snapshot.hasError) return const SizedBox.shrink();
+        return Card(
+          child: ListTile(
+            title: const Text('البث غير متاح حاليًا'),
+            trailing: IconButton(
+              tooltip: 'إعادة المحاولة',
+              icon: const Icon(Icons.refresh),
+              onPressed: () => setState(() {
+                _stations = services.repository.stations(refresh: true);
+              }),
+            ),
+          ),
+        );
+      }
+      return Card(
+        child: ListTile(
+          leading: const Icon(Icons.radio),
+          title: Text(station.nameAr),
+          subtitle: const Text('إذاعة القرآن · بث مباشر'),
+          onTap: () => Navigator.pushNamed(context, MobileRoutes.radio),
+          trailing: IconButton(
+            tooltip: 'تشغيل المحطة',
+            icon: const Icon(Icons.play_arrow),
+            onPressed: _busy
+                ? null
+                : () => _action(() => services.playback.playStation(station)),
+          ),
+        ),
+      );
+    },
+  );
 
   Widget _shortcut(String label, IconData icon, String route) => ActionChip(
     avatar: Icon(icon),
@@ -403,28 +478,10 @@ class _HomeWelcome extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.secondaryContainer,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(
-            Icons.auto_awesome_outlined,
-            color: theme.colorScheme.onSecondaryContainer,
-          ),
-        ),
-        const SizedBox(width: 12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('مرحبًا بك في ترتيل', style: theme.textTheme.titleLarge),
-              Text(
-                'قراءةٌ تُنير يومك، وذكرٌ يطمئن قلبك',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
+          child: Text(
+            'السلام عليكم ورحمة الله وبركاته',
+            style: theme.textTheme.titleMedium,
           ),
         ),
         IconButton(
@@ -435,4 +492,62 @@ class _HomeWelcome extends StatelessWidget {
       ],
     );
   }
+}
+
+class _DailyVerseCard extends StatelessWidget {
+  const _DailyVerseCard({required this.quran, required this.today});
+  final Future<List<QuranVerse>> quran;
+  final DateTime today;
+
+  QuranVerse _verse(List<QuranVerse> candidates) {
+    final civilDay = DateTime.utc(today.year, today.month, today.day);
+    final day = civilDay.difference(DateTime.utc(2026)).inDays;
+    return candidates[day % candidates.length];
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<QuranVerse>>(
+    future: quran,
+    builder: (context, snapshot) {
+      final data = snapshot.data;
+      if (data == null || data.isEmpty) return const SizedBox.shrink();
+      final verse = _verse(data);
+      final theme = Theme.of(context);
+      return Card(
+        color: theme.colorScheme.surfaceContainer,
+        child: Padding(
+          padding: const EdgeInsets.all(TarteelTokens.spaceMd),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('آية للتدبر', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Text(
+                verse.textUthmani,
+                textDirection: TextDirection.rtl,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontFamily: 'TarteelQuran',
+                  height: 1.65,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'سورة ${verse.surahNameAr} · الآية ${verse.ayahNumber}',
+                style: theme.textTheme.bodySmall,
+              ),
+              TextButton.icon(
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  MobileRoutes.reader,
+                  arguments: verse.pageNumber,
+                ),
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('افتح الصفحة في المصحف'),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }

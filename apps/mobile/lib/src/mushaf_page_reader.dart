@@ -69,6 +69,26 @@ class _MushafPageReaderState extends State<MushafPageReader> {
     _scheduleControlsHide();
   }
 
+  Future<void> _togglePageRead() async {
+    final page = _page;
+    final journey = widget.store.journey;
+    final saved = await journey.togglePage(page);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          !saved
+              ? 'تعذر حفظ تقدم القراءة.'
+              : journey.hasRead(page)
+              ? 'أُضيفت الصفحة $page إلى وردك.'
+              : 'أُزيلت الصفحة $page من وردك.',
+        ),
+      ),
+    );
+    setState(() {});
+    _scheduleControlsHide();
+  }
+
   @override
   void didUpdateWidget(covariant MushafPageReader oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -430,9 +450,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                   margin: const EdgeInsets.all(8),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surface.withValues(alpha: 0.94),
+                    color: Theme.of(context).colorScheme.surface
+                        .withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: const <BoxShadow>[
                       BoxShadow(color: Colors.black26, blurRadius: 12),
@@ -493,9 +512,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                   margin: const EdgeInsets.all(8),
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surface.withValues(alpha: 0.94),
+                    color: Theme.of(context).colorScheme.surface
+                        .withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: const <BoxShadow>[
                       BoxShadow(color: Colors.black26, blurRadius: 12),
@@ -607,6 +625,8 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                             tooltip: 'خيارات المصحف',
                             onSelected: (action) {
                               switch (action) {
+                                case 'read':
+                                  unawaited(_togglePageRead());
                                 case 'surah':
                                   widget.onPlaySurah();
                                 case 'download':
@@ -618,6 +638,14 @@ class _MushafPageReaderState extends State<MushafPageReader> {
                               }
                             },
                             itemBuilder: (_) => [
+                              PopupMenuItem(
+                                value: 'read',
+                                child: Text(
+                                  widget.store.journey.hasRead(_page)
+                                      ? 'إلغاء إتمام قراءة الصفحة'
+                                      : 'إتمام قراءة الصفحة',
+                                ),
+                              ),
                               const PopupMenuItem(
                                 value: 'surah',
                                 child: Text('تشغيل السورة'),
@@ -709,9 +737,8 @@ class _PageSurfaceState extends State<_PageSurface> {
   Future<_MushafPageData> _load() async {
     final asset = await widget.repository.page(widget.page, widget.edition);
     final themes = widget.showThemes
-        ? ThematicPassageResolver(
-            await MushafTopicIndex.load(),
-          ).marks(asset.regions.map((region) => region.verseKey))
+        ? ThematicPassageResolver(await MushafTopicIndex.load())
+              .marks(asset.regions.map((region) => region.verseKey))
         : const <String, ThematicMark>{};
     return _MushafPageData(asset: asset, themes: themes);
   }

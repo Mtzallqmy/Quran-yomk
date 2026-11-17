@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,7 @@ import 'screens/quran_index.dart';
 import 'screens/quran_offline.dart';
 import 'screens/quran_playlists.dart';
 import 'screens/radio.dart';
+import 'screens/reading_journey.dart';
 import 'screens/reciters.dart';
 import 'screens/search.dart';
 import 'screens/settings.dart';
@@ -42,6 +44,7 @@ abstract final class MobileRoutes {
   static const bookmarks = '/quran/bookmarks';
   static const radio = '/radio';
   static const library = '/my-library';
+  static const readingJourney = '/reading-journey';
   static const downloads = '/downloads';
   static const favorites = '/favorites';
   static const playlists = '/playlists';
@@ -74,6 +77,7 @@ abstract final class MobileRoutes {
         feature: TarteelFeature.radio,
         child: _Secondary(title: 'الإذاعات', child: RadioPage()),
       ),
+      readingJourney => const ReadingJourneyPage(),
       library => const _Secondary(title: 'مكتبتي', child: LibraryPage()),
       downloads => const _FeatureRoute(
         feature: TarteelFeature.offlineDownloads,

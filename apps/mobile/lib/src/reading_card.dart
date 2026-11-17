@@ -1,26 +1,33 @@
 import 'package:flutter/material.dart';
+
 import 'mushaf_store.dart';
+import 'theme.dart';
 
 class ContinueReadingCard extends StatelessWidget {
   const ContinueReadingCard({
     super.key,
     required this.position,
     required this.onOpen,
+    this.highlighted = false,
   });
   final MushafPosition? position;
   final VoidCallback onOpen;
+  final bool highlighted;
   @override
   Widget build(BuildContext context) {
     final last = position;
-    return Card(
-      child: Padding(
+    final theme = Theme.of(context);
+    final content = Builder(
+      builder: (context) => Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'وردك من القرآن',
-              style: Theme.of(context).textTheme.titleMedium,
+              highlighted ? 'أكمل وردك' : 'وردك من القرآن',
+              style: highlighted
+                  ? Theme.of(context).textTheme.titleLarge
+                  : Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             if (last == null)
@@ -48,6 +55,35 @@ class ContinueReadingCard extends StatelessWidget {
               label: Text(last == null ? 'افتح المصحف' : 'متابعة القراءة'),
             ),
           ],
+        ),
+      ),
+    );
+    if (!highlighted) return Card(child: content);
+    final hero = theme.copyWith(
+      colorScheme: theme.colorScheme.copyWith(
+        primary: TarteelTheme.ivory,
+        onPrimary: TarteelTheme.deepGreen,
+        onSurface: TarteelTheme.ivory,
+      ),
+      textTheme: theme.textTheme.apply(
+        bodyColor: TarteelTheme.ivory,
+        displayColor: TarteelTheme.ivory,
+      ),
+    );
+    return Card(
+      color: TarteelTheme.deepGreen,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(TarteelTokens.radiusCardLarge),
+      ),
+      child: CustomPaint(
+        painter: const IslamicGeometryPainter(color: Color(0x16F8F6F1)),
+        child: Theme(
+          data: hero,
+          child: DefaultTextStyle.merge(
+            style: const TextStyle(color: TarteelTheme.ivory),
+            child: content,
+          ),
         ),
       ),
     );

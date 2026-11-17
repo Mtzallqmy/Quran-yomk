@@ -2,7 +2,12 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
+    id("com.google.gms.google-services") apply false
+}
+
+val performancePreview = providers.gradleProperty("tarteelPerformancePreview").orNull == "true"
+if (!performancePreview) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 android {
@@ -17,7 +22,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "app.tarteel.tarteel"
+        applicationId = if (performancePreview) "app.tarteel.tarteel.performance" else "app.tarteel.tarteel"
+        manifestPlaceholders["tarteelLabel"] = if (performancePreview) "ترتيل — اختبار الأداء" else "ترتيل"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 26
@@ -47,7 +53,11 @@ android {
         release {
             // Never silently create a new debug identity for an in-place update.
             // CI supplies the existing key and verifies its certificate against 2074.
-            signingConfig = signingConfigs.findByName("tarteelRelease")
+            signingConfig = if (performancePreview) {
+                signingConfigs.getByName("debug")
+            } else {
+                signingConfigs.findByName("tarteelRelease")
+            }
         }
     }
 }

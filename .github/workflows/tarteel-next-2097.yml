@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: tarteel-preview-2097-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   FLUTTER_SUPPRESS_ANALYTICS: 'true'
@@ -194,11 +194,8 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
-            python3 scripts/tarteel/upgrade_preview_acceptance.py --baseline baseline2096.apk \
-              --candidate signed-evidence/Tarteel-0.9.4-beta.1-2097-ARM64-PREVIEW.apk \
-              --baseline-version 2096 --candidate-version 2097 \
-              --baseline-sha256 fb8f751aa008d10ffa50b746967724153dac04bad13c9b9f9ec3d729b6abe93e \
-              --apksigner "$ANDROID_HOME/build-tools/36.0.0/apksigner" --output signed-evidence/upgrade
+            set -eu
+            python3 scripts/tarteel/upgrade_preview_acceptance.py --baseline baseline2096.apk --candidate signed-evidence/Tarteel-0.9.4-beta.1-2097-ARM64-PREVIEW.apk --baseline-version 2096 --candidate-version 2097 --baseline-sha256 fb8f751aa008d10ffa50b746967724153dac04bad13c9b9f9ec3d729b6abe93e --apksigner "$ANDROID_HOME/build-tools/36.0.0/apksigner" --output signed-evidence/upgrade
             adb uninstall app.tarteel.tarteel
             adb install signed-evidence/Tarteel-0.9.4-beta.1-2097-ARM64-PREVIEW.apk
             adb shell am start -W -n app.tarteel.tarteel/.MainActivity > signed-evidence/clean-launch.txt
